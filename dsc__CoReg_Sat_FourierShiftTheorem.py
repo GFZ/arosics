@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 __author__ = "Daniel Scheffler"
-__version__= "2016-03-30_01"
+__version__= "2016-04-11_01"
 
 
 import numpy as np
@@ -11,11 +11,10 @@ import time
 import re
 import subprocess
 import warnings
+import math
 from matplotlib import pyplot as plt
 import tempfile
 from mpl_toolkits.mplot3d import Axes3D
-
-
 
 try:
     import pyfftw
@@ -68,27 +67,32 @@ class COREG(object):
         self.align_grids              = align_grids
         self.match_gsd                = match_gsd
         self.out_gsd                  = out_gsd
-        if match_gsd and out_gsd is not None: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
-        if out_gsd is not None:
-            assert isinstance(out_gsd,list) and len(out_gsd)==2, 'out_gsd must be a list with two values.'
+        if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
+        if out_gsd:  assert isinstance(out_gsd,list) and len(out_gsd)==2, 'out_gsd must be a list with two values.'
         self.corner_coord_imref       = data_corners_im0
         self.corner_coord_im2shift    = data_corners_im1
         if data_corners_im0 and not isinstance(data_corners_im0[0],list): # group if not [[x,y],[x,y]..] but [x,y,x,y,]
-            self.corner_coord_imref = [data_corners_im0[i:i+2] for i in range(0, len(data_corners_im0), 2)]
+            self.corner_coord_imref   = [data_corners_im0[i:i+2] for i in range(0, len(data_corners_im0), 2)]
         if data_corners_im1 and not isinstance(data_corners_im1[0],list): # group if not [[x,y],[x,y]..]
-            self.corner_coord_im2shift = [data_corners_im1[i:i+2] for i in range(0, len(data_corners_im1), 2)]
-        self.nodata                   = nodata if nodata is not None else [None,None]
+            self.corner_coord_im2shift= [data_corners_im1[i:i+2] for i in range(0, len(data_corners_im1), 2)]
         if self.v and not os.path.isdir(self.verbose_out): os.makedirs(self.verbose_out)
 
-        self.ds_imref                 = gdal.Open(self.path_imref,0) # 0 = GA_ReadOnly
-        assert self.ds_imref is not None, 'Reference image can not be read by GDAL. You can try another image format.'
+        if nodata: assert isinstance(nodata,list) and len(nodata)==2, 'nodata must be a list with two values.'
+        self.ref_nodata, self.shift_nodata = \
+            nodata if nodata else [find_noDataVal(self.path_imref),find_noDataVal(self.path_im2shift)]
+
+        gdal.AllRegister()
+
+        self.ds_imref                 = gdal.Open(self.path_imref,0)    # 0 = GA_ReadOnly
         self.ds_im2shift              = gdal.Open(self.path_im2shift,0) # 0 = GA_ReadOnly
-        assert self.ds_im2shift is not None, \
-            'The image to be shifted can not be read by GDAL. You can try another image format.'
+        assert self.ds_imref,    'Reference image can not be read by GDAL. You can try another image format.'
+        assert self.ds_im2shift, 'The image to be shifted can not be read by GDAL. You can try another image format.'
         self.ref_prj, self.shift_prj  = self.ds_imref.GetProjection(),   self.ds_im2shift.GetProjection()
         self.ref_gt , self.shift_gt   = self.ds_imref.GetGeoTransform(), self.ds_im2shift.GetGeoTransform()
         self.ref_xgsd,self.shift_xgsd = abs(self.ref_gt[1]), abs(self.shift_gt[1])
         self.ref_ygsd,self.shift_ygsd = abs(self.ref_gt[5]), abs(self.shift_gt[5])
+        self.ref_rows,self.shift_rows = self.ds_imref.RasterYSize, self.ds_im2shift.RasterYSize
+        self.ref_cols,self.shift_cols = self.ds_imref.RasterXSize, self.ds_im2shift.RasterXSize
         assert self.ref_prj                         is not '',   'Reference image has no projection.'
         assert re.search('LOCAL_CS',self.ref_prj)   is None,     'Reference image is not georeferenced.'
         assert self.ref_gt                          is not None, 'Reference image has no map information.'
@@ -98,7 +102,6 @@ class COREG(object):
         assert get_proj4info(self.ds_imref) == get_proj4info(self.ds_im2shift),\
             'Input projections are not equal. Different projections are currently not supported.'
 
-
         self.imref_band4match        = r_b4match
         self.im2shift_band4match     = s_b4match
         ref_bands, shift_bands = self.ds_imref.RasterCount, self.ds_im2shift.RasterCount
@@ -107,39 +110,58 @@ class COREG(object):
         assert shift_bands >= self.im2shift_band4match >= 1, 'The image to be shifted '\
                 "has %s %s. So '-sb' must be %s%s." % (shift_bands,'bands' if shift_bands>1 else 'band',
                 'between 1 and ' if shift_bands>1 else '', shift_bands)
+
         if calc_corners:
             if self.corner_coord_imref is None:
                 if not self.q: print('Calculating actual data corner coordinates for reference image...')
-                self.corner_coord_imref    = get_true_corner_lonlat(self.ds_imref,r_b4match,self.nodata[0])
+                self.corner_coord_imref    = get_true_corner_lonlat(self.ds_imref,r_b4match,self.ref_nodata)
                 if not self.q: print(self.corner_coord_imref)
             if self.corner_coord_im2shift is None:
                 if not self.q: print('Calculating actual data corner coordinates for image to be shifted...')
-                self.corner_coord_im2shift = get_true_corner_lonlat(self.ds_im2shift,s_b4match,self.nodata[1])
+                self.corner_coord_im2shift = get_true_corner_lonlat(self.ds_im2shift,s_b4match,self.shift_nodata)
                 if not self.q: print(self.corner_coord_im2shift)
         else:
             self.corner_coord_imref    = get_corner_coordinates(self.ds_imref)
             self.corner_coord_im2shift = get_corner_coordinates(self.ds_im2shift)
-        if self.v: print('Corner coordinates of reference image: %s' %self.corner_coord_imref)
+        if self.v: print('Corner coordinates of reference image: %s'     %self.corner_coord_imref)
         if self.v: print('Corner coordinates of image to be shifted: %s' %self.corner_coord_im2shift)
+
         self.poly_imref              = get_footprint_polygon(self.corner_coord_imref)
         self.poly_im2shift           = get_footprint_polygon(self.corner_coord_im2shift)
-
         overlap_tmp                  = get_overlap_polygon(self.poly_imref , self.poly_im2shift, self.v)
         self.overlap_poly            = overlap_tmp['overlap poly'] # has to be the reference projection
-        assert self.overlap_poly is not None, 'The input images have no spatial overlap.'
+
+        for r_XY,s_XY in zip(self.corner_coord_imref,self.corner_coord_im2shift):
+            assert self.poly_imref.contains(Point(r_XY))    or self.poly_imref.touches(Point(r_XY)),\
+                "The corner position '%s' is outside of the reference image." %r_XY
+            assert self.poly_im2shift.contains(Point(s_XY)) or self.poly_im2shift.touches(Point(s_XY)), \
+                "The corner position '%s' is outside of the image to be shifted." %s_XY
+        assert self.overlap_poly, 'The input images have no spatial overlap.'
         self.overlap_percentage      = overlap_tmp['overlap percentage']
         self.overlap_area            = overlap_tmp['overlap area']
-
-        if self.v: write_shp(self.poly_imref,   os.path.join(self.verbose_out,'poly_imref.shp'), self.ref_prj)
+        if self.v: write_shp(self.poly_imref,   os.path.join(self.verbose_out,'poly_imref.shp'),    self.ref_prj)
         if self.v: write_shp(self.poly_im2shift,os.path.join(self.verbose_out,'poly_im2shift.shp'), self.shift_prj)
-        if self.v: write_shp(self.overlap_poly, os.path.join(self.verbose_out,'overlap_poly.shp'), self.ref_prj)
+        if self.v: write_shp(self.overlap_poly, os.path.join(self.verbose_out,'overlap_poly.shp'),  self.ref_prj)
 
-        self.win_pos, self.win_size  = self.get_opt_winpos_winsize(wp,ws)
+        self.win_pos, opt_win_size = self.get_opt_winpos_winsize(wp,ws)
+        if not self.q: print('Matching window position (X,Y): %s/%s' %(self.win_pos[1],self.win_pos[0]))
+
         ### FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection()) # später basteln für den fall, dass projektionen nicht gleich sind
 
-        self.x_shift_px              = None
-        self.y_shift_px              = None
-        self.success                 = None
+        # get_clip_window_properties
+        self.ref_box_YX,self.shift_box_YX,self.box_mapYX,self.poly_matchWin,self.poly_matchWin_prj,self.imfft_gsd \
+            = self.get_clip_window_properties(opt_win_size)
+        self.ref_win_size   = abs(self.ref_box_YX[1][1]  -self.ref_box_YX[0][1])
+        self.shift_win_size = abs(self.shift_box_YX[0][0]-self.shift_box_YX[2][0])
+        if self.v:
+            write_shp(self.poly_matchWin,os.path.join(self.verbose_out,'poly_matchWin.shp'),self.poly_matchWin_prj)
+
+        self.imref_matchWin    = None # set by get_image_windows_to_match
+        self.im2shift_matchWin = None # set by get_image_windows_to_match
+
+        self.x_shift_px        = None
+        self.y_shift_px        = None
+        self.success           = None
 
         self.ds_imref = self.ds_im2shift = None # close GDAL datasets
 
@@ -157,44 +179,601 @@ class COREG(object):
                 'outside of the overlap area of the two input images. Check the coordinates.'
             win_pos = list(reversed(wp))
 
-        ws = ws if ws else 512
+        gained_win_size = int(ws) if ws else 512
+        # ref_ws      = int(ws) if ws else 512 # FIXME klappt nicht, wenn Referenz die höhere Auflösung hat und auf shift downgesamplet wird -> dann soll ja die target-fenstergröße die vorgegebene window size haben
+        # gsd_factor  = self.ref_xgsd/self.shift_xgsd
+        # #print(gsd_factor)
+        # #assert gsd_factor%int(gsd_factor)==0, 'The pixel resolution of the input images must be divisible.' # TODO
+        # shift_ws    = ref_ws*gsd_factor
+        # wp_imref    = (win_pos[0]-self.ref_gt[3])/self.ref_gt[5],     (win_pos[1]-self.ref_gt[0])/self.ref_gt[1]
+        # wp_im2shift = (win_pos[0]-self.shift_gt[3])/self.shift_gt[5], (win_pos[1]-self.shift_gt[0])/self.shift_gt[1]
+        # max_ref_win_sz   = int(min([*wp_imref,   self.ref_cols-wp_imref[1],      self.ref_rows-wp_imref[0]])      *2)-4
+        # print(max_ref_win_sz)
+        # max_shift_win_sz = int(min([*wp_im2shift,self.shift_cols-wp_im2shift[1], self.shift_rows-wp_im2shift[0]]) *2)-4
+        # if gsd_factor>=1: # shift image has higher or equal resolution -> greater or equal window size
+        #     if shift_ws>max_shift_win_sz:
+        #         if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
+        #                      'is too close to the image border of one of the input images.' %max_shift_win_sz)
+        #         shift_win_size_tmp = max_shift_win_sz
+        #         ref_win_size       = int(shift_win_size_tmp/gsd_factor)
+        #         shift_win_size     = ref_win_size*gsd_factor
+        #     else:
+        #         ref_win_size, shift_win_size = ref_ws,shift_ws
+        # else: # ref image has higher or equal resolution -> greater or equal window size
+        #     if ref_ws>max_ref_win_sz:
+        #         print('c1')
+        #         if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
+        #                      'is too close to the image border of one of the input images.' %max_ref_win_sz)
+        #         ref_win_size_tmp = max_ref_win_sz
+        #         shift_win_size   = int(ref_win_size_tmp*gsd_factor)
+        #         ref_win_size     = shift_win_size/gsd_factor
+        #     else:
+        #         print('c2', max_ref_win_sz)
+        #         ref_win_size, shift_win_size = ref_ws,int(shift_ws)
+        # assert ref_win_size>0 and shift_win_size>0
+        # assert shift_win_size%int(shift_win_size)==0, 'shift_win_size: %s' %shift_win_size # assert flat values
+        # print(win_pos, int(ref_win_size), int(shift_win_size))
+        return win_pos, gained_win_size
+
+    def get_opt_winpos_winsizeOOOOLD(self,wp,ws):
+        """according to DGM, cloud_mask, trueCornerLonLat"""
+        # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
+        # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
+        if wp is None:
+            overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
+            win_pos = [overlap_center_pos_y[0], overlap_center_pos_x[0]]
+        else:
+            assert isinstance(wp,list), 'The window position must be a list of two elements. Got %s.' %wp
+            assert len(wp)==2,          'The window position must be a list of two elements. Got %s.' %wp
+            assert self.overlap_poly.contains(Point(wp)), 'The provided window position is ' \
+                'outside of the overlap area of the two input images. Check the coordinates.'
+            win_pos = list(reversed(wp))
+
+
+        ref_ws      = int(ws) if ws else 512 # FIXME klappt nicht, wenn Referenz die höhere Auflösung hat und auf shift downgesamplet wird -> dann soll ja die target-fenstergröße die vorgegebene window size haben
+        gsd_factor  = self.ref_xgsd/self.shift_xgsd
+        #print(gsd_factor)
+        #assert gsd_factor%int(gsd_factor)==0, 'The pixel resolution of the input images must be divisible.' # TODO
+        shift_ws    = ref_ws*gsd_factor
         wp_imref    = (win_pos[0]-self.ref_gt[3])/self.ref_gt[5],     (win_pos[1]-self.ref_gt[0])/self.ref_gt[1]
         wp_im2shift = (win_pos[0]-self.shift_gt[3])/self.shift_gt[5], (win_pos[1]-self.shift_gt[0])/self.shift_gt[1]
-        max_win_sz  = int(min([*wp_imref, self.ds_imref.RasterXSize-wp_imref[1], self.ds_imref.RasterYSize-wp_imref[0],
-            *wp_im2shift,self.ds_im2shift.RasterXSize-wp_im2shift[1], self.ds_im2shift.RasterYSize-wp_im2shift[0]]) *2)
-        if ws>max_win_sz:
-            if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position is '
-                                         'too close to the image border of one of the input images.' %max_win_sz)
-            win_size = max_win_sz
+        max_ref_win_sz   = int(min([*wp_imref,   self.ref_cols-wp_imref[1],      self.ref_rows-wp_imref[0]])      *2)-4
+        print(max_ref_win_sz)
+        max_shift_win_sz = int(min([*wp_im2shift,self.shift_cols-wp_im2shift[1], self.shift_rows-wp_im2shift[0]]) *2)-4
+        if gsd_factor>=1: # shift image has higher or equal resolution -> greater or equal window size
+            if shift_ws>max_shift_win_sz:
+                if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
+                             'is too close to the image border of one of the input images.' %max_shift_win_sz)
+                shift_win_size_tmp = max_shift_win_sz
+                ref_win_size       = int(shift_win_size_tmp/gsd_factor)
+                shift_win_size     = ref_win_size*gsd_factor
+            else:
+                ref_win_size, shift_win_size = ref_ws,shift_ws
+        else: # ref image has higher or equal resolution -> greater or equal window size
+            if ref_ws>max_ref_win_sz:
+                print('c1')
+                if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
+                             'is too close to the image border of one of the input images.' %max_ref_win_sz)
+                ref_win_size_tmp = max_ref_win_sz
+                shift_win_size   = int(ref_win_size_tmp*gsd_factor)
+                ref_win_size     = shift_win_size/gsd_factor
+            else:
+                print('c2', max_ref_win_sz)
+                ref_win_size, shift_win_size = ref_ws,int(shift_ws)
+        assert ref_win_size>0 and shift_win_size>0
+        assert shift_win_size%int(shift_win_size)==0, 'shift_win_size: %s' %shift_win_size # assert flat values
+        print(win_pos, int(ref_win_size), int(shift_win_size))
+        return win_pos, int(ref_win_size), int(shift_win_size)
+
+    def get_clip_window_propertiesOLD(self):
+        # win_pos in imref-bildkoordinaten umrechnen
+        mapY,mapX,refULy,refULx = self.win_pos[0],self.win_pos[1],self.ref_gt[3],self.ref_gt[0]
+        winPos_in_imref = {'row':(mapY-refULy)/-self.ref_ygsd,'col':(mapX-refULx)/self.ref_xgsd} #mapX = refULx+ref_xgsd*cols
+        winPos_in_imref['row'] = int(winPos_in_imref['row']) # int(), um clip-grenze auf pixelgrenzen der referenz zu schieben
+        winPos_in_imref['col'] = int(winPos_in_imref['col'])
+        imref_max_poss_sz    = min([self.ref_cols,  self.ref_rows])
+        im2shift_max_poss_sz = min([self.shift_cols,self.shift_rows])
+
+        if self.ref_xgsd >= self.shift_xgsd:
+            """falls referenz die niedrigere auflösung hat:
+            im2shift auf imref downsamplen"""
+            imfft_gsd_mapvalues = self.ref_xgsd # fft-Bild bekommt Auflösung des ref-Bilds
+            clip_sz = self.ref_win_size
+
         else:
-            win_size = ws
-        return win_pos, win_size
+            """falls referenz die höhere auflösung hat"""
+            """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
+
+            imfft_gsd_mapvalues  = self.shift_xgsd # fft-Bild bekommt Auflösung des warp-Bilds
+            self.win_size        = self.win_size if not self.win_size > im2shift_max_poss_sz else im2shift_max_poss_sz #FIXME
+            # clip muss größer sein als Ziel-fft_bild, weil clip erst ausgeschnitten und dann gedreht wird
+            clip_sz              = int(1.5 * self.win_size * self.shift_xgsd/self.ref_xgsd) # clip-size in referenz (1.5 wegen evtl. verdrehung bei unterschiedlichen projektionen)
+            clip_sz = clip_sz if not clip_sz > imref_max_poss_sz else self.win_size * self.shift_xgsd/self.ref_xgsd
+            if clip_sz > imref_max_poss_sz:
+                print('WARNING: The given target window size equals %s px in the image to be shifted which exceeds '
+                      'its extent. Thus it has been reduced to the maximum possible size.' %clip_sz)
+                clip_sz = imref_max_poss_sz
+
+        # um winPosDict_imref eine box erstellen und imref per subset-read einlesen -> im0
+        ref_box_YX = [[winPos_in_imref['row']-clip_sz//2, winPos_in_imref['col']-clip_sz//2],
+                      [winPos_in_imref['row']+clip_sz//2, winPos_in_imref['col']+clip_sz//2]] # [UL,LR]
+
+        # map-koordinaten der clip-box von imref ausrechnen
+        ref_box_XY = [[int(i[1]), int(i[0])] for i in ref_box_YX] # swap X and Y values
+        box_mapYX    = pixelToMapYX(ref_box_XY, geotransform=self.ref_gt, projection=self.ref_prj) # [[4455560.0, 299060.0], [4450440.0, 293940.0]] [[HW,RW],[HW,RW]]
+
+        # shift_box Koordinaten berechnen
+        mapYX2imYX       = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5], (mapYX[1]-gt[0])/gt[1])
+        shift_box_YX_flt = [mapYX2imYX(YX,self.shift_gt) for YX in box_mapYX]
+        shift_box_YX     = [[int(i[0]),int(i[1])] for i in shift_box_YX_flt]
+
+        return ref_box_YX, shift_box_YX, box_mapYX, imfft_gsd_mapvalues
+
+    def get_clip_window_properties(self,dst_ws):
+        # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
+        refYX, shiftYX = mapYX2imYX(self.win_pos,self.ref_gt),  mapYX2imYX(self.win_pos,self.shift_gt)
+
+        # maximale Fenster-Größen in imref und im2shift ausrechnen
+        max_ref_clipWS   = 2*int(min([*refYX,  self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  -4)
+        max_shift_clipWS = 2*int(min([*shiftYX,self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]])-4)
+
+        gsdFact = max([self.ref_xgsd,self.shift_xgsd])/min([self.ref_xgsd,self.shift_xgsd]) # immer positiv
+
+        def get_winPoly(wp_imYX,ws,gt,match_grid=0):
+            xmin,xmax,ymin,ymax = (wp_imYX[1]-ws/2, wp_imYX[1]+ws/2, wp_imYX[0]+ws/2, wp_imYX[0]-ws/2)
+            if match_grid:  xmin,xmax,ymin,ymax = [int(i) for i in [xmin,xmax,ymin,ymax]]
+            box_YX      = (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL,UR,LR,LL
+            UL,UR,LR,LL = [imYX2mapYX(imYX,gt) for imYX in box_YX]
+            box_mapYX   = UL,UR,LR,LL
+            return Polygon([UL,UR,LR,LL]), box_mapYX, box_YX
+
+        # Fenster-Größen in imref und im2shift anhand Ziel-Größe und maximal möglicher Größe setzen
+        if self.shift_xgsd <= self.ref_xgsd:
+            """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung"""
+            imfft_gsd_mapvalues = self.ref_xgsd
+            ref_clipWS_tmp   = dst_ws if dst_ws <= max_ref_clipWS   else max_ref_clipWS
+            shift_clipWS_tmp = dst_ws *gsdFact if dst_ws*gsdFact <= max_shift_clipWS else max_shift_clipWS
+            ref_winPoly,  ref_box_mapYX,  ref_box_YX   = get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt, match_grid=1)
+            shift_winPoly,shift_box_mapYX,shift_box_YX = get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt)
+
+            if ref_winPoly.within(shift_winPoly):
+                # wenn Ref Fenster innerhalb des Shift-Fensters:
+                # dann direkt übernehmen und shift_box_XY an ref_box_mapYX anpassen
+                ref_box_YX, box_mapYX = ref_box_YX, ref_box_mapYX
+                #shift_box_YX = [mapYX2imYX(YX,self.shift_gt) for YX in box_mapYX]
+                shift_box_YX = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.shift_box_YX)
+            else: # wenn Ref Fenster zu groß für Shift-Bild: dann Fenster vom Shift-Bild als Ref-Fenster verwenden
+                ref_box_YX_flt = [mapYX2imYX(YX,self.ref_gt) for YX in shift_box_mapYX]
+                ref_box_YX   = [[int(YX[0]),int(YX[1])] for YX in ref_box_YX_flt]
+                box_mapYX    = [imYX2mapYX(YX,self.ref_gt) for YX in ref_box_YX]
+                shift_box_YX = shift_box_YX
+                shift_box_YX = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.shift_gt)
+        else:
+            """Matching-Fall 2: Ref-Auflösung > Shift-Auflösung"""
+            imfft_gsd_mapvalues = self.shift_xgsd # fft-Bild bekommt Auflösung des warp-Bilds
+            ref_clipWS_tmp   = dst_ws*gsdFact if dst_ws*gsdFact <= max_ref_clipWS   else max_ref_clipWS
+            shift_clipWS_tmp = dst_ws         if dst_ws         <= max_shift_clipWS else max_shift_clipWS
+            ref_winPoly,  ref_box_mapYX,  ref_box_YX   = get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt )
+            shift_winPoly,shift_box_mapYX,shift_box_YX = get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt,match_grid=1)
+
+            if shift_winPoly.within(ref_winPoly):
+                # wenn Shift Fenster innerhalb des Ref-Fensters:
+                # dann direkt übernehmen und ref_box_XY an shift_box_mapYX anpassen
+                shift_box_YX, box_mapYX = shift_box_YX, shift_box_mapYX
+                #ref_box_YX              = [mapYX2imYX(YX,self.ref_gt) for YX in box_mapYX]
+                ref_box_YX              = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.ref_gt)
+            else: # wenn Shift Fenster zu groß für Ref-Bild: dann Fenster vom Ref-Bild als Shift-Fenster verwenden
+                shift_box_YX_flt = [mapYX2imYX(YX,self.shift_gt) for YX in ref_box_mapYX] # bildkoordinaten von mapYX
+                shift_box_YX     = [[int(YX[0]),int(YX[1])] for YX in shift_box_YX_flt]   # auf grid schieben
+                box_mapYX        = [imYX2mapYX(YX,self.shift_gt) for YX in shift_box_YX]  # mapYX aus shift-Bildkoord.
+                ref_box_YX       = ref_box_YX
+                ref_box_YX       = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.ref_gt)
+
+        def get_box_mapBounds(wp_imYX,ws,gt):
+            # xmin,xmax,ymin,ymax
+            xS,xE,yS,yE = (wp_imYX[1]-ws/2, wp_imYX[1]+ws/2, wp_imYX[0]-ws/2, wp_imYX[0]+ws/2)
+            UL,UR,LR,LL = [imYX2mapYX(imYX,gt) for imYX in [(yE,xS),(yE,xE),(yS,xE),(yS,xS)]]
+            xmin,xmax,ymin,ymax = [UL[1],UR[1],LR[0],LR[1]]
+            return xmin,xmax,ymin,ymax
+
+        ## Test, ob zusätzlicher Buffer der Fenstergröße zum Umprojizieren gebraucht wird
+        #buffFact = 1.0 if get_proj4info(self.ref_prj)==get_proj4info(self.shift_prj) else 1.5
+
+        poly_matchWin     = get_footprint_polygon([(YX[1],YX[0]) for YX in box_mapYX])
+        poly_matchWin_prj = self.ref_prj if self.shift_xgsd <= self.ref_xgsd else self.shift_prj
+
+        ref_box_YX   = [[int(i[0]),int(i[1])] for i in ref_box_YX]
+        shift_box_YX = [[int(i[0]),int(i[1])] for i in shift_box_YX]
+
+        return ref_box_YX, shift_box_YX, box_mapYX, poly_matchWin, poly_matchWin_prj, imfft_gsd_mapvalues
+
+    def get_image_windows_to_match(self):
+        if self.v: print('resolutions: ', self.ref_xgsd, self.shift_xgsd)
+
+        box_mapXvals = [i[1] for i in self.box_mapYX] # UTM-RW
+        box_mapYvals = [i[0] for i in self.box_mapYX] # UTM-HW
+
+        if self.shift_xgsd <= self.ref_xgsd: # Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung
+            """falls referenz die niedrigere auflösung hat oder auflösungen gleich sind:
+            im2shift auf imref downsamplen"""
+            # 1. Eckkoordinaten Warp-Bild -> per Subset-Read referenz-Bild mit vorgegebener Fenstergröße (wie in späterer fft, um Rechenzeit zu sparen) einlesen -> zwischenspeichern in dev/shm/
+            # 2. warp-Bild (bzw. subset je nach fft-fenstergröße) downsamplen auf Auflösung des referenz-bildes per pixel-aggregate -> dev/shm/    ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
+            # 3. referenz und warp-bild exakt in der fft-fenstergröße einlesen
+
+            # imref per subset-read einlesen -> im0
+            gdalReadInputs  = get_gdalReadInputs_from_boxImYX(self.ref_box_YX)
+            ds_imref        = gdal.Open(self.path_imref)
+            imref_clip_data = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(*gdalReadInputs)
+            ds_imref        = None
+
+            # im2shift per subset-read einlesen
+            gdalReadInputs  = get_gdalReadInputs_from_boxImYX(self.shift_box_YX)
+            ds_im2shift             = gdal.Open(self.path_im2shift)
+            im2shift_clip_data_orig = ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(*gdalReadInputs)
+            ds_im2shift             = None
+
+            #subplot_imshow([imref_clip_data,im2shift_clip_data_orig],grid=True)
+            im2shift_clip_gt = get_subset_GeoTransform(self.shift_gt,self.shift_box_YX)
+            rsp_algor = 5 # average
+            if gdal.VersionInfo().startswith('1'):
+                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
+                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
+                              "please update GDAL to a version above 2.0.0!")
+                rsp_algor = 2 # cubic
+
+            im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
+                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.shift_nodata) [0]
+        else:
+            """falls referenz die höhere auflösung hat"""
+            """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
+            # 1. Eckkoordinaten des Clip-Windows für imref berechnen (anhand optimaler fft-Fenstergröße und Zentrumspunkt der Bildüberlappung)
+            # 2. imref ausschneiden und per pixel-aggregate auf auflösung von im2shift downsamplen -> dev/shm/ -> einlesen als array ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
+            # 3. warp-bild anhand des Clip-Windows des Referenz-bildes ausschneiden und auflösung unverändert lassen
+
+
+            # 1. shift-window ausclippen
+            # 2. ref-window per gdalwarp anhand clip-koordinaten von shift ausschneiden, ggf. umprojizieren und downsamplen
+
+            # im2shift per subset-read einlesen -> im0
+            gdalReadInputs     = get_gdalReadInputs_from_boxImYX(self.shift_box_YX)
+            ds_im2shift        = gdal.Open(self.path_im2shift)
+            im2shift_clip_data = ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(*gdalReadInputs)
+            ds_im2shift        = None
+
+            # imref per subset-read einlesen
+            gdalReadInputs       = get_gdalReadInputs_from_boxImYX(self.ref_box_YX)
+            ds_imref             = gdal.Open(self.path_imref)
+            imref_clip_data_orig = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(*gdalReadInputs)
+            ds_imref             = None
+
+            #subplot_imshow([imref_clip_data_orig, im2shift_clip_data],grid=True)
+            imref_clip_gt = get_subset_GeoTransform(self.ref_gt,self.ref_box_YX)
+            #print(get_corner_coordinates(gt=imref_clip_gt,rows=clip_sz,cols=clip_sz))
+            rsp_algor = 5 # average
+            if gdal.VersionInfo().startswith('1'):
+                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
+                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
+                              "please update GDAL to a version above 2.0.0!")
+                rsp_algor = 2 # cubic
+
+            imref_clip_data = warp_ndarray(imref_clip_data_orig,imref_clip_gt,self.ref_prj,self.shift_prj,
+                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.ref_nodata) [0]
+            #subplot_imshow([imref_clip_data,im2shift_clip_data],grid=True)
+
+            # #########################################################################################################
+            # # imref per subset-read einlesen -> im0_orig
+            # rS, cS  = self.ref_box_YX[0] # UL
+            # clip_sz = abs(self.ref_box_YX[1][0]-self.ref_box_YX[0][0])
+            #
+            # ds_imref             = gdal.Open(self.path_imref)
+            # imref_clip_data_orig = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
+            # ds_imref             = None
+            #
+            # # imref mit imref_box ausclippen und per pixel aggregate auf auflösung von im2shift downsamplen
+            # imref_clip_gt = list(self.ref_gt[:])
+            # imref_clip_gt[3],imref_clip_gt[0] = \
+            #     pixelToMapYX([int(cS),int(rS)],geotransform=self.ref_gt,projection=self.ref_prj)[0]
+            # rsp_algor = 5 # average
+            # if gdal.VersionInfo().startswith('1'):
+            #     warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
+            #                   "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
+            #                   "please update GDAL to a version above 2.0.0!")
+            #     rsp_algor = 2 # cubic
+            # imref_clip_data = warp_ndarray(imref_clip_data_orig,imref_clip_gt,self.ref_prj,self.ref_prj,
+            #     out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+            #     max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.ref_nodata) [0]
+            #     # target extent srs is not neccessary because -t_srs = imref_proj and output extent is derived from imref
+            #
+            # # im2shift per subset-read einlesen
+            # rS, cS  = self.shift_box_YX[0] # UL
+            # rS, cS  = rS-1, cS-1 # Input-Bild muss etwas größer sein als out_extent
+            # clip_sz = abs(self.shift_box_YX[1][0]-self.shift_box_YX[0][0])+2
+            # ds_im2shift             = gdal.Open(self.path_im2shift)
+            # im2shift_clip_data_orig = \
+            #     ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
+            # ds_im2shift             = None
+            #
+            # # im2shift mit imref_box_map ausclippen (cubic, da pixelgrenzen verschoben werden müssen aber auflösung
+            # # gleich bleibt)
+            # im2shift_clip_gt = list(self.shift_gt[:])
+            # im2shift_clip_gt[3],im2shift_clip_gt[0] = \
+            #     pixelToMapYX([int(cS),int(rS)],geotransform=self.shift_gt,projection=self.shift_prj)[0]
+            # im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
+            #     out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+            #     max(box_mapXvals),max(box_mapYvals)]), rsp_alg=2, in_nodata=self.shift_nodata) [0]
+
+        self.imref_matchWin    = imref_clip_data
+        self.im2shift_matchWin = im2shift_clip_data
+        return imref_clip_data, im2shift_clip_data
+
+    def get_image_windows_to_matchOLD(self):
+        if self.v: print('resolutions: ', self.ref_xgsd, self.shift_xgsd)
+
+        box_mapXvals = [i[1] for i in self.box_mapYX] # UTM-RW
+        box_mapYvals = [i[0] for i in self.box_mapYX] # UTM-HW
+
+        if self.ref_xgsd >= self.shift_xgsd:
+            """falls referenz die niedrigere auflösung hat oder auflösungen gleich sind:
+            im2shift auf imref downsamplen"""
+            # 1. Eckkoordinaten Warp-Bild -> per Subset-Read referenz-Bild mit vorgegebener Fenstergröße (wie in späterer fft, um Rechenzeit zu sparen) einlesen -> zwischenspeichern in dev/shm/
+            # 2. warp-Bild (bzw. subset je nach fft-fenstergröße) downsamplen auf Auflösung des referenz-bildes per pixel-aggregate -> dev/shm/    ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
+            # 3. referenz und warp-bild exakt in der fft-fenstergröße einlesen
+
+            # imref per subset-read einlesen -> im0
+            rS, cS  = self.ref_box_YX[0] # UL
+            clip_sz = abs(self.ref_box_YX[1][0]-self.ref_box_YX[0][0])
+
+            ds_imref        = gdal.Open(self.path_imref)
+            print(self.path_imref)
+            print(rS,cS)
+            print(clip_sz)
+            imref_clip_data = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
+            ds_imref        = None
+
+            # im2shift per subset-read einlesen
+            rS, cS  = self.shift_box_YX[0] # UL
+            rS, cS  = rS-1, cS-1 # Input-Bild muss etwas größer sein als out_extent
+            clip_sz = abs(self.shift_box_YX[1][0]-self.shift_box_YX[0][0])+2
+            ds_im2shift             = gdal.Open(self.path_im2shift)
+            im2shift_clip_data_orig = \
+                ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
+            ds_im2shift             = None
+
+            #subplot_imshow([imref_clip_data,im2shift_clip_data_orig],grid=True)
+            im2shift_clip_gt = list(self.shift_gt[:])
+            im2shift_clip_gt[3],im2shift_clip_gt[0] = \
+                pixelToMapYX([int(cS),int(rS)],geotransform=self.shift_gt,projection=self.shift_prj)[0]
+
+            rsp_algor = 5 # average
+            if gdal.VersionInfo().startswith('1'):
+                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
+                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
+                              "please update GDAL to a version above 2.0.0!")
+                rsp_algor = 2 # cubic
+            im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
+                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.shift_nodata) [0]
+
+        else:
+            """falls referenz die höhere auflösung hat"""
+            """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
+            # 1. Eckkoordinaten des Clip-Windows für imref berechnen (anhand optimaler fft-Fenstergröße und Zentrumspunkt der Bildüberlappung)
+            # 2. imref ausschneiden und per pixel-aggregate auf auflösung von im2shift downsamplen -> dev/shm/ -> einlesen als array ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
+            # 3. warp-bild anhand des Clip-Windows des Referenz-bildes ausschneiden und auflösung unverändert lassen
+
+            # imref per subset-read einlesen -> im0_orig
+            rS, cS  = self.ref_box_YX[0] # UL
+            clip_sz = abs(self.ref_box_YX[1][0]-self.ref_box_YX[0][0])
+
+            ds_imref             = gdal.Open(self.path_imref)
+            imref_clip_data_orig = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
+            ds_imref             = None
+
+            # imref mit imref_box ausclippen und per pixel aggregate auf auflösung von im2shift downsamplen
+            imref_clip_gt = list(self.ref_gt[:])
+            imref_clip_gt[3],imref_clip_gt[0] = \
+                pixelToMapYX([int(cS),int(rS)],geotransform=self.ref_gt,projection=self.ref_prj)[0]
+            rsp_algor = 5 # average
+            if gdal.VersionInfo().startswith('1'):
+                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
+                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
+                              "please update GDAL to a version above 2.0.0!")
+                rsp_algor = 2 # cubic
+            imref_clip_data = warp_ndarray(imref_clip_data_orig,imref_clip_gt,self.ref_prj,self.ref_prj,
+                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.ref_nodata) [0]
+                # target extent srs is not neccessary because -t_srs = imref_proj and output extent is derived from imref
+
+            # im2shift per subset-read einlesen
+            rS, cS  = self.shift_box_YX[0] # UL
+            rS, cS  = rS-1, cS-1 # Input-Bild muss etwas größer sein als out_extent
+            clip_sz = abs(self.shift_box_YX[1][0]-self.shift_box_YX[0][0])+2
+            ds_im2shift             = gdal.Open(self.path_im2shift)
+            im2shift_clip_data_orig = \
+                ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
+            ds_im2shift             = None
+
+            # im2shift mit imref_box_map ausclippen (cubic, da pixelgrenzen verschoben werden müssen aber auflösung
+            # gleich bleibt)
+            im2shift_clip_gt = list(self.shift_gt[:])
+            im2shift_clip_gt[3],im2shift_clip_gt[0] = \
+                pixelToMapYX([int(cS),int(rS)],geotransform=self.shift_gt,projection=self.shift_prj)[0]
+            im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
+                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
+                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=2, in_nodata=self.shift_nodata) [0]
+
+        return imref_clip_data, im2shift_clip_data
+
+    @staticmethod
+    def get_opt_fftw_winsize(im_shape, target_size=None,v=0,ignErr=0):
+        binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+        possibSizes = [i for i in binarySizes if i <= min(im_shape)]
+        if not possibSizes:
+            if not ignErr:  raise RuntimeError('The matching window became too small for calculating a reliable match. '
+                                               'Matching failed.')
+            else:           return None
+        target_size = max(possibSizes) if target_size is None else target_size
+        closest_to_target = min(possibSizes, key=lambda x:abs(x-target_size))
+        if v: print('final window size: %s' %closest_to_target)
+        return closest_to_target
+
+    def calc_shifted_cross_power_spectrum(self,im0,im1,window_size=1024,precision=np.complex64, v=0, ignErr=0):
+        """Calculates shifted cross power spectrum for quantifying x/y-shifts.
+            :param im0:         reference image
+            :param im1:         subject image to shift
+            :param window_size: size of image area to be processed
+            :param precision:   to be quantified as a datatype
+            :param v:           verbose
+            :return:            2D-numpy-array of the shifted cross power spectrum
+        """
+        window_size = self.get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr)
+
+        if window_size:
+            t0 = time.time()
+            in_arr0  = im0[:window_size,:window_size].astype(precision)
+            in_arr1  = im1[:window_size,:window_size].astype(precision)
+            if 'pyfft' in globals():
+                fft_arr0 = pyfftw.FFTW(in_arr0,np.empty_like(in_arr0), axes=(0,1))()
+                fft_arr1 = pyfftw.FFTW(in_arr1,np.empty_like(in_arr1), axes=(0,1))()
+            else:
+                fft_arr0 = np.fft.fft2(in_arr0)
+                fft_arr1 = np.fft.fft2(in_arr1)
+            if v: print('forward FFTW: %.2fs' %(time.time() -t0))
+
+            eps = np.abs(fft_arr1).max() * 1e-15
+            # cps == cross-power spectrum of im0 and im2
+
+            temp = (fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
+
+            t0 = time.time()
+            if 'pyfft' in globals():
+                ifft_arr = pyfftw.FFTW(temp,np.empty_like(temp), axes=(0,1),direction='FFTW_BACKWARD')()
+            else:
+                ifft_arr = np.fft.ifft2(temp)
+            if v: print('backward FFTW: %.2fs' %(time.time() -t0))
+
+            cps = np.abs(ifft_arr)
+            # scps = shifted cps
+            scps = np.fft.fftshift(cps)
+            if v:
+                subplot_imshow([in_arr0.astype(np.uint16),in_arr1.astype(np.uint16),fft_arr0.astype(np.uint8),
+                                fft_arr1.astype(np.uint8), scps], titles=['matching window im0', 'matching window im1',
+                                "fft result im0", "fft result im1", "cross power spectrum"],grid=True)
+                subplot_3dsurface(scps.astype(np.float32))
+        else:
+            scps = None
+        return scps
+
+    @staticmethod
+    def get_peakpos(scps):
+        max_flat_idx = np.argmax(scps)
+        return np.unravel_index(max_flat_idx, scps.shape)
+
+    @staticmethod
+    def get_shifts_from_peakpos(peakpos,arr_shape):
+        y_shift = peakpos[0]-arr_shape[0]//2
+        x_shift = peakpos[1]-arr_shape[1]//2
+        return x_shift,y_shift
+
+    @staticmethod
+    def get_grossly_deshifted_im0(im0,x_intshift,y_intshift,shape_power_spectrum):
+        old_center_coord = [i//2 for i in im0.shape]
+        new_center_coord = [old_center_coord[0]+y_intshift, old_center_coord[1]+x_intshift]
+        x_left  = new_center_coord[1]
+        x_right = im0.shape[1]-new_center_coord[1]
+        y_above = new_center_coord[0]
+        y_below = im0.shape[0]-new_center_coord[0]
+        maxposs_winsz = 2*min(x_left,x_right,y_above,y_below)
+        wsz = maxposs_winsz if maxposs_winsz <=min(shape_power_spectrum) and shape_power_spectrum is not None \
+            else min(shape_power_spectrum)
+        #wsz = get_opt_fftw_winsize(maxposs_winsz,(maxposs_winsz,maxposs_winsz))
+        return im0[new_center_coord[0]-wsz//2:new_center_coord[0]+wsz//2+1, \
+               new_center_coord[1]-wsz//2:new_center_coord[1]+wsz//2+1]
+
+    @staticmethod
+    def get_corresponding_im1_clip(im1, shape_im0):
+        center_coord = [i//2 for i in im1.shape]
+        return im1[center_coord[0]-shape_im0[0]//2:center_coord[0]+shape_im0[0]//2+1, \
+               center_coord[1]-shape_im0[1]//2:center_coord[1]+shape_im0[1]//2+1]
+
+    def get_grossly_deshifted_images(self,im0,im1,x_intshift,y_intshift,shape_power_spectrum=None,v=0):
+        gdsh_im0 = self.get_grossly_deshifted_im0(im0,x_intshift,y_intshift,shape_power_spectrum)
+        crsp_im1 = self.get_corresponding_im1_clip(im1,gdsh_im0.shape)
+        if v:
+            subplot_imshow([self.get_corresponding_im1_clip(im0,gdsh_im0.shape),self.get_corresponding_im1_clip(im1,gdsh_im0.shape)],
+                           titles=['reference original', 'target'], grid=True)
+            subplot_imshow([gdsh_im0, crsp_im1],titles=['reference virtually shifted', 'target'], grid=True)
+        return gdsh_im0,crsp_im1
+
+    @staticmethod
+    def find_side_maximum(scps, v=0):
+        centerpos = [scps.shape[0]//2, scps.shape[1]//2]
+        profile_left  = scps[ centerpos [0]  ,:centerpos[1]+1]
+        profile_right = scps[ centerpos [0]  , centerpos[1]:]
+        profile_above = scps[:centerpos [0]+1, centerpos[1]]
+        profile_below = scps[ centerpos [0]: , centerpos[1]]
+
+        if v:
+            max_count_vals = 10
+            subplot_2dline([[range(len(profile_left)) [-max_count_vals:], profile_left[-max_count_vals:]],
+                            [range(len(profile_right))[:max_count_vals] , profile_right[:max_count_vals]],
+                            [range(len(profile_above))[-max_count_vals:], profile_above[-max_count_vals:]],
+                            [range(len(profile_below))[:max_count_vals:], profile_below[:max_count_vals]]],
+                             titles =['Profile left', 'Profile right', 'Profile above', 'Profile below'],
+                             shapetuple=(2,2))
+
+        get_sidemaxVal_from_profile = lambda pf: np.array(pf)[::-1][1] if pf[0]<pf[-1] else np.array(pf)[1]
+        sm_dicts_lr  = [{'side':si, 'value': get_sidemaxVal_from_profile(pf)} \
+                        for pf,si in zip([profile_left,profile_right],['left','right'])]
+        sm_dicts_ab  = [{'side':si, 'value': get_sidemaxVal_from_profile(pf)} \
+                        for pf,si in zip([profile_above,profile_below],['above','below'])]
+        sm_maxVal_lr = max([i['value'] for i in sm_dicts_lr])
+        sm_maxVal_ab = max([i['value'] for i in sm_dicts_ab])
+        sidemax_lr   = [sm for sm in sm_dicts_lr if sm['value'] is sm_maxVal_lr][0]
+        sidemax_ab   = [sm for sm in sm_dicts_ab if sm['value'] is sm_maxVal_ab][0]
+        sidemax_lr['direction_factor'] = {'left':-1, 'right':1} [sidemax_lr['side']]
+        sidemax_ab['direction_factor'] = {'above':-1,'below':1} [sidemax_ab['side']]
+
+        if v:
+            print('Horizontal side maximum found %s. value: %s' %(sidemax_lr['side'],sidemax_lr['value']))
+            print('Vertical side maximum found %s. value: %s' %(sidemax_ab['side'],sidemax_ab['value']))
+
+        return sidemax_lr, sidemax_ab
+
+    def calc_subpixel_shifts(self,scps,v=0):
+        sidemax_lr, sidemax_ab = self.find_side_maximum(scps,v)
+        x_subshift = (sidemax_lr['direction_factor']*sidemax_lr['value'])/(np.max(scps)+sidemax_lr['value'])
+        y_subshift = (sidemax_ab['direction_factor']*sidemax_ab['value'])/(np.max(scps)+sidemax_ab['value'])
+        return x_subshift, y_subshift
+
+    @staticmethod
+    def get_total_shifts(x_intshift,y_intshift,x_subshift,y_subshift):
+        return x_intshift+x_subshift, y_intshift+y_subshift
 
     def calculate_spatial_shifts(self):
-        im0, im1, imfft_gsd_mapvalues, gsd_factor = get_image_windows_to_match(self.path_imref,self.path_im2shift,
-            self.win_pos, self.win_size, self.imref_band4match, self.im2shift_band4match, v=self.v)
+        if self.q:
+            warnings.simplefilter('ignore')
+        im0, im1 = self.get_image_windows_to_match()
+        #
+        #write_envi(im0, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imref__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.ref_win_size))
+        #write_envi(im1, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imtgt__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.shift_win_size))
+        #subplot_imshow([im0,im1],[os.path.basename(self.path_imref),os.path.basename(self.path_im2shift)],grid=True)
 
-        def write_envi(arr,outpath):
-            from spectral.io import envi as envi
-            shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
-            out    = envi.create_image(outpath,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
-            out_mm = out.open_memmap(writable=True)
-            out_mm[:,:,0] = arr
+        gsd_factor = self.imfft_gsd/self.shift_xgsd
 
-        write_envi(im0, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v1_imref__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.win_size))
-        write_envi(im1, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v1_imtgt__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.win_size))
 
         if self.v: print('gsd_factor',         gsd_factor)
-        if self.v: print('imfft_gsd_mapvalues',imfft_gsd_mapvalues)
-
-        scps = calc_shifted_cross_power_spectrum(im0,im1,v=self.v,ignErr=self.ignErr)
+        if self.v: print('imfft_gsd_mapvalues',self.imfft_gsd)
+        scps = self.calc_shifted_cross_power_spectrum(im0,im1,v=self.v,ignErr=self.ignErr)
         x_shift_px,y_shift_px = None,None # defaults
         if scps is None:
             self.success = False
         else:
-            peakpos = get_peakpos(scps)
+            peakpos = self.get_peakpos(scps)
             x_intshift, y_intshift  = [], []
-            x_tempshift,y_tempshift = get_shifts_from_peakpos(peakpos,scps.shape)
+            x_tempshift,y_tempshift = self.get_shifts_from_peakpos(peakpos,scps.shape)
             x_intshift.append(x_tempshift)
             y_intshift.append(y_tempshift)
             if not self.q: print('Detected integer shifts (X/Y):       %s/%s' %(x_tempshift,y_tempshift))
@@ -209,12 +788,12 @@ class COREG(object):
                 if not self.q: print('input shifts: ', x_tempshift, y_tempshift)
 
                 if scps is None: self.success = False; break
-                gdsh_im0,crsp_im1 =get_grossly_deshifted_images(im0,im1,x_tempshift,y_tempshift,scps.shape,v=self.v)
-                scps = calc_shifted_cross_power_spectrum(gdsh_im0,crsp_im1,v=self.v,ignErr=self.ignErr)
+                gdsh_im0,crsp_im1 =self.get_grossly_deshifted_images(im0,im1,x_tempshift,y_tempshift,scps.shape,v=self.v)
+                scps = self.calc_shifted_cross_power_spectrum(gdsh_im0,crsp_im1,v=self.v,ignErr=self.ignErr)
 
                 if scps is None: self.success = False; break
-                peakpos = get_peakpos(scps)
-                x_tempshift,y_tempshift = get_shifts_from_peakpos(peakpos,scps.shape)
+                peakpos = self.get_peakpos(scps)
+                x_tempshift,y_tempshift = self.get_shifts_from_peakpos(peakpos,scps.shape)
                 x_intshift.append(x_tempshift)
                 y_intshift.append(y_tempshift)
                 if not self.q: print('Detected integer shifts (X/Y):       %s/%s' %(x_tempshift,y_tempshift))
@@ -228,8 +807,8 @@ class COREG(object):
 
             if not self.success==False:
                 x_intshift, y_intshift      = sum(x_intshift), sum(y_intshift)
-                x_subshift, y_subshift      = calc_subpixel_shifts(scps,v=self.v)
-                x_totalshift, y_totalshift  = get_total_shifts(x_intshift,y_intshift,x_subshift,y_subshift)
+                x_subshift, y_subshift      = self.calc_subpixel_shifts(scps,v=self.v)
+                x_totalshift, y_totalshift  = self.get_total_shifts(x_intshift,y_intshift,x_subshift,y_subshift)
                 x_shift_px, y_shift_px      = x_totalshift*gsd_factor, y_totalshift*gsd_factor
                 if not self.q:
                     print('Detected subpixel shifts (X/Y):      %s/%s' %(x_subshift,y_subshift))
@@ -240,13 +819,15 @@ class COREG(object):
                     self.success = False
                     if not self.ignErr:
                         raise RuntimeError("The calculated shift is recognized as too large to be valid. "
-                        "If you know that it is valid, just set the '-max_shift' parameter to an appropriate value. Otherwise "
-                        "try to use a different window size for matching via the '-ws' parameter or define the spectral bands "
-                        "to be used for matching manually ('-br' and '-bs'.)")
+                        "If you know that it is valid, just set the '-max_shift' parameter to an appropriate value. "
+                        "Otherwise try to use a different window size for matching via the '-ws' parameter or define "
+                        "the spectral bands to be used for matching manually ('-br' and '-bs'.)")
                 else:
                     self.success = True
 
         self.x_shift_px, self.y_shift_px = (x_shift_px,y_shift_px) if self.success else (None,None)
+
+        warnings.simplefilter('default')
 
     def correct_shifts(self):
         equal_prj = get_proj4info(proj=self.ref_prj)==get_proj4info(proj=self.shift_prj)
@@ -259,11 +840,10 @@ class COREG(object):
         else: # match_gsd and out_gsd are respected ### TODO: out_proj implementieren
             self.resample_without_grid_aligning()
 
-
     def shift_image_by_updating_map_info(self):
         if not self.q: print('\nWriting output...')
         ds_im2shift = gdal.Open(self.path_im2shift)
-        if not ds_im2shift.GetDriver().ShortName == 'ENVI':
+        if not ds_im2shift.GetDriver().ShortName == 'ENVI': # FIXME laaangsam
             os.system('gdal_translate -of ENVI %s %s' %(self.path_im2shift, self.path_out))
             file2getHdr = self.path_out
         else:
@@ -372,23 +952,27 @@ class COREG(object):
             print(output)
             raise RuntimeError('Resampling failed.')
 
-def get_corner_coordinates(gdal_ds):
-    gdal_ds_GT = gdal_ds.GetGeoTransform()
+def get_corner_coordinates(gdal_ds=None, gt=None, rows=None,cols=None):
+    """Return (UL, LL, LR, UR)"""
+    if gdal_ds is None: assert None not in [gt,rows,cols],"'gt', 'rows' and 'cols' must be given if gdal_ds is missing."
+    gdal_ds_GT = gdal_ds.GetGeoTransform() if gdal_ds is not None else gt
     ext=[]
-    xarr=[0,gdal_ds.RasterXSize]
-    yarr=[0,gdal_ds.RasterYSize]
+    rows, cols = (gdal_ds.RasterYSize, gdal_ds.RasterXSize) if gdal_ds is not None else (rows,cols)
+    xarr=[0,cols]
+    yarr=[0,rows]
     for px in xarr:
         for py in yarr:
             x=gdal_ds_GT[0]+(px*gdal_ds_GT[1])+(py*gdal_ds_GT[2])
             y=gdal_ds_GT[3]+(px*gdal_ds_GT[4])+(py*gdal_ds_GT[5])
             ext.append([x,y])
         yarr.reverse()
+    gdal_ds_GT = None
     return ext
 
 def corner_coord_to_minmax(corner_coords):
     """Return (UL, LL, LR, UR)"""
-    x_vals = [int(i[0]) for i in corner_coords]
-    y_vals = [int(i[1]) for i in corner_coords]
+    x_vals = [int(i[0]) for i in corner_coords] # FIXME int?
+    y_vals = [int(i[1]) for i in corner_coords] # FIXME int?
     xmin,xmax,ymin,ymax = min(x_vals),max(x_vals),min(y_vals),max(y_vals)
     return xmin,xmax,ymin,ymax
 
@@ -397,11 +981,19 @@ def get_footprint_polygon(CornerLonLat):
     assert outpoly. is_valid, 'The given coordinates result in an invalid polygon. Check coordinate order.'
     return outpoly
 
+def get_overlap_polygon(poly1, poly2,v=0):
+    overlap_poly = poly1.intersection(poly2)
+    if not overlap_poly.is_empty:
+        overlap_percentage = 100 * shape(overlap_poly).area / shape(poly2).area
+        if v: print('%.2f percent of the image to be shifted is covered by the reference image.' %overlap_percentage)
+        return {'overlap poly':overlap_poly, 'overlap percentage':overlap_percentage, 'overlap area':overlap_poly.area}
+    else:
+        return {'overlap poly':None, 'overlap percentage':0, 'overlap area':0}
+
 def get_true_corner_lonlat(gdal_ds,bandNr=1,noDataVal=None,v=0):
     rows,cols = gdal_ds.RasterYSize, gdal_ds.RasterXSize
     mask_1bit = np.zeros((rows,cols),dtype='uint8') # zeros -> image area later overwritten by ones
 
-    noDataVal = find_noDataVal(gdal_ds,bandNr) if noDataVal is None else noDataVal
     if noDataVal is None:
         mask_1bit[:,:] = 1
     elif noDataVal=='unclear':
@@ -496,22 +1088,44 @@ def get_true_corner_lonlat(gdal_ds,bandNr=1,noDataVal=None,v=0):
     corner_pos_XY = [list(reversed(i)) for i in [get_mapYX(YX) for YX in [UL, UR, LR, LL]]]
     return corner_pos_XY
 
-def find_noDataVal(gdal_ds,bandNr=1,sz=3):
+mapYX2imYX = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5],  (mapYX[1]-gt[0])/gt[1])
+imYX2mapYX = lambda imYX ,gt: (gt[3]-(imYX[0]*abs(gt[5])), gt[0]+(imYX[1]*gt[1]))
+
+def get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX, gt_im):
+    xmin,ymin,xmax,ymax = Polygon([(i[1],i[0]) for i in box_mapYX]).bounds # map-bounds box_mapYX
+    (ymin,xmin),(ymax,xmax) = mapYX2imYX([ymin,xmin],gt_im), mapYX2imYX([ymax,xmax],gt_im) # image coord bounds
+    xmin,ymin,xmax,ymax = int(xmin),math.ceil(ymin), math.ceil(xmax), int(ymax) # round min coords off and max coords on
+    return (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL_YX,UR_YX,LR_YX,LL_YX
+
+def get_subset_GeoTransform(gt_fullArr,subset_box_imYX):
+    gt_subset = list(gt_fullArr[:]) # copy
+    gt_subset[3],gt_subset[0] = imYX2mapYX(subset_box_imYX[0],gt_fullArr)
+    return gt_subset
+
+def get_gdalReadInputs_from_boxImYX(boxImYX):
+    """Returns row_start,col_start,rows_count,cols_count and assumes boxImYX as [UL_YX,UR_YX,LR_YX,LL_YX)"""
+    rS, cS = boxImYX[0]
+    clip_sz_x = abs(boxImYX[1][1]-boxImYX[0][1]) # URx-ULx
+    clip_sz_y = abs(boxImYX[0][0]-boxImYX[2][0]) # ULy-LLy
+    return cS, rS, clip_sz_x,clip_sz_y
+
+def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
     """tries to derive no data value from homogenious corner pixels within 3x3 windows (by default)
     :param gdal_ds:
     :param bandNr:
-    :param sz:
+    :param sz: window size in which corner pixels are analysed
     """
+    gdal_ds = gdal.Open(path_im) if not is_vrt else gdal.OpenShared(path_im)
     get_mean_std = lambda corner_subset: {'mean':np.mean(corner_subset), 'std':np.std(corner_subset)}
     rows,cols = gdal_ds.RasterYSize,gdal_ds.RasterXSize
     UL = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(0,0,sz,sz))
     UR = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(cols-sz,0,sz,sz))
     LR = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(cols-sz,rows-sz,sz,sz))
     LL = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(0,rows-sz,sz,sz))
+    gdal_ds = None
     possVals  = [i['mean'] for i in [UL,UR,LR,LL] if i['std']==0]
     # possVals==[]: all corners are filled with data; np.std(possVals)==0: noDataVal clearly identified
     return None if possVals==[] else possVals[0] if np.std(possVals)==0 else 'unclear'
-
 
 def find_nearest(array,value,round='off'):
     """finds the value of an array nearest to a another single value
@@ -524,15 +1138,6 @@ def find_nearest(array,value,round='off'):
     if round=='off' and array[idx]>value and idx!=0: idx -= 1
     if round=='on'  and array[idx]<value and idx!=len(array)-1: idx += 1
     return array[idx]
-
-def get_overlap_polygon(poly1, poly2,v=0):
-    overlap_poly = poly1.intersection(poly2)
-    if not overlap_poly.is_empty:
-        overlap_percentage = 100 * shape(overlap_poly).area / shape(poly2).area
-        if v: print('%.2f percent of the image to be shifted is covered by the reference image.' %overlap_percentage)
-        return {'overlap poly':overlap_poly, 'overlap percentage':overlap_percentage, 'overlap area':overlap_poly.area}
-    else:
-        return {'overlap poly':None, 'overlap percentage':0, 'overlap area':0}
 
 def pixelToMapYX(pixelCoords, path_im=None, geotransform=None, projection=None):
     assert path_im is not None or geotransform is not None and projection is not None, \
@@ -649,9 +1254,6 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
     :return out_prj:    warped projection as WKT string
     """
 
-    print(out_extent)
-    print(in_gt)
-
     if not ndarray.flags['OWNDATA']:
         temp    = np.empty_like(ndarray)
         temp[:] = ndarray
@@ -694,8 +1296,9 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
         elif out_extent:
             left, bottom, right, top = out_extent
             #input array is only a window of the actual input array
-            assert left > in_gt[0] and right < (in_gt[0]+cols*in_gt[1]) and bottom > in_gt[3]+rows*in_gt[5] and \
-                top < in_gt[3], "out_extent has to be completely within the input image bounds."
+            assert left >= in_gt[0] and right <= (in_gt[0]+(cols+1)*in_gt[1]) and \
+                   bottom >= in_gt[3]+(rows+1)*in_gt[5] and top <= in_gt[3], \
+                   "out_extent has to be completely within the input image bounds."
         else: # out_gt is given
             left, bottom, right, top = gt2bounds(in_gt,rows,cols)
 
@@ -744,189 +1347,6 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
 
     return out_arr, out_gt, out_prj
 
-def get_image_windows_to_match(path_imref,path_im2shift, win_pos, win_sz, rb, sb, tempAsENVI=0,v=0,q=0):
-    path_refLock   = path_imref+'.lock'
-    path_shiftLock = path_im2shift+'.lock'
-    #wait_if_used(path_imref,path_refLock)
-    #wait_if_used(path_im2shift,path_shiftLock)
-    #open(path_refLock,'w')
-    #open(path_shiftLock,'w')
-    ds_imref    = gdal.Open(path_imref)
-    ds_im2shift = gdal.Open(path_im2shift)
-    if not tempAsENVI:
-        getSuff = lambda p: '__%s_clip.vrt' %os.path.splitext(os.path.basename(p))[0]
-        fd, path_imref_clip    = tempfile.mkstemp(prefix='danschef_CoReg__',suffix=getSuff(path_imref));    os.close(fd)
-        fd, path_im2shift_clip = tempfile.mkstemp(prefix='danschef_CoReg__',suffix=getSuff(path_im2shift)); os.close(fd)
-    else:
-        tempdir = '/dev/shm/' if os.path.exists('/dev/shm/') else os.path.dirname(path_im2shift)
-        path_imref_clip    = os.path.join(tempdir, os.path.splitext(os.path.basename(path_imref))[0] + '_clip.bsq')
-        path_im2shift_clip = os.path.join(tempdir, os.path.splitext(os.path.basename(path_im2shift))[0]+'_clip.bsq')
-
-    outFmt = 'VRT' if not tempAsENVI else 'ENVI'
-
-    # auflösungsfaktor
-    imref_gt   = ds_imref.GetGeoTransform()
-    imref_proj = ds_imref.GetProjection()
-    imref_gsd, im2shift_gsd = imref_gt[1], ds_im2shift.GetGeoTransform()[1]
-    if v: print('resolutions: ', imref_gsd, im2shift_gsd)
-
-    # win_pos in imref-bildkoordinaten umrechnen
-    mapY,mapX,refULy,refULx,refGSDy,refGSDx = win_pos[0],win_pos[1],imref_gt[3],imref_gt[0],imref_gt[5],imref_gt[1]
-    overlap_center_in_imref = {'row':(mapY-refULy)/refGSDy,'col':(mapX-refULx)/refGSDx} #mapX = refULx+refULx*cols
-    overlap_center_in_imref['row'] = int(overlap_center_in_imref['row']) # int(), um clip-grenze auf pixelgrenzen der referenz zu schieben
-    overlap_center_in_imref['col'] = int(overlap_center_in_imref['col'])
-
-    if imref_gsd >= im2shift_gsd:
-        """falls referenz die niedrigere auflösung hat:
-        im2shift auf imref downsamplen"""
-        # 1. Eckkoordinaten Warp-Bild -> per Subset-Read referenz-Bild mit vorgegebener Fenstergröße (wie in späterer fft, um Rechenzeit zu sparen) einlesen -> zwischenspeichern in dev/shm/
-        # 2. warp-Bild (bzw. subset je nach fft-fenstergröße) downsamplen auf Auflösung des referenz-bildes per pixel-aggregate -> dev/shm/    ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
-        # 3. referenz und warp-bild exakt in der fft-fenstergröße einlesen
-        imfft_gsd_mapvalues = imref_gsd # fft-Bild bekommt Auflösung des ref-Bilds
-        win_sz_in_imref, win_sz_in_im2shift = win_sz, win_sz*imref_gsd/im2shift_gsd
-        get_maxposs_sz = lambda ds: min([ds.RasterXSize,ds.RasterYSize])
-        if win_sz_in_imref > get_maxposs_sz(ds_imref):
-            if not q:  print('WARNING: The given target window size exceeds the extent of the reference image. '
-                             'It has been reduced to the maximum possible size.')
-            win_sz = get_maxposs_sz(ds_imref)
-        if win_sz_in_im2shift > get_maxposs_sz(ds_im2shift):
-            if not q: print('WARNING: The given target window size equals %s px in the image to be shifted which '
-                'exceeds its extent. Thus it has been reduced to the maximum possible size.' %win_sz_in_im2shift)
-            win_sz = int(get_maxposs_sz(ds_im2shift)/(imref_gsd/im2shift_gsd))
-        clip_sz = win_sz
-
-        # um overlap_center_in_imref eine box erstellen und imref per subset-read einlesen -> im0
-        imref_box = [[overlap_center_in_imref['row']-clip_sz//2, overlap_center_in_imref['col']-clip_sz//2],
-                     [overlap_center_in_imref['row']+clip_sz//2, overlap_center_in_imref['col']+clip_sz//2]] # [UL,LR]
-        imref_clip_rowS, imref_clip_colS = imref_box[0] # UL
-        ds_imref = None
-        ds_imref = gdal.Open(path_imref)
-        imref_clip_data = ds_imref.GetRasterBand(rb).ReadAsArray(imref_clip_colS, imref_clip_rowS, clip_sz, clip_sz)
-
-        # map-koordinaten der clip-box von imref ausrechnen
-        imref_box_xy  = [[int(i[1]),int(i[0])] for i in imref_box] # swap X and Y values
-        imref_box_map = pixelToMapYX(imref_box_xy, projection=imref_proj, geotransform=imref_gt) # [[4455560.0, 299060.0], [4450440.0, 293940.0]] [[HW,RW],[HW,RW]]
-        map_xvals = [i[1] for i in imref_box_map] # UTM-RW
-        map_yvals = [i[0] for i in imref_box_map] # UTM-HW
-
-        ## TEEEST
-        ds_im2shift_clip = None
-        ds_im2shift_clip = gdal.Open(path_im2shift)
-        #mapYX2imYX          = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5], (mapYX[1]-gt[0])/gt[1])
-        im2shift_gt, im2shift_proj = ds_im2shift_clip.GetGeoTransform(), ds_im2shift_clip.GetProjection()
-        #im2shift_box_YX_flt = [mapYX2imYX(YX,ds_im2shift_t.GetGeoTransform()) for YX in imref_box_map]
-        #im2shift_box_YX     = [[int(i[0]),int(i[1])] for i in im2shift_box_YX_flt]
-        #colS,rowS,cols,rows = im2shift_box_YX[0][0], im2shift_box_YX[0][1], \
-        #                      abs(im2shift_box_YX[1][0]-im2shift_box_YX[0][0]),abs(im2shift_box_YX[1][1]-im2shift_box_YX[0][1])
-        #im2shift_clip_data_t = ds_im2shift_t.GetRasterBand(rb).ReadAsArray(colS, rowS, cols, rows)
-        im2shift_clip_data = ds_im2shift_clip.GetRasterBand(rb).ReadAsArray()
-        ds_im2shift_clip=None
-        #def write_envi(arr,outpath):
-            # from spectral.io import envi as envi
-            # shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
-            # out    = envi.create_image(outpath,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
-            # out_mm = out.open_memmap(writable=True)
-            # out_mm[:,:,0] = arr
-        #write_envi(im2shift_clip_data, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/mp_imtgt_clip__%s_%s__ws%s.hdr' %(win_pos[1],win_pos[0],win_sz))
-
-        im2shift_clip_data = warp_ndarray(im2shift_clip_data,im2shift_gt,im2shift_proj,imref_proj,
-            out_res=(imfft_gsd_mapvalues, imfft_gsd_mapvalues),out_extent=([min(map_xvals), min(map_yvals),
-            max(map_xvals),max(map_yvals)]), rsp_alg=2, in_nodata=0) [0]
-
-
-        # gdalwarp für im2shift mit pixel aggregate
-  #      rsp_algor = 'average'
-  #      if gdal.VersionInfo().startswith('1'):
-  #          warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-  #                        "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-  #                        "please update GDAL to a version above 2.0.0!")
-  #          rsp_algor = 'cubic'
- #       cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of %s -te %s %s %s %s %s %s -overwrite%s" \
- #              %(rsp_algor,imfft_gsd_mapvalues, imfft_gsd_mapvalues, imref_proj, outFmt, min(map_xvals),
- #              min(map_yvals),max(map_xvals),max(map_yvals),path_im2shift,path_im2shift_clip,' -q' if not v else '')
- #               # te_srs is not neccessary because -t_srs = imref_proj and output extent is derived from imref
- #       ds_im2shift = None
-#        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-#        if output==1: print(output) # in case of error
-#
-        ## im1 daten in array einlesen
-        #ds_im2shift_clip  = gdal.OpenShared(path_im2shift_clip) if not tempAsENVI else gdal.Open(path_im2shift_clip)
-        #im2shift_clip_data= ds_im2shift_clip.GetRasterBand(sb).ReadAsArray()
-        [os.remove(p) for p in [path_imref_clip, path_im2shift_clip, os.path.splitext(path_im2shift_clip)[0]+'.hdr',
-            path_im2shift_clip +'.aux.xml'] if os.path.exists(p)] # path_imref_clip exists if outFmt=='VRT' (created by tempfile)
-
-    else:
-        """falls referenz die höhere auflösung hat"""
-        """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
-        # 1. Eckkoordinaten des Clip-Windows für imref berechnen (anhand optimaler fft-Fenstergröße und Zentrumspunkt der Bildüberlappung)
-        # 2. imref ausschneiden und per pixel-aggregate auf auflösung von im2shift downsamplen -> dev/shm/ -> einlesen als array ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
-        # 3. warp-bild anhand des Clip-Windows des refernz-bildes ausschneiden und auflösung unverändert lassen
-
-        imfft_gsd_mapvalues  = im2shift_gsd # fft-Bild bekommt Auflösung des warp-Bilds
-        im2shift_max_poss_sz = min([ds_im2shift.RasterXSize, ds_im2shift.RasterYSize])
-        win_sz               = win_sz if not win_sz > im2shift_max_poss_sz else im2shift_max_poss_sz
-        # clip muss größer sein als Ziel-fft_bild, weil clip erst ausgeschnitten und dann gedreht wird
-        clip_sz              = int(1.5 * win_sz * im2shift_gsd/imref_gsd) # clip-size in referenz (1.5 wegen evtl. verdrehung bei unterschiedlichen projektionen)
-        imref_max_poss_sz = min([ds_imref.RasterXSize, ds_imref.RasterYSize])
-        clip_sz = clip_sz if not clip_sz > imref_max_poss_sz else win_sz * im2shift_gsd/imref_gsd
-        if clip_sz > imref_max_poss_sz:
-            if not q:  print('WARNING: The given target window size equals %s px in the image to be shifted which '
-                             'exceeds its extent. Thus it has been reduced to the maximum possible size.' %clip_sz)
-            clip_sz = imref_max_poss_sz
-
-        # um overlap_center_in_imref eine box erstellen und map-koordinaten der clip-box von imref ausrechnen
-        # (um downsampling per gdalwarp rechnen zu können -> map koordinaten nötig)
-        imref_box = [[overlap_center_in_imref['row']-clip_sz//2, overlap_center_in_imref['col']-clip_sz//2],
-                     [overlap_center_in_imref['row']+clip_sz//2, overlap_center_in_imref['col']+clip_sz//2]] # [UL,LR]
-        imref_box_xy  = [[int(i[1]),int(i[0])] for i in imref_box] # swap X and Y values
-        imref_box_map = pixelToMapYX(imref_box_xy, projection=imref_proj, geotransform=imref_gt) # [[4455560.0, 299060.0], [4450440.0, 293940.0]] [[HW,RW],[HW,RW]]
-        map_xvals = [i[1] for i in imref_box_map] # UTM-RW
-        map_yvals = [i[0] for i in imref_box_map] # UTM-HW
-
-        # imref mit imref_box ausclippen und per pixel aggregate auf auflösung von im2shift downsamplen
-        rsp_algor = 'average'
-        if gdal.VersionInfo().startswith('1'):
-            warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-                          "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-                          "please update GDAL to a version above 2.0.0!")
-            rsp_algor = 'cubic'
-        cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of %s -te %s %s %s %s %s %s -overwrite%s" \
-                %(rsp_algor,imfft_gsd_mapvalues, imfft_gsd_mapvalues, imref_proj, outFmt, min(map_xvals),
-                  min(map_yvals),max(map_xvals),max(map_yvals),path_imref,path_imref_clip,' -q' if not v else '')
-                # te_srs is not neccessary because -t_srs = imref_proj and output extent is derived from imref
-        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-        if output==1: print(output) # in case of error
-
-        # imref_clip einlesen
-        ds_im2ref_clip = gdal.OpenShared(path_imref_clip) if not tempAsENVI else gdal.Open(path_imref_clip)
-        imref_clip_data= ds_im2ref_clip.GetRasterBand(sb).ReadAsArray()
-        ds_im2ref_clip.FlushCache()
-        ds_im2ref_clip = None
-        [os.remove(p) for p in [path_imref_clip, os.path.splitext(path_imref_clip)[0]+'.hdr',
-            path_imref_clip +'.aux.xml'] if os.path.exists(p)]
-
-        # im2shift mit imref_box_map ausclippen (cubic, da pixelgrenzen verschoben werden müssen aber auflösung
-        # gleich bleibt)
-        cmd = "gdalwarp -r cubic -tr %s %s -t_srs '%s' -of %s -te %s %s %s %s %s %s -overwrite%s" \
-                %(imfft_gsd_mapvalues, imfft_gsd_mapvalues, imref_proj, outFmt, min(map_xvals),min(map_yvals),
-                  max(map_xvals),max(map_yvals),path_im2shift,path_im2shift_clip,' -q' if not v else '')
-                # te_srs is not neccessary because -t_srs = imref_proj and output extent is derived from imref
-        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-        if output==1: print(output) # in case of error
-
-        # im2shift_clip einlesen
-        ds_im2shift_clip  = gdal.OpenShared(path_im2shift_clip) if not tempAsENVI else gdal.Open(path_im2shift_clip)
-        im2shift_clip_data= ds_im2shift_clip.GetRasterBand(sb).ReadAsArray()
-        [os.remove(p) for p in [path_im2shift_clip, os.path.splitext(path_im2shift_clip)[0]+'.hdr',
-            path_im2shift_clip +'.aux.xml'] if os.path.exists(p)]
-
-    #ds_im2shift_clip.FlushCache()
-    ds_im2shift_clip  = None
-    ds_imref = ds_im2shift = None
-    [os.remove(p) for p in [path_refLock, path_shiftLock] if os.path.exists(p)]
-    gsd_factor        = imfft_gsd_mapvalues/im2shift_gsd
-    return imref_clip_data, im2shift_clip_data, imfft_gsd_mapvalues, gsd_factor
-
 def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
     globs = globals()
     same_gdalRefs = [k for k,v in globs.items() if isinstance(globs[k],gdal.Dataset) and globs[k].GetDescription()==path_file]
@@ -944,149 +1364,17 @@ def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
                 raise TimeoutError('The file %s is permanently used by another variable.' %path_file)
         same_gdalRefs = update_same_gdalRefs(same_gdalRefs)
 
-def get_opt_fftw_winsize(im_shape, target_size=None,v=0,ignErr=0):
-    binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
-    possibSizes = [i for i in binarySizes if i <= min(im_shape)]
-    if not possibSizes:
-        if not ignErr:  raise RuntimeError('The matching window became too small for calculating a reliable match. '
-                                           'Matching failed.')
-        else:           return None
-    target_size = max(possibSizes) if target_size is None else target_size
-    closest_to_target = min(possibSizes, key=lambda x:abs(x-target_size))
-    if v: print('final window size: %s' %closest_to_target)
-    return closest_to_target
-
-def calc_shifted_cross_power_spectrum(im0,im1,window_size=1024,precision=np.complex64, v=0, ignErr=0):
-    """Calculates shifted cross power spectrum for quantifying x/y-shifts.
-        :param im0:         reference image
-        :param im1:         subject image to shift
-        :param window_size: size of image area to be processed
-        :param precision:   to be quantified as a datatype
-        :param v:           verbose
-        :return:            2D-numpy-array of the shifted cross power spectrum
-    """
-    window_size = get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr)
-
-    if window_size:
-        t0 = time.time()
-        in_arr0  = im0[:window_size,:window_size].astype(precision)
-        in_arr1  = im1[:window_size,:window_size].astype(precision)
-        if 'pyfft' in globals():
-            fft_arr0 = pyfftw.FFTW(in_arr0,np.empty_like(in_arr0), axes=(0,1))()
-            fft_arr1 = pyfftw.FFTW(in_arr1,np.empty_like(in_arr1), axes=(0,1))()
-        else:
-            fft_arr0 = np.fft.fft2(in_arr0)
-            fft_arr1 = np.fft.fft2(in_arr1)
-        if v: print('forward FFTW: %.2fs' %(time.time() -t0))
-
-        eps = np.abs(fft_arr1).max() * 1e-15
-        # cps == cross-power spectrum of im0 and im2
-
-        temp = (fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
-
-        t0 = time.time()
-        if 'pyfft' in globals():
-            ifft_arr = pyfftw.FFTW(temp,np.empty_like(temp), axes=(0,1),direction='FFTW_BACKWARD')()
-        else:
-            ifft_arr = np.fft.ifft2(temp)
-        if v: print('backward FFTW: %.2fs' %(time.time() -t0))
-
-        cps = np.abs(ifft_arr)
-        # scps = shifted cps
-        scps = np.fft.fftshift(cps)
-        if v:
-            subplot_imshow([in_arr0.astype(np.uint16),in_arr1.astype(np.uint16),fft_arr0.astype(np.uint8),
-                            fft_arr1.astype(np.uint8), scps], titles=['matching window im0', 'matching window im1',
-                            "fft result im0", "fft result im1", "cross power spectrum"])
-            subplot_3dsurface(scps.astype(np.float32))
-    else:
-        scps = None
-    return scps
-
-def get_peakpos(scps):
-    max_flat_idx = np.argmax(scps)
-    return np.unravel_index(max_flat_idx, scps.shape)
+def write_envi(arr,outpath):
+    from spectral.io import envi as envi
+    shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
+    out    = envi.create_image(outpath,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
+    out_mm = out.open_memmap(writable=True)
+    out_mm[:,:,0] = arr
 
 def wfa(p,c):
     try:
         with open(p,'a') as of: of.write(c)
     except: pass
-
-def get_shifts_from_peakpos(peakpos,arr_shape):
-    y_shift = peakpos[0]-arr_shape[0]//2
-    x_shift = peakpos[1]-arr_shape[1]//2
-    return x_shift,y_shift
-
-def get_grossly_deshifted_im0(im0,x_intshift,y_intshift,shape_power_spectrum):
-    old_center_coord = [i//2 for i in im0.shape]
-    new_center_coord = [old_center_coord[0]+y_intshift, old_center_coord[1]+x_intshift]
-    x_left  = new_center_coord[1]
-    x_right = im0.shape[1]-new_center_coord[1]
-    y_above = new_center_coord[0]
-    y_below = im0.shape[0]-new_center_coord[0]
-    maxposs_winsz = 2*min(x_left,x_right,y_above,y_below)
-    wsz = maxposs_winsz if maxposs_winsz <=min(shape_power_spectrum) and shape_power_spectrum is not None \
-        else min(shape_power_spectrum)
-    #wsz = get_opt_fftw_winsize(maxposs_winsz,(maxposs_winsz,maxposs_winsz))
-    return im0[new_center_coord[0]-wsz//2:new_center_coord[0]+wsz//2+1, \
-           new_center_coord[1]-wsz//2:new_center_coord[1]+wsz//2+1]
-
-def get_corresponding_im1_clip(im1, shape_im0):
-    center_coord = [i//2 for i in im1.shape]
-    return im1[center_coord[0]-shape_im0[0]//2:center_coord[0]+shape_im0[0]//2+1, \
-           center_coord[1]-shape_im0[1]//2:center_coord[1]+shape_im0[1]//2+1]
-
-def get_grossly_deshifted_images(im0,im1,x_intshift,y_intshift,shape_power_spectrum=None,v=0):
-    gdsh_im0 = get_grossly_deshifted_im0(im0,x_intshift,y_intshift,shape_power_spectrum)
-    crsp_im1 = get_corresponding_im1_clip(im1,gdsh_im0.shape)
-    if v:
-        subplot_imshow([get_corresponding_im1_clip(im0,gdsh_im0.shape),get_corresponding_im1_clip(im1,gdsh_im0.shape)],
-                       titles=['reference original', 'target'], grid=True)
-        subplot_imshow([gdsh_im0, crsp_im1],titles=['reference virtually shifted', 'target'], grid=True)
-    return gdsh_im0,crsp_im1
-
-def find_side_maximum(scps, v=0):
-    centerpos = [scps.shape[0]//2, scps.shape[1]//2]
-    profile_left  = scps[ centerpos [0]  ,:centerpos[1]+1]
-    profile_right = scps[ centerpos [0]  , centerpos[1]:]
-    profile_above = scps[:centerpos [0]+1, centerpos[1]]
-    profile_below = scps[ centerpos [0]: , centerpos[1]]
-
-    if v:
-        max_count_vals = 10
-        subplot_2dline([[range(len(profile_left)) [-max_count_vals:], profile_left[-max_count_vals:]],
-                        [range(len(profile_right))[:max_count_vals] , profile_right[:max_count_vals]],
-                        [range(len(profile_above))[-max_count_vals:], profile_above[-max_count_vals:]],
-                        [range(len(profile_below))[:max_count_vals:], profile_below[:max_count_vals]]],
-                         titles =['Profile left', 'Profile right', 'Profile above', 'Profile below'],
-                         shapetuple=(2,2))
-
-    get_sidemaxVal_from_profile = lambda pf: np.array(pf)[::-1][1] if pf[0]<pf[-1] else np.array(pf)[1]
-    sm_dicts_lr  = [{'side':si, 'value': get_sidemaxVal_from_profile(pf)} \
-                    for pf,si in zip([profile_left,profile_right],['left','right'])]
-    sm_dicts_ab  = [{'side':si, 'value': get_sidemaxVal_from_profile(pf)} \
-                    for pf,si in zip([profile_above,profile_below],['above','below'])]
-    sm_maxVal_lr = max([i['value'] for i in sm_dicts_lr])
-    sm_maxVal_ab = max([i['value'] for i in sm_dicts_ab])
-    sidemax_lr   = [sm for sm in sm_dicts_lr if sm['value'] is sm_maxVal_lr][0]
-    sidemax_ab   = [sm for sm in sm_dicts_ab if sm['value'] is sm_maxVal_ab][0]
-    sidemax_lr['direction_factor'] = {'left':-1, 'right':1} [sidemax_lr['side']]
-    sidemax_ab['direction_factor'] = {'above':-1,'below':1} [sidemax_ab['side']]
-
-    if v:
-        print('Horizontal side maximum found %s. value: %s' %(sidemax_lr['side'],sidemax_lr['value']))
-        print('Vertical side maximum found %s. value: %s' %(sidemax_ab['side'],sidemax_ab['value']))
-
-    return sidemax_lr, sidemax_ab
-
-def calc_subpixel_shifts(scps,v=0):
-    sidemax_lr, sidemax_ab = find_side_maximum(scps,v)
-    x_subshift = (sidemax_lr['direction_factor']*sidemax_lr['value'])/(np.max(scps)+sidemax_lr['value'])
-    y_subshift = (sidemax_ab['direction_factor']*sidemax_ab['value'])/(np.max(scps)+sidemax_ab['value'])
-    return x_subshift, y_subshift
-
-def get_total_shifts(x_intshift,y_intshift,x_subshift,y_subshift):
-    return x_intshift+x_subshift, y_intshift+y_subshift
 
 def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
     shapetuple = (1,len(XY_tuples)) if shapetuple is None else shapetuple
@@ -1203,7 +1491,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-03-30_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-04-11_01')
     args = parser.parse_args()
 
     print('==================================================================\n'
