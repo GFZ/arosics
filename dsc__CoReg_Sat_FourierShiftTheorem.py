@@ -153,14 +153,18 @@ class COREG(object):
             = self.get_clip_window_properties(opt_win_size)
         self.ref_win_size   = abs(self.ref_box_YX[1][1]  -self.ref_box_YX[0][1])
         self.shift_win_size = abs(self.shift_box_YX[0][0]-self.shift_box_YX[2][0])
+        #print(self.get_clip_window_properties(opt_win_size))
+        #print(self.ref_win_size)
+        #print(self.shift_win_size)
         if self.v:
             write_shp(self.poly_matchWin,os.path.join(self.verbose_out,'poly_matchWin.shp'),self.poly_matchWin_prj)
 
         self.imref_matchWin    = None # set by get_image_windows_to_match
         self.im2shift_matchWin = None # set by get_image_windows_to_match
+        self.fftw_win_size     = None # set by get_opt_fftw_winsize
 
-        self.x_shift_px        = None
-        self.y_shift_px        = None
+        self.x_shift_px        = None # always in shift image units (image coords) # set by calculate_spatial_shifts()
+        self.y_shift_px        = None # always in shift image units (image coords) # set by calculate_spatial_shifts()
         self.success           = None
 
         self.ds_imref = self.ds_im2shift = None # close GDAL datasets
@@ -180,134 +184,16 @@ class COREG(object):
             win_pos = list(reversed(wp))
 
         gained_win_size = int(ws) if ws else 512
-        # ref_ws      = int(ws) if ws else 512 # FIXME klappt nicht, wenn Referenz die höhere Auflösung hat und auf shift downgesamplet wird -> dann soll ja die target-fenstergröße die vorgegebene window size haben
-        # gsd_factor  = self.ref_xgsd/self.shift_xgsd
-        # #print(gsd_factor)
-        # #assert gsd_factor%int(gsd_factor)==0, 'The pixel resolution of the input images must be divisible.' # TODO
-        # shift_ws    = ref_ws*gsd_factor
-        # wp_imref    = (win_pos[0]-self.ref_gt[3])/self.ref_gt[5],     (win_pos[1]-self.ref_gt[0])/self.ref_gt[1]
-        # wp_im2shift = (win_pos[0]-self.shift_gt[3])/self.shift_gt[5], (win_pos[1]-self.shift_gt[0])/self.shift_gt[1]
-        # max_ref_win_sz   = int(min([*wp_imref,   self.ref_cols-wp_imref[1],      self.ref_rows-wp_imref[0]])      *2)-4
-        # print(max_ref_win_sz)
-        # max_shift_win_sz = int(min([*wp_im2shift,self.shift_cols-wp_im2shift[1], self.shift_rows-wp_im2shift[0]]) *2)-4
-        # if gsd_factor>=1: # shift image has higher or equal resolution -> greater or equal window size
-        #     if shift_ws>max_shift_win_sz:
-        #         if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
-        #                      'is too close to the image border of one of the input images.' %max_shift_win_sz)
-        #         shift_win_size_tmp = max_shift_win_sz
-        #         ref_win_size       = int(shift_win_size_tmp/gsd_factor)
-        #         shift_win_size     = ref_win_size*gsd_factor
-        #     else:
-        #         ref_win_size, shift_win_size = ref_ws,shift_ws
-        # else: # ref image has higher or equal resolution -> greater or equal window size
-        #     if ref_ws>max_ref_win_sz:
-        #         print('c1')
-        #         if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
-        #                      'is too close to the image border of one of the input images.' %max_ref_win_sz)
-        #         ref_win_size_tmp = max_ref_win_sz
-        #         shift_win_size   = int(ref_win_size_tmp*gsd_factor)
-        #         ref_win_size     = shift_win_size/gsd_factor
-        #     else:
-        #         print('c2', max_ref_win_sz)
-        #         ref_win_size, shift_win_size = ref_ws,int(shift_ws)
-        # assert ref_win_size>0 and shift_win_size>0
-        # assert shift_win_size%int(shift_win_size)==0, 'shift_win_size: %s' %shift_win_size # assert flat values
-        # print(win_pos, int(ref_win_size), int(shift_win_size))
         return win_pos, gained_win_size
 
-    def get_opt_winpos_winsizeOOOOLD(self,wp,ws):
-        """according to DGM, cloud_mask, trueCornerLonLat"""
-        # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
-        # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
-        if wp is None:
-            overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
-            win_pos = [overlap_center_pos_y[0], overlap_center_pos_x[0]]
-        else:
-            assert isinstance(wp,list), 'The window position must be a list of two elements. Got %s.' %wp
-            assert len(wp)==2,          'The window position must be a list of two elements. Got %s.' %wp
-            assert self.overlap_poly.contains(Point(wp)), 'The provided window position is ' \
-                'outside of the overlap area of the two input images. Check the coordinates.'
-            win_pos = list(reversed(wp))
-
-
-        ref_ws      = int(ws) if ws else 512 # FIXME klappt nicht, wenn Referenz die höhere Auflösung hat und auf shift downgesamplet wird -> dann soll ja die target-fenstergröße die vorgegebene window size haben
-        gsd_factor  = self.ref_xgsd/self.shift_xgsd
-        #print(gsd_factor)
-        #assert gsd_factor%int(gsd_factor)==0, 'The pixel resolution of the input images must be divisible.' # TODO
-        shift_ws    = ref_ws*gsd_factor
-        wp_imref    = (win_pos[0]-self.ref_gt[3])/self.ref_gt[5],     (win_pos[1]-self.ref_gt[0])/self.ref_gt[1]
-        wp_im2shift = (win_pos[0]-self.shift_gt[3])/self.shift_gt[5], (win_pos[1]-self.shift_gt[0])/self.shift_gt[1]
-        max_ref_win_sz   = int(min([*wp_imref,   self.ref_cols-wp_imref[1],      self.ref_rows-wp_imref[0]])      *2)-4
-        print(max_ref_win_sz)
-        max_shift_win_sz = int(min([*wp_im2shift,self.shift_cols-wp_im2shift[1], self.shift_rows-wp_im2shift[0]]) *2)-4
-        if gsd_factor>=1: # shift image has higher or equal resolution -> greater or equal window size
-            if shift_ws>max_shift_win_sz:
-                if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
-                             'is too close to the image border of one of the input images.' %max_shift_win_sz)
-                shift_win_size_tmp = max_shift_win_sz
-                ref_win_size       = int(shift_win_size_tmp/gsd_factor)
-                shift_win_size     = ref_win_size*gsd_factor
-            else:
-                ref_win_size, shift_win_size = ref_ws,shift_ws
-        else: # ref image has higher or equal resolution -> greater or equal window size
-            if ref_ws>max_ref_win_sz:
-                print('c1')
-                if not self.q: warnings.warn('Window size had to be reduced to %s px because the given window position '
-                             'is too close to the image border of one of the input images.' %max_ref_win_sz)
-                ref_win_size_tmp = max_ref_win_sz
-                shift_win_size   = int(ref_win_size_tmp*gsd_factor)
-                ref_win_size     = shift_win_size/gsd_factor
-            else:
-                print('c2', max_ref_win_sz)
-                ref_win_size, shift_win_size = ref_ws,int(shift_ws)
-        assert ref_win_size>0 and shift_win_size>0
-        assert shift_win_size%int(shift_win_size)==0, 'shift_win_size: %s' %shift_win_size # assert flat values
-        print(win_pos, int(ref_win_size), int(shift_win_size))
-        return win_pos, int(ref_win_size), int(shift_win_size)
-
-    def get_clip_window_propertiesOLD(self):
-        # win_pos in imref-bildkoordinaten umrechnen
-        mapY,mapX,refULy,refULx = self.win_pos[0],self.win_pos[1],self.ref_gt[3],self.ref_gt[0]
-        winPos_in_imref = {'row':(mapY-refULy)/-self.ref_ygsd,'col':(mapX-refULx)/self.ref_xgsd} #mapX = refULx+ref_xgsd*cols
-        winPos_in_imref['row'] = int(winPos_in_imref['row']) # int(), um clip-grenze auf pixelgrenzen der referenz zu schieben
-        winPos_in_imref['col'] = int(winPos_in_imref['col'])
-        imref_max_poss_sz    = min([self.ref_cols,  self.ref_rows])
-        im2shift_max_poss_sz = min([self.shift_cols,self.shift_rows])
-
-        if self.ref_xgsd >= self.shift_xgsd:
-            """falls referenz die niedrigere auflösung hat:
-            im2shift auf imref downsamplen"""
-            imfft_gsd_mapvalues = self.ref_xgsd # fft-Bild bekommt Auflösung des ref-Bilds
-            clip_sz = self.ref_win_size
-
-        else:
-            """falls referenz die höhere auflösung hat"""
-            """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
-
-            imfft_gsd_mapvalues  = self.shift_xgsd # fft-Bild bekommt Auflösung des warp-Bilds
-            self.win_size        = self.win_size if not self.win_size > im2shift_max_poss_sz else im2shift_max_poss_sz #FIXME
-            # clip muss größer sein als Ziel-fft_bild, weil clip erst ausgeschnitten und dann gedreht wird
-            clip_sz              = int(1.5 * self.win_size * self.shift_xgsd/self.ref_xgsd) # clip-size in referenz (1.5 wegen evtl. verdrehung bei unterschiedlichen projektionen)
-            clip_sz = clip_sz if not clip_sz > imref_max_poss_sz else self.win_size * self.shift_xgsd/self.ref_xgsd
-            if clip_sz > imref_max_poss_sz:
-                print('WARNING: The given target window size equals %s px in the image to be shifted which exceeds '
-                      'its extent. Thus it has been reduced to the maximum possible size.' %clip_sz)
-                clip_sz = imref_max_poss_sz
-
-        # um winPosDict_imref eine box erstellen und imref per subset-read einlesen -> im0
-        ref_box_YX = [[winPos_in_imref['row']-clip_sz//2, winPos_in_imref['col']-clip_sz//2],
-                      [winPos_in_imref['row']+clip_sz//2, winPos_in_imref['col']+clip_sz//2]] # [UL,LR]
-
-        # map-koordinaten der clip-box von imref ausrechnen
-        ref_box_XY = [[int(i[1]), int(i[0])] for i in ref_box_YX] # swap X and Y values
-        box_mapYX    = pixelToMapYX(ref_box_XY, geotransform=self.ref_gt, projection=self.ref_prj) # [[4455560.0, 299060.0], [4450440.0, 293940.0]] [[HW,RW],[HW,RW]]
-
-        # shift_box Koordinaten berechnen
-        mapYX2imYX       = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5], (mapYX[1]-gt[0])/gt[1])
-        shift_box_YX_flt = [mapYX2imYX(YX,self.shift_gt) for YX in box_mapYX]
-        shift_box_YX     = [[int(i[0]),int(i[1])] for i in shift_box_YX_flt]
-
-        return ref_box_YX, shift_box_YX, box_mapYX, imfft_gsd_mapvalues
+    @staticmethod
+    def get_winPoly(wp_imYX,ws,gt,match_grid=0):
+        xmin,xmax,ymin,ymax = (wp_imYX[1]-ws/2, wp_imYX[1]+ws/2, wp_imYX[0]+ws/2, wp_imYX[0]-ws/2)
+        if match_grid:  xmin,xmax,ymin,ymax = [int(i) for i in [xmin,xmax,ymin,ymax]]
+        box_YX      = (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL,UR,LR,LL
+        UL,UR,LR,LL = [imYX2mapYX(imYX,gt) for imYX in box_YX]
+        box_mapYX   = UL,UR,LR,LL
+        return Polygon([UL,UR,LR,LL]), box_mapYX, box_YX
 
     def get_clip_window_properties(self,dst_ws):
         # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
@@ -319,22 +205,14 @@ class COREG(object):
 
         gsdFact = max([self.ref_xgsd,self.shift_xgsd])/min([self.ref_xgsd,self.shift_xgsd]) # immer positiv
 
-        def get_winPoly(wp_imYX,ws,gt,match_grid=0):
-            xmin,xmax,ymin,ymax = (wp_imYX[1]-ws/2, wp_imYX[1]+ws/2, wp_imYX[0]+ws/2, wp_imYX[0]-ws/2)
-            if match_grid:  xmin,xmax,ymin,ymax = [int(i) for i in [xmin,xmax,ymin,ymax]]
-            box_YX      = (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL,UR,LR,LL
-            UL,UR,LR,LL = [imYX2mapYX(imYX,gt) for imYX in box_YX]
-            box_mapYX   = UL,UR,LR,LL
-            return Polygon([UL,UR,LR,LL]), box_mapYX, box_YX
-
         # Fenster-Größen in imref und im2shift anhand Ziel-Größe und maximal möglicher Größe setzen
         if self.shift_xgsd <= self.ref_xgsd:
             """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung"""
             imfft_gsd_mapvalues = self.ref_xgsd
             ref_clipWS_tmp   = dst_ws if dst_ws <= max_ref_clipWS   else max_ref_clipWS
             shift_clipWS_tmp = dst_ws *gsdFact if dst_ws*gsdFact <= max_shift_clipWS else max_shift_clipWS
-            ref_winPoly,  ref_box_mapYX,  ref_box_YX   = get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt, match_grid=1)
-            shift_winPoly,shift_box_mapYX,shift_box_YX = get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt)
+            ref_winPoly,  ref_box_mapYX,  ref_box_YX   = self.get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt, match_grid=1)
+            shift_winPoly,shift_box_mapYX,shift_box_YX = self.get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt)
 
             if ref_winPoly.within(shift_winPoly):
                 # wenn Ref Fenster innerhalb des Shift-Fensters:
@@ -344,17 +222,17 @@ class COREG(object):
                 shift_box_YX = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.shift_box_YX)
             else: # wenn Ref Fenster zu groß für Shift-Bild: dann Fenster vom Shift-Bild als Ref-Fenster verwenden
                 ref_box_YX_flt = [mapYX2imYX(YX,self.ref_gt) for YX in shift_box_mapYX]
-                ref_box_YX   = [[int(YX[0]),int(YX[1])] for YX in ref_box_YX_flt]
-                box_mapYX    = [imYX2mapYX(YX,self.ref_gt) for YX in ref_box_YX]
-                shift_box_YX = shift_box_YX
-                shift_box_YX = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.shift_gt)
+                ref_box_YX     = [[int(YX[0]),int(YX[1])] for YX in ref_box_YX_flt]
+                box_mapYX      = [imYX2mapYX(YX,self.ref_gt) for YX in ref_box_YX]
+                shift_box_YX   = shift_box_YX
+                shift_box_YX   = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.shift_gt)
         else:
             """Matching-Fall 2: Ref-Auflösung > Shift-Auflösung"""
             imfft_gsd_mapvalues = self.shift_xgsd # fft-Bild bekommt Auflösung des warp-Bilds
             ref_clipWS_tmp   = dst_ws*gsdFact if dst_ws*gsdFact <= max_ref_clipWS   else max_ref_clipWS
             shift_clipWS_tmp = dst_ws         if dst_ws         <= max_shift_clipWS else max_shift_clipWS
-            ref_winPoly,  ref_box_mapYX,  ref_box_YX   = get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt )
-            shift_winPoly,shift_box_mapYX,shift_box_YX = get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt,match_grid=1)
+            ref_winPoly,  ref_box_mapYX,  ref_box_YX   = self.get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt )
+            shift_winPoly,shift_box_mapYX,shift_box_YX = self.get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt,match_grid=1)
 
             if shift_winPoly.within(ref_winPoly):
                 # wenn Shift Fenster innerhalb des Ref-Fensters:
@@ -368,13 +246,6 @@ class COREG(object):
                 box_mapYX        = [imYX2mapYX(YX,self.shift_gt) for YX in shift_box_YX]  # mapYX aus shift-Bildkoord.
                 ref_box_YX       = ref_box_YX
                 ref_box_YX       = get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX,self.ref_gt)
-
-        def get_box_mapBounds(wp_imYX,ws,gt):
-            # xmin,xmax,ymin,ymax
-            xS,xE,yS,yE = (wp_imYX[1]-ws/2, wp_imYX[1]+ws/2, wp_imYX[0]-ws/2, wp_imYX[0]+ws/2)
-            UL,UR,LR,LL = [imYX2mapYX(imYX,gt) for imYX in [(yE,xS),(yE,xE),(yS,xE),(yS,xS)]]
-            xmin,xmax,ymin,ymax = [UL[1],UR[1],LR[0],LR[1]]
-            return xmin,xmax,ymin,ymax
 
         ## Test, ob zusätzlicher Buffer der Fenstergröße zum Umprojizieren gebraucht wird
         #buffFact = 1.0 if get_proj4info(self.ref_prj)==get_proj4info(self.shift_prj) else 1.5
@@ -392,6 +263,12 @@ class COREG(object):
 
         box_mapXvals = [i[1] for i in self.box_mapYX] # UTM-RW
         box_mapYvals = [i[0] for i in self.box_mapYX] # UTM-HW
+
+        is_avail_rsp_average = int(gdal.VersionInfo()[0]) >= 2
+        if not is_avail_rsp_average:
+            warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
+                          "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
+                          "please update GDAL to a version above 2.0.0!")
 
         if self.shift_xgsd <= self.ref_xgsd: # Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung
             """falls referenz die niedrigere auflösung hat oder auflösungen gleich sind:
@@ -414,23 +291,14 @@ class COREG(object):
 
             #subplot_imshow([imref_clip_data,im2shift_clip_data_orig],grid=True)
             im2shift_clip_gt = get_subset_GeoTransform(self.shift_gt,self.shift_box_YX)
-            rsp_algor = 5 # average
-            if gdal.VersionInfo().startswith('1'):
-                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-                              "please update GDAL to a version above 2.0.0!")
-                rsp_algor = 2 # cubic
 
+            rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic
             im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
                 out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
                 max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.shift_nodata) [0]
         else:
             """falls referenz die höhere auflösung hat"""
             """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
-            # 1. Eckkoordinaten des Clip-Windows für imref berechnen (anhand optimaler fft-Fenstergröße und Zentrumspunkt der Bildüberlappung)
-            # 2. imref ausschneiden und per pixel-aggregate auf auflösung von im2shift downsamplen -> dev/shm/ -> einlesen als array ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
-            # 3. warp-bild anhand des Clip-Windows des Referenz-bildes ausschneiden und auflösung unverändert lassen
-
 
             # 1. shift-window ausclippen
             # 2. ref-window per gdalwarp anhand clip-koordinaten von shift ausschneiden, ggf. umprojizieren und downsamplen
@@ -450,19 +318,18 @@ class COREG(object):
             #subplot_imshow([imref_clip_data_orig, im2shift_clip_data],grid=True)
             imref_clip_gt = get_subset_GeoTransform(self.ref_gt,self.ref_box_YX)
             #print(get_corner_coordinates(gt=imref_clip_gt,rows=clip_sz,cols=clip_sz))
-            rsp_algor = 5 # average
-            if gdal.VersionInfo().startswith('1'):
-                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-                              "please update GDAL to a version above 2.0.0!")
-                rsp_algor = 2 # cubic
 
+            rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic
             imref_clip_data = warp_ndarray(imref_clip_data_orig,imref_clip_gt,self.ref_prj,self.shift_prj,
                 out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
                 max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.ref_nodata) [0]
             #subplot_imshow([imref_clip_data,im2shift_clip_data],grid=True)
 
             # #########################################################################################################
+            # # 1. Eckkoordinaten des Clip-Windows für imref berechnen (anhand optimaler fft-Fenstergröße und Zentrumspunkt der Bildüberlappung)
+            # # 2. imref ausschneiden und per pixel-aggregate auf auflösung von im2shift downsamplen -> dev/shm/ -> einlesen als array ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
+            # # 3. warp-bild anhand des Clip-Windows des Referenz-bildes ausschneiden und auflösung unverändert lassen
+            #
             # # imref per subset-read einlesen -> im0_orig
             # rS, cS  = self.ref_box_YX[0] # UL
             # clip_sz = abs(self.ref_box_YX[1][0]-self.ref_box_YX[0][0])
@@ -504,119 +371,28 @@ class COREG(object):
             #     out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
             #     max(box_mapXvals),max(box_mapYvals)]), rsp_alg=2, in_nodata=self.shift_nodata) [0]
 
+
+        if imref_clip_data.shape != im2shift_clip_data.shape:
+            raise RuntimeError('Bad output of get_image_windows_to_match.')
+        rows,cols = [i if i%2==0 else i-1 for i in imref_clip_data.shape]
+        imref_clip_data, im2shift_clip_data = imref_clip_data[:rows,:cols], im2shift_clip_data[:rows,:cols]
+
         self.imref_matchWin    = imref_clip_data
         self.im2shift_matchWin = im2shift_clip_data
         return imref_clip_data, im2shift_clip_data
 
-    def get_image_windows_to_matchOLD(self):
-        if self.v: print('resolutions: ', self.ref_xgsd, self.shift_xgsd)
-
-        box_mapXvals = [i[1] for i in self.box_mapYX] # UTM-RW
-        box_mapYvals = [i[0] for i in self.box_mapYX] # UTM-HW
-
-        if self.ref_xgsd >= self.shift_xgsd:
-            """falls referenz die niedrigere auflösung hat oder auflösungen gleich sind:
-            im2shift auf imref downsamplen"""
-            # 1. Eckkoordinaten Warp-Bild -> per Subset-Read referenz-Bild mit vorgegebener Fenstergröße (wie in späterer fft, um Rechenzeit zu sparen) einlesen -> zwischenspeichern in dev/shm/
-            # 2. warp-Bild (bzw. subset je nach fft-fenstergröße) downsamplen auf Auflösung des referenz-bildes per pixel-aggregate -> dev/shm/    ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
-            # 3. referenz und warp-bild exakt in der fft-fenstergröße einlesen
-
-            # imref per subset-read einlesen -> im0
-            rS, cS  = self.ref_box_YX[0] # UL
-            clip_sz = abs(self.ref_box_YX[1][0]-self.ref_box_YX[0][0])
-
-            ds_imref        = gdal.Open(self.path_imref)
-            print(self.path_imref)
-            print(rS,cS)
-            print(clip_sz)
-            imref_clip_data = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
-            ds_imref        = None
-
-            # im2shift per subset-read einlesen
-            rS, cS  = self.shift_box_YX[0] # UL
-            rS, cS  = rS-1, cS-1 # Input-Bild muss etwas größer sein als out_extent
-            clip_sz = abs(self.shift_box_YX[1][0]-self.shift_box_YX[0][0])+2
-            ds_im2shift             = gdal.Open(self.path_im2shift)
-            im2shift_clip_data_orig = \
-                ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
-            ds_im2shift             = None
-
-            #subplot_imshow([imref_clip_data,im2shift_clip_data_orig],grid=True)
-            im2shift_clip_gt = list(self.shift_gt[:])
-            im2shift_clip_gt[3],im2shift_clip_gt[0] = \
-                pixelToMapYX([int(cS),int(rS)],geotransform=self.shift_gt,projection=self.shift_prj)[0]
-
-            rsp_algor = 5 # average
-            if gdal.VersionInfo().startswith('1'):
-                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-                              "please update GDAL to a version above 2.0.0!")
-                rsp_algor = 2 # cubic
-            im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
-                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
-                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.shift_nodata) [0]
-
-        else:
-            """falls referenz die höhere auflösung hat"""
-            """imref auf im2shift downsamplen"""  ## funktioniert perfekt (getestet an UTM_Z43:5m - UTM_Z43:30m)
-            # 1. Eckkoordinaten des Clip-Windows für imref berechnen (anhand optimaler fft-Fenstergröße und Zentrumspunkt der Bildüberlappung)
-            # 2. imref ausschneiden und per pixel-aggregate auf auflösung von im2shift downsamplen -> dev/shm/ -> einlesen als array ## http://gis.stackexchange.com/questions/110769/gdal-python-aggregate-raster-into-lower-resolution
-            # 3. warp-bild anhand des Clip-Windows des Referenz-bildes ausschneiden und auflösung unverändert lassen
-
-            # imref per subset-read einlesen -> im0_orig
-            rS, cS  = self.ref_box_YX[0] # UL
-            clip_sz = abs(self.ref_box_YX[1][0]-self.ref_box_YX[0][0])
-
-            ds_imref             = gdal.Open(self.path_imref)
-            imref_clip_data_orig = ds_imref.GetRasterBand(self.imref_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
-            ds_imref             = None
-
-            # imref mit imref_box ausclippen und per pixel aggregate auf auflösung von im2shift downsamplen
-            imref_clip_gt = list(self.ref_gt[:])
-            imref_clip_gt[3],imref_clip_gt[0] = \
-                pixelToMapYX([int(cS),int(rS)],geotransform=self.ref_gt,projection=self.ref_prj)[0]
-            rsp_algor = 5 # average
-            if gdal.VersionInfo().startswith('1'):
-                warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-                              "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-                              "please update GDAL to a version above 2.0.0!")
-                rsp_algor = 2 # cubic
-            imref_clip_data = warp_ndarray(imref_clip_data_orig,imref_clip_gt,self.ref_prj,self.ref_prj,
-                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
-                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=rsp_algor, in_nodata=self.ref_nodata) [0]
-                # target extent srs is not neccessary because -t_srs = imref_proj and output extent is derived from imref
-
-            # im2shift per subset-read einlesen
-            rS, cS  = self.shift_box_YX[0] # UL
-            rS, cS  = rS-1, cS-1 # Input-Bild muss etwas größer sein als out_extent
-            clip_sz = abs(self.shift_box_YX[1][0]-self.shift_box_YX[0][0])+2
-            ds_im2shift             = gdal.Open(self.path_im2shift)
-            im2shift_clip_data_orig = \
-                ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(cS, rS, clip_sz, clip_sz)
-            ds_im2shift             = None
-
-            # im2shift mit imref_box_map ausclippen (cubic, da pixelgrenzen verschoben werden müssen aber auflösung
-            # gleich bleibt)
-            im2shift_clip_gt = list(self.shift_gt[:])
-            im2shift_clip_gt[3],im2shift_clip_gt[0] = \
-                pixelToMapYX([int(cS),int(rS)],geotransform=self.shift_gt,projection=self.shift_prj)[0]
-            im2shift_clip_data = warp_ndarray(im2shift_clip_data_orig,im2shift_clip_gt,self.shift_prj,self.ref_prj,
-                out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
-                max(box_mapXvals),max(box_mapYvals)]), rsp_alg=2, in_nodata=self.shift_nodata) [0]
-
-        return imref_clip_data, im2shift_clip_data
-
-    @staticmethod
-    def get_opt_fftw_winsize(im_shape, target_size=None,v=0,ignErr=0):
+    def get_opt_fftw_winsize(self,im_shape, target_size=None,v=0,ignErr=0):
         binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+        #binarySizes = range(32,8193) # FIXME
         possibSizes = [i for i in binarySizes if i <= min(im_shape)]
         if not possibSizes:
             if not ignErr:  raise RuntimeError('The matching window became too small for calculating a reliable match. '
                                                'Matching failed.')
             else:           return None
         target_size = max(possibSizes) if target_size is None else target_size
-        closest_to_target = min(possibSizes, key=lambda x:abs(x-target_size))
+        closest_to_target = int(min(possibSizes, key=lambda x:abs(x-target_size)))
         if v: print('final window size: %s' %closest_to_target)
+        self.fftw_win_size = closest_to_target
         return closest_to_target
 
     def calc_shifted_cross_power_spectrum(self,im0,im1,window_size=1024,precision=np.complex64, v=0, ignErr=0):
@@ -630,10 +406,25 @@ class COREG(object):
         """
         window_size = self.get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr)
 
+        assert im0.shape == im1.shape, 'The reference and the target image must have the same dimensions.'
+        if im0.shape[0]%2!=0: warnings.warn('Odd row count in one of the match images!')
+        if im1.shape[1]%2!=0: warnings.warn('Odd column count in one of the match images!')
+
+        #print('fft_size',window_size)
         if window_size:
             t0 = time.time()
-            in_arr0  = im0[:window_size,:window_size].astype(precision)
-            in_arr1  = im1[:window_size,:window_size].astype(precision)
+
+            center_YX = np.array(im0.shape)/2
+            xmin,xmax,ymin,ymax = int(center_YX[1]-window_size/2), int(center_YX[1]+window_size/2),\
+                                  int(center_YX[0]-window_size/2), int(center_YX[0]+window_size/2)
+            in_arr0  = im0[ymin:ymax,xmin:xmax].astype(precision)
+            in_arr1  = im1[ymin:ymax,xmin:xmax].astype(precision)
+
+            if not self.q:
+                subplot_imshow([in_arr0.astype(np.float32),in_arr1.astype(np.float32)],
+                               ['FFTin_'+os.path.basename(self.path_imref),
+                                'FFTin_'+os.path.basename(self.path_im2shift)],grid=True)
+
             if 'pyfft' in globals():
                 fft_arr0 = pyfftw.FFTW(in_arr0,np.empty_like(in_arr0), axes=(0,1))()
                 fft_arr1 = pyfftw.FFTW(in_arr1,np.empty_like(in_arr1), axes=(0,1))()
@@ -678,31 +469,30 @@ class COREG(object):
         return x_shift,y_shift
 
     @staticmethod
-    def get_grossly_deshifted_im0(im0,x_intshift,y_intshift,shape_power_spectrum):
-        old_center_coord = [i//2 for i in im0.shape]
-        new_center_coord = [old_center_coord[0]+y_intshift, old_center_coord[1]+x_intshift]
-        x_left  = new_center_coord[1]
-        x_right = im0.shape[1]-new_center_coord[1]
-        y_above = new_center_coord[0]
-        y_below = im0.shape[0]-new_center_coord[0]
-        maxposs_winsz = 2*min(x_left,x_right,y_above,y_below)
-        wsz = maxposs_winsz if maxposs_winsz <=min(shape_power_spectrum) and shape_power_spectrum is not None \
-            else min(shape_power_spectrum)
-        #wsz = get_opt_fftw_winsize(maxposs_winsz,(maxposs_winsz,maxposs_winsz))
-        return im0[new_center_coord[0]-wsz//2:new_center_coord[0]+wsz//2+1, \
-               new_center_coord[1]-wsz//2:new_center_coord[1]+wsz//2+1]
-
-    @staticmethod
-    def get_corresponding_im1_clip(im1, shape_im0):
-        center_coord = [i//2 for i in im1.shape]
-        return im1[center_coord[0]-shape_im0[0]//2:center_coord[0]+shape_im0[0]//2+1, \
-               center_coord[1]-shape_im0[1]//2:center_coord[1]+shape_im0[1]//2+1]
+    def clip_image(im,center_YX,winSzYX):
+        get_bounds = lambda YX,wsY,wsX: (int(YX[1]-(wsX/2)),int(YX[1]+(wsX/2)),int(YX[0]-(wsY/2)),int(YX[0]+(wsY/2)))
+        wsY,wsX   = winSzYX
+        xmin,xmax,ymin,ymax = get_bounds(center_YX,wsY,wsX)
+        return im[ymin:ymax,xmin:xmax]
 
     def get_grossly_deshifted_images(self,im0,im1,x_intshift,y_intshift,shape_power_spectrum=None,v=0):
-        gdsh_im0 = self.get_grossly_deshifted_im0(im0,x_intshift,y_intshift,shape_power_spectrum)
-        crsp_im1 = self.get_corresponding_im1_clip(im1,gdsh_im0.shape)
+        # get_grossly_deshifted_im0
+        old_center_YX = np.array(im0.shape)/2
+        new_center_YX = [old_center_YX[0]+y_intshift, old_center_YX[1]+x_intshift]
+
+        x_left  = new_center_YX[1]
+        x_right = im0.shape[1]-new_center_YX[1]
+        y_above = new_center_YX[0]
+        y_below = im0.shape[0]-new_center_YX[0]
+        maxposs_winsz = 2*min(x_left,x_right,y_above,y_below)
+
+        gdsh_im0 = self.clip_image(im0,new_center_YX,[maxposs_winsz,maxposs_winsz])
+
+        # get_corresponding_im1_clip
+        crsp_im1  = self.clip_image(im1,np.array(im1.shape)/2,gdsh_im0.shape)
+
         if v:
-            subplot_imshow([self.get_corresponding_im1_clip(im0,gdsh_im0.shape),self.get_corresponding_im1_clip(im1,gdsh_im0.shape)],
+            subplot_imshow([self.clip_image(im0,old_center_YX,gdsh_im0.shape),crsp_im1],
                            titles=['reference original', 'target'], grid=True)
             subplot_imshow([gdsh_im0, crsp_im1],titles=['reference virtually shifted', 'target'], grid=True)
         return gdsh_im0,crsp_im1
@@ -753,19 +543,20 @@ class COREG(object):
         return x_intshift+x_subshift, y_intshift+y_subshift
 
     def calculate_spatial_shifts(self):
-        if self.q:
-            warnings.simplefilter('ignore')
+        if self.q:  warnings.simplefilter('ignore')
         im0, im1 = self.get_image_windows_to_match()
         #
         #write_envi(im0, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imref__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.ref_win_size))
         #write_envi(im1, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imtgt__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.shift_win_size))
-        #subplot_imshow([im0,im1],[os.path.basename(self.path_imref),os.path.basename(self.path_im2shift)],grid=True)
+        if not self.q:
+            subplot_imshow([im0,im1],[os.path.basename(self.path_imref),os.path.basename(self.path_im2shift)],grid=True)
 
         gsd_factor = self.imfft_gsd/self.shift_xgsd
 
 
         if self.v: print('gsd_factor',         gsd_factor)
         if self.v: print('imfft_gsd_mapvalues',self.imfft_gsd)
+
         scps = self.calc_shifted_cross_power_spectrum(im0,im1,v=self.v,ignErr=self.ignErr)
         x_shift_px,y_shift_px = None,None # defaults
         if scps is None:
@@ -814,6 +605,7 @@ class COREG(object):
                     print('Detected subpixel shifts (X/Y):      %s/%s' %(x_subshift,y_subshift))
                     print('Calculated total shifts in fft image units (X/Y):         %s/%s' %(x_totalshift,y_totalshift))
                     print('Calculated total shifts in reference image units (X/Y):   %s/%s' %(x_totalshift,y_totalshift))
+                    print('Calculated total shifts in target image units (X/Y):      %s/%s' %(x_shift_px,y_shift_px))
 
                 if max([abs(x_totalshift),abs(y_totalshift)]) > self.max_shift:
                     self.success = False
@@ -1230,6 +1022,55 @@ def wkt2epsg(wkt, epsg=os.environ['GDAL_DATA'].replace('/gdal','/proj/epsg')):
         code = ac
     return code
 
+def pixelToLatLon(pixelPairs, path_im=None, geotransform=None, projection=None):
+    """The following method translates given pixel locations into latitude/longitude locations on a given GEOTIF
+    This method does not take into account pixel size and assumes a high enough
+    image resolution for pixel size to be insignificant
+    :param pixelPairs:      The pixel pairings to be translated in the form [[x1,y1],[x2,y2]]
+    :param path_im:         The file location of the input image
+    :param geotransform:    GDAL GeoTransform
+    :param projection:      GDAL Projection
+    :returns:               The lat/lon translation of the pixel pairings in the form [[lat1,lon1],[lat2,lon2]]
+    """
+    assert path_im is not None or geotransform is not None and projection is not None, \
+        "GEOP.pixelToLatLon: Missing argument! Please provide either 'path_im' or 'geotransform' AND 'projection'."
+    if geotransform is not None and projection is not None:
+        gt,proj = geotransform, projection
+    else:
+        ds       = gdal.Open(path_im)
+        gt, proj = ds.GetGeoTransform(), ds.GetProjection()
+
+    # Create a spatial reference object for the dataset
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(proj)
+    # Set up the coordinate transformation object
+    srsLatLong = srs.CloneGeogCS()
+    ct = osr.CoordinateTransformation(srs, srsLatLong)
+    # Go through all the point pairs and translate them to pixel pairings
+    latLonPairs = []
+    for point in pixelPairs:
+        # Translate the pixel pairs into untranslated points
+        ulon = point[0] * gt[1] + gt[0]
+        ulat = point[1] * gt[5] + gt[3]
+        # Transform the points to the space
+        (lon, lat, holder) = ct.TransformPoint(ulon, ulat)
+        # Add the point to our return array
+        latLonPairs.append([lat, lon])
+
+    return latLonPairs
+
+def isProjectedOrGeographic(prj):
+    srs = osr.SpatialReference()
+    if prj.startswith('EPSG:'):
+        srs.ImportFromEPSG(int(prj.split(':')[1]))
+    elif prj.startswith('+proj='):
+        srs.ImportFromProj4(prj)
+    elif prj.startswith('GEOGCS') or prj.startswith('PROJCS'):
+        srs.ImportFromWkt(prj)
+    else:
+        raise Exception('Unknown input projection.')
+    return 'projected' if srs.IsProjected() else 'geographic' if srs.IsGeographic() else None
+
 def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None,
                  out_res=None,out_extent=None,out_dtype=None,rsp_alg=0,in_nodata=None,out_nodata=None):
     """Reproject / warp a numpy array with given geo information to target coordinate system.
@@ -1279,6 +1120,7 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
             bands,rows,cols = ndarray.shape
             rows,cols       = outRowsCols if outRowsCols else rows,cols
         else:
+            bands = 0
             rows,cols = ndarray.shape if outRowsCols is None else outRowsCols
 
         out_dtype = ndarray.dtype if out_dtype is None else out_dtype
@@ -1323,7 +1165,7 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
         if out_gt is None:
             out_gt = (aff[2],aff[0],aff[1],aff[5],aff[3],aff[4])
 
-        src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
+        #src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
 
         dict_rspInt_rspAlg = {0:RESAMPLING.nearest, 1:RESAMPLING.bilinear, 2:RESAMPLING.cubic,
                               3:RESAMPLING.cubic_spline, 4:RESAMPLING.lanczos, 5:RESAMPLING.average, 6:RESAMPLING.mode}
