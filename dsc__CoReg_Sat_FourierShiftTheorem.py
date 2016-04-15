@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-04-11_01"
+__version__= "2016-04-15_01"
 
 import collections
 import multiprocessing
@@ -981,7 +981,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-04-11_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-04-15_01')
     args = parser.parse_args()
 
     print('==================================================================\n'
