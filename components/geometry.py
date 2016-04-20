@@ -2,8 +2,8 @@ import math
 import os
 import re
 import warnings
+
 import numpy  as np
-import pandas as pd
 
 try:
     import gdal
@@ -18,9 +18,9 @@ from rasterio.warp import RESAMPLING
 from rasterio.warp import calculate_default_transform as rio_calc_transform
 from rasterio.warp import reproject as rio_reproject
 from shapely.geometry import Polygon, shape
+from geopandas import GeoDataFrame
 
-from .utilities import get_dtypeStr
-from .io        import gdal_ReadAsArray_mp
+from . import io as IO
 
 
 
@@ -71,6 +71,29 @@ def get_overlap_polygon(poly1, poly2,v=0):
         return {'overlap poly':None, 'overlap percentage':0, 'overlap area':0}
 
 
+def find_line_intersection_point(line1, line2):
+    xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+    ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+
+    det = lambda a,b: a[0] * b[1] - a[1] * b[0]
+    div = det(xdiff, ydiff)
+    if div == 0: # lines do not intersect
+        return None, None
+    d = (det(*line1), det(*line2))
+    x = det(d, xdiff) / div
+    y = det(d, ydiff) / div
+    return x, y
+
+
+def angle_to_north(XY):
+    """Calculates the angle between the lines [origin:[0,0],north:[0,1]] and
+     [origin:[0,0],pointXY:[X,Y]] in clockwise direction. Returns values between 0 and 360 degrees."""
+    XY    = np.array(XY)
+    XYarr = XY if len(XY.shape)==2 else XY.reshape((1,2))
+    return np.abs(np.degrees(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2)%360)
+
+
+
 def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
     gdal_ds   = gdal.Open(fPath)
     fPath     = gdal_ds.GetDescription()
@@ -89,11 +112,11 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
         mask_1bit[:,:] = 1
     else:
         if mp:
-            band_data = gdal_ReadAsArray_mp(fPath,bandNr)
+            band_data = IO.gdal_ReadAsArray_mp(fPath,bandNr)
         else:
-            gdal.Open(fPath)
+            gdal_ds   = gdal.Open(fPath)
             band_data = gdal_ds.GetRasterBand(bandNr).ReadAsArray()
-            gdal_ds = None
+            gdal_ds   = None
         mask_1bit[band_data!=noDataVal] = 1
 
     if v: print('detected no data value',noDataVal)
@@ -124,19 +147,6 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
                                                       StartStopCols_in_first_dataRow, StartStopCols_in_last_dataRow]]:
             ''' In case of cut image corners (e.g. ALOS AVNIR-2 Level-1B2):
              Calculation of trueDataCornerPos outside of the image.'''
-            def find_line_intersection_point(line1, line2):
-                xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
-                ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
-
-                det = lambda a,b: a[0] * b[1] - a[1] * b[0]
-                div = det(xdiff, ydiff)
-                if div == 0: # lines do not intersect
-                    return None, None
-                d = (det(*line1), det(*line2))
-                x = det(d, xdiff) / div
-                y = det(d, ydiff) / div
-                return x, y
-
             line_N = ((StartStopCols_in_first_dataRow[1], first_dataRow),
                       (last_dataCol, StartStopRows_in_last_dataCol[0]))
             line_S = ((first_dataCol, StartStopRows_in_first_dataCol[1]),
@@ -176,7 +186,7 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
                             'the matching window is positioned correcly.\n' %os.path.basename(fPath))
 
     # check if all points are unique
-    all_coords_are_unique = len([UL, UR, LL, LR]) == len(pd.DataFrame([UL, UR, LL, LR]).drop_duplicates().values)
+    all_coords_are_unique = len([UL, UR, LL, LR]) == len(GeoDataFrame([UL, UR, LL, LR]).drop_duplicates().values)
     UL, UR, LL, LR = (UL, UR, LL, LR) if all_coords_are_unique else ((0, 0), (0, cols-1), (rows-1, 0), (rows-1, cols-1))
 
     get_mapYX = lambda YX: pixelToMapYX(list(reversed(YX)),geotransform=gt,projection=prj)[0]
@@ -209,66 +219,35 @@ def get_gdalReadInputs_from_boxImYX(boxImYX):
     return cS, rS, clip_sz_x,clip_sz_y
 
 
-def write_shp(path_out, shapely_geom, prj=None,attrDict=None):
-    shapely_geom = [shapely_geom] if not isinstance(shapely_geom,list) else shapely_geom
-    attrDict     = [attrDict] if not isinstance(attrDict,list) else attrDict
-    assert len(shapely_geom) == len(attrDict), "'shapely_geom' and 'attrDict' must have the same length."
-
-    print('Writing %s ...' %path_out)
-    if os.path.exists(path_out): os.remove(path_out)
-    ds = ogr.GetDriverByName("Esri Shapefile").CreateDataSource(path_out)
-
-    if prj is not None:
-        srs = osr.SpatialReference()
-        srs.ImportFromWkt(prj)
-    else:
-        srs = None
-
-    geom_type = list(set([gm.type for gm in shapely_geom]))
-    assert len(geom_type)==1, 'All shapely geometries must belong to the same type. Got %s.' %geom_type
-
-    layer = ds.CreateLayer('', srs, ogr.wkbPoint)      if geom_type[0] == 'Point'      else \
-            ds.CreateLayer('', srs, ogr.wkbLineString) if geom_type[0] == 'LineString' else \
-            ds.CreateLayer('', srs, ogr.wkbPolygon)    if geom_type[0] == 'Polygon'    else \
-            None # FIXME
-
-    if isinstance(attrDict[0],dict):
-        for attr in attrDict[0].keys():
-            assert len(attr)<=10, "ogr does not support fieldnames longer than 10 digits. '%s' is too long" %attr
-            DTypeStr  = get_dtypeStr(attrDict[0][attr])
-            FieldType = ogr.OFTInteger if DTypeStr.startswith('int') else ogr.OFTReal     if DTypeStr.startswith('float') else \
-                        ogr.OFTString  if DTypeStr.startswith('str') else ogr.OFTDateTime if DTypeStr.startswith('date') else None
-            FieldDefn = ogr.FieldDefn(attr, FieldType)
-            if DTypeStr.startswith('float'):
-                FieldDefn.SetPrecision(6)
-            layer.CreateField(FieldDefn)  # Add one attribute
-
-    for i in range(len(shapely_geom)):
-        # Create a new feature (attribute and geometry)
-        feat = ogr.Feature(layer.GetLayerDefn())
-        feat.SetGeometry(ogr.CreateGeometryFromWkb(shapely_geom[i].wkb)) # Make a geometry, from Shapely object
-
-        list_attr2set = attrDict[0].keys() if isinstance(attrDict[0],dict) else []
-
-        for attr in list_attr2set:
-            val       = attrDict[i][attr]
-            DTypeStr  = get_dtypeStr(val)
-            val = int(val) if DTypeStr.startswith('int') else float(val) if DTypeStr.startswith('float') else \
-                  str(val) if DTypeStr.startswith('str') else val
-            feat.SetField(attr, val)
-
-        layer.CreateFeature(feat)
-        feat.Destroy()
-
-    # Save and close everything
-    ds = layer = None
-
-
 def get_proj4info(ds=None,proj=None):
     assert ds is not None or proj is not None, "Specify at least one of the arguments 'ds' or 'proj'"
     srs = osr.SpatialReference()
     srs.ImportFromWkt(ds.GetProjection() if ds is not None else proj)
     return srs.ExportToProj4()
+
+
+def get_UTMzone(ds=None,prj=None):
+    assert ds is not None or prj is not None, "Specify at least one of the arguments 'ds' or 'prj'"
+    if isProjectedOrGeographic(prj)=='projected':
+        srs = osr.SpatialReference()
+        srs.ImportFromWkt(ds.GetProjection() if ds is not None else prj)
+        return srs.GetUTMZone()
+    else:
+        return None
+
+
+def isProjectedOrGeographic(prj):
+    if prj is None: return None
+    srs = osr.SpatialReference()
+    if prj.startswith('EPSG:'):
+        srs.ImportFromEPSG(int(prj.split(':')[1]))
+    elif prj.startswith('+proj='):
+        srs.ImportFromProj4(prj)
+    elif prj.startswith('GEOGCS') or prj.startswith('PROJCS'):
+        srs.ImportFromWkt(prj)
+    else:
+        raise Exception('Unknown input projection.')
+    return 'projected' if srs.IsProjected() else 'geographic' if srs.IsGeographic() else None
 
 
 def wkt2epsg(wkt, epsg=os.environ['GDAL_DATA'].replace('/gdal','/proj/epsg')):
@@ -369,19 +348,6 @@ def pixelToMapYX(pixelCoords, path_im=None, geotransform=None, projection=None):
         mapYmapXPairs.append([mapY, mapX])
 
     return mapYmapXPairs
-
-
-def isProjectedOrGeographic(prj):
-    srs = osr.SpatialReference()
-    if prj.startswith('EPSG:'):
-        srs.ImportFromEPSG(int(prj.split(':')[1]))
-    elif prj.startswith('+proj='):
-        srs.ImportFromProj4(prj)
-    elif prj.startswith('GEOGCS') or prj.startswith('PROJCS'):
-        srs.ImportFromWkt(prj)
-    else:
-        raise Exception('Unknown input projection.')
-    return 'projected' if srs.IsProjected() else 'geographic' if srs.IsGeographic() else None
 
 
 def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None,
@@ -520,3 +486,24 @@ def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
     possVals  = [i['mean'] for i in [UL,UR,LR,LL] if i['std']==0]
     # possVals==[]: all corners are filled with data; np.std(possVals)==0: noDataVal clearly identified
     return None if possVals==[] else possVals[0] if np.std(possVals)==0 else 'unclear'
+
+
+def geotransform2mapinfo(gt,prj):
+    """Builds an ENVI map info from given GDAL GeoTransform and Projection (compatible with UTM and LonLat projections).
+    :param gt:  GDAL GeoTransform
+    :param prj: GDAL Projection
+    :returns:   ENVI map info, e.g. [ UTM , 1 , 1 , 256785.0 , 4572015.0 , 30.0 , 30.0 , 43 , North , WGS-84 ]
+    :rtype:     list
+    """
+    srs         = osr.SpatialReference()
+    srs.ImportFromWkt(prj)
+    Proj4       = [i[1:] for i in srs.ExportToProj4().split()]
+    Proj4_proj  = [v.split('=')[1] for i,v in enumerate(Proj4) if '=' in v and v.split('=')[0]=='proj'][0]
+    Proj4_ellps = [v.split('=')[1] for i,v in enumerate(Proj4) if '=' in v and v.split('=')[0] in ['ellps','datum']][0]
+    proj        = 'Geographic Lat/Lon' if Proj4_proj=='longlat' else 'UTM' if Proj4_proj=='utm' else Proj4_proj
+    ellps       = 'WGS-84' if Proj4_ellps=='WGS84' else Proj4_ellps
+    UL_X, UL_Y, GSD_X, GSD_Y = gt[0], gt[3], gt[1], gt[5]
+    is_UTM_North_South = 'North' if UL_Y>=0 else 'South'
+    map_info = [proj,1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),ellps] \
+        if proj!='UTM' else ['UTM',1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),srs.GetUTMZone(),is_UTM_North_South,ellps]
+    return map_info

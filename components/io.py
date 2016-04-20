@@ -3,13 +3,18 @@ import multiprocessing
 import os
 import time
 import numpy as np
+import ogr
+import osr
+#import tempfile
 
 try:
     import gdal
 except ImportError:
     from osgeo import gdal
+from spectral.io import envi
 
-from .utilities import get_image_tileborders
+from .utilities import get_dtypeStr, get_image_tileborders, convertGdalNumpyDataType
+from .geometry  import geotransform2mapinfo
 
 
 
@@ -86,3 +91,123 @@ def gdal_ReadAsArray_mp(fPath,bandNr,tilesize=1500):
     with multiprocessing.Pool() as pool: pool.map(fill_arr, fill_arr_argDicts)
 
     return shared_array
+
+
+def write_shp(path_out, shapely_geom, prj=None,attrDict=None):
+    shapely_geom = [shapely_geom] if not isinstance(shapely_geom,list) else shapely_geom
+    attrDict     = [attrDict] if not isinstance(attrDict,list) else attrDict
+    # print(len(shapely_geom))
+    # print(len(attrDict))
+    assert len(shapely_geom) == len(attrDict), "'shapely_geom' and 'attrDict' must have the same length."
+
+    print('Writing %s ...' %path_out)
+    if os.path.exists(path_out): os.remove(path_out)
+    ds = ogr.GetDriverByName("Esri Shapefile").CreateDataSource(path_out)
+
+    if prj is not None:
+        srs = osr.SpatialReference()
+        srs.ImportFromWkt(prj)
+    else:
+        srs = None
+
+    geom_type = list(set([gm.type for gm in shapely_geom]))
+    assert len(geom_type)==1, 'All shapely geometries must belong to the same type. Got %s.' %geom_type
+
+    layer = ds.CreateLayer('', srs, ogr.wkbPoint)      if geom_type[0] == 'Point'      else \
+            ds.CreateLayer('', srs, ogr.wkbLineString) if geom_type[0] == 'LineString' else \
+            ds.CreateLayer('', srs, ogr.wkbPolygon)    if geom_type[0] == 'Polygon'    else \
+            None # FIXME
+
+    if isinstance(attrDict[0],dict):
+        for attr in attrDict[0].keys():
+            assert len(attr)<=10, "ogr does not support fieldnames longer than 10 digits. '%s' is too long" %attr
+            DTypeStr  = get_dtypeStr(attrDict[0][attr])
+            FieldType = ogr.OFTInteger if DTypeStr.startswith('int') else ogr.OFTReal     if DTypeStr.startswith('float') else \
+                        ogr.OFTString  if DTypeStr.startswith('str') else ogr.OFTDateTime if DTypeStr.startswith('date') else None
+            FieldDefn = ogr.FieldDefn(attr, FieldType)
+            if DTypeStr.startswith('float'):
+                FieldDefn.SetPrecision(6)
+            layer.CreateField(FieldDefn)  # Add one attribute
+
+    for i in range(len(shapely_geom)):
+        # Create a new feature (attribute and geometry)
+        feat = ogr.Feature(layer.GetLayerDefn())
+        feat.SetGeometry(ogr.CreateGeometryFromWkb(shapely_geom[i].wkb)) # Make a geometry, from Shapely object
+
+        list_attr2set = attrDict[0].keys() if isinstance(attrDict[0],dict) else []
+
+        for attr in list_attr2set:
+            val       = attrDict[i][attr]
+            DTypeStr  = get_dtypeStr(val)
+            val = int(val) if DTypeStr.startswith('int') else float(val) if DTypeStr.startswith('float') else \
+                  str(val) if DTypeStr.startswith('str') else val
+            feat.SetField(attr, val)
+
+        layer.CreateFeature(feat)
+        feat.Destroy()
+
+    # Save and close everything
+    ds = layer = None
+
+
+def write_numpy_to_image(array,path_out,outFmt='GTIFF',gt=None,prj=None):
+    rows,cols,bands = list(array.shape)+[1] if len(array.shape)==2 else array.shape
+    gdal_dtype      = gdal.GetDataTypeByName(convertGdalNumpyDataType(array.dtype))
+    outDs           = gdal.GetDriverByName(outFmt).Create(path_out,cols, rows, bands,gdal_dtype)
+    for b in range(bands):
+        band  = outDs.GetRasterBand(b+1)
+        arr2write = array if len(array.shape)==2 else array[:,:,b]
+        band.WriteArray(arr2write)
+        band=None
+    if gt:  outDs.SetGeoTransform(gt)
+    if prj: outDs.SetProjection(prj)
+    outDs=None
+
+
+#def get_tempfile(ext=None,prefix=None,tgt_dir=None):
+#    """Returns the path to a tempfile.mkstemp() file that can be passed to any function that expects a physical path.
+#    The tempfile has to be deleted manually.
+#    :param ext:     file extension (None if None)
+#    :param prefix:  optional file prefix
+#    :param tgt_dir: target directory (automatically set if None)
+#     """
+#    prefix   = 'danschef__CoReg__' if prefix is None else prefix
+#    fd, path = tempfile.mkstemp(prefix=prefix,suffix=ext,dir=tgt_dir)
+#    os.close(fd)
+#    return path
+
+
+shared_array_on_disk__path   = None
+shared_array_on_disk__memmap = None
+def init_SharedArray_on_disk(out_path,dims,gt=None,prj=None):
+    global shared_array_on_disk__memmap
+    global shared_array_on_disk__path
+    path = out_path if not os.path.splitext(out_path)[1]=='.bsq' else \
+                            os.path.splitext(out_path)[0]+'.hdr'
+    Meta={}
+    if gt and prj:
+        Meta['map info']                 = geotransform2mapinfo(gt,prj)
+        Meta['coordinate system string'] = prj
+    shared_array_on_disk__obj    = envi.create_image(path,metadata=Meta,shape=dims,dtype='uint16',
+                                                     interleave='bsq',ext='.bsq', force=True)
+    shared_array_on_disk__memmap = shared_array_on_disk__obj.open_memmap(writable=True)
+    shared_array_on_disk__path   = out_path
+
+
+def fill_arr_on_disk(pos):
+    (rS,rE),(cS,cE) = pos
+    ds   = gdal.Open(shared_array_on_disk__path)
+    band = ds.GetRasterBand(1) # FIXME band
+    shared_array_on_disk__memmap[rS:rE+1,cS:cE+1,0] = band.ReadAsArray(cS,rS,cE-cS+1,rE-rS+1)
+    ds = band = None
+
+
+def convert_gdal_to_bsq__mp(in_path,out_path,band=1):
+    ds   = gdal.Open(in_path)
+    dims = (ds.RasterYSize,ds.RasterXSize)
+    gt,prj = ds.GetGeoTransform(), ds.GetProjection()
+    ds   = None
+    init_SharedArray_on_disk(out_path,dims,gt,prj)
+    positions = get_image_tileborders([512,512],dims)
+
+    with multiprocessing.Pool() as pool:  pool.map(fill_arr_on_disk,positions)
