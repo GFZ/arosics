@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-08-02_01"
+__version__= "2016-08-02_02"
 
 import collections
 import multiprocessing
@@ -1149,7 +1149,7 @@ if __name__ == '__main__':
         "corners. The verbose program mode gives some more output about the interim results, shows some figures and "\
         "writes the used footprint and overlap polygons to disk. The figures must be manually closed in in order to "\
         "continue the processing."
-        "The following non-standard Python libraries are required: gdal, osr, ogr "\
+        "The following non-standard Python libraries are required: gdal, osr, ogr, geopandas, rasterio, pykrige, "\
         "argparse and shapely. pyfftw is optional but will speed up calculation.")
     parser.add_argument('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
     parser.add_argument('path_im1', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
@@ -1181,6 +1181,7 @@ if __name__ == '__main__':
     parser.add_argument('-calc_cor', nargs=1,type=int, choices=[0,1],default=1, help="calculate true positions of "\
                         "the dataset corners in order to get a useful matching window position within the actual "\
                         "image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
+    parser.add_argument('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0, 1])
     parser.add_argument('-bin_ws', nargs='?', type=int, help='use binary X/Y dimensions for the matching window '
                                                              '(default: 1)', default=1, choices=[0, 1])
     parser.add_argument('-v', nargs='?',type=int, help='verbose mode (default: 0)', default=0, choices=[0,1])
@@ -1188,7 +1189,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-02_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-02_02')
     args = parser.parse_args()
 
     print('==================================================================\n'
@@ -1198,9 +1199,27 @@ if __name__ == '__main__':
           '==================================================================\n')
 
     t0 = time.time()
-    COREG_obj = CoReg(args.path_im0, args.path_im1, args.path_out, args.br, args.bs, args.wp, args.ws, args.max_iter,
-                      args.max_shift, args.align_grids, args.match_gsd, args.out_gsd, args.cor0, args.cor1, args.nodata,
-                      args.calc_cor, args.bin_ws, args.v, args.q, args.ignore_errors)
+    COREG_obj = CoReg(args.path_im0,
+                      args.path_im1,
+                      path_out         = args.path_out,
+                      r_b4match        = args.br,
+                      s_b4match        = args.bs,
+                      wp               = args.wp,
+                      ws               = args.ws,
+                      max_iter         = args.max_iter,
+                      max_shift        = args.max_shift,
+                      align_grids      = args.align_grids,
+                      match_gsd        = args.match_gsd,
+                      out_gsd          = args.out_gsd,
+                      data_corners_im0 = args.cor0,
+                      data_corners_im1 = args.cor1,
+                      nodata           = args.nodata,
+                      calc_corners     = args.calc_cor,
+                      multiproc        = args.mp,
+                      binary_ws        = args.bin_ws,
+                      v                = args.v,
+                      q                = args.q,
+                      ignore_errors    = args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
     COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
