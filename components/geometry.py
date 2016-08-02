@@ -20,7 +20,7 @@ from rasterio.warp import reproject as rio_reproject
 from shapely.geometry import Polygon, shape
 from geopandas import GeoDataFrame
 
-from . import io as IO
+import io as IO
 
 
 
