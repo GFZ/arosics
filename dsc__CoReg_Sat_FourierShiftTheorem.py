@@ -209,8 +209,8 @@ class CoReg(object):
         # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
         refYX, shiftYX = GEO.mapYX2imYX(self.win_pos, self.ref_gt), GEO.mapYX2imYX(self.win_pos, self.shift_gt)
         # maximale Fenster-Größen in imref und im2shift ausrechnen
-        max_ref_clipWS   = 2*int(min([*refYX,  self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  -4)
-        max_shift_clipWS = 2*int(min([*shiftYX,self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]])-4)
+        max_ref_clipWS   = 2*int(min(list(refYX)   + [self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  -4)
+        max_shift_clipWS = 2*int(min(list(shiftYX) + [self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]])-4)
 
         for maxWs,imName in zip([max_ref_clipWS, max_shift_clipWS], ['reference image', 'image to be shifted']):
             if maxWs<8:
