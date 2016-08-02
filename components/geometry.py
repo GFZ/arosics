@@ -28,10 +28,10 @@ def get_corner_coordinates(fPath=None, gt=None, rows=None,cols=None):
     """Return (UL, LL, LR, UR)"""
     if fPath is None: assert None not in [gt,rows,cols],"'gt', 'rows' and 'cols' must be given if gdal_ds is missing."
     if fPath:
-        gdal_ds = gdal.Open(fPath)
+        gdal_ds    = gdal.Open(fPath)
         gdal_ds_GT = gdal_ds.GetGeoTransform()
         rows, cols = gdal_ds.RasterYSize, gdal_ds.RasterXSize
-        gdal_ds = None
+        gdal_ds    = None
     else:
         gdal_ds_GT = gt
         rows, cols = rows,cols
@@ -49,8 +49,8 @@ def get_corner_coordinates(fPath=None, gt=None, rows=None,cols=None):
 
 def corner_coord_to_minmax(corner_coords):
     """Return (UL, LL, LR, UR)"""
-    x_vals = [int(i[0]) for i in corner_coords] # FIXME int?
-    y_vals = [int(i[1]) for i in corner_coords] # FIXME int?
+    x_vals = [i[0] for i in corner_coords]
+    y_vals = [i[1] for i in corner_coords]
     xmin,xmax,ymin,ymax = min(x_vals),max(x_vals),min(y_vals),max(y_vals)
     return xmin,xmax,ymin,ymax
 
@@ -99,7 +99,7 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
     fPath     = gdal_ds.GetDescription()
     rows,cols = gdal_ds.RasterYSize, gdal_ds.RasterXSize
     gt,prj    = gdal_ds.GetGeoTransform(),gdal_ds.GetProjection()
-    gdal_ds = None
+    gdal_ds   = None
 
     mask_1bit = np.zeros((rows,cols),dtype='uint8') # zeros -> image area later overwritten by ones
 
@@ -194,7 +194,7 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
     return corner_pos_XY
 
 
-mapYX2imYX = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5],  (mapYX[1]-gt[0])/gt[1])
+mapYX2imYX = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5],     (mapYX[1]-gt[0])/gt[1])
 imYX2mapYX = lambda imYX ,gt: (gt[3]-(imYX[0]*abs(gt[5])), gt[0]+(imYX[1]*gt[1]))
 
 
@@ -220,14 +220,14 @@ def get_gdalReadInputs_from_boxImYX(boxImYX):
 
 
 def get_proj4info(ds=None,proj=None):
-    assert ds is not None or proj is not None, "Specify at least one of the arguments 'ds' or 'proj'"
+    assert ds or proj, "Specify at least one of the arguments 'ds' or 'proj'"
     srs = osr.SpatialReference()
     srs.ImportFromWkt(ds.GetProjection() if ds is not None else proj)
     return srs.ExportToProj4()
 
 
 def get_UTMzone(ds=None,prj=None):
-    assert ds is not None or prj is not None, "Specify at least one of the arguments 'ds' or 'prj'"
+    assert ds or prj, "Specify at least one of the arguments 'ds' or 'prj'"
     if isProjectedOrGeographic(prj)=='projected':
         srs = osr.SpatialReference()
         srs.ImportFromWkt(ds.GetProjection() if ds is not None else prj)
@@ -380,11 +380,9 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
         ndarray = temp # deep copy: converts view to its own array in oder to avoid wrong output
 
     with rasterio.drivers():
-        if out_gt is None:
-            assert out_extent is not None, 'Provide eighter out_gt or out_extent!'
-            if outUL is not None:
-                assert outRowsCols is not None, 'outRowsCols must be given if outUL is given.'
-            outUL = [in_gt[0],in_gt[3]] if outUL is None else outUL
+        if outUL is not None:
+            assert outRowsCols is not None, 'outRowsCols must be given if outUL is given.'
+        outUL = [in_gt[0],in_gt[3]] if outUL is None else outUL
 
         inEPSG, outEPSG = [wkt2epsg(prj) for prj in [in_prj, out_prj]]
         assert inEPSG  is not None, 'Could not derive input EPSG code.'
@@ -430,7 +428,7 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
             if prj_in_out[0] == prj_in_out[1]:
                 out_res = (in_gt[1],abs(in_gt[5]))
             elif prj_in_out == ('geographic','projected'):
-                raise NotImplementedError
+                raise NotImplementedError('Different projections are currently not supported.')
             else:             #('projected','geographic')
                 px_size_LatLon = np.array(pixelToLatLon([1,1],geotransform=in_gt,projection=in_prj)) - \
                                  np.array(pixelToLatLon([0,0],geotransform=in_gt,projection=in_prj))
@@ -438,11 +436,15 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
                 print('OUT_RES NOCHMAL CHECKEN: ', out_res)
 
         dst_transform,out_cols,out_rows = rio_calc_transform(
-            src_crs, dst_crs, cols, rows, left, bottom, right, top, resolution=out_res, densify_pts=21)
+            src_crs, dst_crs, cols, rows, left, bottom, right, top, resolution=out_res) # TODO keyword densify_pts=21 does not exist anymore (moved to transform_bounds()) -> could that be a problem? check warp outputs
+        rows_expected, cols_expected = int(abs(top-bottom) / out_res[1]), int(abs(right-left) / out_res[0])
+        if rows==cols and rows_expected==cols_expected and inEPSG==outEPSG and out_rows!=out_cols:
+            out_rows,out_cols = rows_expected,cols_expected
+            # fixes an issue where rio_calc_transform() does not return quadratic output image although input parameters
+            # correspond to a quadratic image and inEPSG equals outEPSG
 
-        aff = list(dst_transform)
-        if out_gt is None:
-            out_gt = (aff[2],aff[0],aff[1],aff[5],aff[3],aff[4])
+        aff    = list(dst_transform)
+        out_gt = out_gt if out_gt else (aff[2],aff[0],aff[1],aff[5],aff[3],aff[4])
 
         #src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
 
@@ -462,28 +464,28 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
                       src_transform=in_gt, src_crs=src_crs, dst_transform=out_gt, dst_crs=dst_crs,
                       resampling=dict_rspInt_rspAlg[rsp_alg], src_nodata=in_nodata, dst_nodata=out_nodata)
 
-        if len(ndarray.shape)==3:
-            # convert output array axis order to GMS axis order [rows,cols,bands]
-            out_arr = np.swapaxes(np.swapaxes(out_arr,0,1),1,2)
+        # convert output array axis order to GMS axis order [rows,cols,bands]
+        out_arr = out_arr if len(ndarray.shape)==2 else np.swapaxes(np.swapaxes(out_arr,0,1),1,2)
 
     return out_arr, out_gt, out_prj
 
 
 def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
     """tries to derive no data value from homogenious corner pixels within 3x3 windows (by default)
-    :param gdal_ds:
+    :param path_im:
     :param bandNr:
     :param sz: window size in which corner pixels are analysed
+    :param is_vrt:
     """
-    gdal_ds = gdal.Open(path_im) if not is_vrt else gdal.OpenShared(path_im)
+    gdal_ds      = gdal.Open(path_im) if not is_vrt else gdal.OpenShared(path_im)
     get_mean_std = lambda corner_subset: {'mean':np.mean(corner_subset), 'std':np.std(corner_subset)}
-    rows,cols = gdal_ds.RasterYSize,gdal_ds.RasterXSize
+    rows,cols    = gdal_ds.RasterYSize,gdal_ds.RasterXSize
     UL = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(0,0,sz,sz))
     UR = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(cols-sz,0,sz,sz))
     LR = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(cols-sz,rows-sz,sz,sz))
     LL = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(0,rows-sz,sz,sz))
-    gdal_ds = None
-    possVals  = [i['mean'] for i in [UL,UR,LR,LL] if i['std']==0]
+    gdal_ds  = None
+    possVals = [i['mean'] for i in [UL,UR,LR,LL] if i['std']==0]
     # possVals==[]: all corners are filled with data; np.std(possVals)==0: noDataVal clearly identified
     return None if possVals==[] else possVals[0] if np.std(possVals)==0 else 'unclear'
 
@@ -503,7 +505,7 @@ def geotransform2mapinfo(gt,prj):
     proj        = 'Geographic Lat/Lon' if Proj4_proj=='longlat' else 'UTM' if Proj4_proj=='utm' else Proj4_proj
     ellps       = 'WGS-84' if Proj4_ellps=='WGS84' else Proj4_ellps
     UL_X, UL_Y, GSD_X, GSD_Y = gt[0], gt[3], gt[1], gt[5]
-    is_UTM_North_South = 'North' if UL_Y>=0 else 'South'
-    map_info = [proj,1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),ellps] \
+    is_UTM_North_South = 'North' if get_UTMzone(prj=prj)>=0 else 'South'
+    map_info    = [proj,1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),ellps] \
         if proj!='UTM' else ['UTM',1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),srs.GetUTMZone(),is_UTM_North_South,ellps]
     return map_info

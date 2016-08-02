@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-04-20_01"
+__version__= "2016-08-02_01"
 
 import collections
 import multiprocessing
@@ -48,7 +48,7 @@ else:
 class CoReg(object):
     def __init__(self, path_im0,path_im1,path_out='.',r_b4match=1,s_b4match=1,wp=None,ws=512,max_iter=5,max_shift=5,
                  align_grids=0,match_gsd=0,out_gsd=None,data_corners_im0=None,data_corners_im1=None,nodata=None,
-                 calc_corners=1,multiproc=1,v=0,q=0,ignore_errors=0):
+                 calc_corners=1,multiproc=1,binary_ws=1,v=0,q=0,ignore_errors=0):
         self.mp                       = multiproc
         self.v                        = v
         self.q                        = q if not v else 0
@@ -89,6 +89,7 @@ class CoReg(object):
         if nodata: assert isinstance(nodata,list) and len(nodata)==2, 'nodata must be a list with two values.'
         self.ref_nodata, self.shift_nodata = \
             nodata if nodata else [GEO.find_noDataVal(self.path_imref), GEO.find_noDataVal(self.path_im2shift)]
+        self.bin_ws = binary_ws
 
         gdal.AllRegister()
 
@@ -161,8 +162,8 @@ class CoReg(object):
         ### FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection()) # später basteln für den fall, dass projektionen nicht gleich sind
 
         # get_clip_window_properties
-        self.ref_box_YX,self.shift_box_YX,self.ref_win_size,self.shift_win_size,\
-        self.box_mapYX,self.poly_matchWin,self.poly_matchWin_prj,self.imfft_gsd \
+        self.ref_box_YX, self.shift_box_YX, self.ref_win_size_YX, self.shift_win_size_YX, \
+        self.box_mapYX, self.poly_matchWin, self.poly_matchWin_prj, self.imfft_gsd \
             = self.get_clip_window_properties(opt_win_size)
 
 
@@ -202,7 +203,7 @@ class CoReg(object):
         box_YX      = (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL,UR,LR,LL
         UL,UR,LR,LL = [GEO.imYX2mapYX(imYX, gt) for imYX in box_YX]
         box_mapYX   = UL,UR,LR,LL
-        return Polygon([UL,UR,LR,LL]), box_mapYX, box_YX
+        return Polygon([(UL[1],UL[0]),(UR[1],UR[0]),(LR[1],LR[0]),(LL[1],LR[0])]), box_mapYX, box_YX
 
     def get_clip_window_properties(self,dst_ws):
         # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
@@ -221,13 +222,17 @@ class CoReg(object):
         gsdFact = max([self.ref_xgsd,self.shift_xgsd])/min([self.ref_xgsd,self.shift_xgsd]) # immer positiv
 
         # Fenster-Größen in imref und im2shift anhand Ziel-Größe und maximal möglicher Größe setzen
+
         if self.shift_xgsd <= self.ref_xgsd:
             """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung"""
             imfft_gsd_mapvalues = self.ref_xgsd
             ref_clipWS_tmp   = dst_ws if dst_ws <= max_ref_clipWS   else max_ref_clipWS
             shift_clipWS_tmp = dst_ws *gsdFact if dst_ws*gsdFact <= max_shift_clipWS else max_shift_clipWS
+
             ref_winPoly,  ref_box_mapYX,  ref_box_YX   = self.get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt, match_grid=1)
             shift_winPoly,shift_box_mapYX,shift_box_YX = self.get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt)
+#            IO.write_shp('/misc/hy5/scheffler/tmp/ref_win.shp',ref_winPoly,prj=self.ref_prj)
+#            IO.write_shp('/misc/hy5/scheffler/tmp/shift_win.shp',shift_winPoly,prj=self.shift_prj)
 
             if ref_winPoly.within(shift_winPoly):
                 # wenn Ref Fenster innerhalb des Shift-Fensters:
@@ -239,7 +244,6 @@ class CoReg(object):
                 ref_box_YX_flt = [GEO.mapYX2imYX(YX, self.ref_gt) for YX in shift_box_mapYX]
                 ref_box_YX     = [[int(YX[0]),int(YX[1])] for YX in ref_box_YX_flt]
                 box_mapYX      = [GEO.imYX2mapYX(YX, self.ref_gt) for YX in ref_box_YX]
-                shift_box_YX   = shift_box_YX
                 shift_box_YX   = GEO.get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX, self.shift_gt)
 
         else:
@@ -268,19 +272,16 @@ class CoReg(object):
 
         poly_matchWin     = GEO.get_footprint_polygon([(YX[1], YX[0]) for YX in box_mapYX])
         poly_matchWin_prj = self.ref_prj if self.shift_xgsd <= self.ref_xgsd else self.shift_prj
+        ref_box_YX        = [[int(i[0]),int(i[1])] for i in ref_box_YX]
+        shift_box_YX      = [[int(i[0]),int(i[1])] for i in shift_box_YX]
+        ref_win_size_YX   = abs(ref_box_YX  [2][0]-ref_box_YX  [0][0]), abs(ref_box_YX  [1][1]-ref_box_YX  [0][1]) # LLy-ULy, URx-ULx
+        shift_win_size_YX = abs(shift_box_YX[2][0]-shift_box_YX[0][0]), abs(shift_box_YX[1][1]-shift_box_YX[0][1]) # LLy-ULy, URx-ULx
 
-        ref_box_YX   = [[int(i[0]),int(i[1])] for i in ref_box_YX]
-        shift_box_YX = [[int(i[0]),int(i[1])] for i in shift_box_YX]
-
-        ref_win_size   = abs(ref_box_YX[1][1]  -ref_box_YX[0][1])
-        shift_win_size = abs(shift_box_YX[0][0]-shift_box_YX[2][0])
-
-        return ref_box_YX, shift_box_YX, ref_win_size, shift_win_size, \
+        return ref_box_YX, shift_box_YX, ref_win_size_YX, shift_win_size_YX, \
                box_mapYX, poly_matchWin, poly_matchWin_prj, imfft_gsd_mapvalues
 
     def get_image_windows_to_match(self):
         if self.v: print('resolutions: ', self.ref_xgsd, self.shift_xgsd)
-
         box_mapXvals = [i[1] for i in self.box_mapYX] # UTM-RW
         box_mapYvals = [i[0] for i in self.box_mapYX] # UTM-HW
 
@@ -313,10 +314,17 @@ class CoReg(object):
             im2shift_clip_data_orig = ds_im2shift.GetRasterBand(self.im2shift_band4match).ReadAsArray(*gdalReadInputs)
             ds_im2shift             = None
 
-            #subplot_imshow([imref_clip_data,im2shift_clip_data_orig],grid=True)
+            if self.v:
+                print('Original matching windows:')
+                PLT.subplot_imshow([imref_clip_data,im2shift_clip_data_orig],
+                                   [os.path.basename(self.path_imref), os.path.basename(self.path_im2shift)], grid=True)
+
             im2shift_clip_gt = GEO.get_subset_GeoTransform(self.shift_gt, self.shift_box_YX)
 
-            rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic
+            # resample im2shift to the resolution of imref AND make sure the pixel edges are identical
+            # (in order to make each image show the same window with the same coordinates)
+            #rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic # OLD
+            rsp_algor = 2 # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
             im2shift_clip_data = GEO.warp_ndarray(im2shift_clip_data_orig, im2shift_clip_gt, self.shift_prj,
                                                   self.ref_prj, out_res=(self.imfft_gsd, self.imfft_gsd),
                                                   out_extent=([min(box_mapXvals), min(box_mapYvals),
@@ -349,7 +357,8 @@ class CoReg(object):
             imref_clip_gt = GEO.get_subset_GeoTransform(self.ref_gt, self.ref_box_YX)
             #print(get_corner_coordinates(gt=imref_clip_gt,rows=clip_sz,cols=clip_sz))
 
-            rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic
+#            rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic
+            rsp_algor = 2  # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
             imref_clip_data = GEO.warp_ndarray(imref_clip_data_orig, imref_clip_gt, self.ref_prj, self.shift_prj,
                                                out_res=(self.imfft_gsd, self.imfft_gsd),
                                                out_extent=([min(box_mapXvals), min(box_mapYvals),
@@ -403,7 +412,6 @@ class CoReg(object):
             #     out_res=(self.imfft_gsd, self.imfft_gsd),out_extent=([min(box_mapXvals), min(box_mapYvals),
             #     max(box_mapXvals),max(box_mapYvals)]), rsp_alg=2, in_nodata=self.shift_nodata) [0]
 
-
         if imref_clip_data.shape != im2shift_clip_data.shape:
             raise RuntimeError('Bad output of get_image_windows_to_match.')
         rows,cols = [i if i%2==0 else i-1 for i in imref_clip_data.shape]
@@ -415,10 +423,9 @@ class CoReg(object):
         self.im2shift_matchWin = im2shift_clip_data
         return imref_clip_data, im2shift_clip_data
 
-    def get_opt_fftw_winsize(self,im_shape, target_size=None,v=0,ignErr=0):
+    def get_opt_fftw_winsize(self,im_shape, target_size=None,v=0,ignErr=0,bin_ws=1):
         binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
-        #binarySizes = range(32,8193) # FIXME
-        possibSizes = [i for i in binarySizes if i <= min(im_shape)]
+        possibSizes = [i for i in binarySizes if i <= min(im_shape)] if bin_ws else list(range(8192))
         if not possibSizes:
             if not ignErr:  raise RuntimeError('The matching window became too small for calculating a reliable match. '
                                                'Matching failed.')
@@ -429,7 +436,7 @@ class CoReg(object):
         self.fftw_win_size = closest_to_target
         return closest_to_target
 
-    def calc_shifted_cross_power_spectrum(self,im0,im1,window_size=1024,precision=np.complex64, v=0, ignErr=0):
+    def calc_shifted_cross_power_spectrum(self,im0,im1,window_size=1024,precision=np.complex64, v=0, ignErr=0, bin_ws=1):
         """Calculates shifted cross power spectrum for quantifying x/y-shifts.
             :param im0:         reference image
             :param im1:         subject image to shift
@@ -438,7 +445,7 @@ class CoReg(object):
             :param v:           verbose
             :return:            2D-numpy-array of the shifted cross power spectrum
         """
-        window_size = self.get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr)
+        window_size = self.get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr,bin_ws=bin_ws)
 
         assert im0.shape == im1.shape, 'The reference and the target image must have the same dimensions.'
         if im0.shape[0]%2!=0: warnings.warn('Odd row count in one of the match images!')
@@ -454,7 +461,7 @@ class CoReg(object):
             in_arr0  = im0[ymin:ymax,xmin:xmax].astype(precision)
             in_arr1  = im1[ymin:ymax,xmin:xmax].astype(precision)
 
-            if not self.q:
+            if self.v:
                 PLT.subplot_imshow([in_arr0.astype(np.float32), in_arr1.astype(np.float32)],
                                ['FFTin_'+os.path.basename(self.path_imref),
                                 'FFTin_'+os.path.basename(self.path_im2shift)], grid=True)
@@ -509,7 +516,7 @@ class CoReg(object):
         xmin,xmax,ymin,ymax = get_bounds(center_YX,wsY,wsX)
         return im[ymin:ymax,xmin:xmax]
 
-    def get_grossly_deshifted_images(self,im0,im1,x_intshift,y_intshift,shape_power_spectrum=None,v=0):
+    def get_grossly_deshifted_images(self,im0,im1,x_intshift,y_intshift,v=0):
         # get_grossly_deshifted_im0
         old_center_YX = np.array(im0.shape)/2
         new_center_YX = [old_center_YX[0]+y_intshift, old_center_YX[1]+x_intshift]
@@ -577,14 +584,15 @@ class CoReg(object):
         return x_intshift+x_subshift, y_intshift+y_subshift
 
     def calculate_spatial_shifts(self):
-        if self.success is False: return (None,None)
+        if self.success is False: return None,None
 
         if self.q:  warnings.simplefilter('ignore')
         im0, im1 = self.get_image_windows_to_match()
         #
-        #write_envi(im0, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imref__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.ref_win_size))
-        #write_envi(im1, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imtgt__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.shift_win_size))
-        if not self.q:
+        #write_envi(im0, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imref__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.ref_win_size_YX[0]))
+        #write_envi(im1, '/misc/hy5/scheffler/Projekte/2016_03_Geometrie_Paper/v2_imtgt__%s_%s__ws%s.hdr' %(self.win_pos[1],self.win_pos[0],self.shift_win_size_YX[0]))
+        if self.v:
+            print('Matching windows with equalized spatial resolution:')
             PLT.subplot_imshow([im0, im1], [os.path.basename(self.path_imref),
                                             os.path.basename(self.path_im2shift)], grid=True)
 
@@ -594,7 +602,7 @@ class CoReg(object):
         if self.v: print('gsd_factor',         gsd_factor)
         if self.v: print('imfft_gsd_mapvalues',self.imfft_gsd)
 
-        scps = self.calc_shifted_cross_power_spectrum(im0,im1,v=self.v,ignErr=self.ignErr)
+        scps = self.calc_shifted_cross_power_spectrum(im0,im1,v=self.v,ignErr=self.ignErr,bin_ws=self.bin_ws)
         x_shift_px,y_shift_px = None,None # defaults
         if scps is None:
             self.success = False
@@ -615,9 +623,10 @@ class CoReg(object):
                     y_tempshift = y_tempshift + y_intshift[-2]
                 if not self.q: print('input shifts: ', x_tempshift, y_tempshift)
 
-                if scps is None: self.success = False; break
-                gdsh_im0,crsp_im1 =self.get_grossly_deshifted_images(im0,im1,x_tempshift,y_tempshift,scps.shape,v=self.v)
-                scps = self.calc_shifted_cross_power_spectrum(gdsh_im0,crsp_im1,v=self.v,ignErr=self.ignErr)
+                if scps is None: self.success = False; break # FIXME sinnlos
+                gdsh_im0,crsp_im1 =self.get_grossly_deshifted_images(im0,im1,x_tempshift,y_tempshift,v=self.v)
+                scps = self.calc_shifted_cross_power_spectrum(gdsh_im0,crsp_im1,v=self.v,ignErr=self.ignErr,
+                                                              bin_ws=self.bin_ws)
 
                 if scps is None: self.success = False; break
                 peakpos = self.get_peakpos(scps)
@@ -659,22 +668,26 @@ class CoReg(object):
         warnings.simplefilter('default')
 
     def correct_shifts(self):
-        equal_prj = GEO.get_proj4info(proj=self.ref_prj) == GEO.get_proj4info(proj=self.shift_prj)
+        if self.success:
+            if not os.path.exists(os.path.dirname(self.path_out)): os.makedirs(os.path.dirname(self.path_out))
+            equal_prj = GEO.get_proj4info(proj=self.ref_prj) == GEO.get_proj4info(proj=self.shift_prj)
 
-        if equal_prj and not self.align_grids and not self.match_gsd and \
-            self.out_gsd in [None,[self.shift_xgsd,self.shift_ygsd]]:
-            self.shift_image_by_updating_map_info()
-        elif equal_prj and self.align_grids: # match_gsd and out_gsd are respected
-            self.align_coordinate_grids()
-        else: # match_gsd and out_gsd are respected ### TODO: out_proj implementieren
-            self.resample_without_grid_aligning()
+            if equal_prj and not self.align_grids and not self.match_gsd and \
+                self.out_gsd in [None,[self.shift_xgsd,self.shift_ygsd]]:
+                self.shift_image_by_updating_map_info()
+            elif equal_prj and self.align_grids: # match_gsd and out_gsd are respected
+                self.align_coordinate_grids()
+            else: # match_gsd and out_gsd are respected ### TODO: out_proj implementieren
+                self.resample_without_grid_aligning()
+        else:
+            warnings.warn('No result written because detection of image displacements failed.')
 
     def shift_image_by_updating_map_info(self):
         if not self.q: print('\nWriting output...')
         ds_im2shift = gdal.Open(self.path_im2shift)
         if not ds_im2shift.GetDriver().ShortName == 'ENVI': # FIXME laaangsam
             if self.mp:
-                IO.convert_gdal_to_bsq__mp(self.path_imref,self.path_out)
+                IO.convert_gdal_to_bsq__mp(self.path_im2shift,self.path_out)
             else:
                 os.system('gdal_translate -of ENVI %s %s' %(self.path_im2shift, self.path_out))
             file2getHdr = self.path_out
@@ -687,7 +700,7 @@ class CoReg(object):
         path_hdr = '%s.hdr' %file2getHdr if not os.path.exists(path_hdr) else path_hdr
         path_hdr = None if not os.path.exists(path_hdr) else path_hdr
 
-        assert path_hdr is not None, 'No header file found for %s. Applying shifts failed.' %file2getHdr
+        assert path_hdr, 'No header file found for %s. Applying shifts failed.' %file2getHdr
 
         new_originY, new_originX = GEO.pixelToMapYX([self.x_shift_px, self.y_shift_px],
                                                     geotransform=self.shift_gt, projection=self.shift_prj)[0]
@@ -721,21 +734,19 @@ class CoReg(object):
 
         is_alignable = lambda gsd1,gsd2: max(gsd1,gsd2)%min(gsd1,gsd2)==0 # checks if pixel sizes are divisible
         if not is_alignable(self.ref_xgsd,xgsd) or not is_alignable(self.ref_ygsd,ygsd) and not self.q:
-            print("\nWARNING: The coordinate grids of the reference image and the image to be shifted cannot be "\
-                    "aligned because their pixel sizes are not exact multiples of each other (ref [X/Y]: "\
-                    "%s %s; shift [X/Y]: %s %s). Therefore the pixel size of the reference image is chosen for the "\
-                    "resampled output image. If you don´t like that you can use the '-out_gsd' parameter to set an "\
-                    "appropriate output pixel size.\n" %(self.ref_xgsd,self.ref_ygsd,xgsd,ygsd))
+            print("\nWARNING: The coordinate grids of the reference image and the image to be shifted cannot be "
+                  "aligned because their pixel sizes are not exact multiples of each other (ref [X/Y]: "
+                  "%s %s; shift [X/Y]: %s %s). Therefore the pixel size of the reference image is chosen for the "
+                  "resampled output image. If you don´t like that you can use the '-out_gsd' parameter to set an "
+                  "appropriate output pixel size.\n" %(self.ref_xgsd,self.ref_ygsd,xgsd,ygsd))
             xgsd, ygsd = self.ref_xgsd, self.ref_ygsd
 
-        ds_imref = gdal.Open(self.path_imref)
-        r_xmin,r_xmax,r_ymin,r_ymax =  GEO.corner_coord_to_minmax(GEO.get_corner_coordinates(ds_imref))
-        ds_imref = None
+        r_xmin,r_xmax,r_ymin,r_ymax =  GEO.corner_coord_to_minmax(GEO.get_corner_coordinates(self.path_imref))
         imref_xgrid = np.arange(r_xmin,r_xmax,self.ref_xgsd)
         imref_ygrid = np.arange(r_ymin,r_ymax,self.ref_ygsd)
-        s_xmin,s_xmax,s_ymin,s_ymax =  GEO.corner_coord_to_minmax(GEO.get_corner_coordinates(self.ds_im2shift))
-        xmin,xmax = UTL.find_nearest(imref_xgrid, s_xmin, 'off'), UTL.find_nearest(imref_xgrid, s_xmax, 'on')
-        ymin,ymax = UTL.find_nearest(imref_ygrid, s_ymin, 'off'), UTL.find_nearest(imref_ygrid, s_ymax, 'on')
+        s_xmin,s_xmax,s_ymin,s_ymax =  GEO.corner_coord_to_minmax(GEO.get_corner_coordinates(self.path_im2shift))
+        xmin,xmax = UTL.find_nearest(imref_xgrid, s_xmin, 'off',extrapolate=1), UTL.find_nearest(imref_xgrid, s_xmax, 'on',extrapolate=1)
+        ymin,ymax = UTL.find_nearest(imref_ygrid, s_ymin, 'off',extrapolate=1), UTL.find_nearest(imref_ygrid, s_ymax, 'on',extrapolate=1)
 
         new_originY, new_originX = GEO.pixelToMapYX([self.x_shift_px, self.y_shift_px],
                                                     geotransform=self.shift_gt, projection=self.shift_prj)[0]
@@ -745,9 +756,10 @@ class CoReg(object):
         gt_shifted[0], gt_shifted[3] = new_originX, new_originY
 
         pathVRT = os.path.splitext(os.path.basename(self.path_im2shift))[0] + '.vrt'
-        dst_ds  = (lambda drv: drv.CreateCopy(pathVRT, self.ds_im2shift, 0))(gdal.GetDriverByName('VRT'))
+        ds_im2shift = gdal.Open(self.path_im2shift)
+        dst_ds  = gdal.GetDriverByName('VRT').CreateCopy(pathVRT, ds_im2shift, 0)
         dst_ds.SetGeoTransform(gt_shifted)
-        dst_ds  = None
+        dst_ds = ds_im2shift  = None
 
         cmd = "gdalwarp -r cubic -tr %s %s -t_srs '%s' -of ENVI %s %s -overwrite -te %s %s %s %s" \
               %(xgsd,ygsd,self.ref_prj,pathVRT,self.path_out, xmin,ymin,xmax,ymax)
@@ -787,13 +799,14 @@ class CoReg(object):
 
 
 class Geom_Quality_Grid(object):
-    def __init__(self,path_im0,path_im1,res_px_tgt,window_size=256,dir_out=None,multiproc=True,r_b4match=1,
-                 s_b4match=1,max_iter=5,max_shift=5,data_corners_im0=None,
-                 data_corners_im1=None,outFillVal=-9999,nodata=None,calc_corners=1,v=0,q=0,ignore_errors=0):
+    def __init__(self, path_im0, path_im1, grid_res, window_size=256, dir_out=None, projectName=None, multiproc=True,
+                 r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
+                 data_corners_im1=None, outFillVal=-9999, nodata=None, calc_corners=1, binary_ws=1,
+                 v=0, q=0, ignore_errors=0):
         self.path_imref    = path_im0
         self.path_im2shift = path_im1
         self.dir_out      = dir_out
-        self.grid_res      = res_px_tgt
+        self.grid_res      = grid_res
         self.window_size   = window_size
         self.mp            = multiproc
         self.max_shift     = max_shift
@@ -803,12 +816,15 @@ class Geom_Quality_Grid(object):
         self.calc_corners  = calc_corners
         self.nodata        = nodata
         self.outFillVal    = outFillVal
+        self.bin_ws        = binary_ws
         self.v             = v
         self.q             = q
         self.ignore_errors = ignore_errors
 
-        self.dir_out = os.path.join(self.dir_out, "T_%s__R_%s" % (os.path.basename(self.path_im2shift),
-                                                                  os.path.basename(self.path_imref)))
+        self.projectName   = projectName if projectName else 'UntitledProject_1'
+        while projectName is None and os.path.isdir(os.path.join(self.dir_out,self.projectName)):
+            self.projectName = '%s_%s' %(self.projectName.split('_')[0],int(self.projectName.split('_')[1])+1)
+        self.dir_out = os.path.join(self.dir_out,self.projectName)
         if not os.path.exists(self.dir_out): os.makedirs(self.dir_out)
 
         gdal.AllRegister()
@@ -816,7 +832,7 @@ class Geom_Quality_Grid(object):
         self.COREG_obj = CoReg(path_im0, path_im1, data_corners_im0=data_corners_im0,
                                data_corners_im1=data_corners_im1, calc_corners=calc_corners, r_b4match=r_b4match,
                                s_b4match=s_b4match, max_iter=max_iter, max_shift=max_shift, nodata=nodata,
-                               multiproc=multiproc, v=v, q=q, ignore_errors=ignore_errors)
+                               multiproc=multiproc, binary_ws=self.bin_ws, v=v, q=q, ignore_errors=ignore_errors)
         self.ref_shape                = [self.COREG_obj.ref_rows,self.COREG_obj.ref_cols]
         self.tgt_shape                = [self.COREG_obj.shift_rows,self.COREG_obj.shift_cols]
         self.corner_coord_imref       = self.COREG_obj.corner_coord_imref
@@ -830,6 +846,7 @@ class Geom_Quality_Grid(object):
         Xarr,Yarr       = np.meshgrid(np.arange(0,self.tgt_shape[1],grid_res),
                                       np.arange(0,self.tgt_shape[0],grid_res))
         ULmapYX,LRmapYX = GEO.pixelToMapYX([[0,0],[self.tgt_shape[1],self.tgt_shape[0]]], path_im=self.path_im2shift)
+
         mapXarr,mapYarr = np.meshgrid(np.arange(ULmapYX[1],LRmapYX[1],     self.grid_res*self.COREG_obj.shift_xgsd),
                                       np.arange(ULmapYX[0],LRmapYX[0],-abs(self.grid_res*self.COREG_obj.shift_ygsd)))
 
@@ -848,9 +865,9 @@ class Geom_Quality_Grid(object):
         COREG_obj = CoReg(self.path_imref, self.path_im2shift, wp=winpos_XY, ws=self.window_size,
                           data_corners_im0=cornerCoords_l8, data_corners_im1=cornerCoords_tgt, r_b4match=self.r_b4match,
                           s_b4match=self.s_b4match, max_iter=self.max_iter, max_shift=self.max_shift,
-                          nodata=self.nodata, v=self.v, q=self.q, ignore_errors=self.ignore_errors)
+                          nodata=self.nodata, binary_ws=self.bin_ws, v=self.v, q=self.q, ignore_errors=self.ignore_errors)
         COREG_obj.calculate_spatial_shifts()
-        res = pointID, COREG_obj.ref_win_size, COREG_obj.x_shift_px, COREG_obj.y_shift_px
+        res = pointID, COREG_obj.ref_win_size_YX[0], COREG_obj.x_shift_px, COREG_obj.y_shift_px
         return res
 
     def get_quality_grid(self,exclude_outliers=1,dump_values=1):
@@ -871,9 +888,16 @@ class Geom_Quality_Grid(object):
         XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point])
         geomPoints = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
 
-        prj = self.COREG_obj.shift_prj
-        crs = dict(ellps='WGS84', datum='WGS84', proj='longlat') if GEO.isProjectedOrGeographic(prj)=='geographic'\
-            else dict(ellps='WGS84', datum='WGS84', proj='utm', zone=GEO.get_UTMzone(prj=prj),units='m', no_defs=True)
+        if GEO.isProjectedOrGeographic(self.COREG_obj.shift_prj)=='geographic':
+            crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
+        elif GEO.isProjectedOrGeographic(self.COREG_obj.shift_prj)=='projected':
+            UTMzone = abs(GEO.get_UTMzone(prj=self.COREG_obj.shift_prj))
+            south   = GEO.get_UTMzone(prj=self.COREG_obj.shift_prj)<0
+            crs     = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone,south=south,units='m', no_defs=True)
+            if not south: del crs['south']
+        else:
+            crs = None
+
         GDF        = GeoDataFrame(index=range(len(geomPoints)),crs=crs,
                                   columns=['geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','WIN_SIZE',
                                            'X_SHIFT_PX','Y_SHIFT_PX','X_SHIFT_M','Y_SHIFT_M','ABS_SHIFT','ANGLE'])
@@ -920,8 +944,10 @@ class Geom_Quality_Grid(object):
                                           GEO.angle_to_north(GDF.loc[:,['X_SHIFT_PX','Y_SHIFT_PX']]))
 
         if dump_values:
-            fName_out = "CoRegMatrix_grid%s_ws%s.pkl" %(self.grid_res, self.window_size)
-            path_out  = os.path.join(self.dir_out, fName_out)
+            fName_out = "CoRegMatrix_grid%s_ws%s__T_%s__R_%s.pkl" %(self.grid_res, self.window_size, os.path.splitext(
+                os.path.basename(self.path_im2shift))[0], os.path.splitext(os.path.basename(self.path_imref))[0])
+            path_out  = os.path.join(self.dir_out, 'CoRegMatrix', fName_out)
+            if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
             GDF.to_pickle(path_out)
 
         self.quality_grid = GDF
@@ -955,8 +981,10 @@ class Geom_Quality_Grid(object):
         GDF            = self.quality_grid
         GDF2pass       = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
-        fName_out = "CoRegPoints_grid%s_ws%s.shp" %(self.grid_res, self.window_size)
-        path_out  = os.path.join(self.dir_out, fName_out)
+        fName_out = "CoRegPoints_grid%s_ws%s__T_%s__R_%s.shp" %(self.grid_res, self.window_size, os.path.splitext(
+            os.path.basename(self.path_im2shift))[0], os.path.splitext(os.path.basename(self.path_imref))[0])
+        path_out  = os.path.join(self.dir_out, 'CoRegPoints', fName_out)
+        if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
         print('Writing %s ...' %path_out)
         GDF2pass.to_file(path_out)
 
@@ -973,14 +1001,20 @@ class Geom_Quality_Grid(object):
         path_out = os.path.join(self.dir_out, fName_out)
         IO.write_shp(path_out, shapely_points, prj=self.COREG_obj.shift_prj, attrDict=attr_dicts)
 
-    def quality_grid_to_Raster_using_Kriging(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
-                                             fName_out=None):
+    def quality_grid_to_Raster_using_KrigingOLD(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
+                                             fName_out=None,tilepos=None):
         GDF             = self.quality_grid
         GDF2pass        = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
+        # subset if tilepos is given
+        rows,cols = tilepos if tilepos else self.tgt_shape
+        GDF2pass        = GDF2pass.loc[(GDF2pass['X_IM']>=cols[0])&(GDF2pass['X_IM']<=cols[1])&
+                                       (GDF2pass['Y_IM']>=rows[0])&(GDF2pass['Y_IM']<=rows[1])]
+
+
         X_coords,Y_coords,ABS_SHIFT = GDF2pass['X_UTM'], GDF2pass['Y_UTM'],GDF2pass[attrName]
 
-        xmin,ymin,xmax,ymax = GDF.total_bounds
+        xmin,ymin,xmax,ymax = GDF2pass.total_bounds
 
         grid_res            = outGridRes if outGridRes else int(min(xmax-xmin,ymax-ymin)/250)
         grid_x,grid_y       = np.arange(xmin, xmax+grid_res, grid_res), np.arange(ymax, ymin-grid_res, -grid_res)
@@ -988,7 +1022,7 @@ class Geom_Quality_Grid(object):
         # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
         OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical',verbose=False)
-        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y)
+        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y)#,backend='C',)
 
         fName_out = fName_out if fName_out else \
             "Kriging__%s__grid%s_ws%s.tif" %(attrName,self.grid_res, self.window_size)
@@ -997,6 +1031,85 @@ class Geom_Quality_Grid(object):
         # add a half pixel grid points are centered on the output pixels
         xmin,ymin,xmax,ymax = xmin-grid_res/2,ymin-grid_res/2,xmax+grid_res/2,ymax+grid_res/2
         IO.write_numpy_to_image(zvalues,path_out,gt=(xmin,grid_res,0,ymax,0,-grid_res),prj=self.COREG_obj.shift_prj)
+
+        return zvalues
+
+
+    def quality_grid_to_Raster_using_Kriging(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
+                                             fName_out=None,tilepos=None,tilesize=500,mp=None):
+
+        mp = mp if mp else self.mp
+        self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
+                outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
+
+        # if mp:
+        #     tilepositions = UTL.get_image_tileborders([tilesize,tilesize],self.tgt_shape)
+        #     args_kwargs_dicts=[]
+        #     for tp in tilepositions:
+        #         kwargs_dict = {'skip_nodata':skip_nodata,'skip_nodata_col':skip_nodata_col,'outGridRes':outGridRes,
+        #                        'fName_out':fName_out,'tilepos':tp}
+        #         args_kwargs_dicts.append({'args':[attrName],'kwargs':kwargs_dict})
+        #     # self.kriged=[]
+        #     # for i in args_kwargs_dicts:
+        #     #     res = self.Kriging_mp(i)
+        #     #     self.kriged.append(res)
+        #     #     print(res)
+        #
+        #     with multiprocessing.Pool() as pool:
+        #        self.kriged = pool.map(self.Kriging_mp,args_kwargs_dicts)
+        # else:
+        #     self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
+        #                     outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
+        res = self.kriged if mp else None
+        return res
+
+    def Kriging_sp(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
+                                             fName_out=None,tilepos=None):
+        GDF             = self.quality_grid
+        GDF2pass        = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
+
+#         # subset if tilepos is given
+# #        overlap_factor =
+#         rows,cols = tilepos if tilepos else self.tgt_shape
+#         xvals, yvals = np.sort(GDF2pass['X_IM'].values.flat),np.sort(GDF2pass['Y_IM'].values.flat)
+#         cS,cE = UTL.find_nearest(xvals,cols[0],'off',1), UTL.find_nearest(xvals,cols[1],'on',1)
+#         rS,rE = UTL.find_nearest(yvals,rows[0],'off',1), UTL.find_nearest(yvals,rows[1],'on',1)
+#         # GDF2pass        = GDF2pass.loc[(GDF2pass['X_IM']>=cols[0])&(GDF2pass['X_IM']<=cols[1])&
+#         #                                (GDF2pass['Y_IM']>=rows[0])&(GDF2pass['Y_IM']<=rows[1])]
+#         GDF2pass        = GDF2pass.loc[(GDF2pass['X_IM']>=cS)&(GDF2pass['X_IM']<=cE)&
+#                                        (GDF2pass['Y_IM']>=rS)&(GDF2pass['Y_IM']<=rE)]
+
+        X_coords,Y_coords,ABS_SHIFT = GDF2pass['X_UTM'], GDF2pass['Y_UTM'],GDF2pass[attrName]
+
+        xmin,ymin,xmax,ymax = GDF2pass.total_bounds
+
+        grid_res            = outGridRes if outGridRes else int(min(xmax-xmin,ymax-ymin)/250)
+        grid_x,grid_y       = np.arange(xmin, xmax+grid_res, grid_res), np.arange(ymax, ymin-grid_res, -grid_res)
+
+        # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
+        #            (Cambridge University Press, 1997) 272 p.
+        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical',verbose=False)
+        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y,backend='C',n_closest_points=12)
+
+        if self.mp:
+            fName_out = fName_out if fName_out else \
+                "Kriging__%s__grid%s_ws%s_%s.tif" %(attrName,self.grid_res, self.window_size,tilepos)
+        else:
+            fName_out = fName_out if fName_out else \
+                "Kriging__%s__grid%s_ws%s.tif" %(attrName,self.grid_res, self.window_size)
+        path_out  = os.path.join(self.dir_out, fName_out)
+        print('Writing %s ...' %path_out)
+        # add a half pixel grid points are centered on the output pixels
+        xmin,ymin,xmax,ymax = xmin-grid_res/2,ymin-grid_res/2,xmax+grid_res/2,ymax+grid_res/2
+        IO.write_numpy_to_image(zvalues,path_out,gt=(xmin,grid_res,0,ymax,0,-grid_res),prj=self.COREG_obj.shift_prj)
+
+        return zvalues
+
+    def Kriging_mp(self,args_kwargs_dict):
+        args   = args_kwargs_dict.get('args',[])
+        kwargs = args_kwargs_dict.get('kwargs',[])
+
+        return self.Kriging_sp(*args,**kwargs)
 
 
 
@@ -1068,12 +1181,14 @@ if __name__ == '__main__':
     parser.add_argument('-calc_cor', nargs=1,type=int, choices=[0,1],default=1, help="calculate true positions of "\
                         "the dataset corners in order to get a useful matching window position within the actual "\
                         "image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
+    parser.add_argument('-bin_ws', nargs='?', type=int, help='use binary X/Y dimensions for the matching window '
+                                                             '(default: 1)', default=1, choices=[0, 1])
     parser.add_argument('-v', nargs='?',type=int, help='verbose mode (default: 0)', default=0, choices=[0,1])
     parser.add_argument('-q', nargs='?',type=int, help='quiet mode (default: 0)', default=0, choices=[0,1])
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-04-20_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-02_01')
     args = parser.parse_args()
 
     print('==================================================================\n'
@@ -1085,7 +1200,7 @@ if __name__ == '__main__':
     t0 = time.time()
     COREG_obj = CoReg(args.path_im0, args.path_im1, args.path_out, args.br, args.bs, args.wp, args.ws, args.max_iter,
                       args.max_shift, args.align_grids, args.match_gsd, args.out_gsd, args.cor0, args.cor1, args.nodata,
-                      args.calc_cor, args.v, args.q, args.ignore_errors)
+                      args.calc_cor, args.bin_ws, args.v, args.q, args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
     COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))

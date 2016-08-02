@@ -2,16 +2,27 @@ import numpy as np
 import datetime
 
 
-def find_nearest(array,value,round='off'):
+def find_nearest(array,value,round='off',extrapolate=False, exclude_val=False):
     """finds the value of an array nearest to a another single value
+    NOTE: In case of extrapolation an EQUALLY INCREMENTED array (like a coordinate grid) is assumed!
     :param array:
     :param value:
     :param round:
+    :param extrapolate: extrapolate the given array if the given value is outside the array
     """
     assert round in ['on','off']
+    if extrapolate:
+        increment = array[1]-array[0]
+        if value > max(array):
+            array = np.arange(min(array),value+increment,increment) # expand array until value
+        if value < min(array):
+            array = (np.arange(-max(array),value+increment,increment)*-1)[::-1] # negativly expand array until value
     idx = (np.abs(np.array(array)-value)).argmin()
     if round=='off' and array[idx]>value and idx!=0: idx -= 1
     if round=='on'  and array[idx]<value and idx!=len(array)-1: idx += 1
+    if exclude_val:
+        if round=='off' and array[idx]==value and idx!=0: idx -= 1
+        if round=='on'  and array[idx]==value and idx!=len(array)-1: idx += 1
     return array[idx]
 
 def get_dtypeStr(val):
@@ -19,7 +30,7 @@ def get_dtypeStr(val):
     DType = str(np.dtype(val)) if is_numpy else 'int' if isinstance(val,int) else 'float' if isinstance(val,float) else \
                 'str' if isinstance(val,str) else 'complex' if isinstance(val,complex) else \
                 'date' if isinstance(val,datetime.datetime) else None
-    assert DType is not None, 'data type not understood'
+    assert DType, 'data type not understood'
     return DType
 
 def get_image_tileborders(target_tileSize,shape_fullArr):
@@ -66,12 +77,9 @@ def get_coord_grid(ULxy,LRxy,out_resXY):
     return np.meshgrid(X_vec,Y_vec)
 
 def convertGdalNumpyDataType(dType):
-    """----FUNCTION_7----------------------------------------------------------
-    convertGdalNumpyDataType
-    input:
-        dType: GDALdataType string or numpy dataType
-    output:
-        corresponding dataType
+    """convertGdalNumpyDataType
+    :param dType: GDALdataType string or numpy dataType
+    :return: corresponding dataType
     """
     # dictionary to translate GDAL data types (strings) in corresponding numpy data types
     dTypeDic = {"Byte": np.uint8, "UInt16": np.uint16, "Int16": np.int16, "UInt32": np.uint32, "Int32": np.int32,

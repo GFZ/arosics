@@ -37,10 +37,12 @@ def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
         same_gdalRefs = update_same_gdalRefs(same_gdalRefs)
 
 
-def write_envi(arr,outpath):
+def write_envi(arr,outpath,gt=None,prj=None):
+    if gt or prj: assert gt and prj, 'gt and prj must be provided together or left out.'
+    meta = {'map info':geotransform2mapinfo(gt,prj),'coordinate system string':prj} if gt else None
     from spectral.io import envi as envi
     shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
-    out    = envi.create_image(outpath,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
+    out    = envi.create_image(outpath,metadata=meta,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
     out_mm = out.open_memmap(writable=True)
     out_mm[:,:,0] = arr
 
@@ -99,6 +101,7 @@ def write_shp(path_out, shapely_geom, prj=None,attrDict=None):
     # print(len(shapely_geom))
     # print(len(attrDict))
     assert len(shapely_geom) == len(attrDict), "'shapely_geom' and 'attrDict' must have the same length."
+    assert os.path.exists(os.path.dirname(path_out)), 'Directory %s does not exist.' % os.path.dirname(path_out)
 
     print('Writing %s ...' %path_out)
     if os.path.exists(path_out): os.remove(path_out)
@@ -177,7 +180,6 @@ def write_numpy_to_image(array,path_out,outFmt='GTIFF',gt=None,prj=None):
 #    return path
 
 
-shared_array_on_disk__path   = None
 shared_array_on_disk__memmap = None
 def init_SharedArray_on_disk(out_path,dims,gt=None,prj=None):
     global shared_array_on_disk__memmap
@@ -191,14 +193,18 @@ def init_SharedArray_on_disk(out_path,dims,gt=None,prj=None):
     shared_array_on_disk__obj    = envi.create_image(path,metadata=Meta,shape=dims,dtype='uint16',
                                                      interleave='bsq',ext='.bsq', force=True)
     shared_array_on_disk__memmap = shared_array_on_disk__obj.open_memmap(writable=True)
-    shared_array_on_disk__path   = out_path
 
 
-def fill_arr_on_disk(pos):
+def fill_arr_on_disk(argDict):
+    pos       = argDict.get('pos')
+    in_path   = argDict.get('in_path')
+    band      = argDict.get('band')
+
     (rS,rE),(cS,cE) = pos
-    ds   = gdal.Open(shared_array_on_disk__path)
-    band = ds.GetRasterBand(1) # FIXME band
-    shared_array_on_disk__memmap[rS:rE+1,cS:cE+1,0] = band.ReadAsArray(cS,rS,cE-cS+1,rE-rS+1)
+    ds   = gdal.Open(in_path)
+    band = ds.GetRasterBand(band)
+    data = band.ReadAsArray(cS,rS,cE-cS+1,rE-rS+1)
+    shared_array_on_disk__memmap[rS:rE+1,cS:cE+1,0] = data
     ds = band = None
 
 
@@ -209,5 +215,5 @@ def convert_gdal_to_bsq__mp(in_path,out_path,band=1):
     ds   = None
     init_SharedArray_on_disk(out_path,dims,gt,prj)
     positions = get_image_tileborders([512,512],dims)
-
-    with multiprocessing.Pool() as pool:  pool.map(fill_arr_on_disk,positions)
+    argDicts = [{'pos':pos,'in_path':in_path,'band':band} for pos in positions]
+    with multiprocessing.Pool() as pool:  pool.map(fill_arr_on_disk,argDicts)

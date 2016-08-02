@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from matplotlib import pyplot as plt
-
+from mpl_toolkits.mplot3d import Axes3D
 
 def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
     shapetuple = (1,len(XY_tuples)) if shapetuple is None else shapetuple
