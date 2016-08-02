@@ -16,7 +16,7 @@ def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
         if titles is not None: ax.set_title(titles[i])
         if grid: ax.grid(which='major', axis='both', linestyle='-')
     plt.tight_layout()
-    plt.show(); time.sleep(5); plt.close()
+    plt.show(block=True)
 
 
 def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
@@ -30,7 +30,7 @@ def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
     if titles is not None: [axes[i].set_title(titles[i]) for i in range(len(ims))]
     if grid: [axes[i].grid(which='major', axis='both', linestyle='-') for i in range(len(ims))]
     plt.tight_layout()
-    plt.show(); time.sleep(5); plt.close()
+    plt.show(block=True)
 
 
 def subplot_3dsurface(ims,shapetuple=None):
@@ -49,4 +49,4 @@ def subplot_3dsurface(ims,shapetuple=None):
         ax.contour(X, Y, Z, zdir='y', cmap=plt.cm.coolwarm, offset=im.shape[1])
         ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
     plt.tight_layout()
-    plt.show();time.sleep(5);plt.close()
+    plt.show(block=True)

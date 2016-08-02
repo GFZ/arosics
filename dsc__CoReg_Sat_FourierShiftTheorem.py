@@ -428,6 +428,7 @@ class CoReg(object):
         return imref_clip_data, im2shift_clip_data
 
     def get_opt_fftw_winsize(self,im_shape, target_size=None,v=0,ignErr=0,bin_ws=1):
+        print(im_shape)
         binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
         possibSizes = [i for i in binarySizes if i <= min(im_shape)] if bin_ws else list(range(8192))
         if not possibSizes:
@@ -1225,5 +1226,5 @@ if __name__ == '__main__':
                       q                = args.q,
                       ignore_errors    = args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
-    COREG_obj.correct_shifts()
+    #COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
