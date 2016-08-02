@@ -212,8 +212,11 @@ class CoReg(object):
         # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
         refYX, shiftYX = GEO.mapYX2imYX(self.win_pos, self.ref_gt), GEO.mapYX2imYX(self.win_pos, self.shift_gt)
         # maximale Fenster-Größen in imref und im2shift ausrechnen
-        max_ref_clipWS   = 2*int(min(list(refYX)   + [self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  -4)
-        max_shift_clipWS = 2*int(min(list(shiftYX) + [self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]])-4)
+        max_ref_clipWS   = 2*int(min(list(refYX)   + [self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  )
+        max_shift_clipWS = 2*int(min(list(shiftYX) + [self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]]))
+        print(max_ref_clipWS)
+        print(max_shift_clipWS)
+        max_ref_clipWS = 20 # FIXME
 
         for maxWs,imName in zip([max_ref_clipWS, max_shift_clipWS], ['reference image', 'image to be shifted']):
             if maxWs<8:
@@ -1186,7 +1189,7 @@ if __name__ == '__main__':
     parser.add_argument('-calc_cor', nargs=1,type=int, choices=[0,1],default=1, help="calculate true positions of "\
                         "the dataset corners in order to get a useful matching window position within the actual "\
                         "image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
-    parser.add_argument('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0, 1])
+    parser.add_argument('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0,1])
     parser.add_argument('-bin_ws', nargs='?', type=int, help='use binary X/Y dimensions for the matching window '
                                                              '(default: 1)', default=1, choices=[0, 1])
     parser.add_argument('-v', nargs='?',type=int, help='verbose mode (default: 0)', default=0, choices=[0,1])
@@ -1226,5 +1229,5 @@ if __name__ == '__main__':
                       q                = args.q,
                       ignore_errors    = args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
-    #COREG_obj.correct_shifts()
+    COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
