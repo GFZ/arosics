@@ -20,7 +20,7 @@ from rasterio.warp import reproject as rio_reproject
 from shapely.geometry import Polygon, shape
 from geopandas import GeoDataFrame
 
-import io as IO
+from components import io as IO
 
 
 
@@ -250,7 +250,7 @@ def isProjectedOrGeographic(prj):
     return 'projected' if srs.IsProjected() else 'geographic' if srs.IsGeographic() else None
 
 
-def wkt2epsg(wkt, epsg=os.environ['GDAL_DATA'].replace('/gdal','/proj/epsg')):
+def WKT2EPSG(wkt, epsg=os.environ['GDAL_DATA'].replace('/gdal', '/proj/epsg')):
     """ Transform a WKT string to an EPSG code
     :param wkt:  WKT definition
     :param epsg: the proj.4 epsg file (defaults to '/usr/local/share/proj/epsg')
@@ -349,9 +349,9 @@ def pixelToMapYX(pixelCoords, path_im=None, geotransform=None, projection=None):
 
     return mapYmapXPairs
 
+def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None,
+                 out_res=None, out_extent=None, out_dtype=None, rsp_alg=0, in_nodata=None, out_nodata=None):
 
-def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None,
-                 out_res=None,out_extent=None,out_dtype=None,rsp_alg=0,in_nodata=None,out_nodata=None):
     """Reproject / warp a numpy array with given geo information to target coordinate system.
     :param ndarray:     numpy.ndarray [rows,cols,bands]
     :param in_gt:       input gdal GeoTransform
@@ -375,97 +375,116 @@ def warp_ndarray(ndarray,in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, 
     """
 
     if not ndarray.flags['OWNDATA']:
-        temp    = np.empty_like(ndarray)
+        temp = np.empty_like(ndarray)
         temp[:] = ndarray
-        ndarray = temp # deep copy: converts view to its own array in oder to avoid wrong output
+        ndarray = temp  # deep copy: converts view to its own array in oder to avoid wrong output
 
     with rasterio.drivers():
         if outUL is not None:
             assert outRowsCols is not None, 'outRowsCols must be given if outUL is given.'
-        outUL = [in_gt[0],in_gt[3]] if outUL is None else outUL
+        outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
 
-        inEPSG, outEPSG = [wkt2epsg(prj) for prj in [in_prj, out_prj]]
-        assert inEPSG  is not None, 'Could not derive input EPSG code.'
-        assert outEPSG is not None, 'Could not derive output EPSG code.'
+        inEPSG, outEPSG = [WKT2EPSG(prj) for prj in [in_prj, out_prj]]
+        assert inEPSG, 'Could not derive input EPSG code.'
+        assert outEPSG, 'Could not derive output EPSG code.'
+        assert in_nodata is None or type(in_nodata) in [int, float]
+        assert out_nodata is None or type(out_nodata) in [int, float]
 
-        src_crs = {'init': 'EPSG:%s' %inEPSG}
-        dst_crs = {'init': 'EPSG:%s' %outEPSG}
+        src_crs = {'init': 'EPSG:%s' % inEPSG}
+        dst_crs = {'init': 'EPSG:%s' % outEPSG}
 
-        if len(ndarray.shape)==3:
+        if len(ndarray.shape) == 3:
             # convert input array axis order to rasterio axis order
-            ndarray = np.swapaxes(np.swapaxes(ndarray,0,2),1,2)
-            bands,rows,cols = ndarray.shape
-            rows,cols       = outRowsCols if outRowsCols else rows,cols
+            ndarray = np.swapaxes(np.swapaxes(ndarray, 0, 2), 1, 2)
+            bands, rows, cols = ndarray.shape
+            rows, cols = outRowsCols if outRowsCols else rows, cols
         else:
-            bands = 0
-            rows,cols = ndarray.shape if outRowsCols is None else outRowsCols
+            rows, cols = ndarray.shape if outRowsCols is None else outRowsCols
 
+        # set dtypes ensuring at least int16 (int8 is not supported by rasterio)
+        in_dtype = ndarray.dtype
         out_dtype = ndarray.dtype if out_dtype is None else out_dtype
-        gt2bounds = lambda gt,r,c: [gt[0], gt[3] + r*gt[5], gt[0] + c*gt[1], gt[3]] # left, bottom, right, top
+        out_dtype = np.int16 if str(out_dtype) == 'int8' else out_dtype
+        ndarray = ndarray.astype(np.int16) if str(in_dtype) == 'int8' else ndarray
 
-        #get dst_transform
+        gt2bounds = lambda gt, r, c: [gt[0], gt[3] + r * gt[5], gt[0] + c * gt[1], gt[3]]  # left, bottom, right, top
+
+        # get dst_transform
         if out_gt is None and out_extent is None:
             if outRowsCols:
-                outUL = [in_gt[0],in_gt[3]] if outUL is None else outUL
-                ulRC2bounds = lambda ul,r,c: [ul[0], ul[1] + r*in_gt[5], ul[0] + c*in_gt[1], ul[1]] # left, bottom, right, top
-                left, bottom, right, top = ulRC2bounds(outUL,rows,cols)
-            else: # outRowsCols is None and outUL is None: use in_gt
-                left, bottom, right, top = gt2bounds(in_gt,rows,cols)
-                    #,im_xmax,im_ymin,im_ymax = corner_coord_to_minmax(get_corner_coordinates(self.ds_im2shift))
+                outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
+                ulRC2bounds = lambda ul, r, c: [ul[0], ul[1] + r * in_gt[5], ul[0] + c * in_gt[1],
+                                                ul[1]]  # left, bottom, right, top
+                left, bottom, right, top = ulRC2bounds(outUL, rows, cols)
+            else:  # outRowsCols is None and outUL is None: use in_gt
+                left, bottom, right, top = gt2bounds(in_gt, rows, cols)
+                # ,im_xmax,im_ymin,im_ymax = corner_coord_to_minmax(get_corner_coordinates(self.ds_im2shift))
         elif out_extent:
             left, bottom, right, top = out_extent
-            #input array is only a window of the actual input array
-            assert left >= in_gt[0] and right <= (in_gt[0]+(cols+1)*in_gt[1]) and \
-                   bottom >= in_gt[3]+(rows+1)*in_gt[5] and top <= in_gt[3], \
-                   "out_extent has to be completely within the input image bounds."
-        else: # out_gt is given
-            left, bottom, right, top = gt2bounds(in_gt,rows,cols)
+            # input array is only a window of the actual input array
+            assert left >= in_gt[0] and right <= (in_gt[0] + (cols + 1) * in_gt[1]) and \
+                   bottom >= in_gt[3] + (rows + 1) * in_gt[5] and top <= in_gt[3], \
+                "out_extent has to be completely within the input image bounds."
+        else:  # out_gt is given
+            left, bottom, right, top = gt2bounds(in_gt, rows, cols)
 
         if out_res is None:
             # get pixel resolution in target coord system
-            prj_in_out = (isProjectedOrGeographic(in_prj),isProjectedOrGeographic(out_prj))
+            prj_in_out = (isProjectedOrGeographic(in_prj), isProjectedOrGeographic(out_prj))
             assert None not in prj_in_out, 'prj_in_out contains None.'
             if prj_in_out[0] == prj_in_out[1]:
-                out_res = (in_gt[1],abs(in_gt[5]))
-            elif prj_in_out == ('geographic','projected'):
+                out_res = (in_gt[1], abs(in_gt[5]))
+            elif prj_in_out == ('geographic', 'projected'):
                 raise NotImplementedError('Different projections are currently not supported.')
-            else:             #('projected','geographic')
-                px_size_LatLon = np.array(pixelToLatLon([1,1],geotransform=in_gt,projection=in_prj)) - \
-                                 np.array(pixelToLatLon([0,0],geotransform=in_gt,projection=in_prj))
+            else:  # ('projected','geographic')
+                px_size_LatLon = np.array(pixelToLatLon([1, 1], geotransform=in_gt, projection=in_prj)) - \
+                                 np.array(pixelToLatLon([0, 0], geotransform=in_gt, projection=in_prj))
                 out_res = tuple(reversed(abs(px_size_LatLon)))
                 print('OUT_RES NOCHMAL CHECKEN: ', out_res)
 
-        dst_transform,out_cols,out_rows = rio_calc_transform(
-            src_crs, dst_crs, cols, rows, left, bottom, right, top, resolution=out_res) # TODO keyword densify_pts=21 does not exist anymore (moved to transform_bounds()) -> could that be a problem? check warp outputs
-        rows_expected, cols_expected = int(abs(top-bottom) / out_res[1]), int(abs(right-left) / out_res[0])
-        if rows==cols and rows_expected==cols_expected and inEPSG==outEPSG and out_rows!=out_cols:
-            out_rows,out_cols = rows_expected,cols_expected
+        dst_transform, out_cols, out_rows = rio_calc_transform(
+            src_crs, dst_crs, cols, rows, left, bottom, right, top,
+            resolution=out_res)  # TODO keyword densify_pts=21 does not exist anymore (moved to transform_bounds()) -> could that be a problem? check warp outputs
+
+        # check if calculated output dimensions correspond to expected ones and correct them if neccessary
+        rows_expected = int(round(abs(top - bottom) / out_res[1],0))
+        cols_expected = int(round(abs(right - left) / out_res[0],0))
+        diff_rows_exp_real, diff_cols_exp_real = abs(out_rows-rows_expected), abs(out_cols-cols_expected)
+        if diff_rows_exp_real > 0.1 or diff_cols_exp_real > 0.1:
+            assert diff_rows_exp_real < 1.1 and diff_cols_exp_real < 1.1, 'warp_ndarray: The output image size ' \
+                'calculated by rasterio is too far away from the expected output image size.'
+            out_rows, out_cols = rows_expected, cols_expected
             # fixes an issue where rio_calc_transform() does not return quadratic output image although input parameters
             # correspond to a quadratic image and inEPSG equals outEPSG
 
-        aff    = list(dst_transform)
-        out_gt = out_gt if out_gt else (aff[2],aff[0],aff[1],aff[5],aff[3],aff[4])
+        aff = list(dst_transform)
+        out_gt = out_gt if out_gt else (aff[2], aff[0], aff[1], aff[5], aff[3], aff[4])
 
-        #src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
+        src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
 
-        dict_rspInt_rspAlg = {0:RESAMPLING.nearest, 1:RESAMPLING.bilinear, 2:RESAMPLING.cubic,
-                              3:RESAMPLING.cubic_spline, 4:RESAMPLING.lanczos, 5:RESAMPLING.average, 6:RESAMPLING.mode}
+        dict_rspInt_rspAlg = {0: RESAMPLING.nearest, 1: RESAMPLING.bilinear, 2: RESAMPLING.cubic,
+                              3: RESAMPLING.cubic_spline, 4: RESAMPLING.lanczos, 5: RESAMPLING.average, 6: RESAMPLING.mode}
 
-        out_arr = np.zeros((bands,out_rows,out_cols), out_dtype)\
-            if len(ndarray.shape)==3 else np.zeros((out_rows,out_cols), out_dtype)
+        out_arr = np.zeros((bands, out_rows, out_cols), out_dtype) \
+            if len(ndarray.shape) == 3 else np.zeros((out_rows, out_cols), out_dtype)
 
         # FIXME direct passing of src_transform and dst_transform results in a wrong output image. Maybe a rasterio-bug?
-        #rio_reproject(ndarray, out_arr, src_transform=src_transform, src_crs=src_crs, dst_transform=dst_transform,
+        # rio_reproject(ndarray, out_arr, src_transform=src_transform, src_crs=src_crs, dst_transform=dst_transform,
         #    dst_crs=dst_crs, resampling=dict_rspInt_rspAlg[rsp_alg])
         # FIXME indirect passing causes Future warning
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore') # FIXME supresses: FutureWarning: GDAL-style transforms are deprecated and will not be supported in Rasterio 1.0.
-            rio_reproject(ndarray, out_arr,
-                      src_transform=in_gt, src_crs=src_crs, dst_transform=out_gt, dst_crs=dst_crs,
-                      resampling=dict_rspInt_rspAlg[rsp_alg], src_nodata=in_nodata, dst_nodata=out_nodata)
+            warnings.simplefilter(
+                'ignore')  # FIXME supresses: FutureWarning: GDAL-style transforms are deprecated and will not be supported in Rasterio 1.0.
+            try:
+                rio_reproject(ndarray, out_arr,
+                              src_transform=in_gt, src_crs=src_crs, dst_transform=out_gt, dst_crs=dst_crs,
+                              resampling=dict_rspInt_rspAlg[rsp_alg], src_nodata=in_nodata, dst_nodata=out_nodata)
+            except KeyError:
+                print(in_dtype, str(in_dtype))
+                print(ndarray.dtype)
 
         # convert output array axis order to GMS axis order [rows,cols,bands]
-        out_arr = out_arr if len(ndarray.shape)==2 else np.swapaxes(np.swapaxes(out_arr,0,1),1,2)
+        out_arr = out_arr if len(ndarray.shape) == 2 else np.swapaxes(np.swapaxes(out_arr, 0, 1), 1, 2)
 
     return out_arr, out_gt, out_prj
 

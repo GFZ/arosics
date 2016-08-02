@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-08-02_02"
+__version__= "2016-08-02_03"
 
 import collections
 import multiprocessing
@@ -206,6 +206,9 @@ class CoReg(object):
         return Polygon([(UL[1],UL[0]),(UR[1],UR[0]),(LR[1],LR[0]),(LL[1],LR[0])]), box_mapYX, box_YX
 
     def get_clip_window_properties(self,dst_ws):
+        """TODO
+        hint: Even if X- and Y-dimension of the target window is equal, the output window can be NOT quadratic!"""
+
         # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
         refYX, shiftYX = GEO.mapYX2imYX(self.win_pos, self.ref_gt), GEO.mapYX2imYX(self.win_pos, self.shift_gt)
         # maximale Fenster-Größen in imref und im2shift ausrechnen
@@ -413,7 +416,8 @@ class CoReg(object):
             #     max(box_mapXvals),max(box_mapYvals)]), rsp_alg=2, in_nodata=self.shift_nodata) [0]
 
         if imref_clip_data.shape != im2shift_clip_data.shape:
-            raise RuntimeError('Bad output of get_image_windows_to_match.')
+            raise RuntimeError('Bad output of get_image_windows_to_match. Reference image shape is %s whereas shift'
+                               ' image shape is %s.' %(imref_clip_data.shape, im2shift_clip_data.shape))
         rows,cols = [i if i%2==0 else i-1 for i in imref_clip_data.shape]
         imref_clip_data, im2shift_clip_data = imref_clip_data[:rows,:cols], im2shift_clip_data[:rows,:cols]
 
@@ -1189,7 +1193,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-02_02')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-02_03')
     args = parser.parse_args()
 
     print('==================================================================\n'
