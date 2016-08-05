@@ -15,7 +15,7 @@ import time
 import sys
 import numpy as np
 
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, box
 from geopandas  import GeoDataFrame
 from pykrige.ok import OrdinaryKriging
 
@@ -46,7 +46,7 @@ else:
 
 
 class CoReg(object):
-    def __init__(self, path_im0,path_im1,path_out='.',r_b4match=1,s_b4match=1,wp=None,ws=512,max_iter=5,max_shift=5,
+    def __init__(self, path_im0,path_im1,path_out='.',r_b4match=1,s_b4match=1,wp=None,ws=(512,512),max_iter=5,max_shift=5,
                  align_grids=0,match_gsd=0,out_gsd=None,data_corners_im0=None,data_corners_im1=None,nodata=None,
                  calc_corners=1,multiproc=1,binary_ws=1,v=0,q=0,ignore_errors=0):
         self.mp                       = multiproc
@@ -104,12 +104,12 @@ class CoReg(object):
         self.ref_rows, self.shift_rows  = self.ds_imref.RasterYSize, self.ds_im2shift.RasterYSize
         self.ref_cols, self.shift_cols  = self.ds_imref.RasterXSize, self.ds_im2shift.RasterXSize
         self.ref_bands,self.shift_bands = self.ds_imref.RasterCount, self.ds_im2shift.RasterCount
-        assert self.ref_prj                         is not '',   'Reference image has no projection.'
-        assert re.search('LOCAL_CS',self.ref_prj)   is None,     'Reference image is not georeferenced.'
-        assert self.ref_gt                          is not None, 'Reference image has no map information.'
-        assert self.shift_prj                       is not '',   'The image to be shifted has no projection.'
-        assert re.search('LOCAL_CS',self.shift_prj) is None,     'The image to be shifted is not georeferenced.'
-        assert self.shift_gt                        is not None, 'The image to be shifted has no map information.'
+        assert self.ref_prj                             , 'Reference image has no projection.'
+        assert not re.search('LOCAL_CS', self.ref_prj)  , 'Reference image is not georeferenced.'
+        assert self.ref_gt                              , 'Reference image has no map information.'
+        assert self.shift_prj                           , 'The image to be shifted has no projection.'
+        assert not re.search('LOCAL_CS', self.shift_prj), 'The image to be shifted is not georeferenced.'
+        assert self.shift_gt                            , 'The image to be shifted has no map information.'
         assert GEO.get_proj4info(self.ds_imref) == GEO.get_proj4info(self.ds_im2shift),\
             'Input projections are not equal. Different projections are currently not supported.'
         self.ds_imref = self.ds_im2shift = None # close GDAL datasets
@@ -152,11 +152,11 @@ class CoReg(object):
         assert self.overlap_poly, 'The input images have no spatial overlap.'
         self.overlap_percentage      = overlap_tmp['overlap percentage']
         self.overlap_area            = overlap_tmp['overlap area']
-        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_imref.shp'), self.poly_imref, self.ref_prj)
+        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_imref.shp')   , self.poly_imref,    self.ref_prj)
         if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_im2shift.shp'), self.poly_im2shift, self.shift_prj)
-        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'overlap_poly.shp'), self.overlap_poly, self.ref_prj)
+        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'overlap_poly.shp') , self.overlap_poly,  self.ref_prj)
 
-        self.win_pos, opt_win_size = self.get_opt_winpos_winsize(wp,ws)
+        self.win_pos, opt_win_size_XY = self.get_opt_winpos_winsize(wp,ws)
         if not self.q: print('Matching window position (X,Y): %s/%s' %(self.win_pos[1],self.win_pos[0]))
 
         ### FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection()) # später basteln für den fall, dass projektionen nicht gleich sind
@@ -164,7 +164,7 @@ class CoReg(object):
         # get_clip_window_properties
         self.ref_box_YX, self.shift_box_YX, self.ref_win_size_YX, self.shift_win_size_YX, \
         self.box_mapYX, self.poly_matchWin, self.poly_matchWin_prj, self.imfft_gsd \
-            = self.get_clip_window_properties(opt_win_size)
+            = self.get_clip_window_properties(opt_win_size_XY)
 
 
         if self.v and self.poly_matchWin:
@@ -179,41 +179,53 @@ class CoReg(object):
         self.success           = None if self.box_mapYX else False
 
     def get_opt_winpos_winsize(self,wp,ws):
-        """according to DGM, cloud_mask, trueCornerLonLat"""
+        # type: (tuple,tuple) -> tuple,tuple
+        """Calculates optimal window position and size in reference image units according to DGM, cloud_mask and
+        trueCornerLonLat."""
         # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
         # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
         if wp is None:
             overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
-            win_pos = [overlap_center_pos_y[0], overlap_center_pos_x[0]]
+            win_pos = (overlap_center_pos_y[0], overlap_center_pos_x[0])
         else:
             wp = wp if not isinstance(wp,np.ndarray) else wp.tolist()
             assert isinstance(wp,list), 'The window position must be a list of two elements. Got %s.' %wp
             assert len(wp)==2,          'The window position must be a list of two elements. Got %s.' %wp
             assert self.overlap_poly.contains(Point(wp)), 'The provided window position is ' \
                 'outside of the overlap area of the two input images. Check the coordinates.'
-            win_pos = list(reversed(wp))
+            win_pos = tuple(reversed(wp))
 
-        gained_win_size = int(ws) if ws else 512
-        return win_pos, gained_win_size
+        # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
+        gained_win_size_XY = (int(ws[0]), int(ws[1])) if ws else (512,512)
+        return win_pos, gained_win_size_XY
 
     @staticmethod
     def get_winPoly(wp_imYX,ws,gt,match_grid=0):
-        xmin,xmax,ymin,ymax = (wp_imYX[1]-ws/2, wp_imYX[1]+ws/2, wp_imYX[0]+ws/2, wp_imYX[0]-ws/2)
-        if match_grid:  xmin,xmax,ymin,ymax = [int(i) for i in [xmin,xmax,ymin,ymax]]
+        # type: (tuple, tuple, list, bool) -> shapely.Polygon, tuple, tuple
+        """Creates a shapely polygon from a given set of image cordinates, window size and geotransform.
+        :param wp_imYX:
+        :param ws:          <tuple> X/Y window size
+        :param gt:
+        :param match_grid:  <bool> """
+
+        ws = (ws,ws) if isinstance(ws,int) else ws
+        xmin,xmax,ymin,ymax = (wp_imYX[1]-ws[0]/2, wp_imYX[1]+ws[0]/2, wp_imYX[0]+ws[1]/2, wp_imYX[0]-ws[1]/2)
+        if match_grid:
+            xmin,xmax,ymin,ymax = [int(i) for i in [xmin,xmax,ymin,ymax]]
         box_YX      = (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL,UR,LR,LL
         UL,UR,LR,LL = [GEO.imYX2mapYX(imYX, gt) for imYX in box_YX]
         box_mapYX   = UL,UR,LR,LL
         return Polygon([(UL[1],UL[0]),(UR[1],UR[0]),(LR[1],LR[0]),(LL[1],LR[0])]), box_mapYX, box_YX
 
-    def get_clip_window_properties(self,dst_ws):
+    def get_clip_window_properties_OLD(self, dst_ws_XY): # TODO alles auf shapely polygone umstellen?
         """TODO
         hint: Even if X- and Y-dimension of the target window is equal, the output window can be NOT quadratic!"""
 
         # Fenster-Positionen in Bildkoordinaten in imref und im2shift ausrechnen
         refYX, shiftYX = GEO.mapYX2imYX(self.win_pos, self.ref_gt), GEO.mapYX2imYX(self.win_pos, self.shift_gt)
         # maximale Fenster-Größen in imref und im2shift ausrechnen
-        max_ref_clipWS   = 2*int(min(list(refYX)   + [self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  )
-        max_shift_clipWS = 2*int(min(list(shiftYX) + [self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]]))
+        max_ref_clipWS   = 2*int(min(list(refYX)   + [self.ref_cols  -refYX[1],  self.ref_rows  -refYX[0]])  ) # TODO auf XY-dim anpassen
+        max_shift_clipWS = 2*int(min(list(shiftYX) + [self.shift_cols-shiftYX[1],self.shift_rows-shiftYX[0]])) # TODO auf XY-dim anpassen
         print(max_ref_clipWS)
         print(max_shift_clipWS)
         max_ref_clipWS = 20 # FIXME
@@ -232,8 +244,8 @@ class CoReg(object):
         if self.shift_xgsd <= self.ref_xgsd:
             """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung"""
             imfft_gsd_mapvalues = self.ref_xgsd
-            ref_clipWS_tmp   = dst_ws if dst_ws <= max_ref_clipWS   else max_ref_clipWS
-            shift_clipWS_tmp = dst_ws *gsdFact if dst_ws*gsdFact <= max_shift_clipWS else max_shift_clipWS
+            ref_clipWS_tmp   = dst_ws_XY if dst_ws_XY <= max_ref_clipWS   else max_ref_clipWS
+            shift_clipWS_tmp = dst_ws_XY * gsdFact if dst_ws_XY * gsdFact <= max_shift_clipWS else max_shift_clipWS
 
             ref_winPoly,  ref_box_mapYX,  ref_box_YX   = self.get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt, match_grid=1)
             shift_winPoly,shift_box_mapYX,shift_box_YX = self.get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt)
@@ -255,8 +267,8 @@ class CoReg(object):
         else:
             """Matching-Fall 2: Ref-Auflösung > Shift-Auflösung"""
             imfft_gsd_mapvalues = self.shift_xgsd # fft-Bild bekommt Auflösung des warp-Bilds
-            ref_clipWS_tmp   = dst_ws*gsdFact if dst_ws*gsdFact <= max_ref_clipWS   else max_ref_clipWS
-            shift_clipWS_tmp = dst_ws         if dst_ws         <= max_shift_clipWS else max_shift_clipWS
+            ref_clipWS_tmp   = dst_ws_XY * gsdFact if dst_ws_XY * gsdFact <= max_ref_clipWS   else max_ref_clipWS
+            shift_clipWS_tmp = dst_ws_XY         if dst_ws_XY <= max_shift_clipWS else max_shift_clipWS
             ref_winPoly,  ref_box_mapYX,  ref_box_YX   = self.get_winPoly(refYX,  ref_clipWS_tmp,  self.ref_gt )
             shift_winPoly,shift_box_mapYX,shift_box_YX = self.get_winPoly(shiftYX,shift_clipWS_tmp,self.shift_gt,match_grid=1)
 
@@ -285,6 +297,142 @@ class CoReg(object):
 
         return ref_box_YX, shift_box_YX, ref_win_size_YX, shift_win_size_YX, \
                box_mapYX, poly_matchWin, poly_matchWin_prj, imfft_gsd_mapvalues
+
+    def move_shapelyPoly_to_image_grid(self,shapelyPoly,gt,rows,cols,moving_dir='NW'):
+        polyULxy       = (min(shapelyPoly.exterior.coords.xy[0]), max(shapelyPoly.exterior.coords.xy[1]))
+        polyLRxy       = (max(shapelyPoly.exterior.coords.xy[0]), min(shapelyPoly.exterior.coords.xy[1]))
+        UL, LL, LR, UR = GEO.get_corner_coordinates(gt=gt,rows=rows,cols=cols) # (x,y) tuples
+        round_x        = {'NW':'off','NO':'on','SW':'off','SE':'on'}[moving_dir]
+        round_y        = {'NW':'on','NO':'on','SW':'off','SE':'off'}[moving_dir]
+        tgt_xgrid      = np.arange(UL[0],UR[0]+gt[1]     , gt[1])
+        tgt_ygrid      = np.arange(LL[1],UL[1]+abs(gt[5]), abs(gt[5]))
+        tgt_xmin       = UTL.find_nearest(tgt_xgrid, polyULxy[0], round=round_x)
+        tgt_xmax       = UTL.find_nearest(tgt_xgrid, polyLRxy[0], round=round_x)
+        tgt_ymin       = UTL.find_nearest(tgt_ygrid, polyLRxy[1], round=round_y)
+        tgt_ymax       = UTL.find_nearest(tgt_ygrid, polyULxy[1], round=round_y)
+        from shapely.geometry import box
+        return box(tgt_xmin,tgt_ymin,tgt_xmax,tgt_ymax)
+
+    def get_clip_window_properties(self, dst_ws_XY):
+            """TODO
+            hint: Even if X- and Y-dimension of the target window is equal, the output window can be NOT quadratic!"""
+
+            wp_Y,wp_X = self.win_pos
+            ws_X,ws_Y = dst_ws_XY[0]*self.ref_xgsd, dst_ws_XY[1]*self.ref_ygsd # image units -> map units
+            tgt_matchPoly = box(wp_X-ws_X/2, wp_Y-ws_Y/2, wp_X+ws_X/2, wp_Y+ws_Y/2) # minx,miny,maxx,maxy
+            matchPoly     = tgt_matchPoly.intersection(self.overlap_poly) # clip matching window to overlap area
+
+            # move matching window to imref grid or im2shift grid
+            matchPoly = self.move_shapelyPoly_to_image_grid(matchPoly,self.ref_gt,self.ref_rows,self.ref_cols,'NW') \
+                if self.shift_xgsd <= self.ref_xgsd else \
+                self.move_shapelyPoly_to_image_grid(matchPoly, self.shift_gt, self.shift_rows, self.shift_cols, 'NW')
+
+            # check, ob durch Vershiebung auf Grid das matchWin außerhalb von overlap_poly geschoben wurde
+            if not matchPoly.within(self.overlap_poly):
+                # matchPoly weiter verkleinern
+                matchPoly = matchPoly.buffer(-self.ref_xgsd)
+
+            ref_winImPoly   = Polygon(GEO.get_imageCoords_from_shapelyPoly(matchPoly, self.ref_gt)) # asserts equal projections
+            shift_winImPoly = Polygon(GEO.get_imageCoords_from_shapelyPoly(matchPoly, self.shift_gt)) # asserts equal projections
+
+            ref_winMapPoly   = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
+            shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+
+            if self.shift_xgsd <= self.ref_xgsd:
+                """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung => Grid von imref übernehmen, im2shift anpassen"""
+                imfft_gsd_mapvalues = self.ref_xgsd
+                # matching_win und ref_winImPoly direkt auf imref grid
+                ref_winImPoly = GEO.round_shapelyPoly_coords(ref_winImPoly, precision=0, out_dtype=int) # Rundungsfehler bei Koordinatentrafo beseitigen
+
+                if ref_winMapPoly.within(shift_winMapPoly) or ref_winMapPoly==shift_winMapPoly:
+                    # wenn Ref Fenster innerhalb des Shift-Fensters: dann direkt übernehmen
+                    pass
+                else:
+                    # wenn Ref Fenster größer als Shift-Fenster: dann kleinstes Shift-Fenster finden, das Ref-Fenster umgibt
+                    ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
+                    ref_boxMapYX = GEO.shapelyBox2BoxYX(ref_winMapPoly,coord_type='map')
+                    shift_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(ref_boxMapYX,self.shift_gt)
+
+                    # update shift_winImPoly
+                    shift_box_XY = [(i[1],i[0]) for i in shift_box_YX]
+                    xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(shift_box_XY)
+                    shift_winImPoly = box(xmin, ymin, xmax, ymax)
+
+                    overlapImPoly  = Polygon(GEO.get_imageCoords_from_shapelyPoly(self.overlap_poly, self.shift_gt)) # asserts equal projections
+
+                    while not shift_winImPoly.within(overlapImPoly): # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird -> ref-Fenster verkleinern und neues shift-fenster berechnen
+                        ref_winImPoly  = ref_winImPoly.buffer(-1)
+                        ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
+                        ref_boxMapYX   = GEO.shapelyBox2BoxYX(ref_winMapPoly, coord_type='map')
+                        shift_box_YX   = GEO.get_smallest_boxImYX_that_contains_boxMapYX(ref_boxMapYX, self.shift_gt)
+                        shift_box_XY   = [(i[1], i[0]) for i in shift_box_YX]
+                        xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(shift_box_XY)
+                        shift_winImPoly = box(xmin, ymin, xmax, ymax)
+                    shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+
+                assert ref_winMapPoly.within(shift_winMapPoly)
+                matchPoly = GEO.shapelyImPoly2shapelyMapPoly(ref_winImPoly, self.ref_gt)
+
+            else:
+                """Matching-Fall 2: Ref-Auflösung > Shift-Auflösung => Grid von im2shift übernehmen, imref anpassen"""
+                imfft_gsd_mapvalues = self.shift_xgsd  # fft-Bild bekommt Auflösung des warp-Bilds
+                #  matching_win und shift_winImPoly direkt auf im2shift grid
+                shift_winImPoly = GEO.round_shapelyPoly_coords(shift_winImPoly, precision=0, out_dtype=int)  # Rundungsfehler bei Koordinatentrafo beseitigen
+
+                if shift_winMapPoly.within(ref_winMapPoly) or shift_winMapPoly == ref_winMapPoly:
+                    # wenn Ref Fenster innerhalb des Shift-Fensters: dann direkt übernehmen
+                    pass
+                else:
+                    # wenn Shift Fenster größer als Ref-Fenster: dann kleinstes Ref-Fenster finden, das shift-Fenster umgibt
+                    shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+                    shift_boxMapYX = GEO.shapelyBox2BoxYX(shift_winMapPoly, coord_type='map')
+                    ref_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(shift_boxMapYX, self.ref_gt)
+
+                    # update ref_winImPoly
+                    ref_box_XY = [(i[1], i[0]) for i in ref_box_YX]
+                    xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(ref_box_XY)
+                    ref_winImPoly = box(xmin, ymin, xmax, ymax)
+
+                    overlapImPoly = Polygon(GEO.get_imageCoords_from_shapelyPoly(self.overlap_poly, self.ref_gt))  # asserts equal projections
+
+                    while not ref_winImPoly.within(overlapImPoly):  # evtl. kann es sein, dass bei Ref-Fenster-Vergrößerung das Ref-Fenster zu groß für den overlap wird -> shift-Fenster verkleinern und neues Ref-fenster berechnen
+                        shift_winImPoly = shift_winImPoly.buffer(-1)
+                        shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+                        shift_boxMapYX = GEO.shapelyBox2BoxYX(shift_winMapPoly, coord_type='map')
+                        ref_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(shift_boxMapYX, self.ref_gt)
+                        ref_box_XY = [(i[1], i[0]) for i in ref_box_YX]
+                        xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(ref_box_XY)
+                        ref_winImPoly = box(xmin, ymin, xmax, ymax)
+                    ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt,
+                                                                           self.ref_prj)
+
+                assert shift_winMapPoly.within(ref_winMapPoly)
+                matchPoly = GEO.shapelyImPoly2shapelyMapPoly(shift_winImPoly, self.shift_gt)
+
+            ref_box_YX        = [[int(i[0]),int(i[1])] for i in GEO.shapelyBox2BoxYX(ref_winImPoly  ,coord_type='image')]
+            shift_box_YX      = [[int(i[0]),int(i[1])] for i in GEO.shapelyBox2BoxYX(shift_winImPoly,coord_type='image')]
+            box_mapYX         = GEO.shapelyBox2BoxYX(matchPoly,coord_type='map')
+            poly_matchWin_prj = self.ref_prj if self.shift_xgsd <= self.ref_xgsd else self.shift_prj
+            ref_win_size_YX   = abs(ref_box_YX[2][0]  -ref_box_YX[0][0]),   abs(ref_box_YX[1][1]  -ref_box_YX[0][1])  # LLy-ULy, URx-ULx
+            shift_win_size_YX = abs(shift_box_YX[2][0]-shift_box_YX[0][0]), abs(shift_box_YX[1][1]-shift_box_YX[0][1])# LLy-ULy, URx-ULx
+            match_win_size_XY = tuple(reversed(ref_win_size_YX if self.shift_xgsd <= self.ref_xgsd else shift_win_size_YX))
+            if ref_win_size_YX != match_win_size_XY:
+                print('Target window size %s not possible due to too small overlap area or window position too close '
+                      'to an image edge. New matching window size: %s.' %(dst_ws_XY,match_win_size_XY))
+
+            #print(ref_win_size_YX)
+            #print(shift_win_size_YX)
+            #print('RWP', ref_winImPoly)
+            #print('SWP', shift_winImPoly)
+            #print(ref_winMapPoly.bounds)
+            #print(shift_winMapPoly.bounds)
+            #print(ref_box_YX)
+            #print(shift_box_YX)
+            # IO.write_shp('/misc/hy5/scheffler/Temp/ref_winMapPoly.shp', ref_winMapPoly,self.ref_prj)
+            # IO.write_shp('/misc/hy5/scheffler/Temp/shift_winMapPoly.shp', shift_winMapPoly, self.shift_prj)
+
+            return ref_box_YX, shift_box_YX, ref_win_size_YX, shift_win_size_YX, \
+                   box_mapYX, matchPoly, poly_matchWin_prj, imfft_gsd_mapvalues
 
     def get_image_windows_to_match(self):
         if self.v: print('resolutions: ', self.ref_xgsd, self.shift_xgsd)
@@ -428,10 +576,10 @@ class CoReg(object):
 
         self.imref_matchWin    = imref_clip_data
         self.im2shift_matchWin = im2shift_clip_data
+
         return imref_clip_data, im2shift_clip_data
 
     def get_opt_fftw_winsize(self,im_shape, target_size=None,v=0,ignErr=0,bin_ws=1):
-        print(im_shape)
         binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
         possibSizes = [i for i in binarySizes if i <= min(im_shape)] if bin_ws else list(range(8192))
         if not possibSizes:
@@ -454,7 +602,6 @@ class CoReg(object):
             :return:            2D-numpy-array of the shifted cross power spectrum
         """
         window_size = self.get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr,bin_ws=bin_ws)
-
         assert im0.shape == im1.shape, 'The reference and the target image must have the same dimensions.'
         if im0.shape[0]%2!=0: warnings.warn('Odd row count in one of the match images!')
         if im1.shape[1]%2!=0: warnings.warn('Odd column count in one of the match images!')
@@ -1170,7 +1317,7 @@ if __name__ == '__main__':
     parser.add_argument('-wp', nargs=2, metavar=('X', 'Y'),type=float,help="custom matching window position as  map "\
                         "values in the same projection like the reference image "\
                         "(default: central position of image overlap)", default=None)
-    parser.add_argument('-ws', nargs='?', type=int,help="custom matching window size [pixels] (default: 512)", default=512)
+    parser.add_argument('-ws', nargs=2, metavar=('X size', 'Y size'),type=float,help="custom matching window size [pixels] (default: 512)", default=512)
     parser.add_argument('-max_iter', nargs='?', type=int,help="maximum number of iterations for matching (default: 5)", default=5)
     parser.add_argument('-max_shift', nargs='?', type=int,help="maximum shift distance in reference image pixel units "\
                         "(default: 5 px)", default=5)
@@ -1229,5 +1376,5 @@ if __name__ == '__main__':
                       q                = args.q,
                       ignore_errors    = args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
-    COREG_obj.correct_shifts()
+    #COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))

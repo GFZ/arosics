@@ -17,15 +17,77 @@ import rasterio
 from rasterio.warp import RESAMPLING
 from rasterio.warp import calculate_default_transform as rio_calc_transform
 from rasterio.warp import reproject as rio_reproject
-from shapely.geometry import Polygon, shape
+from shapely.geometry import Polygon, shape, mapping, box
 from geopandas import GeoDataFrame
 
-from components import io as IO
+if __name__.startswith('CoReg_Sat'):
+    from . import io        as IO
+    from . import utilities as UTL
+else:
+    from components import io        as IO
+    from components import utilities as UTL
 
 
+class boxYX(object):
+    def __init__(self,wp,ws,coord_units='image'):
+        self.wp_x,self.wp_y = wp
+        self.ws_x,self.ws_y = ws
+        self.coord_units    = coord_units
+        self.poly           = box(self.wp_x-self.ws_x/2, self.wp_y-self.ws_y/2,
+                                  self.wp_x+self.ws_x/2, self.wp_y+self.ws_y/2)
+        self.xy_coords      = self.poly.exterior.coords.xy
+
+    def clip_to_poly(self,shapelyPoly):
+        self.poly = self.poly.intersection(shapelyPoly)
+        return self.poly
+
+    def get_xy_coords(self):
+        return self.poly.exterior
+
+    def move_to_image_grid(self,gt,rows,cols,direction='NW'):
+        self.poly = move_shapelyPoly_to_image_grid(self.poly,gt,rows,cols,direction)
+        return self.poly
+
+    def get_ImCoordsPoly(self,gt,intCoords=False):
+        tmpPoly = Polygon(get_imageCoords_from_shapelyPoly(self.poly, gt))
+        outPoly = round_shapelyPoly_coords(tmpPoly, precision=0, out_dtype=int) if intCoords else tmpPoly
+        return outPoly
+
+    #def __getattr__(self, item):
+   #     attributes = {'a':}
+#
+#        if hasattr(self,item):
+ #           return getattr(self,item)
+  #      else:
+   #         if item=='bounds':
+
+
+
+
+def shapelyImPoly_to_shapelyMapPoly(shapelyImPoly, gt,prj):
+    geojson   = mapping(shapelyImPoly)
+    coords    = list(geojson['coordinates'][0])
+    coordsYX = pixelToMapYX(coords,geotransform=gt,projection=prj)
+    coordsXY = tuple([(i[1],i[0]) for i in coordsYX])
+    geojson['coordinates'] = (coordsXY,)
+    return shape(geojson)
+
+def move_shapelyPoly_to_image_grid(shapelyPoly, gt, rows, cols, moving_dir='NW'):
+    polyULxy = (min(shapelyPoly.exterior.coords.xy[0]), max(shapelyPoly.exterior.coords.xy[1]))
+    polyLRxy = (max(shapelyPoly.exterior.coords.xy[0]), min(shapelyPoly.exterior.coords.xy[1]))
+    UL, LL, LR, UR = get_corner_coordinates(gt=gt, rows=rows, cols=cols)  # (x,y) tuples
+    round_x = {'NW': 'off', 'NO': 'on', 'SW': 'off', 'SE': 'on'}[moving_dir]
+    round_y = {'NW': 'on', 'NO': 'on', 'SW': 'off', 'SE': 'off'}[moving_dir]
+    tgt_xgrid = np.arange(UL[0], UR[0] + gt[1], gt[1])
+    tgt_ygrid = np.arange(LL[1], UL[1] + abs(gt[5]), abs(gt[5]))
+    tgt_xmin = UTL.find_nearest(tgt_xgrid, polyULxy[0], round=round_x)
+    tgt_xmax = UTL.find_nearest(tgt_xgrid, polyLRxy[0], round=round_x)
+    tgt_ymin = UTL.find_nearest(tgt_ygrid, polyLRxy[1], round=round_y)
+    tgt_ymax = UTL.find_nearest(tgt_ygrid, polyULxy[1], round=round_y)
+    return box(tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax)
 
 def get_corner_coordinates(fPath=None, gt=None, rows=None,cols=None):
-    """Return (UL, LL, LR, UR)"""
+    """Return (UL, LL, LR, UR) as (x,y) tuples."""
     if fPath is None: assert None not in [gt,rows,cols],"'gt', 'rows' and 'cols' must be given if gdal_ds is missing."
     if fPath:
         gdal_ds    = gdal.Open(fPath)
@@ -57,7 +119,7 @@ def corner_coord_to_minmax(corner_coords):
 
 def get_footprint_polygon(CornerLonLat):
     outpoly = Polygon(CornerLonLat)
-    assert outpoly. is_valid, 'The given coordinates result in an invalid polygon. Check coordinate order.'
+    assert outpoly.is_valid, 'The given coordinates result in an invalid polygon. Check coordinate order.'
     return outpoly
 
 
@@ -198,11 +260,66 @@ mapYX2imYX = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5],     (mapYX[1]-gt[0])/gt[1
 imYX2mapYX = lambda imYX ,gt: (gt[3]-(imYX[0]*abs(gt[5])), gt[0]+(imYX[1]*gt[1]))
 
 
+def round_shapelyPoly_coords(shapelyPoly, precision=10,out_dtype=None):
+    geojson = mapping(shapelyPoly)
+    geojson['coordinates'] = np.round(np.array(geojson['coordinates']), precision)
+    if out_dtype:
+        geojson['coordinates'] = geojson['coordinates'].astype(out_dtype)
+    return shape(geojson)
+
+def find_nearest_grid_coord(valXY,gt,rows,cols,direction='NW',extrapolate=True):
+    UL, LL, LR, UR = get_corner_coordinates(gt=gt, rows=rows, cols=cols)  # (x,y) tuples
+    round_x = {'NW': 'off', 'NO': 'on', 'SW': 'off', 'SO': 'on'}[direction]
+    round_y = {'NW': 'on', 'NO': 'on', 'SW': 'off', 'SO': 'off'}[direction]
+    tgt_xgrid = np.arange(UL[0], UR[0] + gt[1], gt[1])
+    tgt_ygrid = np.arange(LL[1], UL[1] + abs(gt[5]), abs(gt[5]))
+    tgt_x = UTL.find_nearest(tgt_xgrid, valXY[0], round=round_x, extrapolate=extrapolate)
+    tgt_y = UTL.find_nearest(tgt_ygrid, valXY[1], round=round_y, extrapolate=extrapolate)
+    return tgt_x,tgt_y
+
 def get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX, gt_im):
     xmin,ymin,xmax,ymax = Polygon([(i[1],i[0]) for i in box_mapYX]).bounds # map-bounds box_mapYX
     (ymin,xmin),(ymax,xmax) = mapYX2imYX([ymin,xmin],gt_im), mapYX2imYX([ymax,xmax],gt_im) # image coord bounds
     xmin,ymin,xmax,ymax = int(xmin),math.ceil(ymin), math.ceil(xmax), int(ymax) # round min coords off and max coords on
     return (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL_YX,UR_YX,LR_YX,LL_YX
+
+def get_largest_onGridPoly_within_poly(outerPoly,gt,rows,cols):
+    oP_xmin,oP_ymin,oP_xmax,oP_ymax = outerPoly.bounds
+    xmin,ymax = find_nearest_grid_coord((oP_xmin,oP_ymax),gt,rows,cols,direction='SE')
+    xmax,ymin = find_nearest_grid_coord((oP_xmax, oP_ymin), gt, rows, cols, direction='NW')
+    return box(xmin, ymin, xmax, ymax)
+
+def get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly(shapelyPoly):
+    """Returns the smallest box that matches the coordinate grid of the given geotransform.
+    The returned shapely polygon contains image coordinates."""
+    xmin,ymin,xmax,ymax = shapelyPoly.bounds # image_coords-bounds
+    return box(int(xmin),int(ymin), math.ceil(xmax), math.ceil(ymax)) # round min coords off and max coords on
+
+def shapelyImPoly2shapelyMapPoly(shapelyBox, gt):
+    xmin, ymin, xmax, ymax = shapelyBox.bounds
+    ymax, xmin = imYX2mapYX((ymax, xmin), gt)
+    ymin, xmax = imYX2mapYX((ymin, xmax), gt)
+    return box(xmin, ymin, xmax, ymax)
+
+def shapelyBox2BoxYX(shapelyBox,coord_type='image'):
+    xmin, ymin, xmax, ymax = shapelyBox.bounds
+    assert coord_type in ['image','map']
+    UL_YX, UR_YX, LR_YX, LL_YX = ((ymin,xmin),(ymin,xmax),(ymax,xmax),(ymax,xmin)) if coord_type=='image' else \
+                                 ((ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin))
+    return UL_YX, UR_YX, LR_YX, LL_YX
+
+def get_imageCoords_from_shapelyPoly(shapelyPoly, im_gt):
+    # type: (shapely.Polygon,list) -> np.ndarray
+    """Converts each vertex coordinate of a shapely polygon into image coordinates corresponding to the given
+    geotransform without respect to invalid image coordinates. Those must be filtered later.
+    :param shapelyPoly:     <shapely.Polygon>
+    :param im_gt:           <list> the GDAL geotransform of the target image
+    """
+    get_coordsArr = lambda shpPoly: np.swapaxes(np.array(shpPoly.exterior.coords.xy), 0, 1)
+    coordsArr     = get_coordsArr(shapelyPoly)
+    imCoordsYX    = [mapYX2imYX((Y, X), im_gt) for X, Y in coordsArr.tolist()] # FIXME incompatible to GMS version
+    imCoordsXY    = [(i[1],i[0]) for i in imCoordsYX]
+    return imCoordsXY
 
 
 def get_subset_GeoTransform(gt_fullArr,subset_box_imYX):
@@ -385,7 +502,7 @@ def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None,
         outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
 
         inEPSG, outEPSG = [WKT2EPSG(prj) for prj in [in_prj, out_prj]]
-        assert inEPSG, 'Could not derive input EPSG code.'
+        assert inEPSG,  'Could not derive input EPSG code.'
         assert outEPSG, 'Could not derive output EPSG code.'
         assert in_nodata is None or type(in_nodata) in [int, float]
         assert out_nodata is None or type(out_nodata) in [int, float]
