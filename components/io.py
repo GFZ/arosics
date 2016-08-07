@@ -14,7 +14,6 @@ except ImportError:
 from spectral.io import envi
 
 from .utilities import get_dtypeStr, get_image_tileborders, convertGdalNumpyDataType
-from .geometry  import geotransform2mapinfo
 
 
 
@@ -39,6 +38,7 @@ def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
 
 def write_envi(arr,outpath,gt=None,prj=None):
     if gt or prj: assert gt and prj, 'gt and prj must be provided together or left out.'
+    from .geometry import geotransform2mapinfo
     meta = {'map info':geotransform2mapinfo(gt,prj),'coordinate system string':prj} if gt else None
     from spectral.io import envi as envi
     shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape

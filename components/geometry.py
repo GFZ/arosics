@@ -1,7 +1,10 @@
+# -*- coding: utf-8 -*-
+#from __future__ import absolute_import
 import math
 import os
 import re
 import warnings
+import sys
 
 import numpy  as np
 
@@ -20,13 +23,8 @@ from rasterio.warp import reproject as rio_reproject
 from shapely.geometry import Polygon, shape, mapping, box
 from geopandas import GeoDataFrame
 
-if __name__.startswith('CoReg_Sat'):
-    from . import io        as IO
-    from . import utilities as UTL
-else:
-    from components import io        as IO
-    from components import utilities as UTL
-
+from . import io        as IO
+from . import utilities as UTL
 
 class boxYX(object):
     def __init__(self,wp,ws,coord_units='image'):

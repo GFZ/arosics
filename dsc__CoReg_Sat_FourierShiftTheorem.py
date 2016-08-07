@@ -32,7 +32,6 @@ except ImportError:
     from osgeo import osr
     from osgeo import ogr
 
-
 if __name__=='__main__':
     from components import geometry  as GEO
     from components import plotting  as PLT
@@ -313,24 +312,21 @@ class CoReg(object):
         from shapely.geometry import box
         return box(tgt_xmin,tgt_ymin,tgt_xmax,tgt_ymax)
 
-    def get_clip_window_properties(self, dst_ws_XY):
+    def get_clip_window_properties_NEW(self, dst_ws_XY):
             """TODO
             hint: Even if X- and Y-dimension of the target window is equal, the output window can be NOT quadratic!"""
+            grid2use = 'imref' if self.shift_xgsd <= self.ref_xgsd else 'im2shift'
 
             wp_Y,wp_X = self.win_pos
-            ws_X,ws_Y = dst_ws_XY[0]*self.ref_xgsd, dst_ws_XY[1]*self.ref_ygsd # image units -> map units
+            ws_X,ws_Y = (dst_ws_XY[0]*self.ref_xgsd,   dst_ws_XY[1]*self.ref_ygsd) if grid2use=='imref' else \
+                        (dst_ws_XY[0]*self.shift_xgsd, dst_ws_XY[1]*self.shift_ygsd) # image units -> map units
             tgt_matchPoly = box(wp_X-ws_X/2, wp_Y-ws_Y/2, wp_X+ws_X/2, wp_Y+ws_Y/2) # minx,miny,maxx,maxy
             matchPoly     = tgt_matchPoly.intersection(self.overlap_poly) # clip matching window to overlap area
 
             # move matching window to imref grid or im2shift grid
             matchPoly = self.move_shapelyPoly_to_image_grid(matchPoly,self.ref_gt,self.ref_rows,self.ref_cols,'NW') \
-                if self.shift_xgsd <= self.ref_xgsd else \
-                self.move_shapelyPoly_to_image_grid(matchPoly, self.shift_gt, self.shift_rows, self.shift_cols, 'NW')
-
-            # check, ob durch Vershiebung auf Grid das matchWin außerhalb von overlap_poly geschoben wurde
-            if not matchPoly.within(self.overlap_poly):
-                # matchPoly weiter verkleinern
-                matchPoly = matchPoly.buffer(-self.ref_xgsd)
+                if grid2use=='imref' else \
+                self.move_shapelyPoly_to_image_grid(matchPoly,self.shift_gt, self.shift_rows, self.shift_cols, 'NW')
 
             ref_winImPoly   = Polygon(GEO.get_imageCoords_from_shapelyPoly(matchPoly, self.ref_gt)) # asserts equal projections
             shift_winImPoly = Polygon(GEO.get_imageCoords_from_shapelyPoly(matchPoly, self.shift_gt)) # asserts equal projections
@@ -338,7 +334,77 @@ class CoReg(object):
             ref_winMapPoly   = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
             shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
 
-            if self.shift_xgsd <= self.ref_xgsd:
+            #matchMapPoly, otherMapPoly = (ref_winMapPoly,shift_winMapPoly) if grid2use=='imref' else \
+            #                             (shift_winMapPoly, ref_winMapPoly)
+
+            class boxObj(object):
+                def __init__(self, **attributes):
+                    # The variable self.data is used by method __setattr__ inside this class, so we will need to declare it using the parent __setattr__ method:
+                    super().__setattr__('attributes', dict()) # FIXME not Python 2 compatible
+                    self.attributes = attributes
+                    #self.attributes['imPoly'] = attributes.get('imPoly',None)
+                    #self.attributes.update(
+                    #    {'imPoly':   Polygon(GEO.get_imageCoords_from_shapelyPoly(self.mapPoly, self.gt)),
+                    #     'boxMapYX': GEO.shapelyBox2BoxYX(self.mapPoly, coord_type='map')})
+                    #self.attributes.update({'mapPoly':  GEO.shapelyImPoly_to_shapelyMapPoly(self.imPoly, self.gt, self.prj)})
+                    # These declarations will jump to super().__setattr__('data', dict()) inside method __setattr__ of this class:
+
+                def __getattr__(self, name):
+                    # This will callback will never be called for instance variables that have beed declared before being accessed.
+                    if name in self.attributes:
+                        # Return a valid dictionary item:
+                        return self.attributes[name]
+                    else:
+                        # So when an instance variable is being accessed, and  it has not been declared before, nor is it contained
+                        # in dictionary 'data', an attribute exception needs to be raised.
+                        raise AttributeError('%s has not attribute %s.' %(self,name))
+
+                def __setattr__(self, key, value):
+                    if key in self.attributes:
+                        # Assign valid dictionary items here:
+                        self.attributes[key] = value
+                    else:
+                        # Assign anything else as an instance attribute:
+                        super().__setattr__(key, value)
+
+                def get_imPoly(self):
+                    return Polygon(GEO.get_imageCoords_from_shapelyPoly(self.mapPoly, self.gt))
+
+                def get_boxMapYX(self):
+                    return GEO.shapelyBox2BoxYX(self.get_mapPoly(), coord_type='map')
+
+                def get_mapPoly(self):
+                    # type: () -> shapely.Polygon
+                    return GEO.shapelyImPoly_to_shapelyMapPoly(self.get_imPoly(), self.gt, self.prj)
+
+
+            if grid2use=='imref':
+                matchWin = boxObj(**{'mapPoly':ref_winMapPoly,  'gt':self.ref_gt,  'prj':self.ref_prj})
+                otherWin = boxObj(**{'mapPoly':shift_winMapPoly,'gt':self.shift_gt,'prj':self.shift_prj})
+            else:
+                otherWin = boxObj(**{'mapPoly':ref_winMapPoly,  'gt':self.ref_gt,  'prj':self.ref_prj})
+                matchWin = boxObj(**{'mapPoly':shift_winMapPoly,'gt':self.shift_gt,'prj':self.shift_prj})
+
+            print('geht:', matchWin.get_imPoly())
+
+
+            if not matchWin.get_mapPoly().within(self.overlap_poly):
+                # matchPoly weiter verkleinern
+                print('vorher',matchWin.get_mapPoly())
+                matchWin.imPoly = matchWin.get_imPoly().buffer(-1)
+                print('nachher',matchWin.get_mapPoly())
+
+
+
+            #################
+            # check, ob durch Verschiebung auf Grid das matchWin außerhalb von overlap_poly geschoben wurde
+            if not matchPoly.within(self.overlap_poly):
+                # matchPoly weiter verkleinern
+                matchPoly = matchPoly.buffer(-self.ref_xgsd) if grid2use=='imref' else matchPoly.buffer(-self.shift_xgsd)
+
+
+
+            if grid2use=='imref':
                 """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung => Grid von imref übernehmen, im2shift anpassen"""
                 imfft_gsd_mapvalues = self.ref_xgsd
                 # matching_win und ref_winImPoly direkt auf imref grid
@@ -412,11 +478,11 @@ class CoReg(object):
             ref_box_YX        = [[int(i[0]),int(i[1])] for i in GEO.shapelyBox2BoxYX(ref_winImPoly  ,coord_type='image')]
             shift_box_YX      = [[int(i[0]),int(i[1])] for i in GEO.shapelyBox2BoxYX(shift_winImPoly,coord_type='image')]
             box_mapYX         = GEO.shapelyBox2BoxYX(matchPoly,coord_type='map')
-            poly_matchWin_prj = self.ref_prj if self.shift_xgsd <= self.ref_xgsd else self.shift_prj
+            poly_matchWin_prj = self.ref_prj if grid2use=='imref' else self.shift_prj
             ref_win_size_YX   = abs(ref_box_YX[2][0]  -ref_box_YX[0][0]),   abs(ref_box_YX[1][1]  -ref_box_YX[0][1])  # LLy-ULy, URx-ULx
             shift_win_size_YX = abs(shift_box_YX[2][0]-shift_box_YX[0][0]), abs(shift_box_YX[1][1]-shift_box_YX[0][1])# LLy-ULy, URx-ULx
-            match_win_size_XY = tuple(reversed(ref_win_size_YX if self.shift_xgsd <= self.ref_xgsd else shift_win_size_YX))
-            if ref_win_size_YX != match_win_size_XY:
+            match_win_size_XY = tuple(reversed(ref_win_size_YX if grid2use=='imref' else shift_win_size_YX))
+            if match_win_size_XY != dst_ws_XY:
                 print('Target window size %s not possible due to too small overlap area or window position too close '
                       'to an image edge. New matching window size: %s.' %(dst_ws_XY,match_win_size_XY))
 
@@ -428,11 +494,143 @@ class CoReg(object):
             #print(shift_winMapPoly.bounds)
             #print(ref_box_YX)
             #print(shift_box_YX)
-            # IO.write_shp('/misc/hy5/scheffler/Temp/ref_winMapPoly.shp', ref_winMapPoly,self.ref_prj)
-            # IO.write_shp('/misc/hy5/scheffler/Temp/shift_winMapPoly.shp', shift_winMapPoly, self.shift_prj)
+            IO.write_shp('/misc/hy5/scheffler/Temp/ref_winMapPoly.shp', ref_winMapPoly,self.ref_prj)
+            IO.write_shp('/misc/hy5/scheffler/Temp/shift_winMapPoly.shp', shift_winMapPoly, self.shift_prj)
 
             return ref_box_YX, shift_box_YX, ref_win_size_YX, shift_win_size_YX, \
                    box_mapYX, matchPoly, poly_matchWin_prj, imfft_gsd_mapvalues
+
+    def get_clip_window_properties(self, dst_ws_XY):
+        """TODO
+        hint: Even if X- and Y-dimension of the target window is equal, the output window can be NOT quadratic!"""
+
+        wp_Y, wp_X = self.win_pos
+        ws_X, ws_Y = dst_ws_XY[0] * self.ref_xgsd, dst_ws_XY[1] * self.ref_ygsd  # image units -> map units
+        tgt_matchPoly = box(wp_X - ws_X / 2, wp_Y - ws_Y / 2, wp_X + ws_X / 2, wp_Y + ws_Y / 2)  # minx,miny,maxx,maxy
+        matchPoly = tgt_matchPoly.intersection(self.overlap_poly)  # clip matching window to overlap area
+
+        # move matching window to imref grid or im2shift grid
+        matchPoly = self.move_shapelyPoly_to_image_grid(matchPoly, self.ref_gt, self.ref_rows, self.ref_cols, 'NW') \
+            if self.shift_xgsd <= self.ref_xgsd else \
+            self.move_shapelyPoly_to_image_grid(matchPoly, self.shift_gt, self.shift_rows, self.shift_cols, 'NW')
+
+        # check, ob durch Vershiebung auf Grid das matchWin außerhalb von overlap_poly geschoben wurde
+        if not matchPoly.within(self.overlap_poly):
+            # matchPoly weiter verkleinern
+            matchPoly = matchPoly.buffer(-self.ref_xgsd)
+
+        ref_winImPoly = Polygon(
+            GEO.get_imageCoords_from_shapelyPoly(matchPoly, self.ref_gt))  # asserts equal projections
+        shift_winImPoly = Polygon(
+            GEO.get_imageCoords_from_shapelyPoly(matchPoly, self.shift_gt))  # asserts equal projections
+
+        ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
+        shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+
+        if self.shift_xgsd <= self.ref_xgsd:
+            """Matching-Fall 1: Shift-Auflösung >= Ref-Auflösung => Grid von imref übernehmen, im2shift anpassen"""
+            imfft_gsd_mapvalues = self.ref_xgsd
+            # matching_win und ref_winImPoly direkt auf imref grid
+            ref_winImPoly = GEO.round_shapelyPoly_coords(ref_winImPoly, precision=0,
+                                                         out_dtype=int)  # Rundungsfehler bei Koordinatentrafo beseitigen
+
+            if ref_winMapPoly.within(shift_winMapPoly) or ref_winMapPoly == shift_winMapPoly:
+                # wenn Ref Fenster innerhalb des Shift-Fensters: dann direkt übernehmen
+                pass
+            else:
+                # wenn Ref Fenster größer als Shift-Fenster: dann kleinstes Shift-Fenster finden, das Ref-Fenster umgibt
+                ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
+                ref_boxMapYX = GEO.shapelyBox2BoxYX(ref_winMapPoly, coord_type='map')
+                shift_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(ref_boxMapYX, self.shift_gt)
+
+                # update shift_winImPoly
+                shift_box_XY = [(i[1], i[0]) for i in shift_box_YX]
+                xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(shift_box_XY)
+                shift_winImPoly = box(xmin, ymin, xmax, ymax)
+
+                overlapImPoly = Polygon(
+                    GEO.get_imageCoords_from_shapelyPoly(self.overlap_poly, self.shift_gt))  # asserts equal projections
+
+                while not shift_winImPoly.within(
+                        overlapImPoly):  # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird -> ref-Fenster verkleinern und neues shift-fenster berechnen
+                    ref_winImPoly = ref_winImPoly.buffer(-1)
+                    ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt, self.ref_prj)
+                    ref_boxMapYX = GEO.shapelyBox2BoxYX(ref_winMapPoly, coord_type='map')
+                    shift_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(ref_boxMapYX, self.shift_gt)
+                    shift_box_XY = [(i[1], i[0]) for i in shift_box_YX]
+                    xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(shift_box_XY)
+                    shift_winImPoly = box(xmin, ymin, xmax, ymax)
+                shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+
+            assert ref_winMapPoly.within(shift_winMapPoly)
+            matchPoly = GEO.shapelyImPoly2shapelyMapPoly(ref_winImPoly, self.ref_gt)
+
+        else:
+            """Matching-Fall 2: Ref-Auflösung > Shift-Auflösung => Grid von im2shift übernehmen, imref anpassen"""
+            imfft_gsd_mapvalues = self.shift_xgsd  # fft-Bild bekommt Auflösung des warp-Bilds
+            #  matching_win und shift_winImPoly direkt auf im2shift grid
+            shift_winImPoly = GEO.round_shapelyPoly_coords(shift_winImPoly, precision=0,
+                                                           out_dtype=int)  # Rundungsfehler bei Koordinatentrafo beseitigen
+
+            if shift_winMapPoly.within(ref_winMapPoly) or shift_winMapPoly == ref_winMapPoly:
+                # wenn Ref Fenster innerhalb des Shift-Fensters: dann direkt übernehmen
+                pass
+            else:
+                # wenn Shift Fenster größer als Ref-Fenster: dann kleinstes Ref-Fenster finden, das shift-Fenster umgibt
+                shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt, self.shift_prj)
+                shift_boxMapYX = GEO.shapelyBox2BoxYX(shift_winMapPoly, coord_type='map')
+                ref_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(shift_boxMapYX, self.ref_gt)
+
+                # update ref_winImPoly
+                ref_box_XY = [(i[1], i[0]) for i in ref_box_YX]
+                xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(ref_box_XY)
+                ref_winImPoly = box(xmin, ymin, xmax, ymax)
+
+                overlapImPoly = Polygon(
+                    GEO.get_imageCoords_from_shapelyPoly(self.overlap_poly, self.ref_gt))  # asserts equal projections
+
+                while not ref_winImPoly.within(
+                        overlapImPoly):  # evtl. kann es sein, dass bei Ref-Fenster-Vergrößerung das Ref-Fenster zu groß für den overlap wird -> shift-Fenster verkleinern und neues Ref-fenster berechnen
+                    shift_winImPoly = shift_winImPoly.buffer(-1)
+                    shift_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(shift_winImPoly, self.shift_gt,
+                                                                           self.shift_prj)
+                    shift_boxMapYX = GEO.shapelyBox2BoxYX(shift_winMapPoly, coord_type='map')
+                    ref_box_YX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(shift_boxMapYX, self.ref_gt)
+                    ref_box_XY = [(i[1], i[0]) for i in ref_box_YX]
+                    xmin, xmax, ymin, ymax = GEO.corner_coord_to_minmax(ref_box_XY)
+                    ref_winImPoly = box(xmin, ymin, xmax, ymax)
+                ref_winMapPoly = GEO.shapelyImPoly_to_shapelyMapPoly(ref_winImPoly, self.ref_gt,
+                                                                     self.ref_prj)
+
+            assert shift_winMapPoly.within(ref_winMapPoly)
+            matchPoly = GEO.shapelyImPoly2shapelyMapPoly(shift_winImPoly, self.shift_gt)
+
+        ref_box_YX = [[int(i[0]), int(i[1])] for i in GEO.shapelyBox2BoxYX(ref_winImPoly, coord_type='image')]
+        shift_box_YX = [[int(i[0]), int(i[1])] for i in GEO.shapelyBox2BoxYX(shift_winImPoly, coord_type='image')]
+        box_mapYX = GEO.shapelyBox2BoxYX(matchPoly, coord_type='map')
+        poly_matchWin_prj = self.ref_prj if self.shift_xgsd <= self.ref_xgsd else self.shift_prj
+        ref_win_size_YX = abs(ref_box_YX[2][0] - ref_box_YX[0][0]), abs(
+            ref_box_YX[1][1] - ref_box_YX[0][1])  # LLy-ULy, URx-ULx
+        shift_win_size_YX = abs(shift_box_YX[2][0] - shift_box_YX[0][0]), abs(
+            shift_box_YX[1][1] - shift_box_YX[0][1])  # LLy-ULy, URx-ULx
+        match_win_size_XY = tuple(reversed(ref_win_size_YX if self.shift_xgsd <= self.ref_xgsd else shift_win_size_YX))
+        if ref_win_size_YX != match_win_size_XY:
+            print('Target window size %s not possible due to too small overlap area or window position too close '
+                  'to an image edge. New matching window size: %s.' % (dst_ws_XY, match_win_size_XY))
+
+        # print(ref_win_size_YX)
+        # print(shift_win_size_YX)
+        # print('RWP', ref_winImPoly)
+        # print('SWP', shift_winImPoly)
+        # print(ref_winMapPoly.bounds)
+        # print(shift_winMapPoly.bounds)
+        # print(ref_box_YX)
+        # print(shift_box_YX)
+        # IO.write_shp('/misc/hy5/scheffler/Temp/ref_winMapPoly.shp', ref_winMapPoly,self.ref_prj)
+        # IO.write_shp('/misc/hy5/scheffler/Temp/shift_winMapPoly.shp', shift_winMapPoly, self.shift_prj)
+
+        return ref_box_YX, shift_box_YX, ref_win_size_YX, shift_win_size_YX, \
+               box_mapYX, matchPoly, poly_matchWin_prj, imfft_gsd_mapvalues
 
     def get_image_windows_to_match(self):
         if self.v: print('resolutions: ', self.ref_xgsd, self.shift_xgsd)
@@ -1314,7 +1512,7 @@ if __name__ == '__main__':
                         '(starts with 1; default: 1)', default=1)
     parser.add_argument('-bs', nargs='?',type=int, help='band of shift image to be used for matching '\
                         '(starts with 1; default: 1)', default=1)
-    parser.add_argument('-wp', nargs=2, metavar=('X', 'Y'),type=float,help="custom matching window position as  map "\
+    parser.add_argument('-wp', nargs=2, metavar=('X', 'Y'),type=float,help="custom matching window position as map "\
                         "values in the same projection like the reference image "\
                         "(default: central position of image overlap)", default=None)
     parser.add_argument('-ws', nargs=2, metavar=('X size', 'Y size'),type=float,help="custom matching window size [pixels] (default: 512)", default=512)
