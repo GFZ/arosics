@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-#from __future__ import absolute_import
 import math
 import os
 import re
 import warnings
-import sys
 
 import numpy  as np
 
@@ -26,49 +24,149 @@ from geopandas import GeoDataFrame
 from . import io        as IO
 from . import utilities as UTL
 
-class boxYX(object):
-    def __init__(self,wp,ws,coord_units='image'):
-        self.wp_x,self.wp_y = wp
-        self.ws_x,self.ws_y = ws
-        self.coord_units    = coord_units
-        self.poly           = box(self.wp_x-self.ws_x/2, self.wp_y-self.ws_y/2,
-                                  self.wp_x+self.ws_x/2, self.wp_y+self.ws_y/2)
-        self.xy_coords      = self.poly.exterior.coords.xy
+class boxObj(object):
+    def __init__(self, **kwargs):
+        """Create a dynamic/self-updating box object that represents a rectangular or quadratic coordinate box
+        according to the given keyword arguments.
+        Note: Either mapPoly+gt or imPoly+gt or wp+ws or boxMapYX+gt or boxImYX+gt must be passed.
 
-    def clip_to_poly(self,shapelyPoly):
-        self.poly = self.poly.intersection(shapelyPoly)
-        return self.poly
+        :Keyword Arguments:
+            - gt (tuple):                   GDAL geotransform (default: (0, 1, 0, 0, 0, -1))
+            - prj (str):                    projection as WKT string
+            - mapPoly (shapely.Polygon):    Polygon with map unit vertices
+            - imPoly (shapely.Polygon):     Polygon with image unit vertices
+            - wp (tuple):                   window position in map units (x,y)
+            - ws (tuple):                   window size in map units (x,y)
+            - boxMapYX (list):              box map coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
+            - boxImYX (list):               box image coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
+        """
+        # FIXME self.prj is not used
 
-    def get_xy_coords(self):
-        return self.poly.exterior
+        self.gt        = kwargs.get('gt',(0, 1, 0, 0, 0, -1))
+        self.prj       = kwargs.get('prj','')
+        self._mapPoly  = kwargs.get('mapPoly',None)
+        self._imPoly   = kwargs.get('imPoly', None)
+        self.wp        = kwargs.get('wp', None)
+        self._ws       = kwargs.get('ws', None)
+        self._boxMapYX = kwargs.get('boxMapYX', None)
+        self._boxImYX  = kwargs.get('boxImYX',  None)
 
-    def move_to_image_grid(self,gt,rows,cols,direction='NW'):
-        self.poly = move_shapelyPoly_to_image_grid(self.poly,gt,rows,cols,direction)
-        return self.poly
+        if self._mapPoly:
+            assert self.gt, "A geotransform must be passed if mapPoly is given."
+        else:
+            # populate self._mapPoly
+            if self._imPoly:
+                self._mapPoly = shapelyImPoly_to_shapelyMapPoly(self._imPoly,self.gt)
+            elif self._boxMapYX:
+                self.boxMapYX = self._boxMapYX
+            elif self._boxImYX:
+                self.boxImYX = self._boxImYX
+            elif self.wp or self._ws: # asserts wp/ws in map units
+                assert self.wp and self._ws,\
+                    "'wp' and 'ws' must be passed together. Got wp=%s and ws=%s." %(self.wp,self._ws)
+                (wpx,wpy),(wsx,wsy) = self.wp,self._ws
+                self._mapPoly = box(wpx-wsx/2, wpy-wsy/2, wpx+wsx/2, wpy+wsy/2)
+            else:
+                raise Exception("No proper set of arguments received.")
 
-    def get_ImCoordsPoly(self,gt,intCoords=False):
-        tmpPoly = Polygon(get_imageCoords_from_shapelyPoly(self.poly, gt))
-        outPoly = round_shapelyPoly_coords(tmpPoly, precision=0, out_dtype=int) if intCoords else tmpPoly
-        return outPoly
+    # all getters and setters synchronize using self._mapPoly
+    @property
+    def mapPoly(self):
+        imPoly = Polygon(get_boxImXY_from_shapelyPoly(self._mapPoly, self.gt))
+        return shapelyImPoly_to_shapelyMapPoly(imPoly, self.gt)
 
-    #def __getattr__(self, item):
-   #     attributes = {'a':}
-#
-#        if hasattr(self,item):
- #           return getattr(self,item)
-  #      else:
-   #         if item=='bounds':
+    @mapPoly.setter
+    def mapPoly(self, shapelyPoly):
+        self._mapPoly = shapelyPoly
+
+    @property
+    def imPoly(self):
+        return Polygon(get_boxImXY_from_shapelyPoly(self.mapPoly, self.gt))
+
+    @imPoly.setter
+    def imPoly(self, shapelyImPoly):
+        self.mapPoly = shapelyImPoly_to_shapelyMapPoly(shapelyImPoly, self.gt)
+
+    @property
+    def boxMapYX(self):
+        return shapelyBox2BoxYX(self.mapPoly, coord_type='map')
+
+    @boxMapYX.setter
+    def boxMapYX(self, mapBoxYX):
+        mapBoxXY = [(i[1], i[0]) for i in mapBoxYX]
+        xmin, xmax, ymin, ymax = corner_coord_to_minmax(mapBoxXY)
+        self.mapPoly = box(xmin, ymin, xmax, ymax)
+
+    @property
+    def boxImYX(self):
+        temp_imPoly  = round_shapelyPoly_coords(self.imPoly, precision=0, out_dtype=int)
+        floatImBoxYX = shapelyBox2BoxYX(temp_imPoly, coord_type='image')
+        return [[int(i[0]),int(i[1])] for i in floatImBoxYX]
+
+    @boxImYX.setter
+    def boxImYX(self, imBoxYX):
+        imBoxXY = [(i[1], i[0]) for i in imBoxYX]
+        xmin, xmax, ymin, ymax = corner_coord_to_minmax(imBoxXY)
+        self.imPoly  = box(xmin, ymin, xmax, ymax)
+
+    @property
+    def boundsMap(self):
+        boxMapYX = shapelyBox2BoxYX(self.mapPoly, coord_type='image')
+        boxMapXY = [(i[1], i[0]) for i in boxMapYX]
+        return corner_coord_to_minmax(boxMapXY)
+
+    @property
+    def boundsIm(self):
+        boxImXY = get_boxImXY_from_shapelyPoly(self.mapPoly, self.gt)
+        return corner_coord_to_minmax(boxImXY) # xmin,xmax,ymin,ymax
+
+    @property
+    def imDimsYX(self):
+        xmin, xmax, ymin, ymax = self.boundsIm
+        return (ymax-ymin),(xmax-xmin)
+
+    @property
+    def mapDimsYX(self):
+        xmin, xmax, ymin, ymax = self.boundsMap
+        return (ymax-ymin),(xmax-xmin)
+
+    def buffer_imXY(self, buffImX=0, buffImY=0):
+        # type: (float, float)
+        """Buffer the box in X- and/or Y-direction.
+        :param buffImX:     <float> buffer value in x-direction as IMAGE UNITS (pixels)
+        :param buffImY:     <float> buffer value in y-direction as IMAGE UNITS (pixels)
+        """
+        xmin,xmax,ymin,ymax = self.boundsIm
+        xmin,xmax,ymin,ymax = xmin-buffImX, xmax+buffImX, ymin-buffImY, ymax+buffImY
+        self.imPoly         = box(xmin, ymin, xmax, ymax)
+
+    def is_larger_DimXY(self,boundsIm2test):
+        # type: (tuple) -> bool,bool
+        """Checks if the boxObj is larger than a given set of bounding image coordinates (in X- and Y-direction).
+        :param boundsIm2test:   <tuple> (xmin,xmax,ymin,ymax) as image coordinates
+        """
+        b2t_xmin, b2t_xmax, b2t_ymin, b2t_ymax = boundsIm2test
+        xmin, xmax, ymin, ymax                 = self.boundsIm
+        x_is_larger = xmin<b2t_xmin or xmax>b2t_xmax
+        y_is_larger = ymin<b2t_ymin or ymax>b2t_ymax
+        return x_is_larger,y_is_larger
 
 
 
-
-def shapelyImPoly_to_shapelyMapPoly(shapelyImPoly, gt,prj):
+def shapelyImPoly_to_shapelyMapPoly_withPRJ(shapelyImPoly, gt,prj):
+    #ACTUALLY PRJ IS NOT NEEDED BUT THIS FUNCTION RETURNS OTHER VALUES THAN shapelyImPoly_to_shapelyMapPoly
     geojson   = mapping(shapelyImPoly)
     coords    = list(geojson['coordinates'][0])
     coordsYX = pixelToMapYX(coords,geotransform=gt,projection=prj)
     coordsXY = tuple([(i[1],i[0]) for i in coordsYX])
     geojson['coordinates'] = (coordsXY,)
     return shape(geojson)
+
+def shapelyImPoly_to_shapelyMapPoly(shapelyBox, gt):
+    xmin, ymin, xmax, ymax = shapelyBox.bounds
+    ymax, xmin = imYX2mapYX((ymax, xmin), gt)
+    ymin, xmax = imYX2mapYX((ymin, xmax), gt)
+    return box(xmin, ymin, xmax, ymax)
 
 def move_shapelyPoly_to_image_grid(shapelyPoly, gt, rows, cols, moving_dir='NW'):
     polyULxy = (min(shapelyPoly.exterior.coords.xy[0]), max(shapelyPoly.exterior.coords.xy[1]))
@@ -293,12 +391,6 @@ def get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly(shapelyPoly):
     xmin,ymin,xmax,ymax = shapelyPoly.bounds # image_coords-bounds
     return box(int(xmin),int(ymin), math.ceil(xmax), math.ceil(ymax)) # round min coords off and max coords on
 
-def shapelyImPoly2shapelyMapPoly(shapelyBox, gt):
-    xmin, ymin, xmax, ymax = shapelyBox.bounds
-    ymax, xmin = imYX2mapYX((ymax, xmin), gt)
-    ymin, xmax = imYX2mapYX((ymin, xmax), gt)
-    return box(xmin, ymin, xmax, ymax)
-
 def shapelyBox2BoxYX(shapelyBox,coord_type='image'):
     xmin, ymin, xmax, ymax = shapelyBox.bounds
     assert coord_type in ['image','map']
@@ -306,8 +398,8 @@ def shapelyBox2BoxYX(shapelyBox,coord_type='image'):
                                  ((ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin))
     return UL_YX, UR_YX, LR_YX, LL_YX
 
-def get_imageCoords_from_shapelyPoly(shapelyPoly, im_gt):
-    # type: (shapely.Polygon,list) -> np.ndarray
+def get_boxImXY_from_shapelyPoly(shapelyPoly, im_gt):
+    # type: (shapely.Polygon,tuple) -> np.ndarray
     """Converts each vertex coordinate of a shapely polygon into image coordinates corresponding to the given
     geotransform without respect to invalid image coordinates. Those must be filtered later.
     :param shapelyPoly:     <shapely.Polygon>
@@ -315,9 +407,9 @@ def get_imageCoords_from_shapelyPoly(shapelyPoly, im_gt):
     """
     get_coordsArr = lambda shpPoly: np.swapaxes(np.array(shpPoly.exterior.coords.xy), 0, 1)
     coordsArr     = get_coordsArr(shapelyPoly)
-    imCoordsYX    = [mapYX2imYX((Y, X), im_gt) for X, Y in coordsArr.tolist()] # FIXME incompatible to GMS version
-    imCoordsXY    = [(i[1],i[0]) for i in imCoordsYX]
-    return imCoordsXY
+    boxImXY       = [mapYX2imYX((Y, X), im_gt) for X, Y in coordsArr.tolist()] # FIXME incompatible to GMS version
+    boxImXY       = [(i[1],i[0]) for i in boxImXY]
+    return boxImXY
 
 
 def get_subset_GeoTransform(gt_fullArr,subset_box_imYX):
@@ -438,9 +530,9 @@ def pixelToLatLon(pixelPairs, path_im=None, geotransform=None, projection=None):
 
 
 def pixelToMapYX(pixelCoords, path_im=None, geotransform=None, projection=None):
-    assert path_im is not None or geotransform is not None and projection is not None, \
+    assert path_im or geotransform and projection, \
         "pixelToMapYX: Missing argument! Please provide either 'path_im' or 'geotransform' AND 'projection'."
-    if geotransform is not None and projection is not None:
+    if geotransform and projection:
         gt,proj = geotransform, projection
     else:
         ds       = gdal.Open(path_im)
