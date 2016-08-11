@@ -25,29 +25,29 @@ from . import io        as IO
 from . import utilities as UTL
 
 class boxObj(object):
+    """Create a dynamic/self-updating box object that represents a rectangular or quadratic coordinate box
+    according to the given keyword arguments.
+    Note: Either mapPoly+gt or imPoly+gt or wp+ws or boxMapYX+gt or boxImYX+gt must be passed.
+
+    :Keyword Arguments:
+        - gt (tuple):                   GDAL geotransform (default: (0, 1, 0, 0, 0, -1))
+        - prj (str):                    projection as WKT string
+        - mapPoly (shapely.Polygon):    Polygon with map unit vertices
+        - imPoly (shapely.Polygon):     Polygon with image unit vertices
+        - wp (tuple):                   window position in map units (x,y)
+        - ws (tuple):                   window size in map units (x,y)
+        - boxMapYX (list):              box map coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
+        - boxImYX (list):               box image coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
+    """
+    # FIXME self.prj is not used
+
     def __init__(self, **kwargs):
-        """Create a dynamic/self-updating box object that represents a rectangular or quadratic coordinate box
-        according to the given keyword arguments.
-        Note: Either mapPoly+gt or imPoly+gt or wp+ws or boxMapYX+gt or boxImYX+gt must be passed.
-
-        :Keyword Arguments:
-            - gt (tuple):                   GDAL geotransform (default: (0, 1, 0, 0, 0, -1))
-            - prj (str):                    projection as WKT string
-            - mapPoly (shapely.Polygon):    Polygon with map unit vertices
-            - imPoly (shapely.Polygon):     Polygon with image unit vertices
-            - wp (tuple):                   window position in map units (x,y)
-            - ws (tuple):                   window size in map units (x,y)
-            - boxMapYX (list):              box map coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
-            - boxImYX (list):               box image coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
-        """
-        # FIXME self.prj is not used
-
-        self.gt        = kwargs.get('gt',(0, 1, 0, 0, 0, -1))
-        self.prj       = kwargs.get('prj','')
-        self._mapPoly  = kwargs.get('mapPoly',None)
-        self._imPoly   = kwargs.get('imPoly', None)
-        self.wp        = kwargs.get('wp', None)
-        self._ws       = kwargs.get('ws', None)
+        self.gt        = kwargs.get('gt',       (0, 1, 0, 0, 0, -1))
+        self.prj       = kwargs.get('prj',      '')
+        self._mapPoly  = kwargs.get('mapPoly',  None)
+        self._imPoly   = kwargs.get('imPoly',   None)
+        self.wp        = kwargs.get('wp',       None)
+        self._ws       = kwargs.get('ws',       None)
         self._boxMapYX = kwargs.get('boxMapYX', None)
         self._boxImYX  = kwargs.get('boxImYX',  None)
 
@@ -142,7 +142,7 @@ class boxObj(object):
 
     def is_larger_DimXY(self,boundsIm2test):
         # type: (tuple) -> bool,bool
-        """Checks if the boxObj is larger than a given set of bounding image coordinates (in X- and Y-direction).
+        """Checks if the boxObj is larger than a given set of bounding image coordinates (in X- and/or Y-direction).
         :param boundsIm2test:   <tuple> (xmin,xmax,ymin,ymax) as image coordinates
         """
         b2t_xmin, b2t_xmax, b2t_ymin, b2t_ymax = boundsIm2test
@@ -151,6 +151,24 @@ class boxObj(object):
         y_is_larger = ymin<b2t_ymin or ymax>b2t_ymax
         return x_is_larger,y_is_larger
 
+
+def get_winPoly(wp_imYX, ws, gt, match_grid=0):
+    # type: (tuple, tuple, list, bool) -> shapely.Polygon, tuple, tuple
+    """Creates a shapely polygon from a given set of image cordinates, window size and geotransform.
+    :param wp_imYX:
+    :param ws:          <tuple> X/Y window size
+    :param gt:
+    :param match_grid:  <bool>
+    """
+    ws = (ws, ws) if isinstance(ws, int) else ws
+    xmin, xmax, ymin, ymax = (
+    wp_imYX[1] - ws[0] / 2, wp_imYX[1] + ws[0] / 2, wp_imYX[0] + ws[1] / 2, wp_imYX[0] - ws[1] / 2)
+    if match_grid:
+        xmin, xmax, ymin, ymax = [int(i) for i in [xmin, xmax, ymin, ymax]]
+    box_YX = (ymax, xmin), (ymax, xmax), (ymin, xmax), (ymin, xmin)  # UL,UR,LR,LL
+    UL, UR, LR, LL = [imYX2mapYX(imYX, gt) for imYX in box_YX]
+    box_mapYX = UL, UR, LR, LL
+    return Polygon([(UL[1], UL[0]), (UR[1], UR[0]), (LR[1], LR[0]), (LL[1], LR[0])]), box_mapYX, box_YX
 
 
 def shapelyImPoly_to_shapelyMapPoly_withPRJ(shapelyImPoly, gt,prj):
@@ -464,14 +482,17 @@ def WKT2EPSG(wkt, epsg=os.environ['GDAL_DATA'].replace('/gdal', '/proj/epsg')):
     :returns:    EPSG code
     http://gis.stackexchange.com/questions/20298/is-it-possible-to-get-the-epsg-value-from-an-osr-spatialreference-class-using-th
     """
+    # FIXME this function returns None if datum=NAD27 but works with datum=WGS84, e.g.:
+    # FIXME {PROJCS["UTM_Zone_33N",GEOGCS["GCS_North_American_1927",DATUM["D_North_American_1927",SPHEROID["Clarke_1866",6378206.4,294.9786982]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",15.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]}
     code = None #default
     p_in = osr.SpatialReference()
-    s = p_in.ImportFromWkt(wkt)
+    s    = p_in.ImportFromWkt(wkt)
     if s == 5:  # invalid WKT
         raise Exception('Invalid WKT.')
     if p_in.IsLocal():
         raise Exception('The given WKT is a local coordinate system.')
     cstype = 'GEOGCS' if p_in.IsGeographic() else 'PROJCS'
+    p_in.AutoIdentifyEPSG()
     an = p_in.GetAuthorityName(cstype)
     assert an in [None,'EPSG'], "No EPSG code found. Found %s instead." %an
     ac = p_in.GetAuthorityCode(cstype)
@@ -587,14 +608,14 @@ def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None,
         ndarray = temp  # deep copy: converts view to its own array in oder to avoid wrong output
 
     with rasterio.drivers():
-        if outUL is not None:
-            assert outRowsCols is not None, 'outRowsCols must be given if outUL is given.'
+        if outUL:
+            assert outRowsCols, 'outRowsCols must be given if outUL is given.'
         outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
 
         inEPSG, outEPSG = [WKT2EPSG(prj) for prj in [in_prj, out_prj]]
         assert inEPSG,  'Could not derive input EPSG code.'
         assert outEPSG, 'Could not derive output EPSG code.'
-        assert in_nodata is None or type(in_nodata) in [int, float]
+        assert in_nodata  is None or type(in_nodata)  in [int, float]
         assert out_nodata is None or type(out_nodata) in [int, float]
 
         src_crs = {'init': 'EPSG:%s' % inEPSG}

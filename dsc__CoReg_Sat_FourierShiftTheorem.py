@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-08-09_01"
+__version__= "2016-08-11_01"
 
 import collections
 import multiprocessing
@@ -15,7 +15,7 @@ import time
 import sys
 import numpy as np
 
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point
 from geopandas  import GeoDataFrame
 from pykrige.ok import OrdinaryKriging
 
@@ -43,11 +43,10 @@ else:
     from .components import utilities as UTL
     from .components import io        as IO
 
-
 class CoReg(object):
     def __init__(self, path_im0,path_im1,path_out='.',r_b4match=1,s_b4match=1,wp=None,ws=(512,512),max_iter=5,max_shift=5,
                  align_grids=0,match_gsd=0,out_gsd=None,data_corners_im0=None,data_corners_im1=None,nodata=None,
-                 calc_corners=1,multiproc=1,binary_ws=1,v=0,q=0,ignore_errors=0):
+                 calc_corners=1,multiproc=1,binary_ws=1,force_quadratic_win=1,v=0,q=0,ignore_errors=0):
         self.mp                       = multiproc
         self.v                        = v
         self.q                        = q if not v else 0
@@ -88,7 +87,8 @@ class CoReg(object):
         if nodata: assert isinstance(nodata,list) and len(nodata)==2, 'nodata must be a list with two values.'
         self.ref_nodata, self.shift_nodata = \
             nodata if nodata else [GEO.find_noDataVal(self.path_imref), GEO.find_noDataVal(self.path_im2shift)]
-        self.bin_ws = binary_ws
+        self.bin_ws              = binary_ws
+        self.force_quadratic_win = force_quadratic_win
 
         gdal.AllRegister()
 
@@ -155,7 +155,9 @@ class CoReg(object):
         if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_im2shift.shp'), self.poly_im2shift, self.shift_prj)
         if self.v: IO.write_shp(os.path.join(self.verbose_out, 'overlap_poly.shp') , self.overlap_poly,  self.ref_prj)
 
-        self.win_pos, opt_win_size_XY = self.get_opt_winpos_winsize(wp,ws)
+        self.win_pos     = wp
+        self.win_size_XY = ws
+        self.get_opt_winpos_winsize()
         if not self.q: print('Matching window position (X,Y): %s/%s' %(self.win_pos[1],self.win_pos[0]))
 
         ### FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection()) # später basteln für den fall, dass projektionen nicht gleich sind
@@ -163,7 +165,7 @@ class CoReg(object):
         # get_clip_window_properties
         self.ref_box_YX, self.shift_box_YX, self.ref_win_size_YX, self.shift_win_size_YX, \
         self.box_mapYX, self.poly_matchWin, self.poly_matchWin_prj, self.imfft_gsd \
-            = self.get_clip_window_properties(opt_win_size_XY)
+            = self.get_clip_window_properties(self.win_size_XY)
 
 
         if self.v and self.poly_matchWin:
@@ -171,50 +173,32 @@ class CoReg(object):
 
         self.imref_matchWin    = None # set by get_image_windows_to_match
         self.im2shift_matchWin = None # set by get_image_windows_to_match
-        self.fftw_win_size     = None # set by get_opt_fftw_winsize
+        self.fftw_win_size_YX  = None # set by calc_shifted_cross_power_spectrum
 
         self.x_shift_px        = None # always in shift image units (image coords) # set by calculate_spatial_shifts()
         self.y_shift_px        = None # always in shift image units (image coords) # set by calculate_spatial_shifts()
         self.success           = None if self.box_mapYX else False
 
-    def get_opt_winpos_winsize(self,wp,ws):
+    def get_opt_winpos_winsize(self):
         # type: (tuple,tuple) -> tuple,tuple
         """Calculates optimal window position and size in reference image units according to DGM, cloud_mask and
         trueCornerLonLat."""
         # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
         # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
-        if wp is None:
+        if self.win_pos is None:
             overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
             win_pos = (overlap_center_pos_y[0], overlap_center_pos_x[0])
         else:
-            wp = wp if not isinstance(wp,np.ndarray) else wp.tolist()
+            wp = self.win_pos if not isinstance(self.win_pos,np.ndarray) else self.win_pos.tolist()
             assert isinstance(wp,list), 'The window position must be a list of two elements. Got %s.' %wp
             assert len(wp)==2,          'The window position must be a list of two elements. Got %s.' %wp
             assert self.overlap_poly.contains(Point(wp)), 'The provided window position is ' \
                 'outside of the overlap area of the two input images. Check the coordinates.'
             win_pos = tuple(reversed(wp))
+        self.win_pos = win_pos
 
-        # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
-        gained_win_size_XY = (int(ws[0]), int(ws[1])) if ws else (512,512)
-        return win_pos, gained_win_size_XY
+        self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512,512)
 
-    @staticmethod
-    def get_winPoly(wp_imYX,ws,gt,match_grid=0):
-        # type: (tuple, tuple, list, bool) -> shapely.Polygon, tuple, tuple
-        """Creates a shapely polygon from a given set of image cordinates, window size and geotransform.
-        :param wp_imYX:
-        :param ws:          <tuple> X/Y window size
-        :param gt:
-        :param match_grid:  <bool> """
-
-        ws = (ws,ws) if isinstance(ws,int) else ws
-        xmin,xmax,ymin,ymax = (wp_imYX[1]-ws[0]/2, wp_imYX[1]+ws[0]/2, wp_imYX[0]+ws[1]/2, wp_imYX[0]-ws[1]/2)
-        if match_grid:
-            xmin,xmax,ymin,ymax = [int(i) for i in [xmin,xmax,ymin,ymax]]
-        box_YX      = (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL,UR,LR,LL
-        UL,UR,LR,LL = [GEO.imYX2mapYX(imYX, gt) for imYX in box_YX]
-        box_mapYX   = UL,UR,LR,LL
-        return Polygon([(UL[1],UL[0]),(UR[1],UR[0]),(LR[1],LR[0]),(LL[1],LR[0])]), box_mapYX, box_YX
 
     def get_clip_window_properties(self, dst_ws_XY):
         """Calculate all properties of the matching window and the other window. These windows are used to read the
@@ -227,11 +211,11 @@ class CoReg(object):
         wpY,wpX              = self.win_pos
         ref_wsX, ref_wsY     = (dst_ws_XY[0]*self.ref_xgsd,   dst_ws_XY[1]*self.ref_ygsd)   # image units -> map units
         shift_wsX, shift_wsY = (dst_ws_XY[0]*self.shift_xgsd, dst_ws_XY[1]*self.shift_ygsd) # image units -> map units
-        ref_box_kwargs   = {'wp':(wpX,wpY),'ws':(ref_wsX,ref_wsY)    ,'gt':self.ref_gt  }
-        shift_box_kwargs = {'wp':(wpX,wpY),'ws':(shift_wsX,shift_wsY),'gt':self.shift_gt}
-        matchWin         = GEO.boxObj(**ref_box_kwargs)   if grid2use=='imref' else GEO.boxObj(**shift_box_kwargs)
-        otherWin         = GEO.boxObj(**shift_box_kwargs) if grid2use=='imref' else GEO.boxObj(**ref_box_kwargs)
-        overlapWin       = GEO.boxObj(mapPoly=self.overlap_poly,gt=self.ref_gt)
+        ref_box_kwargs       = {'wp':(wpX,wpY),'ws':(ref_wsX,ref_wsY)    ,'gt':self.ref_gt  }
+        shift_box_kwargs     = {'wp':(wpX,wpY),'ws':(shift_wsX,shift_wsY),'gt':self.shift_gt}
+        matchWin             = GEO.boxObj(**ref_box_kwargs)   if grid2use=='imref' else GEO.boxObj(**shift_box_kwargs)
+        otherWin             = GEO.boxObj(**shift_box_kwargs) if grid2use=='imref' else GEO.boxObj(**ref_box_kwargs)
+        overlapWin           = GEO.boxObj(mapPoly=self.overlap_poly,gt=self.ref_gt)
 
         # clip matching window to overlap area
         matchWin.mapPoly = matchWin.mapPoly.intersection(overlapWin.mapPoly)
@@ -257,7 +241,7 @@ class CoReg(object):
         # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird
         while not otherWin.mapPoly.within(overlapWin.mapPoly):
             # -> match Fenster verkleinern und neues anderes Fenster berechnen
-            xLarger, yLarger = matchWin.is_larger_DimXY(overlapWin.boundsIm)
+            xLarger, yLarger = otherWin.is_larger_DimXY(overlapWin.boundsIm)
             matchWin.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
             otherWin.boxImYX = GEO.get_smallest_boxImYX_that_contains_boxMapYX(matchWin.boxMapYX,otherWin.gt)
 
@@ -266,15 +250,15 @@ class CoReg(object):
         assert otherWin.mapPoly.within(overlapWin.mapPoly)
 
         imfft_gsd_mapvalues = self.ref_xgsd if grid2use =='imref' else self.shift_xgsd
-        refWin,shiftWin   = (matchWin,otherWin) if grid2use =='imref' else (otherWin,matchWin)
-        ref_box_YX        = refWin.boxImYX
-        shift_box_YX      = shiftWin.boxImYX
-        box_mapYX         = matchWin.boxMapYX
-        matchPoly         = matchWin.mapPoly
-        poly_matchWin_prj = matchWin.prj
-        ref_win_size_YX   = tuple([int(i) for i in refWin.imDimsYX])
-        shift_win_size_YX = tuple([int(i) for i in shiftWin.imDimsYX])
-        match_win_size_XY = tuple(reversed([int(i) for i in matchWin.imDimsYX]))
+        refWin,shiftWin     = (matchWin,otherWin) if grid2use =='imref' else (otherWin,matchWin)
+        ref_box_YX          = refWin.boxImYX
+        shift_box_YX        = shiftWin.boxImYX
+        box_mapYX           = matchWin.boxMapYX
+        matchPoly           = matchWin.mapPoly
+        poly_matchWin_prj   = matchWin.prj
+        ref_win_size_YX     = tuple([int(i) for i in refWin.imDimsYX])
+        shift_win_size_YX   = tuple([int(i) for i in shiftWin.imDimsYX])
+        match_win_size_XY   = tuple(reversed([int(i) for i in matchWin.imDimsYX]))
         if match_win_size_XY != dst_ws_XY:
             print('Target window size %s not possible due to too small overlap area or window position too close '
                   'to an image edge. New matching window size: %s.' %(dst_ws_XY,match_win_size_XY))
@@ -429,40 +413,46 @@ class CoReg(object):
 
         return imref_clip_data, im2shift_clip_data
 
-    def get_opt_fftw_winsize(self,im_shape, target_size=None,v=0,ignErr=0,bin_ws=1):
-        binarySizes = [2**i for i in range(5,14)] # [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
-        possibSizes = [i for i in binarySizes if i <= min(im_shape)] if bin_ws else list(range(8192))
-        if not possibSizes:
-            if not ignErr:  raise RuntimeError('The matching window became too small for calculating a reliable match. '
-                                               'Matching failed.')
-            else:           return None
-        target_size = max(possibSizes) if target_size is None else target_size
-        closest_to_target = int(min(possibSizes, key=lambda x:abs(x-target_size)))
-        if v: print('final window size: %s' %closest_to_target)
-        self.fftw_win_size = closest_to_target
-        return closest_to_target
+    @staticmethod
+    def shrink_winsize_to_binarySize(win_shape_YX, target_size=None):
+        # type: (tuple, tuple, int , int) -> tuple
+        """Shrinks a given window size to the closest binary window size (a power of 2) -
+        separately for X- and Y-dimension.
 
-    def calc_shifted_cross_power_spectrum(self,im0,im1,window_size=1024,precision=np.complex64, v=0, ignErr=0, bin_ws=1):
+        :param win_shape_YX:    <tuple> source window shape as pixel units (rows,colums)
+        :param target_size:     <tuple> source window shape as pixel units (rows,colums)
+        """
+
+        binarySizes   = [2**i for i in range(3,14)] # [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+        possibSizes_X = [i for i in binarySizes if i <= win_shape_YX[1]]
+        possibSizes_Y = [i for i in binarySizes if i <= win_shape_YX[0]]
+        if possibSizes_X and possibSizes_Y:
+            tgt_size_X,tgt_size_Y = target_size if target_size else (max(possibSizes_X),max(possibSizes_Y))
+            closest_to_target_X = int(min(possibSizes_X, key=lambda x:abs(x-tgt_size_X)))
+            closest_to_target_Y = int(min(possibSizes_Y, key=lambda y:abs(y-tgt_size_Y)))
+            return closest_to_target_Y,closest_to_target_X
+        else:
+            return None
+
+    def calc_shifted_cross_power_spectrum(self,im0,im1,precision=np.complex64):
         """Calculates shifted cross power spectrum for quantifying x/y-shifts.
             :param im0:         reference image
             :param im1:         subject image to shift
-            :param window_size: size of image area to be processed
             :param precision:   to be quantified as a datatype
-            :param v:           verbose
             :return:            2D-numpy-array of the shifted cross power spectrum
         """
-        window_size = self.get_opt_fftw_winsize(im0.shape, target_size=window_size,v=v,ignErr=ignErr,bin_ws=bin_ws)
         assert im0.shape == im1.shape, 'The reference and the target image must have the same dimensions.'
         if im0.shape[0]%2!=0: warnings.warn('Odd row count in one of the match images!')
         if im1.shape[1]%2!=0: warnings.warn('Odd column count in one of the match images!')
+        wsYX = self.shrink_winsize_to_binarySize(im0.shape) if self.bin_ws              else im0.shape
+        wsYX = (min(wsYX),) * 2                             if self.force_quadratic_win else wsYX
 
-        #print('fft_size',window_size)
-        if window_size:
+        if wsYX:
             t0 = time.time()
-
+            if self.v: print('final window size: %s/%s (X/Y)' % (wsYX[1], wsYX[0]))
             center_YX = np.array(im0.shape)/2
-            xmin,xmax,ymin,ymax = int(center_YX[1]-window_size/2), int(center_YX[1]+window_size/2),\
-                                  int(center_YX[0]-window_size/2), int(center_YX[0]+window_size/2)
+            xmin,xmax,ymin,ymax = int(center_YX[1]-wsYX[1]/2), int(center_YX[1]+wsYX[1]/2),\
+                                  int(center_YX[0]-wsYX[0]/2), int(center_YX[0]+wsYX[0]/2)
             in_arr0  = im0[ymin:ymax,xmin:xmax].astype(precision)
             in_arr1  = im1[ymin:ymax,xmin:xmax].astype(precision)
 
@@ -477,7 +467,7 @@ class CoReg(object):
             else:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)
-            if v: print('forward FFTW: %.2fs' %(time.time() -t0))
+            if self.v: print('forward FFTW: %.2fs' %(time.time() -t0))
 
             eps = np.abs(fft_arr1).max() * 1e-15
             # cps == cross-power spectrum of im0 and im2
@@ -489,18 +479,24 @@ class CoReg(object):
                 ifft_arr = pyfftw.FFTW(temp,np.empty_like(temp), axes=(0,1),direction='FFTW_BACKWARD')()
             else:
                 ifft_arr = np.fft.ifft2(temp)
-            if v: print('backward FFTW: %.2fs' %(time.time() -t0))
+            if self.v: print('backward FFTW: %.2fs' %(time.time() -t0))
 
             cps = np.abs(ifft_arr)
             # scps = shifted cps
             scps = np.fft.fftshift(cps)
-            if v:
+            if self.v:
                 PLT.subplot_imshow([in_arr0.astype(np.uint16), in_arr1.astype(np.uint16), fft_arr0.astype(np.uint8),
                                 fft_arr1.astype(np.uint8), scps], titles=['matching window im0', 'matching window im1',
                                 "fft result im0", "fft result im1", "cross power spectrum"], grid=True)
                 PLT.subplot_3dsurface(scps.astype(np.float32))
         else:
-            scps = None
+            if self.ignErr:
+                scps = None
+            else:
+                raise RuntimeError('The matching window became too small for calculating a reliable match. '
+                                               'Matching failed.')
+
+        self.fftw_win_size_YX = wsYX
         return scps
 
     @staticmethod
@@ -517,11 +513,11 @@ class CoReg(object):
     @staticmethod
     def clip_image(im,center_YX,winSzYX):
         get_bounds = lambda YX,wsY,wsX: (int(YX[1]-(wsX/2)),int(YX[1]+(wsX/2)),int(YX[0]-(wsY/2)),int(YX[0]+(wsY/2)))
-        wsY,wsX   = winSzYX
+        wsY,wsX    = winSzYX
         xmin,xmax,ymin,ymax = get_bounds(center_YX,wsY,wsX)
         return im[ymin:ymax,xmin:xmax]
 
-    def get_grossly_deshifted_images(self,im0,im1,x_intshift,y_intshift,v=0):
+    def get_grossly_deshifted_images(self,im0,im1,x_intshift,y_intshift):
         # get_grossly_deshifted_im0
         old_center_YX = np.array(im0.shape)/2
         new_center_YX = [old_center_YX[0]+y_intshift, old_center_YX[1]+x_intshift]
@@ -537,7 +533,7 @@ class CoReg(object):
         # get_corresponding_im1_clip
         crsp_im1  = self.clip_image(im1,np.array(im1.shape)/2,gdsh_im0.shape)
 
-        if v:
+        if self.v:
             PLT.subplot_imshow([self.clip_image(im0, old_center_YX, gdsh_im0.shape), crsp_im1],
                            titles=['reference original', 'target'], grid=True)
             PLT.subplot_imshow([gdsh_im0, crsp_im1], titles=['reference virtually shifted', 'target'], grid=True)
@@ -578,8 +574,8 @@ class CoReg(object):
 
         return sidemax_lr, sidemax_ab
 
-    def calc_subpixel_shifts(self,scps,v=0):
-        sidemax_lr, sidemax_ab = self.find_side_maximum(scps,v)
+    def calc_subpixel_shifts(self,scps):
+        sidemax_lr, sidemax_ab = self.find_side_maximum(scps,self.v)
         x_subshift = (sidemax_lr['direction_factor']*sidemax_lr['value'])/(np.max(scps)+sidemax_lr['value'])
         y_subshift = (sidemax_ab['direction_factor']*sidemax_ab['value'])/(np.max(scps)+sidemax_ab['value'])
         return x_subshift, y_subshift
@@ -607,7 +603,7 @@ class CoReg(object):
         if self.v: print('gsd_factor',         gsd_factor)
         if self.v: print('imfft_gsd_mapvalues',self.imfft_gsd)
 
-        scps = self.calc_shifted_cross_power_spectrum(im0,im1,v=self.v,ignErr=self.ignErr,bin_ws=self.bin_ws)
+        scps = self.calc_shifted_cross_power_spectrum(im0,im1)
         x_shift_px,y_shift_px = None,None # defaults
         if scps is None:
             self.success = False
@@ -629,9 +625,8 @@ class CoReg(object):
                 if not self.q: print('input shifts: ', x_tempshift, y_tempshift)
 
                 if scps is None: self.success = False; break # FIXME sinnlos
-                gdsh_im0,crsp_im1 =self.get_grossly_deshifted_images(im0,im1,x_tempshift,y_tempshift,v=self.v)
-                scps = self.calc_shifted_cross_power_spectrum(gdsh_im0,crsp_im1,v=self.v,ignErr=self.ignErr,
-                                                              bin_ws=self.bin_ws)
+                gdsh_im0,crsp_im1 = self.get_grossly_deshifted_images(im0,im1,x_tempshift,y_tempshift)
+                scps              = self.calc_shifted_cross_power_spectrum(gdsh_im0,crsp_im1)
 
                 if scps is None: self.success = False; break
                 peakpos = self.get_peakpos(scps)
@@ -649,7 +644,7 @@ class CoReg(object):
 
             if not self.success==False:
                 x_intshift, y_intshift      = sum(x_intshift), sum(y_intshift)
-                x_subshift, y_subshift      = self.calc_subpixel_shifts(scps,v=self.v)
+                x_subshift, y_subshift      = self.calc_subpixel_shifts(scps)
                 x_totalshift, y_totalshift  = self.get_total_shifts(x_intshift,y_intshift,x_subshift,y_subshift)
                 x_shift_px, y_shift_px      = x_totalshift*gsd_factor, y_totalshift*gsd_factor
                 if not self.q:
@@ -714,7 +709,7 @@ class CoReg(object):
 
         with open(path_hdr,'r') as inF:
             content = inF.read()
-            map_info_line   = [i for i in content.split('\n') if re.search('map info [\w+]*=',i,re.I) is not None][0]
+            map_info_line   = [i for i in content.split('\n') if re.search('map info [\w+]*=',i,re.I)][0]
             map_info_string = re.search('{([\w+\s\S]*)}',map_info_line,re.I).group(1)
             map_info        = [i.strip() for i in map_info_string.split(',')]
         if not self.q: print('Original map info: %s' %map_info)
@@ -776,7 +771,7 @@ class CoReg(object):
             raise RuntimeError('Resampling failed.')
 
     def resample_without_grid_aligning(self):
-        xgsd, ygsd = (self.ref_xgsd, self.ref_ygsd) if self.match_gsd else self.out_gsd if self.out_gsd is not None \
+        xgsd, ygsd = (self.ref_xgsd, self.ref_ygsd) if self.match_gsd else self.out_gsd if self.out_gsd \
                         else (self.shift_xgsd,self.shift_ygsd) # self.match_gsd overrides self.out_gsd in __init__
 
         new_originY, new_originX = GEO.pixelToMapYX([self.x_shift_px, self.y_shift_px],
@@ -810,7 +805,7 @@ class Geom_Quality_Grid(object):
                  v=0, q=0, ignore_errors=0):
         self.path_imref    = path_im0
         self.path_im2shift = path_im1
-        self.dir_out      = dir_out
+        self.dir_out       = dir_out
         self.grid_res      = grid_res
         self.window_size   = window_size
         self.mp            = multiproc
@@ -891,7 +886,7 @@ class Geom_Quality_Grid(object):
         #ref_ds=tgt_ds=None
 
         XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point])
-        geomPoints = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
+        geomPoints      = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
 
         if GEO.isProjectedOrGeographic(self.COREG_obj.shift_prj)=='geographic':
             crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
@@ -1189,12 +1184,14 @@ if __name__ == '__main__':
     parser.add_argument('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0,1])
     parser.add_argument('-bin_ws', nargs='?', type=int, help='use binary X/Y dimensions for the matching window '
                                                              '(default: 1)', default=1, choices=[0, 1])
+    parser.add_argument('-quadratic_win', nargs='?', type=int, help='force a quadratic matching window (default: 1)',
+                        default=1, choices=[0, 1])
     parser.add_argument('-v', nargs='?',type=int, help='verbose mode (default: 0)', default=0, choices=[0,1])
     parser.add_argument('-q', nargs='?',type=int, help='quiet mode (default: 0)', default=0, choices=[0,1])
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-09_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-11_01')
     args = parser.parse_args()
 
     print('==================================================================\n'
