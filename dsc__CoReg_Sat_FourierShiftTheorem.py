@@ -45,7 +45,7 @@ else:
 
 
 
-class CoReg(object):
+class COREG(object):
     def __init__(self, path_im0, path_im1, path_out='.', r_b4match=1, s_b4match=1, wp=(None,None), ws=(512, 512),
                  max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None, data_corners_im0=None,
                  data_corners_im1=None, nodata=None, calc_corners=True, multiproc=True, binary_ws=True,
@@ -553,7 +553,6 @@ class CoReg(object):
 
         gsd_factor = self.imfft_gsd/self.shift.xgsd
 
-
         if self.v: print('gsd_factor',         gsd_factor)
         if self.v: print('imfft_gsd_mapvalues',self.imfft_gsd)
 
@@ -756,6 +755,295 @@ class CoReg(object):
             raise RuntimeError('Resampling failed.')
 
 
+class DESHIFTER(object):
+    def __init__(self,dict_GMS_obj, attrname2deshift, **kwargs):
+        """
+        Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
+
+        :param dict_GMS_obj:        the copied dictionary of a GMS object, containing the attribute 'coreg_info'
+        :param attrname2deshift:    attribute name of the GMS object containing the array to be shifted (or a its path)
+
+        :Keyword Arguments:
+            - band2process (int):   The index of the band to be processed within the given array (starts with 1),
+                                    default = None (all bands are processed)
+            - out_gsd (float):      output pixel size in units of the reference coordinate system (default = pixel size
+                                    of the input array), given values are overridden by match_gsd=True
+            - align_grids (bool):   True: align the input coordinate grid to the reference (does not affect the
+                                    output pixel size as long as input and output pixel sizes are compatible
+                                    (5:30 or 10:30 but not 4:30), default = False
+            - match_gsd (bool):     True: match the input pixel size to the reference pixel size,
+                                    default = False
+            - no_resamp (bool):     True: force avoiding of any resampling (shifts are corrected via ENVI map info),
+                                    default = False
+            - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
+                                    areas outside of the actual bounds, default = True
+        """
+        # unpack kwargs
+        self.band2process = kwargs.get('band2process',1) # starts with 1 # FIXME warum?
+        out_gsd           = kwargs.get('out_gsd'     ,None)
+        self.align_grids  = kwargs.get('align_grids' ,False)
+        self.match_gsd    = kwargs.get('match_gsd'   ,False)
+        tempAsENVI        = kwargs.get('tempAsENVI'  ,False)
+        self.outFmt       = 'VRT' if not tempAsENVI else 'ENVI'
+        self.no_resamp    = kwargs.get('no_resamp'   ,False) # Fixme deprecated?
+        self.cliptoextent = kwargs.get('cliptoextent',True)
+
+        # unpack args
+        self.shift_scene_ID   = dict_GMS_obj['scene_ID']
+        self.shift_entity_ID  = dict_GMS_obj['entity_ID']
+        self.shift_prj        = dict_GMS_obj['meta']['coordinate system string']
+        self.shift_gt         = GEOP.mapinfo2geotransform(dict_GMS_obj['meta']['map info'])
+        self.shift_trueDataCornerPos    = dict_GMS_obj['trueDataCornerPos']
+        self.shift_trueDataCornerLonLat = dict_GMS_obj['trueDataCornerLonLat']
+        self.im2shift         = dict_GMS_obj[attrname2deshift] # TODO checken obs funktioniert, weil ja nur dict übergeben wird, statt dem obj
+        self.shift_shape      = self.get_dims_im2shift()
+        self.ds_im2shift      = None # from disk or from L1A object; set by self.get_ds_im2shift() called from self.correct shifts)
+        self.attrname2deshift = attrname2deshift
+
+        self.updated_map_info = dict_GMS_obj['coreg_info']['updated map info']
+        self.original_map_info= dict_GMS_obj['coreg_info']['updated map info']
+        self.updated_gt       = GEOP.mapinfo2geotransform(self.updated_map_info)
+        self.ref_scene_ID     = dict_GMS_obj['coreg_info']['reference scene ID']
+        self.ref_entity_ID    = dict_GMS_obj['coreg_info']['reference entity ID']
+        self.ref_prj          = dict_GMS_obj['coreg_info']['reference projection']
+        self.ref_gt           = dict_GMS_obj['coreg_info']['reference geotransform']
+        self.ref_cols         = dict_GMS_obj['coreg_info']['reference extent']['cols']
+        self.ref_rows         = dict_GMS_obj['coreg_info']['reference extent']['rows']
+        self.is_shifted       = dict_GMS_obj['coreg_info']['is shifted']
+        self.is_resampled     = dict_GMS_obj['coreg_info']['is resampled']
+        self.updated_projection = self.ref_prj
+
+        # set the rest
+        # self.ref_xgsd,self.shift_xgsd = abs(self.ref_gt[1]), abs(self.shift_gt[1])
+        # self.ref_ygsd,self.shift_ygsd = abs(self.ref_gt[5]), abs(self.shift_gt[5])
+        # if not isinstance(out_gsd,int) or (isinstance(out_gsd,list) and len(out_gsd)==2):  raise ValueError
+        # self.out_gsd                  = [self.shift_xgsd, self.shift_ygsd] if out_gsd is None else \
+        #                                 [self.ref_xgsd,   self.ref_ygsd]   if self.match_gsd  else \
+        #                                 [out_gsd,         out_gsd]         if isinstance(out_gsd,int) else out_gsd
+        self.ref_xgsd,self.shift_xgsd = abs(self.ref_gt[1]), abs(self.shift_gt[1]) # FIXME refgrid muss schon durch config festgelegt werden, nicht durch referenz-Szene
+        self.ref_ygsd,self.shift_ygsd = abs(self.ref_gt[5]), abs(self.shift_gt[5])
+        if not isinstance(out_gsd,int) or (isinstance(out_gsd,list) and len(out_gsd)==2):  raise ValueError
+        self.out_gsd                  = [self.shift_xgsd, self.shift_ygsd] if out_gsd is None else \
+                                        [self.ref_xgsd,   self.ref_ygsd]   if self.match_gsd  else \
+                                        [out_gsd,         out_gsd]         if isinstance(out_gsd,int) else out_gsd
+
+        tmpBaseN      = '%s__shifted_to__%s' %(dict_GMS_obj['entity_ID'],self.ref_entity_ID)
+        tempdir       = '/dev/shm/GeoMultiSens/' if os.path.exists('/dev/shm/GeoMultiSens/') else\
+                        PG.path_generator(dict_GMS_obj).get_path_procdata()
+        self.path_tmp = os.path.join(tempdir, '%s.bsq' %tmpBaseN) if tempAsENVI else \
+                        PG.get_tempfile(ext='.vrt',tgt_dir='/dev/shm/') # FIXME: müsste in PG
+        self.path_tmp = '/dev/shm/%s.bsq' %tmpBaseN # FIXME
+        self.outFmt   = 'ENVI' # FIXME
+
+        self.arr_shifted     = None # set by self.correct_shifts
+        self.deshift_results = None # set by self.correct_shifts
+
+    def get_ds_im2shift(self):
+        print('im2shift', self.im2shift)
+        if isinstance(self.im2shift,str):
+            assert os.path.exists(self.im2shift), '%s: The image to be shifted can not be found at %s.'\
+                                                       %(self.shift_entity_ID, self.im2shift)
+            ds = gdal.Open(self.im2shift)
+            assert ds, 'The image %s can not be read by GDAL.' %self.shift_entity_ID
+        elif isinstance(self.im2shift,np.ndarray):
+            path_src = PG.get_tempfile(ext='.bsq') # FIXME schreibt .bsq in tempfile
+            arr_ds   = GEOP.ndarray2gdal(self.im2shift, path_src, geotransform=self.shift_gt,
+                                           projection=self.shift_prj, direction=3)
+            path_vrt = PG.get_tempfile(ext='.bsq') # FIXME schreibt .bsq in tempfile
+            ds       = gdal.GetDriverByName('VRT').CreateCopy(path_vrt, arr_ds,0) # FIXME warum überhaupt noch ein VRT schreiben
+            arr_ds   = None
+            gdal.Unlink(path_src)
+        else:
+            raise TypeError('DESHIFTER.im2shift must contain a path or a numpy array. Got %s' %type(self.im2shift))
+        return ds
+
+    def get_dims_im2shift(self):
+        if isinstance(self.im2shift,str):
+            assert os.path.exists(self.im2shift), '%s: The image to be shifted can not be found at %s.'\
+                                                       %(self.shift_entity_ID, self.im2shift)
+            try:    ds = rasterio.open(self.im2shift)
+            except: raise Exception('The image %s can not be read by GDAL.' %self.shift_entity_ID)
+            rows, cols, bands = ds.height, ds.width, ds.count
+        elif isinstance(self.im2shift,np.ndarray):
+            rows, cols = self.im2shift.shape[:2]
+            bands      = self.im2shift.shape[2] if len(self.im2shift.shape)==3 else 1
+        else:
+            raise TypeError('DESHIFTER.im2shift must contain a path or a numpy array. Got %s' %type(self.im2shift))
+        return rows, cols, bands
+
+    def correct_shifts(self):
+        # type: (L2A_P.DESHIFTER) -> collections.OrderedDict
+
+        t0 = time.time()
+        equal_prj = GEOP.get_proj4info(proj=self.ref_prj)==GEOP.get_proj4info(proj=self.shift_prj)
+
+        if equal_prj and not self.align_grids and self.out_gsd in [None,[self.shift_xgsd,self.shift_ygsd]]:
+            """NO RESAMPLING NEEDED"""
+
+            print("DESHIFT: Only the map info of %s has been updated because 'align_grids' is turned off, the pixel "
+                  "sizes keep the same and source and target projections are equal. " %self.shift_entity_ID)
+            self.is_shifted   = True
+            self.is_resampled = False
+
+            if self.cliptoextent:
+                # get true bounds in pixel coordinates
+                df_xmin,df_xmax,df_ymin,df_ymax = 0, self.shift_shape[1], 0, self.shift_shape[0] # defaults
+                xmin,xmax,ymin,ymax = GEOP.corner_coord_to_minmax([[c[1],c[0]] for c in self.shift_trueDataCornerPos])
+                xmin,xmax,ymin,ymax = [c if c>=0 else df_c for c,df_c in # replace eventually negative px-coordinates
+                                        zip([xmin,xmax,ymin,ymax],[df_xmin,df_xmax,df_ymin,df_ymax])]
+
+                # overwrite self.arr_shifted with subset read from L1A array
+                if   isinstance(self.im2shift,str): # self.im2shift contains path to disk
+                    tmp_arr = rasterio.open(self.im2shift).read(self.band2process,
+                                window=((ymin,ymax+1), (xmin, xmax+1))) # reads all bands if self.band2process is None
+                    in_arr  = np.swapaxes(np.swapaxes(tmp_arr,0,2),0,1) if len(tmp_arr.shape)==3 else tmp_arr
+                elif isinstance(self.im2shift,np.ndarray):  # self.im2shift contains array
+                    in_arr = self.im2shift[ymin:ymax+1, xmin:xmax+1] if len(self.im2shift.shape)==2 else \
+                             self.im2shift[ymin:ymax+1, xmin:xmax+1, self.band2process-1]  #FIXME self.band2process-1 stimmt das?
+                else:
+                    raise Exception('Unexpected attribute type for attribute DESHIFTER.im2shift.')
+                self.arr_shifted = in_arr
+                # update gt
+                self.updated_gt[3],self.updated_gt[0] =\
+                    GEOP.pixelToMapYX([xmin,ymin],geotransform=self.updated_gt,projection=self.updated_projection)[0]
+                self.updated_map_info = GEOP.geotransform2mapinfo(self.updated_gt,self.updated_projection)
+            else:
+                pass # FIXME
+
+        else: # FIXME equal_prj==False ist noch NICHT implementiert
+            """RESAMPLING NEEDED"""
+
+            xgsd, ygsd                             = self.out_gsd
+            self.updated_gt[1], self.updated_gt[5] = xgsd, -ygsd
+            if self.cliptoextent:
+                XY = [[c[1],c[0]] for c in self.shift_trueDataCornerPos]
+                XY = [[c[1],c[0]] for c in GEOP.pixelToMapYX(XY, geotransform=self.shift_gt,projection=self.shift_prj)]
+                s_xmin,s_xmax,s_ymin,s_ymax = GEOP.corner_coord_to_minmax(XY)
+            else:
+                s_xmin,s_xmax,s_ymin,s_ymax = GEOP.corner_coord_to_minmax(GEOP.get_corner_coordinates(
+                                                gt=self.shift_gt,cols=self.shift_shape[1],rows=self.shift_shape[0]))
+
+            if self.align_grids:
+                is_alignable = lambda gsd1,gsd2: max(gsd1,gsd2)%min(gsd1,gsd2)==0 # checks if pixel sizes are divisible
+                if not is_alignable(self.ref_xgsd,xgsd) or not is_alignable(self.ref_ygsd,ygsd):
+                    print("\nWARNING: The coordinate grids of the reference image and the image to be shifted cannot "
+                          "be aligned because their pixel sizes are not exact multiples of each other (ref [X/Y]: "
+                          "%s %s; shift [X/Y]: %s %s). Therefore the pixel size of the reference image is "
+                          "chosen for the resampled output image. If you don´t like that you can use the '-out_gsd' "
+                          "parameter to set an appropriate output pixel size.\n"
+                          %(self.ref_xgsd,self.ref_ygsd,xgsd,ygsd))
+                    xgsd, ygsd = self.ref_xgsd, self.ref_ygsd
+
+                r_xmin,r_xmax,r_ymin,r_ymax = GEOP.corner_coord_to_minmax(GEOP.get_corner_coordinates(
+                                                    gt=self.ref_gt,cols=self.ref_cols,rows=self.ref_rows))
+                imref_xgrid   = np.arange(r_xmin,r_xmax,self.ref_xgsd)
+                imref_ygrid   = np.arange(r_ymin,r_ymax,self.ref_ygsd)
+
+                nearest_coord = lambda coordgrid,coord,rnd: HLP_F.find_nearest(coordgrid,coord,round=rnd,extrapolate=1)
+                xmin,xmax     = nearest_coord(imref_xgrid,s_xmin,'off'),nearest_coord(imref_xgrid,s_xmax,'on')
+                ymin,ymax     = nearest_coord(imref_ygrid,s_ymin,'off'),nearest_coord(imref_ygrid,s_ymax,'on')
+                out_gt        = (xmin,xgsd,0.0,ymax,0.0,-ygsd) #(249885, 30, 0, 4578615, 0, -30)
+            else:
+                xmin, xmax, ymin, ymax = s_xmin, s_xmax, s_ymin, s_ymax
+                out_gt                 = self.updated_gt
+
+            var='RASTERIO'
+            #var='GDAL' # FIXME
+            if var=='GDAL': # FIXME nicht multiprocessing-fähig, weil immer kompletter array gewarpt wird und sich ergebnisse gegenseitig überschreiben
+                get_dtype = lambda ds: GEOP.convertGdalNumpyDataType(gdal.GetDataTypeName(ds.GetRasterBand(1).DataType))
+                get_nodata= lambda ds: HLP_F.get_outFillZeroSaturated(get_dtype(ds))[0]
+                if   isinstance(self.im2shift,str):
+                    """self.im2shift contains path to disk -> can not be directly passed to gdalwarp, because
+                        geotransform has to be corrected for shifts first"""
+                    ds_tmp    = gdal.Open(self.im2shift)
+                    ds_tmp.SetGeoTransform(self.updated_gt)
+                    path_src  = PG.get_tempfile(ext='.vrt') # FIXME schreibt .vrt in tempfile
+                    in_ds     = gdal.GetDriverByName('VRT').CreateCopy(path_src, ds_tmp, 0) # FIXME warum überhaupt noch ein VRT schreiben
+                    in_nodata = get_nodata(in_ds)
+                    in_ds     = None
+                elif isinstance(self.im2shift,np.ndarray): # TODO testen
+                    """self.im2shift contains array -> gdalwarp input has to come from VRT that can be built from ds.im2shift"""
+                    in_ds     = self.get_ds_im2shift()
+                    path_src  = in_ds.GetDescription()
+                    in_nodata = get_nodata(in_ds)
+                    in_ds     = None
+                else:
+                    raise Exception('Unexpected attribute type for attribute DESHIFTER.im2shift.')
+
+                t_extent = " -te %s %s %s %s" %(xmin,ymin,xmax,ymax) if self.align_grids else ''
+                cmd = "gdalwarp -r cubic -tr %s %s -t_srs '%s' -of %s %s %s -srcnodata %s -dstnodata %s -overwrite%s"\
+                      %(xgsd,ygsd,self.ref_prj,self.outFmt,path_src,self.path_tmp, in_nodata, in_nodata, t_extent)
+                out, exitcode, err = HLP_F.subcall_with_output(cmd)
+
+                if exitcode!=1 and os.path.exists(self.path_tmp):
+                    """update map info, arr_shifted, geotransform and projection"""
+                    ds_shifted = gdal.OpenShared(self.path_tmp) if self.outFmt == 'VRT' else gdal.Open(self.path_tmp)
+                    self.shift_gt, self.shift_prj = ds_shifted.GetGeoTransform(), ds_shifted.GetProjection()
+                    self.updated_map_info         = GEOP.geotransform2mapinfo(self.shift_gt,self.shift_prj)
+
+                    print('reading from', ds_shifted.GetDescription())
+                    if self.band2process is None:
+                        dim2RowsColsBands = lambda A: np.swapaxes(np.swapaxes(A,0,2),0,1) # rasterio.open(): [bands,rows,cols]
+                        self.arr_shifted  = dim2RowsColsBands(rasterio.open(self.path_tmp).read())
+                    else:
+                        self.arr_shifted  = rasterio.open(self.path_tmp).read(self.band2process)
+
+                    self.is_shifted       = True
+                    self.is_resampled     = True
+
+                    ds_shifted            = None
+                    [gdal.Unlink(p) for p in [self.path_tmp, path_src] if os.path.exists(p)] # FIXME löscht .vrt files
+                else:
+                    print("\n%s\nCommand was:  '%s'" %(err.decode('utf8'),cmd))
+                    [gdal.Unlink(p) for p in [self.path_tmp, path_src] if os.path.exists(p)] # FIXME löscht .vrt files
+                    raise RuntimeError('Resampling failed.')
+
+            elif var=='RASTERIO':
+                if   isinstance(self.im2shift,str):
+                    """self.im2shift contains path to disk -> rasterio returns [bands,rows,cols]"""
+                    tmp_arr = rasterio.open(self.im2shift).read(self.band2process)
+                    in_arr  = np.swapaxes(np.swapaxes(tmp_arr,0,2),0,1) if len(tmp_arr.shape)==3 else tmp_arr
+                elif isinstance(self.im2shift,np.ndarray):
+                    """self.im2shift contains array"""
+                    in_arr = self.im2shift if len(self.im2shift.shape)==2 else self.im2shift[:,:,self.band2process-1]
+                else:
+                    raise Exception('Unexpected attribute type for attribute DESHIFTER.im2shift.')
+
+                # apply XY-shifts to shift_gt
+                self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
+                in_nodata = HLP_F.get_outFillZeroSaturated(in_arr.dtype)[0]
+                if self.cliptoextent:
+                    out_arr, out_gt, out_prj = GEOP.warp_ndarray(in_arr,self.shift_gt,self.shift_prj,self.ref_prj,
+                        rsp_alg=2, in_nodata=in_nodata, out_nodata=in_nodata, out_res=(xgsd,xgsd),
+                        out_extent=[xmin,ymin,xmax,ymax]) # FIXME resamp_alg: "average" causes sinus-shaped patterns in fft images
+                else:
+                    out_arr, out_gt, out_prj = GEOP.warp_ndarray(in_arr,self.shift_gt,self.shift_prj,self.ref_prj,
+                        rsp_alg=2, in_nodata=in_nodata, out_nodata=in_nodata, out_res=(xgsd,xgsd), out_gt=out_gt)
+
+                self.updated_projection = self.ref_prj
+                self.arr_shifted        = out_arr
+                self.updated_map_info   = GEOP.geotransform2mapinfo(out_gt,out_prj)
+                self.shift_gt           = GEOP.mapinfo2geotransform(self.updated_map_info)
+                self.is_shifted         = True
+                self.is_resampled       = True
+
+        self.set_deshift_results()
+        print('Time for shift correction: %.2fs' %(time.time()-t0))
+        return self.deshift_results
+
+    def set_deshift_results(self):
+        self.deshift_results = collections.OrderedDict()
+        self.deshift_results.update({'scene_ID'          :self.shift_scene_ID})
+        self.deshift_results.update({'entity_ID'         :self.shift_entity_ID})
+        self.deshift_results.update({'attrname'          :self.attrname2deshift})
+        self.deshift_results.update({'band'              :self.band2process})
+        self.deshift_results.update({'is shifted'        :self.is_shifted})
+        self.deshift_results.update({'is resampled'      :self.is_resampled})
+        self.deshift_results.update({'updated map info'  :self.updated_map_info})
+        self.deshift_results.update({'updated projection':self.updated_projection})
+        self.deshift_results.update({'arr_shifted'       :self.arr_shifted})
+
+
 class Geom_Quality_Grid(object):
     def __init__(self, path_im0, path_im1, grid_res, window_size=256, dir_out=None, projectName=None, multiproc=True,
                  r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
@@ -787,7 +1075,7 @@ class Geom_Quality_Grid(object):
 
         gdal.AllRegister()
 
-        self.COREG_obj = CoReg(path_im0, path_im1, data_corners_im0=data_corners_im0,
+        self.COREG_obj = COREG(path_im0, path_im1, data_corners_im0=data_corners_im0,
                                data_corners_im1=data_corners_im1, calc_corners=calc_corners, r_b4match=r_b4match,
                                s_b4match=s_b4match, max_iter=max_iter, max_shift=max_shift, nodata=nodata,
                                multiproc=multiproc, binary_ws=self.bin_ws, v=v, q=q, ignore_errors=ignore_errors)
@@ -820,7 +1108,7 @@ class Geom_Quality_Grid(object):
 
     def _get_spatial_shifts(self, args):
         pointID,winpos_XY,cornerCoords_l8,cornerCoords_tgt = args
-        COREG_obj = CoReg(self.path_imref, self.path_im2shift, wp=winpos_XY, ws=self.window_size,
+        COREG_obj = COREG(self.path_imref, self.path_im2shift, wp=winpos_XY, ws=self.window_size,
                           data_corners_im0=cornerCoords_l8, data_corners_im1=cornerCoords_tgt, r_b4match=self.r_b4match,
                           s_b4match=self.s_b4match, max_iter=self.max_iter, max_shift=self.max_shift,
                           nodata=self.nodata, binary_ws=self.bin_ws, v=self.v, q=self.q, ignore_errors=self.ignore_errors)
@@ -1159,7 +1447,7 @@ if __name__ == '__main__':
           '==================================================================\n')
 
     t0 = time.time()
-    COREG_obj = CoReg(args.path_im0,
+    COREG_obj = COREG(args.path_im0,
                       args.path_im1,
                       path_out         = args.path_out,
                       r_b4match        = args.br,
