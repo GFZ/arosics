@@ -25,23 +25,22 @@ from . import io        as IO
 from . import utilities as UTL
 
 class boxObj(object):
-    """Create a dynamic/self-updating box object that represents a rectangular or quadratic coordinate box
-    according to the given keyword arguments.
-    Note: Either mapPoly+gt or imPoly+gt or wp+ws or boxMapYX+gt or boxImYX+gt must be passed.
-
-    :Keyword Arguments:
-        - gt (tuple):                   GDAL geotransform (default: (0, 1, 0, 0, 0, -1))
-        - prj (str):                    projection as WKT string
-        - mapPoly (shapely.Polygon):    Polygon with map unit vertices
-        - imPoly (shapely.Polygon):     Polygon with image unit vertices
-        - wp (tuple):                   window position in map units (x,y)
-        - ws (tuple):                   window size in map units (x,y)
-        - boxMapYX (list):              box map coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
-        - boxImYX (list):               box image coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
-    """
-    # FIXME self.prj is not used
-
     def __init__(self, **kwargs):
+        """Create a dynamic/self-updating box object that represents a rectangular or quadratic coordinate box
+        according to the given keyword arguments.
+        Note: Either mapPoly+gt or imPoly+gt or wp+ws or boxMapYX+gt or boxImYX+gt must be passed.
+
+        :Keyword Arguments:
+            - gt (tuple):                   GDAL geotransform (default: (0, 1, 0, 0, 0, -1))
+            - prj (str):                    projection as WKT string
+            - mapPoly (shapely.Polygon):    Polygon with map unit vertices
+            - imPoly (shapely.Polygon):     Polygon with image unit vertices
+            - wp (tuple):                   window position in map units (x,y)
+            - ws (tuple):                   window size in map units (x,y)
+            - boxMapYX (list):              box map coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
+            - boxImYX (list):               box image coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
+        """
+        # FIXME self.prj is not used
         self.gt        = kwargs.get('gt',       (0, 1, 0, 0, 0, -1))
         self.prj       = kwargs.get('prj',      '')
         self._mapPoly  = kwargs.get('mapPoly',  None)
@@ -111,12 +110,14 @@ class boxObj(object):
 
     @property
     def boundsMap(self):
+        """Returns xmin,xmax,ymin,ymax in map coordinates."""
         boxMapYX = shapelyBox2BoxYX(self.mapPoly, coord_type='image')
         boxMapXY = [(i[1], i[0]) for i in boxMapYX]
         return corner_coord_to_minmax(boxMapXY)
 
     @property
     def boundsIm(self):
+        """Returns xmin,xmax,ymin,ymax in image coordinates."""
         boxImXY = get_boxImXY_from_shapelyPoly(self.mapPoly, self.gt)
         return corner_coord_to_minmax(boxImXY) # xmin,xmax,ymin,ymax
 
