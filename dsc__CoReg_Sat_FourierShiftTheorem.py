@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-08-11_01"
+__version__= "2016-08-17_01"
 
 import collections
 import multiprocessing
@@ -82,6 +82,7 @@ class COREG(object):
                                         In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px
                                         is None
         """
+        # FIXME add resamp_alg
         self.params                   = dict([x for x in locals().items() if x[0] != "self"])
 
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
@@ -381,12 +382,15 @@ class COREG(object):
             return None
 
 
-    def calc_shifted_cross_power_spectrum(self,precision=np.complex64):
+    def calc_shifted_cross_power_spectrum(self,im0=None,im1=None,precision=np.complex64):
         """Calculates shifted cross power spectrum for quantifying x/y-shifts.
             :param precision:   to be quantified as a datatype
+            :param im0:         reference image
+            :param im1:         subject image to shift
             :return:            2D-numpy-array of the shifted cross power spectrum
         """
-        im0,im1 = self.ref.win.data, self.shift.win.data
+        im0 = im0 if im0 else self.ref.win.data
+        im1 = im1 if im1 else self.shift.win.data
         assert im0.shape == im1.shape, 'The reference and the target image must have the same dimensions.'
         if im0.shape[0]%2!=0: warnings.warn('Odd row count in one of the match images!')
         if im1.shape[1]%2!=0: warnings.warn('Odd column count in one of the match images!')
@@ -1437,7 +1441,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-11_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-17_01')
     args = parser.parse_args()
 
     print('==================================================================\n'

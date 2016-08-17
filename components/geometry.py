@@ -401,7 +401,7 @@ def get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX, gt_im):
 def get_largest_onGridPoly_within_poly(outerPoly,gt,rows,cols):
     oP_xmin,oP_ymin,oP_xmax,oP_ymax = outerPoly.bounds
     xmin,ymax = find_nearest_grid_coord((oP_xmin,oP_ymax),gt,rows,cols,direction='SE')
-    xmax,ymin = find_nearest_grid_coord((oP_xmax, oP_ymin), gt, rows, cols, direction='NW')
+    xmax,ymin = find_nearest_grid_coord((oP_xmax,oP_ymin),gt,rows,cols,direction='NW')
     return box(xmin, ymin, xmax, ymax)
 
 def get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly(shapelyPoly):
