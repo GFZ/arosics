@@ -384,13 +384,15 @@ class COREG(object):
 
     def calc_shifted_cross_power_spectrum(self,im0=None,im1=None,precision=np.complex64):
         """Calculates shifted cross power spectrum for quantifying x/y-shifts.
+
             :param precision:   to be quantified as a datatype
             :param im0:         reference image
             :param im1:         subject image to shift
             :return:            2D-numpy-array of the shifted cross power spectrum
         """
-        im0 = im0 if im0 else self.ref.win.data
-        im1 = im1 if im1 else self.shift.win.data
+
+        im0 = im0 if im0 is not None else self.ref.win.data
+        im1 = im1 if im1 is not None else self.shift.win.data
         assert im0.shape == im1.shape, 'The reference and the target image must have the same dimensions.'
         if im0.shape[0]%2!=0: warnings.warn('Odd row count in one of the match images!')
         if im1.shape[1]%2!=0: warnings.warn('Odd column count in one of the match images!')
