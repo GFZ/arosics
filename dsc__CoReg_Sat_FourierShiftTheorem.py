@@ -1478,5 +1478,5 @@ if __name__ == '__main__':
                       q                = args.q,
                       ignore_errors    = args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
-    #COREG_obj.correct_shifts()
+    COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
