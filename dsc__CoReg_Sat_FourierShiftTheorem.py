@@ -48,7 +48,7 @@ else:
 class COREG(object):
     def __init__(self, path_im0, path_im1, path_out='.', r_b4match=1, s_b4match=1, wp=(None,None), ws=(512, 512),
                  max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None, data_corners_im0=None,
-                 data_corners_im1=None, nodata=None, calc_corners=True, multiproc=True, binary_ws=True,
+                 data_corners_im1=None, nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True,
                  force_quadratic_win=True, v=False, q=False, ignore_errors=False):
         """
         :param path_im0(str):           source path of reference image (any GDAL compatible image format is supported)
@@ -231,8 +231,8 @@ class COREG(object):
             win_pos = (overlap_center_pos_x[0], overlap_center_pos_y[0])
         else:
             wp = self.win_pos_XY if not isinstance(self.win_pos_XY,np.ndarray) else self.win_pos_XY.tolist()
-            assert isinstance(wp,list), 'The window position must be a list of two elements. Got %s.' %wp
-            assert len(wp)==2,          'The window position must be a list of two elements. Got %s.' %wp
+            assert isinstance(wp,tuple),'The window position must be a tuple of two elements. Got %s.' %type(wp)
+            assert len(wp)==2,          'The window position must be a tuple of two elements. Got %s.' %len(wp)
             assert self.overlap_poly.contains(Point(wp)), 'The provided window position is ' \
                 'outside of the overlap area of the two input images. Check the coordinates.'
             win_pos = wp
@@ -1413,8 +1413,9 @@ if __name__ == '__main__':
                         '(starts with 1; default: 1)', default=1)
     parser.add_argument('-wp', nargs=2, metavar=('X', 'Y'),type=float,help="custom matching window position as map "\
                         "values in the same projection like the reference image "\
-                        "(default: central position of image overlap)", default=None)
-    parser.add_argument('-ws', nargs=2, metavar=('X size', 'Y size'),type=float,help="custom matching window size [pixels] (default: (512,512))", default=(512,512))
+                        "(default: central position of image overlap)", default=(None,None))
+    parser.add_argument('-ws', nargs=2, metavar=('X size', 'Y size'),type=float,
+                        help="custom matching window size [pixels] (default: (512,512))", default=(512,512))
     parser.add_argument('-max_iter', nargs='?', type=int,help="maximum number of iterations for matching (default: 5)", default=5)
     parser.add_argument('-max_shift', nargs='?', type=int,help="maximum shift distance in reference image pixel units "\
                         "(default: 5 px)", default=5)
@@ -1429,7 +1430,7 @@ if __name__ == '__main__':
     parser.add_argument('-cor1', nargs=8,type=float,help="map coordinates of data corners within image to be shifted: ",
         metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')),default=None)
     parser.add_argument('-nodata', nargs=2,type=float, metavar=('im0','im1'),
-                        help='no data values for reference image and image to be shifted',default=[None,None])
+                        help='no data values for reference image and image to be shifted',default=(None,None))
     parser.add_argument('-calc_cor', nargs=1,type=int, choices=[0,1],default=1, help="calculate true positions of "\
                         "the dataset corners in order to get a useful matching window position within the actual "\
                         "image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
