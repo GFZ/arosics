@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-08-17_01"
+__version__= "2016-08-19_01"
 
 import collections
 import multiprocessing
@@ -226,18 +226,18 @@ class COREG(object):
         trueCornerLonLat."""
         # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
         # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
-        if self.win_pos_XY is None:
-            overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
-            win_pos = (overlap_center_pos_x[0], overlap_center_pos_y[0])
-        else:
-            wp = self.win_pos_XY if not isinstance(self.win_pos_XY,np.ndarray) else self.win_pos_XY.tolist()
-            assert isinstance(wp,tuple),'The window position must be a tuple of two elements. Got %s.' %type(wp)
-            assert len(wp)==2,          'The window position must be a tuple of two elements. Got %s.' %len(wp)
-            assert self.overlap_poly.contains(Point(wp)), 'The provided window position is ' \
-                'outside of the overlap area of the two input images. Check the coordinates.'
-            win_pos = wp
-        self.win_pos_XY = win_pos
 
+        wp = self.win_pos_XY if not isinstance(self.win_pos_XY, np.ndarray) else self.win_pos_XY.tolist()
+        assert isinstance(wp, tuple), 'The window position must be a tuple of two elements. Got %s.' % type(wp)
+        assert len(wp) == 2,          'The window position must be a tuple of two elements. Got %s.' % len(wp)
+
+        if None in wp:
+            overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
+            wp = wp[0] if wp[0] else overlap_center_pos_x[0], wp[1] if wp[1] else overlap_center_pos_y[1]
+
+        assert self.overlap_poly.contains(Point(wp)), 'The provided window position is outside of the overlap area of '\
+                                                      'the two input images. Check the coordinates.'
+        self.win_pos_XY  = wp
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512,512)
 
 
@@ -1444,7 +1444,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-17_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-19_01')
     args = parser.parse_args()
 
     print('==================================================================\n'
