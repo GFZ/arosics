@@ -91,7 +91,8 @@ class COREG(object):
             data_corners_im0 = [data_corners_im0[i:i+2] for i in range(0, len(data_corners_im0), 2)]
         if data_corners_im1 and not isinstance(data_corners_im1[0],list): # group if not [[x,y],[x,y]..]
             data_corners_im1 = [data_corners_im1[i:i+2] for i in range(0, len(data_corners_im1), 2)]
-        if nodata: assert isinstance(nodata, list) and len(nodata) == 2, 'nodata must be a list with two values.'
+        if nodata: assert isinstance(nodata, tuple) and len(nodata) == 2, "'nodata' must be a tuple with two values." \
+                                                                          "Got %s with length %s." %(type(nodata),len(nodata))
 
         self.path_out            = path_out            # updated by self.set_outpathes
         self.win_pos_XY          = wp                  # updated by self.get_opt_winpos_winsize()
@@ -227,13 +228,14 @@ class COREG(object):
         # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
         # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
 
-        wp = self.win_pos_XY if not isinstance(self.win_pos_XY, np.ndarray) else self.win_pos_XY.tolist()
-        assert isinstance(wp, tuple), 'The window position must be a tuple of two elements. Got %s.' % type(wp)
-        assert len(wp) == 2,          'The window position must be a tuple of two elements. Got %s.' % len(wp)
+        wp = tuple(self.win_pos_XY)
+        assert type(self.win_pos_XY) in [tuple,list,np.ndarray],\
+            'The window position must be a tuple of two elements. Got %s with %s elements.' %(type(wp),len(wp))
+        wp = tuple(wp)
 
         if None in wp:
             overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
-            wp = wp[0] if wp[0] else overlap_center_pos_x[0], wp[1] if wp[1] else overlap_center_pos_y[1]
+            wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
         assert self.overlap_poly.contains(Point(wp)), 'The provided window position is outside of the overlap area of '\
                                                       'the two input images. Check the coordinates.'
@@ -1476,5 +1478,5 @@ if __name__ == '__main__':
                       q                = args.q,
                       ignore_errors    = args.ignore_errors)
     COREG_obj.calculate_spatial_shifts()
-    COREG_obj.correct_shifts()
+    #COREG_obj.correct_shifts()
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
