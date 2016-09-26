@@ -2,7 +2,7 @@
 from __future__ import (division, print_function,absolute_import) #unicode_literals cause GDAL not to work properly
 
 __author__ = "Daniel Scheffler"
-__version__= "2016-08-19_01"
+__version__= "2016-09-26_01"
 
 import collections
 import multiprocessing
@@ -117,9 +117,16 @@ class COREG(object):
         self.otherWin            = None                # set by self.get_clip_window_properties()
         self.imfft_gsd           = None                # set by self.get_clip_window_properties()
         self.fftw_win_size_YX    = None                # set by calc_shifted_cross_power_spectrum
+
         self.x_shift_px          = None                # always in shift image units (image coords) # set by calculate_spatial_shifts()
         self.y_shift_px          = None                # always in shift image units (image coords) # set by calculate_spatial_shifts()
+        self.x_shift_map         = None                # set by self.get_updated_map_info()
+        self.y_shift_map         = None                # set by self.get_updated_map_info()
+        self.updated_map_info    = None                # set by self.get_updated_map_info()
+
         self.success             = False               # default
+        self.coreg_info          = None                # set by self.set_coreg_info()
+        self.ref_available       = True                # always True in Standalone version of CoReg_Sat
 
         gdal.AllRegister()
         self.set_outpathes(path_im0,path_im1)
@@ -617,16 +624,53 @@ class COREG(object):
                 if max([abs(x_totalshift),abs(y_totalshift)]) > self.max_shift:
                     self.success = False
                     if not self.ignErr:
-                        raise RuntimeError("The calculated shift is recognized as too large to be valid. "
-                        "If you know that it is valid, just set the '-max_shift' parameter to an appropriate value. "
-                        "Otherwise try to use a different window size for matching via the '-ws' parameter or define "
-                        "the spectral bands to be used for matching manually ('-br' and '-bs'.)")
+                        raise RuntimeError("The calculated shift (X: %s px / Y: %s px) is recognized as too large to "
+                                           "be valid. If you know that it is valid, just set the '-max_shift' "
+                                           "parameter to an appropriate value. Otherwise try to use a different window "
+                                           "size for matching via the '-ws' parameter or define the spectral bands "
+                                           "to be used for matching manually ('-br' and '-bs')."
+                                           %(self.x_shift_px,self.y_shift_px))
                 else:
                     self.success = True
+                    self.get_updated_map_info()
+                    self.set_coreg_info()
 
         self.x_shift_px, self.y_shift_px = (x_shift_px,y_shift_px) if self.success else (None,None)
 
         warnings.simplefilter('default')
+
+
+    def get_updated_map_info(self):
+        original_map_info = GEO.geotransform2mapinfo(self.shift.gt, self.shift.prj)
+        if not self.q: print('Original map info:', original_map_info)
+
+        new_originY, new_originX = GEO.pixelToMapYX([self.x_shift_px,self.y_shift_px],
+                                                     geotransform=self.shift.gt, projection=self.shift.prj)[0]
+        self.x_shift_map = new_originX - self.shift.gt[0]
+        self.y_shift_map = new_originY - self.shift.gt[3]
+        if not self.q: print('Calculated map shifts (X,Y): ', self.x_shift_map,self.y_shift_map)
+
+        self.updated_map_info    = original_map_info.copy()
+        self.updated_map_info[3] = str(float(original_map_info[3]) + self.x_shift_map)
+        self.updated_map_info[4] = str(float(original_map_info[4]) + self.y_shift_map)
+        if not self.q: print('Updated map info:',self.updated_map_info)
+
+
+    def set_coreg_info(self):
+        self.coreg_info                = {
+            'corrected_shifts_px'   : {'x':self.x_shift_px,  'y':self.y_shift_px },
+            'corrected_shifts_map'  : {'x':self.x_shift_map, 'y':self.y_shift_map},
+            'original map info'     : GEO.geotransform2mapinfo(self.shift.gt, self.shift.prj),
+            'updated map info'      : self.updated_map_info, # no clipping to trueCornerLonLat until here -> only shift correction
+            'reference scene ID'    : self.ref.scene_ID  if hasattr(self.ref,'scene_ID')  else None,
+            'reference entity ID'   : self.ref.entity_ID if hasattr(self.ref,'entity_ID') else None,
+            'reference projection'  : self.ref.prj,
+            'reference geotransform': self.ref.gt,
+            'reference extent'      : {'cols':self.ref.xgsd, 'rows':self.ref.ygsd} \
+                                        if self.ref_available else {'cols':None,'rows':None},
+            'is shifted'            : False,
+            'is resampled'          : False,
+            'success'               : self.success}
 
 
     def correct_shifts(self):
@@ -1055,8 +1099,8 @@ class DESHIFTER(object):
 class Geom_Quality_Grid(object):
     def __init__(self, path_im0, path_im1, grid_res, window_size=256, dir_out=None, projectName=None, multiproc=True,
                  r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
-                 data_corners_im1=None, outFillVal=-9999, nodata=None, calc_corners=1, binary_ws=1,
-                 v=0, q=0, ignore_errors=0):
+                 data_corners_im1=None, outFillVal=-9999, nodata=None, calc_corners=True, binary_ws=True,
+                 v=False, q=False, ignore_errors=False):
         self.path_imref    = path_im0
         self.path_im2shift = path_im1
         self.dir_out       = dir_out
@@ -1446,7 +1490,7 @@ if __name__ == '__main__':
     parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
                         'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
                         default=0, choices=[0,1])
-    parser.add_argument('--version', action='version', version='%(prog)s 2016-08-19_01')
+    parser.add_argument('--version', action='version', version='%(prog)s 2016-09-26_01')
     args = parser.parse_args()
 
     print('==================================================================\n'

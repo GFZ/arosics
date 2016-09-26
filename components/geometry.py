@@ -3,6 +3,7 @@ import math
 import os
 import re
 import warnings
+import pyproj
 
 import numpy  as np
 
@@ -15,7 +16,7 @@ except ImportError:
     from osgeo import osr
     from osgeo import ogr
 import rasterio
-from rasterio.warp import RESAMPLING
+from rasterio.warp import Resampling
 from rasterio.warp import calculate_default_transform as rio_calc_transform
 from rasterio.warp import reproject as rio_reproject
 from shapely.geometry import Polygon, shape, mapping, box
@@ -195,10 +196,10 @@ def move_shapelyPoly_to_image_grid(shapelyPoly, gt, rows, cols, moving_dir='NW')
     round_y = {'NW': 'on', 'NO': 'on', 'SW': 'off', 'SE': 'off'}[moving_dir]
     tgt_xgrid = np.arange(UL[0], UR[0] + gt[1], gt[1])
     tgt_ygrid = np.arange(LL[1], UL[1] + abs(gt[5]), abs(gt[5]))
-    tgt_xmin = UTL.find_nearest(tgt_xgrid, polyULxy[0], round=round_x)
-    tgt_xmax = UTL.find_nearest(tgt_xgrid, polyLRxy[0], round=round_x)
-    tgt_ymin = UTL.find_nearest(tgt_ygrid, polyLRxy[1], round=round_y)
-    tgt_ymax = UTL.find_nearest(tgt_ygrid, polyULxy[1], round=round_y)
+    tgt_xmin = UTL.find_nearest(tgt_xgrid, polyULxy[0], roundAlg=round_x)
+    tgt_xmax = UTL.find_nearest(tgt_xgrid, polyLRxy[0], roundAlg=round_x)
+    tgt_ymin = UTL.find_nearest(tgt_ygrid, polyLRxy[1], roundAlg=round_y)
+    tgt_ymax = UTL.find_nearest(tgt_ygrid, polyULxy[1], roundAlg=round_y)
     return box(tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax)
 
 def get_corner_coordinates(fPath=None, gt=None, rows=None,cols=None):
@@ -225,11 +226,15 @@ def get_corner_coordinates(fPath=None, gt=None, rows=None,cols=None):
 
 
 def corner_coord_to_minmax(corner_coords):
-    """Return (UL, LL, LR, UR)"""
+    """Returns the bounding coordinates for a given set of XY coordinates.
+
+    :param corner_coords:   # four XY tuples of corner coordinates. Their order does not matter.
+    :return: xmin,xmax,ymin,ymax
+    """
     x_vals = [i[0] for i in corner_coords]
     y_vals = [i[1] for i in corner_coords]
-    xmin,xmax,ymin,ymax = min(x_vals),max(x_vals),min(y_vals),max(y_vals)
-    return xmin,xmax,ymin,ymax
+    xmin, xmax, ymin, ymax = min(x_vals), max(x_vals), min(y_vals), max(y_vals)
+    return xmin, xmax, ymin, ymax
 
 
 def get_footprint_polygon(CornerLonLat):
@@ -271,7 +276,7 @@ def angle_to_north(XY):
 
 
 
-def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0):
+def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0): # TODO implement shapely algorithm
     gdal_ds   = gdal.Open(fPath)
     fPath     = gdal_ds.GetDescription()
     rows,cols = gdal_ds.RasterYSize, gdal_ds.RasterXSize
@@ -388,8 +393,8 @@ def find_nearest_grid_coord(valXY,gt,rows,cols,direction='NW',extrapolate=True):
     round_y = {'NW': 'on', 'NO': 'on', 'SW': 'off', 'SO': 'off'}[direction]
     tgt_xgrid = np.arange(UL[0], UR[0] + gt[1], gt[1])
     tgt_ygrid = np.arange(LL[1], UL[1] + abs(gt[5]), abs(gt[5]))
-    tgt_x = UTL.find_nearest(tgt_xgrid, valXY[0], round=round_x, extrapolate=extrapolate)
-    tgt_y = UTL.find_nearest(tgt_ygrid, valXY[1], round=round_y, extrapolate=extrapolate)
+    tgt_x = UTL.find_nearest(tgt_xgrid, valXY[0], roundAlg=round_x, extrapolate=extrapolate)
+    tgt_y = UTL.find_nearest(tgt_ygrid, valXY[1], roundAlg=round_y, extrapolate=extrapolate)
     return tgt_x,tgt_y
 
 def get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX, gt_im):
@@ -578,45 +583,48 @@ def pixelToMapYX(pixelCoords, path_im=None, geotransform=None, projection=None):
 
     return mapYmapXPairs
 
-def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None,
-                 out_res=None, out_extent=None, out_dtype=None, rsp_alg=0, in_nodata=None, out_nodata=None):
+
+def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None, out_res=None,
+                 out_extent=None, out_dtype=None, rsp_alg=0, in_nodata=None, out_nodata=None, outExtent_within=True):
 
     """Reproject / warp a numpy array with given geo information to target coordinate system.
-    :param ndarray:     numpy.ndarray [rows,cols,bands]
-    :param in_gt:       input gdal GeoTransform
-    :param in_prj:      input projection as WKT string
-    :param out_prj:     output projection as WKT string
-    :param out_gt:      output gdal GeoTransform as float tuple in the source coordinate system (optional)
-    :param outUL:       [X,Y] output upper left coordinates as floats in the source coordinate system
-                        (requires outRowsCols)
-    :param outRowsCols: [rows, cols] (optional)
-    :param out_res:     output resolution as tuple of floats (x,y) in the TARGET coordinate system
-    :param out_extent:  [left, bottom, right, top] as floats in the source coordinate system
-    :param out_dtype:   output data type as numpy data type
-    :param rsp_alg:     Resampling method to use. One of the following (int, default is 0):
-                        0 = nearest neighbour, 1 = bilinear, 2 = cubic, 3 = cubic spline, 4 = lanczos,
-                        5 = average, 6 = mode
-    :param in_nodata    no data value of the input image
-    :param out_nodata   no data value of the output image
-    :return out_arr:    warped numpy array
-    :return out_gt:     warped gdal GeoTransform
-    :return out_prj:    warped projection as WKT string
-    """
 
+    :param ndarray:             numpy.ndarray [rows,cols,bands]
+    :param in_gt:               input gdal GeoTransform
+    :param in_prj:              input projection as WKT string
+    :param out_prj:             output projection as WKT string
+    :param out_gt:              output gdal GeoTransform as float tuple in the source coordinate system (optional)
+    :param outUL:               [X,Y] output upper left coordinates as floats in the source coordinate system
+                                (requires outRowsCols)
+    :param outRowsCols:         [rows, cols] (optional)
+    :param out_res:             output resolution as tuple of floats (x,y) in the TARGET coordinate system
+    :param out_extent:          [left, bottom, right, top] as floats in the source coordinate system
+    :param out_dtype:           output data type as numpy data type
+    :param rsp_alg:             Resampling method to use. One of the following (int, default is 0):
+                                0 = nearest neighbour, 1 = bilinear, 2 = cubic, 3 = cubic spline, 4 = lanczos,
+                                5 = average, 6 = mode
+    :param in_nodata:           no data value of the input image
+    :param out_nodata:          no data value of the output image
+    :param outExtent_within:    Ensures that the output extent is within the input extent.
+                                Otherwise an exception is raised.
+    :return out_arr:            warped numpy array
+    :return out_gt:             warped gdal GeoTransform
+    :return out_prj:            warped projection as WKT string
+    """
     if not ndarray.flags['OWNDATA']:
         temp = np.empty_like(ndarray)
         temp[:] = ndarray
-        ndarray = temp  # deep copy: converts view to its own array in oder to avoid wrong output
+        ndarray = temp  # deep copy: converts view to its own array in order to avoid wrong output
 
-    with rasterio.drivers():
-        if outUL:
-            assert outRowsCols, 'outRowsCols must be given if outUL is given.'
+    with rasterio.env.Env():
+        if outUL is not None:
+            assert outRowsCols is not None, 'outRowsCols must be given if outUL is given.'
         outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
 
         inEPSG, outEPSG = [WKT2EPSG(prj) for prj in [in_prj, out_prj]]
-        assert inEPSG,  'Could not derive input EPSG code.'
+        assert inEPSG, 'Could not derive input EPSG code.'
         assert outEPSG, 'Could not derive output EPSG code.'
-        assert in_nodata  is None or type(in_nodata)  in [int, float]
+        assert in_nodata is None or type(in_nodata) in [int, float]
         assert out_nodata is None or type(out_nodata) in [int, float]
 
         src_crs = {'init': 'EPSG:%s' % inEPSG}
@@ -626,7 +634,7 @@ def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None,
             # convert input array axis order to rasterio axis order
             ndarray = np.swapaxes(np.swapaxes(ndarray, 0, 2), 1, 2)
             bands, rows, cols = ndarray.shape
-            rows, cols = outRowsCols if outRowsCols else rows, cols
+            rows, cols = outRowsCols if outRowsCols else (rows, cols)
         else:
             rows, cols = ndarray.shape if outRowsCols is None else outRowsCols
 
@@ -650,12 +658,14 @@ def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None,
                 # ,im_xmax,im_ymin,im_ymax = corner_coord_to_minmax(get_corner_coordinates(self.ds_im2shift))
         elif out_extent:
             left, bottom, right, top = out_extent
+        else:  # out_gt is given
+            left, bottom, right, top = gt2bounds(in_gt, rows, cols)
+
+        if outExtent_within:
             # input array is only a window of the actual input array
             assert left >= in_gt[0] and right <= (in_gt[0] + (cols + 1) * in_gt[1]) and \
                    bottom >= in_gt[3] + (rows + 1) * in_gt[5] and top <= in_gt[3], \
                 "out_extent has to be completely within the input image bounds."
-        else:  # out_gt is given
-            left, bottom, right, top = gt2bounds(in_gt, rows, cols)
 
         if out_res is None:
             # get pixel resolution in target coord system
@@ -691,8 +701,9 @@ def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None,
 
         src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
 
-        dict_rspInt_rspAlg = {0: RESAMPLING.nearest, 1: RESAMPLING.bilinear, 2: RESAMPLING.cubic,
-                              3: RESAMPLING.cubic_spline, 4: RESAMPLING.lanczos, 5: RESAMPLING.average, 6: RESAMPLING.mode}
+        dict_rspInt_rspAlg = \
+            {0: Resampling.nearest, 1: Resampling.bilinear, 2: Resampling.cubic,
+             3: Resampling.cubic_spline, 4: Resampling.lanczos, 5: Resampling.average, 6: Resampling.mode}
 
         out_arr = np.zeros((bands, out_rows, out_cols), out_dtype) \
             if len(ndarray.shape) == 3 else np.zeros((out_rows, out_cols), out_dtype)
@@ -705,15 +716,31 @@ def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None,
             warnings.simplefilter(
                 'ignore')  # FIXME supresses: FutureWarning: GDAL-style transforms are deprecated and will not be supported in Rasterio 1.0.
             try:
+                # print('INPUTS')
+                # print(ndarray.shape, ndarray.dtype, out_arr.shape, out_arr.dtype)
+                # print(in_gt)
+                # print(src_crs)
+                # print(out_gt)
+                # print(dst_crs)
+                # print(dict_rspInt_rspAlg[rsp_alg])
+                # print(in_nodata)
+                # print(out_nodata)
                 rio_reproject(ndarray, out_arr,
                               src_transform=in_gt, src_crs=src_crs, dst_transform=out_gt, dst_crs=dst_crs,
                               resampling=dict_rspInt_rspAlg[rsp_alg], src_nodata=in_nodata, dst_nodata=out_nodata)
+                from matplotlib import pyplot as plt
+                # print(out_arr.shape)
+                # plt.figure()
+                # plt.imshow(out_arr[:,:,1])
             except KeyError:
                 print(in_dtype, str(in_dtype))
                 print(ndarray.dtype)
 
         # convert output array axis order to GMS axis order [rows,cols,bands]
         out_arr = out_arr if len(ndarray.shape) == 2 else np.swapaxes(np.swapaxes(out_arr, 0, 1), 1, 2)
+
+        if outRowsCols:
+            out_arr = out_arr[:outRowsCols[0], :outRowsCols[1]]
 
     return out_arr, out_gt, out_prj
 
@@ -738,13 +765,21 @@ def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
     return None if possVals==[] else possVals[0] if np.std(possVals)==0 else 'unclear'
 
 
+def transform_utm_to_wgs84(easting, northing, zone, south=False):
+    UTM   = pyproj.Proj(proj='utm', zone=abs(zone), ellps='WGS84',south=(zone<0 or south))
+    return UTM(easting, northing, inverse=True)
+
+
 def geotransform2mapinfo(gt,prj):
     """Builds an ENVI map info from given GDAL GeoTransform and Projection (compatible with UTM and LonLat projections).
-    :param gt:  GDAL GeoTransform
-    :param prj: GDAL Projection
+    :param gt:  GDAL GeoTransform, e.g. (249885.0, 30.0, 0.0, 4578615.0, 0.0, -30.0)
+    :param prj: GDAL Projection - WKT Format
     :returns:   ENVI map info, e.g. [ UTM , 1 , 1 , 256785.0 , 4572015.0 , 30.0 , 30.0 , 43 , North , WGS-84 ]
     :rtype:     list
     """
+
+    if gt[2]!=0 or gt[4]!=0: # TODO
+        raise NotImplementedError('Currently rotated datasets are not supported.')
     srs         = osr.SpatialReference()
     srs.ImportFromWkt(prj)
     Proj4       = [i[1:] for i in srs.ExportToProj4().split()]
@@ -753,7 +788,8 @@ def geotransform2mapinfo(gt,prj):
     proj        = 'Geographic Lat/Lon' if Proj4_proj=='longlat' else 'UTM' if Proj4_proj=='utm' else Proj4_proj
     ellps       = 'WGS-84' if Proj4_ellps=='WGS84' else Proj4_ellps
     UL_X, UL_Y, GSD_X, GSD_Y = gt[0], gt[3], gt[1], gt[5]
-    is_UTM_North_South = 'North' if get_UTMzone(prj=prj)>=0 else 'South'
-    map_info    = [proj,1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),ellps] \
-        if proj!='UTM' else ['UTM',1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),srs.GetUTMZone(),is_UTM_North_South,ellps]
+    utm2wgs84          = lambda utmX,utmY: transform_utm_to_wgs84(utmX,utmY,srs.GetUTMZone())
+    is_UTM_North_South = lambda LonLat: 'North' if LonLat[1] >= 0. else 'South'
+    map_info = [proj,1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),ellps] if proj!='UTM' else \
+        ['UTM',1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),srs.GetUTMZone(),is_UTM_North_South(utm2wgs84(UL_X,UL_Y)),ellps]
     return map_info
