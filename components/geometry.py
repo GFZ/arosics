@@ -3,9 +3,9 @@ import math
 import os
 import re
 import warnings
-import pyproj
 
 import numpy  as np
+import pyproj
 
 try:
     import gdal
@@ -15,256 +15,53 @@ except ImportError:
     from osgeo import gdal
     from osgeo import osr
     from osgeo import ogr
-import rasterio
-from rasterio.warp import Resampling
-from rasterio.warp import calculate_default_transform as rio_calc_transform
-from rasterio.warp import reproject as rio_reproject
-from shapely.geometry import Polygon, shape, mapping, box
+
 from geopandas import GeoDataFrame
 
-from . import io        as IO
-from . import utilities as UTL
 
-class boxObj(object):
-    def __init__(self, **kwargs):
-        """Create a dynamic/self-updating box object that represents a rectangular or quadratic coordinate box
-        according to the given keyword arguments.
-        Note: Either mapPoly+gt or imPoly+gt or wp+ws or boxMapYX+gt or boxImYX+gt must be passed.
-
-        :Keyword Arguments:
-            - gt (tuple):                   GDAL geotransform (default: (0, 1, 0, 0, 0, -1))
-            - prj (str):                    projection as WKT string
-            - mapPoly (shapely.Polygon):    Polygon with map unit vertices
-            - imPoly (shapely.Polygon):     Polygon with image unit vertices
-            - wp (tuple):                   window position in map units (x,y)
-            - ws (tuple):                   window size in map units (x,y)
-            - boxMapYX (list):              box map coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
-            - boxImYX (list):               box image coordinates like [(ULy,ULx), (URy,URx), (LRy,LRx), (LLy,LLx)]
-        """
-        # FIXME self.prj is not used
-        self.gt        = kwargs.get('gt',       (0, 1, 0, 0, 0, -1))
-        self.prj       = kwargs.get('prj',      '')
-        self._mapPoly  = kwargs.get('mapPoly',  None)
-        self._imPoly   = kwargs.get('imPoly',   None)
-        self.wp        = kwargs.get('wp',       None)
-        self._ws       = kwargs.get('ws',       None)
-        self._boxMapYX = kwargs.get('boxMapYX', None)
-        self._boxImYX  = kwargs.get('boxImYX',  None)
-
-        if self._mapPoly:
-            assert self.gt, "A geotransform must be passed if mapPoly is given."
-        else:
-            # populate self._mapPoly
-            if self._imPoly:
-                self._mapPoly = shapelyImPoly_to_shapelyMapPoly(self._imPoly,self.gt)
-            elif self._boxMapYX:
-                self.boxMapYX = self._boxMapYX
-            elif self._boxImYX:
-                self.boxImYX = self._boxImYX
-            elif self.wp or self._ws: # asserts wp/ws in map units
-                assert self.wp and self._ws,\
-                    "'wp' and 'ws' must be passed together. Got wp=%s and ws=%s." %(self.wp,self._ws)
-                (wpx,wpy),(wsx,wsy) = self.wp,self._ws
-                self._mapPoly = box(wpx-wsx/2, wpy-wsy/2, wpx+wsx/2, wpy+wsy/2)
-            else:
-                raise Exception("No proper set of arguments received.")
-
-    # all getters and setters synchronize using self._mapPoly
-    @property
-    def mapPoly(self):
-        imPoly = Polygon(get_boxImXY_from_shapelyPoly(self._mapPoly, self.gt))
-        return shapelyImPoly_to_shapelyMapPoly(imPoly, self.gt)
-
-    @mapPoly.setter
-    def mapPoly(self, shapelyPoly):
-        self._mapPoly = shapelyPoly
-
-    @property
-    def imPoly(self):
-        return Polygon(get_boxImXY_from_shapelyPoly(self.mapPoly, self.gt))
-
-    @imPoly.setter
-    def imPoly(self, shapelyImPoly):
-        self.mapPoly = shapelyImPoly_to_shapelyMapPoly(shapelyImPoly, self.gt)
-
-    @property
-    def boxMapYX(self):
-        return shapelyBox2BoxYX(self.mapPoly, coord_type='map')
-
-    @boxMapYX.setter
-    def boxMapYX(self, mapBoxYX):
-        mapBoxXY = [(i[1], i[0]) for i in mapBoxYX]
-        xmin, xmax, ymin, ymax = corner_coord_to_minmax(mapBoxXY)
-        self.mapPoly = box(xmin, ymin, xmax, ymax)
-
-    @property
-    def boxImYX(self):
-        temp_imPoly  = round_shapelyPoly_coords(self.imPoly, precision=0, out_dtype=int)
-        floatImBoxYX = shapelyBox2BoxYX(temp_imPoly, coord_type='image')
-        return [[int(i[0]),int(i[1])] for i in floatImBoxYX]
-
-    @boxImYX.setter
-    def boxImYX(self, imBoxYX):
-        imBoxXY = [(i[1], i[0]) for i in imBoxYX]
-        xmin, xmax, ymin, ymax = corner_coord_to_minmax(imBoxXY)
-        self.imPoly  = box(xmin, ymin, xmax, ymax)
-
-    @property
-    def boundsMap(self):
-        """Returns xmin,xmax,ymin,ymax in map coordinates."""
-        boxMapYX = shapelyBox2BoxYX(self.mapPoly, coord_type='image')
-        boxMapXY = [(i[1], i[0]) for i in boxMapYX]
-        return corner_coord_to_minmax(boxMapXY)
-
-    @property
-    def boundsIm(self):
-        """Returns xmin,xmax,ymin,ymax in image coordinates."""
-        boxImXY = get_boxImXY_from_shapelyPoly(self.mapPoly, self.gt)
-        return corner_coord_to_minmax(boxImXY) # xmin,xmax,ymin,ymax
-
-    @property
-    def imDimsYX(self):
-        xmin, xmax, ymin, ymax = self.boundsIm
-        return (ymax-ymin),(xmax-xmin)
-
-    @property
-    def mapDimsYX(self):
-        xmin, xmax, ymin, ymax = self.boundsMap
-        return (ymax-ymin),(xmax-xmin)
-
-    def buffer_imXY(self, buffImX=0, buffImY=0):
-        # type: (float, float)
-        """Buffer the box in X- and/or Y-direction.
-        :param buffImX:     <float> buffer value in x-direction as IMAGE UNITS (pixels)
-        :param buffImY:     <float> buffer value in y-direction as IMAGE UNITS (pixels)
-        """
-        xmin,xmax,ymin,ymax = self.boundsIm
-        xmin,xmax,ymin,ymax = xmin-buffImX, xmax+buffImX, ymin-buffImY, ymax+buffImY
-        self.imPoly         = box(xmin, ymin, xmax, ymax)
-
-    def is_larger_DimXY(self,boundsIm2test):
-        # type: (tuple) -> bool,bool
-        """Checks if the boxObj is larger than a given set of bounding image coordinates (in X- and/or Y-direction).
-        :param boundsIm2test:   <tuple> (xmin,xmax,ymin,ymax) as image coordinates
-        """
-        b2t_xmin, b2t_xmax, b2t_ymin, b2t_ymax = boundsIm2test
-        xmin, xmax, ymin, ymax                 = self.boundsIm
-        x_is_larger = xmin<b2t_xmin or xmax>b2t_xmax
-        y_is_larger = ymin<b2t_ymin or ymax>b2t_ymax
-        return x_is_larger,y_is_larger
+# custom
+from py_tools_ds.ptds.geo.vector.geometry  import boxObj
+from py_tools_ds.ptds.geo.vector.geometry  import round_shapelyPoly_coords
+from py_tools_ds.ptds.geo.vector.topology  import get_footprint_polygon, get_overlap_polygon, \
+                                                  find_line_intersection_point, get_largest_onGridPoly_within_poly, \
+                                                  get_smallest_boxImYX_that_contains_boxMapYX, \
+                                                  get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly
+from py_tools_ds.ptds.geo.coord_calc       import get_corner_coordinates, corner_coord_to_minmax
+from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid, find_nearest_grid_coord
+from py_tools_ds.ptds.geo.coord_trafo      import transform_utm_to_wgs84, pixelToLatLon, pixelToMapYX, imYX2mapYX
+from py_tools_ds.ptds.geo.projection       import get_proj4info, get_UTMzone, WKT2EPSG, isProjectedOrGeographic
+from py_tools_ds.ptds.geo.map_info         import geotransform2mapinfo
+from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 
 
-def get_winPoly(wp_imYX, ws, gt, match_grid=0):
-    # type: (tuple, tuple, list, bool) -> shapely.Polygon, tuple, tuple
-    """Creates a shapely polygon from a given set of image cordinates, window size and geotransform.
-    :param wp_imYX:
-    :param ws:          <tuple> X/Y window size
-    :param gt:
-    :param match_grid:  <bool>
-    """
-    ws = (ws, ws) if isinstance(ws, int) else ws
-    xmin, xmax, ymin, ymax = (
-    wp_imYX[1] - ws[0] / 2, wp_imYX[1] + ws[0] / 2, wp_imYX[0] + ws[1] / 2, wp_imYX[0] - ws[1] / 2)
-    if match_grid:
-        xmin, xmax, ymin, ymax = [int(i) for i in [xmin, xmax, ymin, ymax]]
-    box_YX = (ymax, xmin), (ymax, xmax), (ymin, xmax), (ymin, xmin)  # UL,UR,LR,LL
-    UL, UR, LR, LL = [imYX2mapYX(imYX, gt) for imYX in box_YX]
-    box_mapYX = UL, UR, LR, LL
-    return Polygon([(UL[1], UL[0]), (UR[1], UR[0]), (LR[1], LR[0]), (LL[1], LR[0])]), box_mapYX, box_YX
+from . import io as IO
 
 
-def shapelyImPoly_to_shapelyMapPoly_withPRJ(shapelyImPoly, gt,prj):
-    #ACTUALLY PRJ IS NOT NEEDED BUT THIS FUNCTION RETURNS OTHER VALUES THAN shapelyImPoly_to_shapelyMapPoly
-    geojson   = mapping(shapelyImPoly)
-    coords    = list(geojson['coordinates'][0])
-    coordsYX = pixelToMapYX(coords,geotransform=gt,projection=prj)
-    coordsXY = tuple([(i[1],i[0]) for i in coordsYX])
-    geojson['coordinates'] = (coordsXY,)
-    return shape(geojson)
-
-def shapelyImPoly_to_shapelyMapPoly(shapelyBox, gt):
-    xmin, ymin, xmax, ymax = shapelyBox.bounds
-    ymax, xmin = imYX2mapYX((ymax, xmin), gt)
-    ymin, xmax = imYX2mapYX((ymin, xmax), gt)
-    return box(xmin, ymin, xmax, ymax)
-
-def move_shapelyPoly_to_image_grid(shapelyPoly, gt, rows, cols, moving_dir='NW'):
-    polyULxy = (min(shapelyPoly.exterior.coords.xy[0]), max(shapelyPoly.exterior.coords.xy[1]))
-    polyLRxy = (max(shapelyPoly.exterior.coords.xy[0]), min(shapelyPoly.exterior.coords.xy[1]))
-    UL, LL, LR, UR = get_corner_coordinates(gt=gt, rows=rows, cols=cols)  # (x,y) tuples
-    round_x = {'NW': 'off', 'NO': 'on', 'SW': 'off', 'SE': 'on'}[moving_dir]
-    round_y = {'NW': 'on', 'NO': 'on', 'SW': 'off', 'SE': 'off'}[moving_dir]
-    tgt_xgrid = np.arange(UL[0], UR[0] + gt[1], gt[1])
-    tgt_ygrid = np.arange(LL[1], UL[1] + abs(gt[5]), abs(gt[5]))
-    tgt_xmin = UTL.find_nearest(tgt_xgrid, polyULxy[0], roundAlg=round_x)
-    tgt_xmax = UTL.find_nearest(tgt_xgrid, polyLRxy[0], roundAlg=round_x)
-    tgt_ymin = UTL.find_nearest(tgt_ygrid, polyLRxy[1], roundAlg=round_y)
-    tgt_ymax = UTL.find_nearest(tgt_ygrid, polyULxy[1], roundAlg=round_y)
-    return box(tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax)
-
-def get_corner_coordinates(fPath=None, gt=None, rows=None,cols=None):
-    """Return (UL, LL, LR, UR) as (x,y) tuples."""
-    if fPath is None: assert None not in [gt,rows,cols],"'gt', 'rows' and 'cols' must be given if gdal_ds is missing."
-    if fPath:
-        gdal_ds    = gdal.Open(fPath)
-        gdal_ds_GT = gdal_ds.GetGeoTransform()
-        rows, cols = gdal_ds.RasterYSize, gdal_ds.RasterXSize
-        gdal_ds    = None
-    else:
-        gdal_ds_GT = gt
-        rows, cols = rows,cols
-    ext=[]
-    xarr=[0,cols]
-    yarr=[0,rows]
-    for px in xarr:
-        for py in yarr:
-            x=gdal_ds_GT[0]+(px*gdal_ds_GT[1])+(py*gdal_ds_GT[2])
-            y=gdal_ds_GT[3]+(px*gdal_ds_GT[4])+(py*gdal_ds_GT[5])
-            ext.append([x,y])
-        yarr.reverse()
-    return ext
+__all__=['boxObj',
+         'round_shapelyPoly_coords',
+         'get_footprint_polygon',
+         'get_overlap_polygon',
+         'find_line_intersection_point',
+         'get_largest_onGridPoly_within_poly',
+         'get_smallest_boxImYX_that_contains_boxMapYX',
+         'get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly',
+         'get_corner_coordinates',
+         'corner_coord_to_minmax,',
+         'move_shapelyPoly_to_image_grid',
+         'find_nearest_grid_coord',
+         'transform_utm_to_wgs84',
+         'pixelToLatLon',
+         'pixelToMapYX',
+         'imYX2mapYX',
+         'get_proj4info',
+         'get_UTMzone',
+         'WKT2EPSG',
+         'isProjectedOrGeographic',
+         'geotransform2mapinfo',
+         'warp_ndarray']
 
 
-def corner_coord_to_minmax(corner_coords):
-    """Returns the bounding coordinates for a given set of XY coordinates.
 
-    :param corner_coords:   # four XY tuples of corner coordinates. Their order does not matter.
-    :return: xmin,xmax,ymin,ymax
-    """
-    x_vals = [i[0] for i in corner_coords]
-    y_vals = [i[1] for i in corner_coords]
-    xmin, xmax, ymin, ymax = min(x_vals), max(x_vals), min(y_vals), max(y_vals)
-    return xmin, xmax, ymin, ymax
-
-
-def get_footprint_polygon(CornerLonLat):
-    outpoly = Polygon(CornerLonLat)
-    assert outpoly.is_valid, 'The given coordinates result in an invalid polygon. Check coordinate order.'
-    return outpoly
-
-
-def get_overlap_polygon(poly1, poly2,v=0):
-    overlap_poly = poly1.intersection(poly2)
-    if not overlap_poly.is_empty:
-        overlap_percentage = 100 * shape(overlap_poly).area / shape(poly2).area
-        if v: print('%.2f percent of the image to be shifted is covered by the reference image.' %overlap_percentage)
-        return {'overlap poly':overlap_poly, 'overlap percentage':overlap_percentage, 'overlap area':overlap_poly.area}
-    else:
-        return {'overlap poly':None, 'overlap percentage':0, 'overlap area':0}
-
-
-def find_line_intersection_point(line1, line2):
-    xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
-    ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
-
-    det = lambda a,b: a[0] * b[1] - a[1] * b[0]
-    div = det(xdiff, ydiff)
-    if div == 0: # lines do not intersect
-        return None, None
-    d = (det(*line1), det(*line2))
-    x = det(d, xdiff) / div
-    y = det(d, ydiff) / div
-    return x, y
 
 
 def angle_to_north(XY):
@@ -273,7 +70,6 @@ def angle_to_north(XY):
     XY    = np.array(XY)
     XYarr = XY if len(XY.shape)==2 else XY.reshape((1,2))
     return np.abs(np.degrees(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2)%360)
-
 
 
 def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0): # TODO implement shapely algorithm
@@ -294,7 +90,7 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0): # TODO imple
         mask_1bit[:,:] = 1
     else:
         if mp:
-            band_data = IO.gdal_ReadAsArray_mp(fPath,bandNr)
+            band_data = IO.gdal_ReadAsArray_mp(fPath, bandNr)
         else:
             gdal_ds   = gdal.Open(fPath)
             band_data = gdal_ds.GetRasterBand(bandNr).ReadAsArray()
@@ -376,66 +172,6 @@ def get_true_corner_lonlat(fPath,bandNr=1,noDataVal=None,mp=1,v=0): # TODO imple
     return corner_pos_XY
 
 
-mapYX2imYX = lambda mapYX,gt: ((mapYX[0]-gt[3])/gt[5],     (mapYX[1]-gt[0])/gt[1])
-imYX2mapYX = lambda imYX ,gt: (gt[3]-(imYX[0]*abs(gt[5])), gt[0]+(imYX[1]*gt[1]))
-
-
-def round_shapelyPoly_coords(shapelyPoly, precision=10,out_dtype=None):
-    geojson = mapping(shapelyPoly)
-    geojson['coordinates'] = np.round(np.array(geojson['coordinates']), precision)
-    if out_dtype:
-        geojson['coordinates'] = geojson['coordinates'].astype(out_dtype)
-    return shape(geojson)
-
-def find_nearest_grid_coord(valXY,gt,rows,cols,direction='NW',extrapolate=True):
-    UL, LL, LR, UR = get_corner_coordinates(gt=gt, rows=rows, cols=cols)  # (x,y) tuples
-    round_x = {'NW': 'off', 'NO': 'on', 'SW': 'off', 'SO': 'on'}[direction]
-    round_y = {'NW': 'on', 'NO': 'on', 'SW': 'off', 'SO': 'off'}[direction]
-    tgt_xgrid = np.arange(UL[0], UR[0] + gt[1], gt[1])
-    tgt_ygrid = np.arange(LL[1], UL[1] + abs(gt[5]), abs(gt[5]))
-    tgt_x = UTL.find_nearest(tgt_xgrid, valXY[0], roundAlg=round_x, extrapolate=extrapolate)
-    tgt_y = UTL.find_nearest(tgt_ygrid, valXY[1], roundAlg=round_y, extrapolate=extrapolate)
-    return tgt_x,tgt_y
-
-def get_smallest_boxImYX_that_contains_boxMapYX(box_mapYX, gt_im):
-    xmin,ymin,xmax,ymax = Polygon([(i[1],i[0]) for i in box_mapYX]).bounds # map-bounds box_mapYX
-    (ymin,xmin),(ymax,xmax) = mapYX2imYX([ymin,xmin],gt_im), mapYX2imYX([ymax,xmax],gt_im) # image coord bounds
-    xmin,ymin,xmax,ymax = int(xmin),math.ceil(ymin), math.ceil(xmax), int(ymax) # round min coords off and max coords on
-    return (ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin) # UL_YX,UR_YX,LR_YX,LL_YX
-
-def get_largest_onGridPoly_within_poly(outerPoly,gt,rows,cols):
-    oP_xmin,oP_ymin,oP_xmax,oP_ymax = outerPoly.bounds
-    xmin,ymax = find_nearest_grid_coord((oP_xmin,oP_ymax),gt,rows,cols,direction='SE')
-    xmax,ymin = find_nearest_grid_coord((oP_xmax,oP_ymin),gt,rows,cols,direction='NW')
-    return box(xmin, ymin, xmax, ymax)
-
-def get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly(shapelyPoly):
-    """Returns the smallest box that matches the coordinate grid of the given geotransform.
-    The returned shapely polygon contains image coordinates."""
-    xmin,ymin,xmax,ymax = shapelyPoly.bounds # image_coords-bounds
-    return box(int(xmin),int(ymin), math.ceil(xmax), math.ceil(ymax)) # round min coords off and max coords on
-
-def shapelyBox2BoxYX(shapelyBox,coord_type='image'):
-    xmin, ymin, xmax, ymax = shapelyBox.bounds
-    assert coord_type in ['image','map']
-    UL_YX, UR_YX, LR_YX, LL_YX = ((ymin,xmin),(ymin,xmax),(ymax,xmax),(ymax,xmin)) if coord_type=='image' else \
-                                 ((ymax,xmin),(ymax,xmax),(ymin,xmax),(ymin,xmin))
-    return UL_YX, UR_YX, LR_YX, LL_YX
-
-def get_boxImXY_from_shapelyPoly(shapelyPoly, im_gt):
-    # type: (shapely.Polygon,tuple) -> np.ndarray
-    """Converts each vertex coordinate of a shapely polygon into image coordinates corresponding to the given
-    geotransform without respect to invalid image coordinates. Those must be filtered later.
-    :param shapelyPoly:     <shapely.Polygon>
-    :param im_gt:           <list> the GDAL geotransform of the target image
-    """
-    get_coordsArr = lambda shpPoly: np.swapaxes(np.array(shpPoly.exterior.coords.xy), 0, 1)
-    coordsArr     = get_coordsArr(shapelyPoly)
-    boxImXY       = [mapYX2imYX((Y, X), im_gt) for X, Y in coordsArr.tolist()] # FIXME incompatible to GMS version
-    boxImXY       = [(i[1],i[0]) for i in boxImXY]
-    return boxImXY
-
-
 def get_subset_GeoTransform(gt_fullArr,subset_box_imYX):
     gt_subset = list(gt_fullArr[:]) # copy
     gt_subset[3],gt_subset[0] = imYX2mapYX(subset_box_imYX[0],gt_fullArr)
@@ -448,301 +184,6 @@ def get_gdalReadInputs_from_boxImYX(boxImYX):
     clip_sz_x = abs(boxImYX[1][1]-boxImYX[0][1]) # URx-ULx
     clip_sz_y = abs(boxImYX[0][0]-boxImYX[2][0]) # ULy-LLy
     return cS, rS, clip_sz_x,clip_sz_y
-
-
-def get_proj4info(ds=None,proj=None):
-    assert ds or proj, "Specify at least one of the arguments 'ds' or 'proj'"
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(ds.GetProjection() if ds is not None else proj)
-    return srs.ExportToProj4()
-
-
-def get_UTMzone(ds=None,prj=None):
-    assert ds or prj, "Specify at least one of the arguments 'ds' or 'prj'"
-    if isProjectedOrGeographic(prj)=='projected':
-        srs = osr.SpatialReference()
-        srs.ImportFromWkt(ds.GetProjection() if ds is not None else prj)
-        return srs.GetUTMZone()
-    else:
-        return None
-
-
-def isProjectedOrGeographic(prj):
-    if prj is None: return None
-    srs = osr.SpatialReference()
-    if prj.startswith('EPSG:'):
-        srs.ImportFromEPSG(int(prj.split(':')[1]))
-    elif prj.startswith('+proj='):
-        srs.ImportFromProj4(prj)
-    elif prj.startswith('GEOGCS') or prj.startswith('PROJCS'):
-        srs.ImportFromWkt(prj)
-    else:
-        raise Exception('Unknown input projection.')
-    return 'projected' if srs.IsProjected() else 'geographic' if srs.IsGeographic() else None
-
-
-def WKT2EPSG(wkt, epsg=os.environ['GDAL_DATA'].replace('/gdal', '/proj/epsg')):
-    """ Transform a WKT string to an EPSG code
-    :param wkt:  WKT definition
-    :param epsg: the proj.4 epsg file (defaults to '/usr/local/share/proj/epsg')
-    :returns:    EPSG code
-    http://gis.stackexchange.com/questions/20298/is-it-possible-to-get-the-epsg-value-from-an-osr-spatialreference-class-using-th
-    """
-    # FIXME this function returns None if datum=NAD27 but works with datum=WGS84, e.g.:
-    # FIXME {PROJCS["UTM_Zone_33N",GEOGCS["GCS_North_American_1927",DATUM["D_North_American_1927",SPHEROID["Clarke_1866",6378206.4,294.9786982]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",15.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]}
-    code = None #default
-    p_in = osr.SpatialReference()
-    s    = p_in.ImportFromWkt(wkt)
-    if s == 5:  # invalid WKT
-        raise Exception('Invalid WKT.')
-    if p_in.IsLocal():
-        raise Exception('The given WKT is a local coordinate system.')
-    cstype = 'GEOGCS' if p_in.IsGeographic() else 'PROJCS'
-    p_in.AutoIdentifyEPSG()
-    an = p_in.GetAuthorityName(cstype)
-    assert an in [None,'EPSG'], "No EPSG code found. Found %s instead." %an
-    ac = p_in.GetAuthorityCode(cstype)
-    if ac is None:  # try brute force approach by grokking proj epsg definition file
-        p_out = p_in.ExportToProj4()
-        if p_out:
-            with open(epsg) as f:
-                for line in f:
-                    if line.find(p_out) != -1:
-                        m = re.search('<(\\d+)>', line)
-                        if m:
-                            code = m.group(1)
-                            break
-                code = code if code else None # match or no match
-    else:
-        code = ac
-    return code
-
-
-def pixelToLatLon(pixelPairs, path_im=None, geotransform=None, projection=None):
-    """The following method translates given pixel locations into latitude/longitude locations on a given GEOTIF
-    This method does not take into account pixel size and assumes a high enough
-    image resolution for pixel size to be insignificant
-    :param pixelPairs:      The pixel pairings to be translated in the form [[x1,y1],[x2,y2]]
-    :param path_im:         The file location of the input image
-    :param geotransform:    GDAL GeoTransform
-    :param projection:      GDAL Projection
-    :returns:               The lat/lon translation of the pixel pairings in the form [[lat1,lon1],[lat2,lon2]]
-    """
-    assert path_im is not None or geotransform is not None and projection is not None, \
-        "GEOP.pixelToLatLon: Missing argument! Please provide either 'path_im' or 'geotransform' AND 'projection'."
-    if geotransform is not None and projection is not None:
-        gt,proj = geotransform, projection
-    else:
-        ds       = gdal.Open(path_im)
-        gt, proj = ds.GetGeoTransform(), ds.GetProjection()
-
-    # Create a spatial reference object for the dataset
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(proj)
-    # Set up the coordinate transformation object
-    srsLatLong = srs.CloneGeogCS()
-    ct = osr.CoordinateTransformation(srs, srsLatLong)
-    # Go through all the point pairs and translate them to pixel pairings
-    latLonPairs = []
-    for point in pixelPairs:
-        # Translate the pixel pairs into untranslated points
-        ulon = point[0] * gt[1] + gt[0]
-        ulat = point[1] * gt[5] + gt[3]
-        # Transform the points to the space
-        (lon, lat, holder) = ct.TransformPoint(ulon, ulat)
-        # Add the point to our return array
-        latLonPairs.append([lat, lon])
-
-    return latLonPairs
-
-
-def pixelToMapYX(pixelCoords, path_im=None, geotransform=None, projection=None):
-    assert path_im or geotransform and projection, \
-        "pixelToMapYX: Missing argument! Please provide either 'path_im' or 'geotransform' AND 'projection'."
-    if geotransform and projection:
-        gt,proj = geotransform, projection
-    else:
-        ds       = gdal.Open(path_im)
-        gt, proj = ds.GetGeoTransform(), ds.GetProjection()
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(proj)
-    # Set up the coordinate transformation object
-    ct  = osr.CoordinateTransformation(srs, srs)
-
-    mapYmapXPairs = []
-    pixelCoords   = [pixelCoords] if not type(pixelCoords[0]) in [list,tuple] else pixelCoords
-
-    for point in pixelCoords:
-        # Translate the pixel pairs into untranslated points
-        u_mapX = point[0] * gt[1] + gt[0]
-        u_mapY = point[1] * gt[5] + gt[3]
-        # Transform the points to the space
-        (mapX, mapY, holder) = ct.TransformPoint(u_mapX, u_mapY)
-        # Add the point to our return array
-        mapYmapXPairs.append([mapY, mapX])
-
-    return mapYmapXPairs
-
-
-def warp_ndarray(ndarray, in_gt, in_prj, out_prj, out_gt=None, outRowsCols=None, outUL=None, out_res=None,
-                 out_extent=None, out_dtype=None, rsp_alg=0, in_nodata=None, out_nodata=None, outExtent_within=True):
-
-    """Reproject / warp a numpy array with given geo information to target coordinate system.
-
-    :param ndarray:             numpy.ndarray [rows,cols,bands]
-    :param in_gt:               input gdal GeoTransform
-    :param in_prj:              input projection as WKT string
-    :param out_prj:             output projection as WKT string
-    :param out_gt:              output gdal GeoTransform as float tuple in the source coordinate system (optional)
-    :param outUL:               [X,Y] output upper left coordinates as floats in the source coordinate system
-                                (requires outRowsCols)
-    :param outRowsCols:         [rows, cols] (optional)
-    :param out_res:             output resolution as tuple of floats (x,y) in the TARGET coordinate system
-    :param out_extent:          [left, bottom, right, top] as floats in the source coordinate system
-    :param out_dtype:           output data type as numpy data type
-    :param rsp_alg:             Resampling method to use. One of the following (int, default is 0):
-                                0 = nearest neighbour, 1 = bilinear, 2 = cubic, 3 = cubic spline, 4 = lanczos,
-                                5 = average, 6 = mode
-    :param in_nodata:           no data value of the input image
-    :param out_nodata:          no data value of the output image
-    :param outExtent_within:    Ensures that the output extent is within the input extent.
-                                Otherwise an exception is raised.
-    :return out_arr:            warped numpy array
-    :return out_gt:             warped gdal GeoTransform
-    :return out_prj:            warped projection as WKT string
-    """
-    if not ndarray.flags['OWNDATA']:
-        temp = np.empty_like(ndarray)
-        temp[:] = ndarray
-        ndarray = temp  # deep copy: converts view to its own array in order to avoid wrong output
-
-    with rasterio.env.Env():
-        if outUL is not None:
-            assert outRowsCols is not None, 'outRowsCols must be given if outUL is given.'
-        outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
-
-        inEPSG, outEPSG = [WKT2EPSG(prj) for prj in [in_prj, out_prj]]
-        assert inEPSG, 'Could not derive input EPSG code.'
-        assert outEPSG, 'Could not derive output EPSG code.'
-        assert in_nodata is None or type(in_nodata) in [int, float]
-        assert out_nodata is None or type(out_nodata) in [int, float]
-
-        src_crs = {'init': 'EPSG:%s' % inEPSG}
-        dst_crs = {'init': 'EPSG:%s' % outEPSG}
-
-        if len(ndarray.shape) == 3:
-            # convert input array axis order to rasterio axis order
-            ndarray = np.swapaxes(np.swapaxes(ndarray, 0, 2), 1, 2)
-            bands, rows, cols = ndarray.shape
-            rows, cols = outRowsCols if outRowsCols else (rows, cols)
-        else:
-            rows, cols = ndarray.shape if outRowsCols is None else outRowsCols
-
-        # set dtypes ensuring at least int16 (int8 is not supported by rasterio)
-        in_dtype = ndarray.dtype
-        out_dtype = ndarray.dtype if out_dtype is None else out_dtype
-        out_dtype = np.int16 if str(out_dtype) == 'int8' else out_dtype
-        ndarray = ndarray.astype(np.int16) if str(in_dtype) == 'int8' else ndarray
-
-        gt2bounds = lambda gt, r, c: [gt[0], gt[3] + r * gt[5], gt[0] + c * gt[1], gt[3]]  # left, bottom, right, top
-
-        # get dst_transform
-        if out_gt is None and out_extent is None:
-            if outRowsCols:
-                outUL = [in_gt[0], in_gt[3]] if outUL is None else outUL
-                ulRC2bounds = lambda ul, r, c: [ul[0], ul[1] + r * in_gt[5], ul[0] + c * in_gt[1],
-                                                ul[1]]  # left, bottom, right, top
-                left, bottom, right, top = ulRC2bounds(outUL, rows, cols)
-            else:  # outRowsCols is None and outUL is None: use in_gt
-                left, bottom, right, top = gt2bounds(in_gt, rows, cols)
-                # ,im_xmax,im_ymin,im_ymax = corner_coord_to_minmax(get_corner_coordinates(self.ds_im2shift))
-        elif out_extent:
-            left, bottom, right, top = out_extent
-        else:  # out_gt is given
-            left, bottom, right, top = gt2bounds(in_gt, rows, cols)
-
-        if outExtent_within:
-            # input array is only a window of the actual input array
-            assert left >= in_gt[0] and right <= (in_gt[0] + (cols + 1) * in_gt[1]) and \
-                   bottom >= in_gt[3] + (rows + 1) * in_gt[5] and top <= in_gt[3], \
-                "out_extent has to be completely within the input image bounds."
-
-        if out_res is None:
-            # get pixel resolution in target coord system
-            prj_in_out = (isProjectedOrGeographic(in_prj), isProjectedOrGeographic(out_prj))
-            assert None not in prj_in_out, 'prj_in_out contains None.'
-            if prj_in_out[0] == prj_in_out[1]:
-                out_res = (in_gt[1], abs(in_gt[5]))
-            elif prj_in_out == ('geographic', 'projected'):
-                raise NotImplementedError('Different projections are currently not supported.')
-            else:  # ('projected','geographic')
-                px_size_LatLon = np.array(pixelToLatLon([1, 1], geotransform=in_gt, projection=in_prj)) - \
-                                 np.array(pixelToLatLon([0, 0], geotransform=in_gt, projection=in_prj))
-                out_res = tuple(reversed(abs(px_size_LatLon)))
-                print('OUT_RES NOCHMAL CHECKEN: ', out_res)
-
-        dst_transform, out_cols, out_rows = rio_calc_transform(
-            src_crs, dst_crs, cols, rows, left, bottom, right, top,
-            resolution=out_res)  # TODO keyword densify_pts=21 does not exist anymore (moved to transform_bounds()) -> could that be a problem? check warp outputs
-
-        # check if calculated output dimensions correspond to expected ones and correct them if neccessary
-        rows_expected = int(round(abs(top - bottom) / out_res[1],0))
-        cols_expected = int(round(abs(right - left) / out_res[0],0))
-        diff_rows_exp_real, diff_cols_exp_real = abs(out_rows-rows_expected), abs(out_cols-cols_expected)
-        if diff_rows_exp_real > 0.1 or diff_cols_exp_real > 0.1:
-            assert diff_rows_exp_real < 1.1 and diff_cols_exp_real < 1.1, 'warp_ndarray: The output image size ' \
-                'calculated by rasterio is too far away from the expected output image size.'
-            out_rows, out_cols = rows_expected, cols_expected
-            # fixes an issue where rio_calc_transform() does not return quadratic output image although input parameters
-            # correspond to a quadratic image and inEPSG equals outEPSG
-
-        aff = list(dst_transform)
-        out_gt = out_gt if out_gt else (aff[2], aff[0], aff[1], aff[5], aff[3], aff[4])
-
-        src_transform = rasterio.transform.from_origin(in_gt[0], in_gt[3], in_gt[1], in_gt[5])
-
-        dict_rspInt_rspAlg = \
-            {0: Resampling.nearest, 1: Resampling.bilinear, 2: Resampling.cubic,
-             3: Resampling.cubic_spline, 4: Resampling.lanczos, 5: Resampling.average, 6: Resampling.mode}
-
-        out_arr = np.zeros((bands, out_rows, out_cols), out_dtype) \
-            if len(ndarray.shape) == 3 else np.zeros((out_rows, out_cols), out_dtype)
-
-        # FIXME direct passing of src_transform and dst_transform results in a wrong output image. Maybe a rasterio-bug?
-        # rio_reproject(ndarray, out_arr, src_transform=src_transform, src_crs=src_crs, dst_transform=dst_transform,
-        #    dst_crs=dst_crs, resampling=dict_rspInt_rspAlg[rsp_alg])
-        # FIXME indirect passing causes Future warning
-        with warnings.catch_warnings():
-            warnings.simplefilter(
-                'ignore')  # FIXME supresses: FutureWarning: GDAL-style transforms are deprecated and will not be supported in Rasterio 1.0.
-            try:
-                # print('INPUTS')
-                # print(ndarray.shape, ndarray.dtype, out_arr.shape, out_arr.dtype)
-                # print(in_gt)
-                # print(src_crs)
-                # print(out_gt)
-                # print(dst_crs)
-                # print(dict_rspInt_rspAlg[rsp_alg])
-                # print(in_nodata)
-                # print(out_nodata)
-                rio_reproject(ndarray, out_arr,
-                              src_transform=in_gt, src_crs=src_crs, dst_transform=out_gt, dst_crs=dst_crs,
-                              resampling=dict_rspInt_rspAlg[rsp_alg], src_nodata=in_nodata, dst_nodata=out_nodata)
-                from matplotlib import pyplot as plt
-                # print(out_arr.shape)
-                # plt.figure()
-                # plt.imshow(out_arr[:,:,1])
-            except KeyError:
-                print(in_dtype, str(in_dtype))
-                print(ndarray.dtype)
-
-        # convert output array axis order to GMS axis order [rows,cols,bands]
-        out_arr = out_arr if len(ndarray.shape) == 2 else np.swapaxes(np.swapaxes(out_arr, 0, 1), 1, 2)
-
-        if outRowsCols:
-            out_arr = out_arr[:outRowsCols[0], :outRowsCols[1]]
-
-    return out_arr, out_gt, out_prj
 
 
 def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
@@ -763,33 +204,3 @@ def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
     possVals = [i['mean'] for i in [UL,UR,LR,LL] if i['std']==0]
     # possVals==[]: all corners are filled with data; np.std(possVals)==0: noDataVal clearly identified
     return None if possVals==[] else possVals[0] if np.std(possVals)==0 else 'unclear'
-
-
-def transform_utm_to_wgs84(easting, northing, zone, south=False):
-    UTM   = pyproj.Proj(proj='utm', zone=abs(zone), ellps='WGS84',south=(zone<0 or south))
-    return UTM(easting, northing, inverse=True)
-
-
-def geotransform2mapinfo(gt,prj):
-    """Builds an ENVI map info from given GDAL GeoTransform and Projection (compatible with UTM and LonLat projections).
-    :param gt:  GDAL GeoTransform, e.g. (249885.0, 30.0, 0.0, 4578615.0, 0.0, -30.0)
-    :param prj: GDAL Projection - WKT Format
-    :returns:   ENVI map info, e.g. [ UTM , 1 , 1 , 256785.0 , 4572015.0 , 30.0 , 30.0 , 43 , North , WGS-84 ]
-    :rtype:     list
-    """
-
-    if gt[2]!=0 or gt[4]!=0: # TODO
-        raise NotImplementedError('Currently rotated datasets are not supported.')
-    srs         = osr.SpatialReference()
-    srs.ImportFromWkt(prj)
-    Proj4       = [i[1:] for i in srs.ExportToProj4().split()]
-    Proj4_proj  = [v.split('=')[1] for i,v in enumerate(Proj4) if '=' in v and v.split('=')[0]=='proj'][0]
-    Proj4_ellps = [v.split('=')[1] for i,v in enumerate(Proj4) if '=' in v and v.split('=')[0] in ['ellps','datum']][0]
-    proj        = 'Geographic Lat/Lon' if Proj4_proj=='longlat' else 'UTM' if Proj4_proj=='utm' else Proj4_proj
-    ellps       = 'WGS-84' if Proj4_ellps=='WGS84' else Proj4_ellps
-    UL_X, UL_Y, GSD_X, GSD_Y = gt[0], gt[3], gt[1], gt[5]
-    utm2wgs84          = lambda utmX,utmY: transform_utm_to_wgs84(utmX,utmY,srs.GetUTMZone())
-    is_UTM_North_South = lambda LonLat: 'North' if LonLat[1] >= 0. else 'South'
-    map_info = [proj,1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),ellps] if proj!='UTM' else \
-        ['UTM',1,1,UL_X,UL_Y,GSD_X,abs(GSD_Y),srs.GetUTMZone(),is_UTM_North_South(utm2wgs84(UL_X,UL_Y)),ellps]
-    return map_info

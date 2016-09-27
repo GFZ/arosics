@@ -32,11 +32,16 @@ except ImportError:
     from osgeo import osr
     from osgeo import ogr
 
+
+from py_tools_ds.ptds import GeoArray
+
+
 if __name__=='__main__':
     from components import geometry  as GEO
     from components import plotting  as PLT
     from components import utilities as UTL
     from components import io        as IO
+
 else:
     from .components import geometry  as GEO
     from .components import plotting  as PLT
@@ -44,8 +49,8 @@ else:
     from .components import io        as IO
 
 
-
 class COREG(object):
+    # TODO implement GeoArray here
     def __init__(self, path_im0, path_im1, path_out='.', r_b4match=1, s_b4match=1, wp=(None,None), ws=(512, 512),
                  max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None, data_corners_im0=None,
                  data_corners_im1=None, nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True,
@@ -140,9 +145,9 @@ class COREG(object):
         self.overlap_percentage       = overlap_tmp['overlap percentage']
         self.overlap_area             = overlap_tmp['overlap area']
 
-        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_imref.shp')   , self.ref.poly,     self.ref.prj)
-        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_im2shift.shp'), self.shift.poly,   self.shift.prj)
-        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'overlap_poly.shp') , self.overlap_poly, self.ref.prj)
+        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_imref.shp'), self.ref.poly, self.ref.prj)
+        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'poly_im2shift.shp'), self.shift.poly, self.shift.prj)
+        if self.v: IO.write_shp(os.path.join(self.verbose_out, 'overlap_poly.shp'), self.overlap_poly, self.ref.prj)
 
         ### FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection()) # später basteln für den fall, dass projektionen nicht gleich sind
 
@@ -632,10 +637,11 @@ class COREG(object):
                                            %(self.x_shift_px,self.y_shift_px))
                 else:
                     self.success = True
-                    self.get_updated_map_info()
-                    self.set_coreg_info()
 
         self.x_shift_px, self.y_shift_px = (x_shift_px,y_shift_px) if self.success else (None,None)
+        if self.x_shift_px or self.y_shift_px:
+            self.get_updated_map_info()
+            self.set_coreg_info()
 
         warnings.simplefilter('default')
 
@@ -643,7 +649,6 @@ class COREG(object):
     def get_updated_map_info(self):
         original_map_info = GEO.geotransform2mapinfo(self.shift.gt, self.shift.prj)
         if not self.q: print('Original map info:', original_map_info)
-
         new_originY, new_originX = GEO.pixelToMapYX([self.x_shift_px,self.y_shift_px],
                                                      geotransform=self.shift.gt, projection=self.shift.prj)[0]
         self.x_shift_map = new_originX - self.shift.gt[0]
@@ -694,7 +699,7 @@ class COREG(object):
         ds_im2shift = gdal.Open(self.shift.path)
         if not ds_im2shift.GetDriver().ShortName == 'ENVI': # FIXME laaangsam
             if self.mp:
-                IO.convert_gdal_to_bsq__mp(self.shift.path,self.path_out)
+                IO.convert_gdal_to_bsq__mp(self.shift.path, self.path_out)
             else:
                 os.system('gdal_translate -of ENVI %s %s' %(self.shift.path, self.path_out))
             file2getHdr = self.path_out
@@ -1328,7 +1333,7 @@ class Geom_Quality_Grid(object):
         print('Writing %s ...' %path_out)
         # add a half pixel grid points are centered on the output pixels
         xmin,ymin,xmax,ymax = xmin-grid_res/2,ymin-grid_res/2,xmax+grid_res/2,ymax+grid_res/2
-        IO.write_numpy_to_image(zvalues,path_out,gt=(xmin,grid_res,0,ymax,0,-grid_res),prj=self.COREG_obj.shift.prj)
+        IO.write_numpy_to_image(zvalues, path_out, gt=(xmin, grid_res, 0, ymax, 0, -grid_res), prj=self.COREG_obj.shift.prj)
 
         return zvalues
 
@@ -1399,7 +1404,7 @@ class Geom_Quality_Grid(object):
         print('Writing %s ...' %path_out)
         # add a half pixel grid points are centered on the output pixels
         xmin,ymin,xmax,ymax = xmin-grid_res/2,ymin-grid_res/2,xmax+grid_res/2,ymax+grid_res/2
-        IO.write_numpy_to_image(zvalues,path_out,gt=(xmin,grid_res,0,ymax,0,-grid_res),prj=self.COREG_obj.shift.prj)
+        IO.write_numpy_to_image(zvalues, path_out, gt=(xmin, grid_res, 0, ymax, 0, -grid_res), prj=self.COREG_obj.shift.prj)
 
         return zvalues
 
