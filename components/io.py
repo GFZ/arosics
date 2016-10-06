@@ -16,7 +16,6 @@ from .utilities import get_dtypeStr, get_image_tileborders, convertGdalNumpyData
 
 
 
-
 def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
     globs = globals()
     same_gdalRefs = [k for k,v in globs.items() if isinstance(globs[k],gdal.Dataset) and globs[k].GetDescription()==path_file]

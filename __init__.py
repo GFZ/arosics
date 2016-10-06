@@ -3,9 +3,10 @@ from .components import plotting
 from .components import utilities
 from .components import geometry
 
-from .dsc__CoReg_Sat_FourierShiftTheorem import COREG, Geom_Quality_Grid
+from .dsc__CoReg_Sat_FourierShiftTheorem import COREG, DESHIFTER, Geom_Quality_Grid
 
 __all__=['COREG',
+         'DESHIFTER',
          'Geom_Quality_Grid',
          'io',
          'utilities',
