@@ -40,6 +40,8 @@ class imParamObj(object):
     def __init__(self, CoReg_params, imID):
         assert imID in ['ref', 'shift']
         self.imName = 'reference image' if imID == 'ref' else 'image to be shifted'
+        self.v = CoReg_params['v']
+        self.q = CoReg_params['q'] if not self.v else False
 
         # set GeoArray
         get_geoArr = lambda p: GeoArray(p) if not isinstance(p,GeoArray) else p
@@ -85,8 +87,8 @@ class imParamObj(object):
             if CoReg_params['calc_corners']:
                 if not CoReg_params['q']:
                     print('Calculating actual data corner coordinates for %s...' % self.imName)
-                self.corner_coord = GEO.get_true_corner_mapXY(
-                    self.GeoArray, self.band4match, self.nodata, CoReg_params['multiproc'])
+                self.corner_coord = GEO.get_true_corner_mapXY(self.GeoArray, self.band4match, self.nodata,
+                                        CoReg_params['multiproc'], v=self.v, q=self.q)
             else:
                 self.corner_coord = get_corner_coordinates(gt=self.GeoArray.geotransform,
                                                                cols=self.cols,rows=self.rows)

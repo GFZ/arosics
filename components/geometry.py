@@ -2,7 +2,11 @@
 __author__='Daniel Scheffler'
 
 import warnings
+import sys
+
+# custom
 import numpy  as np
+from geopandas import GeoDataFrame
 
 try:
     import gdal
@@ -12,7 +16,6 @@ except ImportError:
     from osgeo import gdal
     from osgeo import osr
     from osgeo import ogr
-
 
 # internal modules
 from py_tools_ds.ptds.geo.coord_calc       import calc_FullDataset_corner_positions
@@ -32,7 +35,7 @@ def angle_to_north(XY):
     return np.abs(np.degrees(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2)%360)
 
 
-def get_true_corner_mapXY(fPath_or_geoarray, bandNr=1, noDataVal=None, mp=1, v=0):
+def get_true_corner_mapXY(fPath_or_geoarray, bandNr=1, noDataVal=None, mp=1, v=0, q=0):
     geoArr    = GeoArray(fPath_or_geoarray) if not isinstance(fPath_or_geoarray,GeoArray) else fPath_or_geoarray
 
     rows,cols = geoArr.shape[:2]
@@ -56,10 +59,20 @@ def get_true_corner_mapXY(fPath_or_geoarray, bandNr=1, noDataVal=None, mp=1, v=0
 
     try:
         corner_coords_YX = calc_FullDataset_corner_positions(mask_1bit, assert_four_corners=False, algorithm='shapely')
-    except:
+    except Exception:
+        if v:
+            warnings.warn("\nCalculation of corner coordinates failed within algorithm 'shapely' (Exception: %s)."
+                          " Using algorithm 'numpy' instead." %sys.exc_info()[1])
         corner_coords_YX = calc_FullDataset_corner_positions(mask_1bit, assert_four_corners=False, algorithm='numpy')
 
-    ## check if all points are unique
+    # check if enough unique coordinates have been found
+    if not len(GeoDataFrame(corner_coords_YX).drop_duplicates().values)>=3:
+        if not q:
+            warnings.warn('\nThe algorithm for automatically detecting the actual image coordinates did not find '
+                          'enough unique corners. Using outer image corner coordinates instead.')
+        corner_coords_YX = ((0, 0), (0, cols-1), (rows-1, 0), (rows-1, cols-1))
+
+    # check if all points are unique
     #all_coords_are_unique = len([UL, UR, LL, LR]) == len(GeoDataFrame([UL, UR, LL, LR]).drop_duplicates().values)
     #UL, UR, LL, LR = (UL, UR, LL, LR) if all_coords_are_unique else ((0, 0), (0, cols-1), (rows-1, 0), (rows-1, cols-1))
 
