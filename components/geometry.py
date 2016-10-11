@@ -65,6 +65,9 @@ def get_true_corner_mapXY(fPath_or_geoarray, bandNr=1, noDataVal=None, mp=1, v=0
                           " Using algorithm 'numpy' instead." %sys.exc_info()[1])
         corner_coords_YX = calc_FullDataset_corner_positions(mask_1bit, assert_four_corners=False, algorithm='numpy')
 
+    if len(corner_coords_YX)==4: # this avoids shapely self intersection
+        corner_coords_YX = list(np.array(corner_coords_YX)[[0,1,3,2]]) # UL, UR, LL, LR => UL, UR, LR, LL
+
     # check if enough unique coordinates have been found
     if not len(GeoDataFrame(corner_coords_YX).drop_duplicates().values)>=3:
         if not q:
@@ -102,21 +105,18 @@ def get_GeoArrayPosition_from_boxImYX(boxImYX):
     return rS, rE, cS, cE
 
 
-def find_noDataVal(path_im,bandNr=1,sz=3,is_vrt=0):
+def find_noDataVal(pathIm_or_GeoArray,bandIdx=0,sz=3):
     """tries to derive no data value from homogenious corner pixels within 3x3 windows (by default)
-    :param path_im:
-    :param bandNr:
+    :param pathIm_or_GeoArray:
+    :param bandIdx:
     :param sz: window size in which corner pixels are analysed
-    :param is_vrt:
     """
-    gdal_ds      = gdal.Open(path_im) if not is_vrt else gdal.OpenShared(path_im)
+    geoArr       = pathIm_or_GeoArray if isinstance(pathIm_or_GeoArray, GeoArray) else GeoArray(pathIm_or_GeoArray)
     get_mean_std = lambda corner_subset: {'mean':np.mean(corner_subset), 'std':np.std(corner_subset)}
-    rows,cols    = gdal_ds.RasterYSize,gdal_ds.RasterXSize
-    UL           = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(0,0,sz,sz))
-    UR           = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(cols-sz,0,sz,sz))
-    LR           = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(cols-sz,rows-sz,sz,sz))
-    LL           = get_mean_std(gdal_ds.GetRasterBand(bandNr).ReadAsArray(0,rows-sz,sz,sz))
-    gdal_ds      = None
+    UL           = get_mean_std(geoArr[0:sz,0:sz,bandIdx])
+    UR           = get_mean_std(geoArr[0:sz,-sz:,bandIdx])
+    LR           = get_mean_std(geoArr[-sz:,-sz:,bandIdx])
+    LL           = get_mean_std(geoArr[-sz:,0:sz,bandIdx])
     possVals     = [i['mean'] for i in [UL,UR,LR,LL] if i['std']==0]
     # possVals==[]: all corners are filled with data; np.std(possVals)==0: noDataVal clearly identified
     return None if possVals==[] else possVals[0] if np.std(possVals)==0 else 'unclear'

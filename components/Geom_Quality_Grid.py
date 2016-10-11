@@ -180,9 +180,9 @@ class Geom_Quality_Grid(object):
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift
         global_shared_imref = \
-            GeoArray(self.imref[self.r_b4match-1], self.imref.geotransform, self.imref.projection)
+            GeoArray(self.imref[:,:,self.r_b4match-1], self.imref.geotransform, self.imref.projection)
         global_shared_im2shift = \
-            GeoArray(self.im2shift[self.s_b4match-1], self.im2shift.geotransform,self.im2shift.projection)
+            GeoArray(self.im2shift[:,:,self.s_b4match-1], self.im2shift.geotransform,self.im2shift.projection)
 
         # get all variations of kwargs for coregistration
         get_coreg_kwargs = lambda pID, wp: {
@@ -205,11 +205,13 @@ class Geom_Quality_Grid(object):
 
         # run co-registration for whole grid
         if self.mp:
-            print('multiprocessing')
+            if not self.q:
+                print("Calculating geometric quality grid in mode 'multiprocessing'...")
             with multiprocessing.Pool() as pool:
                 results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
         else:
-            print('singleprocessing')
+            if not self.q:
+                print("Calculating geometric quality grid in mode 'multiprocessing'...")
             results = []
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
                 #print(argset[1])
@@ -288,7 +290,8 @@ class Geom_Quality_Grid(object):
             os.path.basename(self.im2shift.filePath))[0], os.path.splitext(os.path.basename(self.imref.filePath))[0]) # FIXME does not work for inmem GeoArrays
         path_out  = os.path.join(self.dir_out, 'CoRegPoints', fName_out)
         if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
-        print('Writing %s ...' %path_out)
+        if not self.q:
+            print('Writing %s ...' %path_out)
         GDF2pass.to_file(path_out)
 
 

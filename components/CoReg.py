@@ -39,6 +39,7 @@ from py_tools_ds.ptds.numeric.vector       import find_nearest
 class imParamObj(object):
     def __init__(self, CoReg_params, imID):
         assert imID in ['ref', 'shift']
+
         self.imName = 'reference image' if imID == 'ref' else 'image to be shifted'
         self.v = CoReg_params['v']
         self.q = CoReg_params['q'] if not self.v else False
@@ -53,12 +54,11 @@ class imParamObj(object):
         # set params
         self.prj   = self.GeoArray.projection
         self.gt    = self.GeoArray.geotransform
-        self.xgsd  = abs(self.gt[1])
-        self.ygsd  = abs(self.gt[5])
-        shape      = self.GeoArray.shape
-        self.rows  = shape[0]
-        self.cols  = shape[1]
-        self.bands = shape[2] if len(shape)==3 else 1
+        self.xgsd  = self.GeoArray.xgsd
+        self.ygsd  = self.GeoArray.ygsd
+        self.rows  = self.GeoArray.rows
+        self.cols  = self.GeoArray.cols
+        self.bands = self.GeoArray.bands
 
         # validate params
         assert self.prj, 'The %s has no projection.' % self.imName
@@ -72,14 +72,10 @@ class imParamObj(object):
                 if self.bands > 1 else '', self.bands)
 
         # set nodata
-        if CoReg_params['nodata'][0] is not None and CoReg_params['nodata'][1] is not None:
+        if CoReg_params['nodata'][0 if imID == 'ref' else 1] is not None:
             self.nodata = CoReg_params['nodata'][0 if imID == 'ref' else 1]
-        elif self.GeoArray.filePath:
-            self.nodata = GEO.find_noDataVal(self.GeoArray.filePath)
-        else: #FIXME
-            warnings.warn('Automatic nodata value detection for numpy array is currently not implemented. '
-                          'Please provide a no data value. Otherwise it is set to None.')
-            self.nodata = None
+        else:
+            self.nodata = GEO.find_noDataVal(self.GeoArray)
 
         # set corner coords
         given_corner_coord = CoReg_params['data_corners_%s' % ('im0' if imID == 'ref' else 'im1')]
