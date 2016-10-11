@@ -77,7 +77,8 @@ __all__=['boxObj',
 
 def angle_to_north(XY):
     """Calculates the angle between the lines [origin:[0,0],north:[0,1]] and
-     [origin:[0,0],pointXY:[X,Y]] in clockwise direction. Returns values between 0 and 360 degrees."""
+     [origin:[0,0],pointXY:[X,Y]] in clockwise direction. Returns values between 0 and 360 degrees.
+     """
     XY    = np.array(XY)
     XYarr = XY if len(XY.shape)==2 else XY.reshape((1,2))
     return np.abs(np.degrees(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2)%360)
