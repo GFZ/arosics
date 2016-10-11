@@ -234,13 +234,7 @@ class Geom_Quality_Grid(object):
         get_angle        = lambda row: GEO.angle_to_north((row['X_SHIFT_PX'],row['Y_SHIFT_PX'])).tolist()[0]
         GDF['ANGLE']     = GDF.apply(lambda row: oFV if row['X_SHIFT_PX'] == oFV else get_angle(row)   , axis=1)
 
-
-        if dump_values:
-            fName_out = "CoRegMatrix_grid%s_ws%s__T_%s__R_%s.pkl" %(self.grid_res, self.window_size, os.path.splitext(
-                os.path.basename(self.im2shift.filePath))[0], os.path.splitext(os.path.basename(self.imref.filePath))[0]) # FIXME does not work for inmem GeoArrays
-            path_out  = os.path.join(self.dir_out, 'CoRegMatrix', fName_out)
-            if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
-            GDF.to_pickle(path_out)
+        self.quality_grid = GDF
 
         if dump_values:
             self.dump_quality_grid()
@@ -252,8 +246,7 @@ class Geom_Quality_Grid(object):
         assert self.quality_grid is not None, 'Quality is None. Thus dumping it to disk makes no sense.'
 
         fName_out = "CoRegMatrix_grid%s_ws%s__T_%s__R_%s.pkl" % (self.grid_res, self.window_size, os.path.splitext(
-            os.path.basename(self.im2shift.filePath))[0], os.path.splitext(os.path.basename(self.imref.filePath))[
-                                                                     0])  # FIXME does not work for inmem GeoArrays
+            os.path.basename(self.im2shift.filePath))[0], os.path.splitext(os.path.basename(self.imref.filePath))[0])  # FIXME does not work for inmem GeoArrays
         path_out = os.path.join(self.dir_out, 'CoRegMatrix', fName_out)
         if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
         self.quality_grid.to_pickle(path_out)
