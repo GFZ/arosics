@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-import math
-import os
-import re
-import warnings
+__author__='Daniel Scheffler'
 
+import warnings
 import numpy  as np
-import pyproj
 
 try:
     import gdal
@@ -16,60 +13,11 @@ except ImportError:
     from osgeo import osr
     from osgeo import ogr
 
-from geopandas import GeoDataFrame
 
-
-# custom
-from py_tools_ds.ptds.geo.vector.geometry  import boxObj
-from py_tools_ds.ptds.geo.vector.geometry  import round_shapelyPoly_coords
-from py_tools_ds.ptds.geo.vector.topology  import get_footprint_polygon, get_overlap_polygon, \
-                                                  find_line_intersection_point, get_largest_onGridPoly_within_poly, \
-                                                  get_smallest_boxImYX_that_contains_boxMapYX, \
-                                                  get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly
-from py_tools_ds.ptds.geo.coord_calc       import get_corner_coordinates, corner_coord_to_minmax, \
-                                                  calc_FullDataset_corner_positions
-from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid, find_nearest_grid_coord, \
-                                                  is_coord_grid_equal
-from py_tools_ds.ptds.geo.coord_trafo      import transform_utm_to_wgs84, pixelToLatLon, pixelToMapYX, imYX2mapYX, \
-                                                  transform_any_prj
-from py_tools_ds.ptds.geo.projection       import get_proj4info, get_UTMzone, WKT2EPSG, EPSG2WKT, \
-                                                  isProjectedOrGeographic, prj_equal
-from py_tools_ds.ptds.geo.map_info         import geotransform2mapinfo, mapinfo2geotransform
-from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
+# internal modules
+from py_tools_ds.ptds.geo.coord_calc       import calc_FullDataset_corner_positions
+from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, imYX2mapYX
 from py_tools_ds.ptds                      import GeoArray
-from py_tools_ds.ptds.numeric.array        import get_outFillZeroSaturated
-
-
-
-__all__=['boxObj',
-         'round_shapelyPoly_coords',
-         'get_footprint_polygon',
-         'get_overlap_polygon',
-         'find_line_intersection_point',
-         'get_largest_onGridPoly_within_poly',
-         'get_smallest_boxImYX_that_contains_boxMapYX',
-         'get_smallest_shapelyImPolyOnGrid_that_contains_shapelyImPoly',
-         'get_corner_coordinates',
-         'corner_coord_to_minmax,',
-         'calc_FullDataset_corner_positions',
-         'move_shapelyPoly_to_image_grid',
-         'find_nearest_grid_coord',
-         'is_coord_grid_equal',
-         'transform_utm_to_wgs84',
-         'pixelToLatLon',
-         'pixelToMapYX',
-         'imYX2mapYX',
-         'transform_any_prj',
-         'get_proj4info',
-         'get_UTMzone',
-         'WKT2EPSG',
-         'EPSG2WKT',
-         'isProjectedOrGeographic',
-         'prj_equal',
-         'geotransform2mapinfo',
-         'mapinfo2geotransform',
-         'warp_ndarray',
-         'get_outFillZeroSaturated']
 
 
 

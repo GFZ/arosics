@@ -1,9 +1,14 @@
+from .components.CoReg             import COREG
+from .components.DeShifter         import DESHIFTER
+from .components.Geom_Quality_Grid import Geom_Quality_Grid
+
 from .components import io
 from .components import plotting
 from .components import utilities
 from .components import geometry
 
-from .dsc__CoReg_Sat_FourierShiftTheorem import COREG, DESHIFTER, Geom_Quality_Grid
+__author__ = 'Daniel Scheffler'
+__version__= '2016-10-11_01'
 
 __all__=['COREG',
          'DESHIFTER',
@@ -11,6 +16,6 @@ __all__=['COREG',
          'io',
          'utilities',
          'geometry',
-         'plotting']
-
-__author__='Daniel Scheffler'
+         'plotting',
+         '__author__'
+         '__version__']

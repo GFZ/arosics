@@ -12,7 +12,9 @@ except ImportError:
     from osgeo import gdal
 from spectral.io import envi
 
+# internal modules
 from .utilities import get_dtypeStr, get_image_tileborders, convertGdalNumpyDataType
+from py_tools_ds.ptds.geo.map_info import geotransform2mapinfo
 
 
 
@@ -36,7 +38,6 @@ def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
 
 def write_envi(arr,outpath,gt=None,prj=None):
     if gt or prj: assert gt and prj, 'gt and prj must be provided together or left out.'
-    from .geometry import geotransform2mapinfo
     meta = {'map info':geotransform2mapinfo(gt,prj),'coordinate system string':prj} if gt else None
     shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
     out    = envi.create_image(outpath,metadata=meta,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
@@ -185,7 +186,6 @@ def init_SharedArray_on_disk(out_path,dims,gt=None,prj=None):
                             os.path.splitext(out_path)[0]+'.hdr'
     Meta={}
     if gt and prj:
-        from .geometry import geotransform2mapinfo
         Meta['map info']                 = geotransform2mapinfo(gt,prj)
         Meta['coordinate system string'] = prj
     shared_array_on_disk__obj    = envi.create_image(path,metadata=Meta,shape=dims,dtype='uint16',
