@@ -24,7 +24,7 @@ from py_tools_ds.ptds                      import GeoArray
 from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
 from py_tools_ds.ptds.geo.vector.topology  import get_footprint_polygon, get_overlap_polygon, \
                                                   get_smallest_boxImYX_that_contains_boxMapYX
-from py_tools_ds.ptds.geo.projection       import prj_equal
+from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
 from py_tools_ds.ptds.geo.vector.geometry  import boxObj, round_shapelyPoly_coords
 from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid
 from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX
@@ -277,7 +277,8 @@ class COREG(object):
         self.ref   = imParamObj(self.params,'ref')
         self.shift = imParamObj(self.params,'shift')
         assert prj_equal(self.ref.prj, self.shift.prj), \
-            'Input projections are not equal. Different projections are currently not supported.'
+            'Input projections are not equal. Different projections are currently not supported. Got %s / %s.'\
+            %(get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj))
 
 
     def _get_opt_winpos_winsize(self):

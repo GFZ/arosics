@@ -35,8 +35,8 @@ class DESHIFTER(object):
         """
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
-        :param dict_GMS_obj:        the copied dictionary of a GMS object, containing the attribute 'coreg_info'
-        :param attrname2deshift:    attribute name of the GMS object containing the array to be shifted (or a its path)
+        :param im2shift:            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
+        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info
 
         :Keyword Arguments:
             - path_out(str):        /output/directory/filename for coregistered results
@@ -55,7 +55,8 @@ class DESHIFTER(object):
             - warp_alg(str):        'GDAL' or 'rasterio' (default = 'rasterio')
             - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
                                     areas outside of the actual bounds, default = True
-            - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped
+            - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
+                                    The given coordinates are automatically snapped to the output grid.
             - tempDir(str):         directory to be used for tempfiles (default: /dev/shm/)
 
         """
@@ -65,9 +66,10 @@ class DESHIFTER(object):
         self.shift_prj          = im2shift.projection
         self.shift_gt           = list(im2shift.geotransform)
         self.nodata             = get_outFillZeroSaturated(self.im2shift.dtype)[0]
-        self.updated_map_info   = coreg_results['updated map info']
+        mapI                    = coreg_results['updated map info']
+        self.updated_map_info   = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
         self.original_map_info  = coreg_results['original map info']
-        self.updated_gt         = mapinfo2geotransform(self.updated_map_info)
+        self.updated_gt         = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
         self.ref_gt             = coreg_results['reference geotransform']
         self.ref_grid           = coreg_results['reference grid']
         self.ref_prj            = coreg_results['reference projection']
@@ -84,7 +86,7 @@ class DESHIFTER(object):
         self.cliptoextent = kwargs.get('cliptoextent', True)
         self.clipextent   = kwargs.get('clipextent'  , None)
         self.tempDir      = kwargs.get('tempDir'     ,'/dev/shm/')
-        self.out_grid     = self.get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
+        self.out_grid     = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
         self.out_gsd      = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
@@ -98,7 +100,7 @@ class DESHIFTER(object):
         self.arr_shifted      = None  # set by self.correct_shifts
 
 
-    def get_out_grid(self, init_kwargs):
+    def _get_out_grid(self, init_kwargs):
         # parse given params
         out_gsd     = init_kwargs.get('out_gsd'      , None)
         match_gsd   = init_kwargs.get('match_gsd'    , False)
@@ -122,7 +124,7 @@ class DESHIFTER(object):
             if match_gsd and (out_xgsd, out_ygsd)!=(ref_xgsd, ref_ygsd):
                 warnings.warn("\nThe parameter 'match_gsd is ignored because another output ground sampling distance "
                               "was explicitly given.")
-            if self.align_grids and self.grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, out_xgsd, out_ygsd):
+            if self.align_grids and self._grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, out_xgsd, out_ygsd):
                 # use grid of reference image with the given output gsd
                 return get_grid(self.ref_gt, out_xgsd, out_ygsd)
             else: # no grid alignment
@@ -138,7 +140,7 @@ class DESHIFTER(object):
                 return get_grid(self.im2shift.geotransform, ref_xgsd, ref_ygsd)
 
         else:
-            if self.align_grids and self.grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, ref_xgsd, ref_ygsd):
+            if self.align_grids and self._grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, ref_xgsd, ref_ygsd):
                 # use origin of reference image and gsd of input image
                 return get_grid(self.ref_gt, self.im2shift.xgsd, self.im2shift.ygsd)
             else:
@@ -147,7 +149,7 @@ class DESHIFTER(object):
 
 
     @staticmethod
-    def grids_alignable(in_xgsd, in_ygsd, out_xgsd, out_ygsd):
+    def _grids_alignable(in_xgsd, in_ygsd, out_xgsd, out_ygsd):
         is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
         if not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd):
             warnings.warn("\nThe targeted output coordinate grid is not alignable with the image to be shifted because "
@@ -161,15 +163,17 @@ class DESHIFTER(object):
             return True
 
 
-    def get_out_extent(self):
+    def _get_out_extent(self):
         if self.cliptoextent and self.clipextent is None:
             # calculate actual corner coords (input image projection)
             trueCorner_mapXY       = GEO.get_true_corner_mapXY(self.im2shift, bandNr=1, noDataVal=self.nodata, mp=1,v=0)
             xmin, xmax, ymin, ymax = corner_coord_to_minmax(trueCorner_mapXY)
             self.clipextent        = box(xmin, ymin, xmax, ymax).bounds
         else:
-            self.clipextent = corner_coord_to_minmax(get_corner_coordinates(
+            xmin, xmax, ymin, ymax = corner_coord_to_minmax(get_corner_coordinates(
                                     gt=self.shift_gt, cols=self.im2shift.cols, rows=self.im2shift.rows))
+            self.clipextent        = xmin, ymin, xmax, ymax
+
 
         # snap clipextent to output grid (in case of odd input coords the output coords are moved INSIDE the input array)
         xmin, ymin, xmax, ymax = self.clipextent
@@ -187,10 +191,15 @@ class DESHIFTER(object):
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
         if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.align_grids:
+            # FIXME buggy condition:
+            # reconstructable with correct_spatial_shifts from GMS
+            #DS = DESHIFTER(geoArr, self.coreg_info,
+            #               target_xyGrid=[usecase.spatial_ref_gridx, usecase.spatial_ref_gridy],
+            #               cliptoextent=True, clipextent=mapBounds, align_grids=False) => align grids False
             """NO RESAMPLING NEEDED"""
             self.is_shifted     = True
             self.is_resampled   = False
-            xmin,ymin,xmax,ymax = self.get_out_extent()
+            xmin,ymin,xmax,ymax = self._get_out_extent()
 
             if self.cliptoextent: # TODO validate results!
                 # get shifted array
@@ -216,7 +225,7 @@ class DESHIFTER(object):
                 fd, path_tmp = tempfile.mkstemp(prefix='CoReg_Sat', suffix=self.outFmt, dir=self.tempDir)
                 os.close(fd)
 
-                t_extent   = " -te %s %s %s %s" %self.get_out_extent()
+                t_extent   = " -te %s %s %s %s" %self._get_out_extent()
                 xgsd, ygsd = self.out_gsd
                 cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of %s %s %s -srcnodata %s -dstnodata %s -overwrite%s"\
                       %(self.rspAlg, xgsd,ygsd,self.ref_prj,self.outFmt,self.im2shift.filePath,
@@ -256,12 +265,12 @@ class DESHIFTER(object):
 
                 # get resampled array
                 out_arr, out_gt, out_prj = \
-                    warp_ndarray(in_arr,self.shift_gt,self.shift_prj,self.ref_prj,
-                                     rspAlg     = self.dict_rspAlg_rsp_Int[self.rspAlg],
-                                     in_nodata  = self.nodata,
-                                     out_nodata = self.nodata,
-                                     out_gsd    = self.out_gsd,
-                                     out_bounds = self.get_out_extent() )
+                    warp_ndarray(in_arr, self.shift_gt, self.shift_prj, self.ref_prj,
+                                 rspAlg     = self.dict_rspAlg_rsp_Int[self.rspAlg],
+                                 in_nodata  = self.nodata,
+                                 out_nodata = self.nodata,
+                                 out_gsd    = self.out_gsd,
+                                 out_bounds = self._get_out_extent())
 
                 self.updated_projection = out_prj
                 self.arr_shifted        = out_arr
