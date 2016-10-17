@@ -28,8 +28,8 @@ from py_tools_ds.ptds.processing.shell     import subcall_with_output
 
 
 class DESHIFTER(object):
-    dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2,
-                           'cubic_spline': 3, 'lanczos': 4, 'average': 5, 'mode': 6}
+    dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
+                           'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
 
     def __init__(self, im2shift, coreg_results, **kwargs):
         """
@@ -51,16 +51,19 @@ class DESHIFTER(object):
                                     default = False
             - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]]
             - resamp_alg(str)       the resampling algorithm to be used if neccessary
-                                    (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode)
+                                    (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
+                                                       max, min, med, q1, q3)
             - warp_alg(str):        'GDAL' or 'rasterio' (default = 'rasterio')
             - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
                                     areas outside of the actual bounds, default = True
             - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
                                     The given coordinates are automatically snapped to the output grid.
             - tempDir(str):         directory to be used for tempfiles (default: /dev/shm/)
+            - v(bool):              verbose mode (default: False)
+            - q(bool):              quiet mode (default: False)
 
         """
-        # FIXME add v and q, mp?
+        # FIXME add mp?
         # unpack args
         self.im2shift           = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
         self.shift_prj          = im2shift.projection
@@ -86,11 +89,14 @@ class DESHIFTER(object):
         self.cliptoextent = kwargs.get('cliptoextent', True)
         self.clipextent   = kwargs.get('clipextent'  , None)
         self.tempDir      = kwargs.get('tempDir'     ,'/dev/shm/')
+        self.v            = kwargs.get('v'           , False)
+        self.q            = kwargs.get('q'           , False) if not self.v else False
         self.out_grid     = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
         self.out_gsd      = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
-        assert self.rspAlg  in self.dict_rspAlg_rsp_Int.keys()
+        assert self.rspAlg  in self.dict_rspAlg_rsp_Int.keys(), \
+            "'%s' is not a supported resampling algorithm." %self.rspAlg
         assert self.warpAlg in ['GDAL_cmd', 'GDAL_lib']
 
         # set defaults for general class attributes
@@ -282,7 +288,7 @@ class DESHIFTER(object):
                 if self.path_out:
                     GeoArray(out_arr, out_gt, out_prj).save(self.path_out)
 
-        print('Time for shift correction: %.2fs' %(time.time()-t_start))
+        if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results
 
 
