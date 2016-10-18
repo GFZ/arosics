@@ -1,465 +1,1231 @@
-<!DOCTYPE html>
-<html class="" lang="en">
-<head prefix="og: http://ogp.me/ns#">
-<meta charset="utf-8">
-<meta content="IE=edge" http-equiv="X-UA-Compatible">
-<meta content="object" property="og:type">
-<meta content="GitLab" property="og:site_name">
-<meta content="README.md · master · Andre Hollstein / S2MSI" property="og:title">
-<meta content="Read and use Sentinel-2 images." property="og:description">
-<meta content="https://git.gfz-potsdam.de/assets/gitlab_logo-7ae504fe4f68fdebb3c2034e36621930cd36ea87924c11ff65dbcb8ed50dca58.png" property="og:image">
-<meta content="https://git.gfz-potsdam.de/hollstei/S2MSI/blob/master/README.md" property="og:url">
-<meta content="summary" property="twitter:card">
-<meta content="README.md · master · Andre Hollstein / S2MSI" property="twitter:title">
-<meta content="Read and use Sentinel-2 images." property="twitter:description">
-<meta content="https://git.gfz-potsdam.de/assets/gitlab_logo-7ae504fe4f68fdebb3c2034e36621930cd36ea87924c11ff65dbcb8ed50dca58.png" property="twitter:image">
 
-<title>README.md · master · Andre Hollstein / S2MSI · GitLab</title>
-<meta content="Read and use Sentinel-2 images." name="description">
-<link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-075eba76312e8421991a0c1f89a89ee81678bcde72319dd3e8047e2a47cd3a42.ico" />
-<link rel="stylesheet" media="all" href="/assets/application-cc91b74724180405f2eb58b823b7a68836ace4c9338b3afcd9da692fe3d9175d.css" />
-<link rel="stylesheet" media="print" href="/assets/print-68eed6d8135d858318821e790e25da27b2b4b9b8dbb1993fa6765d8e2e3e16ee.css" />
-<script src="/assets/application-fc596e7bbc989b689b94960672c0c4af5cb7a609cd2a9ac4e9b34bcf27f20456.js"></script>
-<meta name="csrf-param" content="authenticity_token" />
-<meta name="csrf-token" content="pWA3ylBV9vyv1+3lI/x+CsEEdHXeH9RVMhW81BpxJ3FMtBBrNprwK1hUxFlwlR2xgvTfdIkelY9Xl/Bs+TkiFQ==" />
-<meta content="origin-when-cross-origin" name="referrer">
-<meta content="width=device-width, initial-scale=1, maximum-scale=1" name="viewport">
-<meta content="#474D57" name="theme-color">
-<link rel="apple-touch-icon" type="image/x-icon" href="/assets/touch-icon-iphone-5a9cee0e8a51212e70b90c87c12f382c428870c0ff67d1eb034d884b78d2dae7.png" />
-<link rel="apple-touch-icon" type="image/x-icon" href="/assets/touch-icon-ipad-a6eec6aeb9da138e507593b464fdac213047e49d3093fc30e90d9a995df83ba3.png" sizes="76x76" />
-<link rel="apple-touch-icon" type="image/x-icon" href="/assets/touch-icon-iphone-retina-72e2aadf86513a56e050e7f0f2355deaa19cc17ed97bbe5147847f2748e5a3e3.png" sizes="120x120" />
-<link rel="apple-touch-icon" type="image/x-icon" href="/assets/touch-icon-ipad-retina-8ebe416f5313483d9c1bc772b5bbe03ecad52a54eba443e5215a22caed2a16a2.png" sizes="152x152" />
-<link color="rgb(226, 67, 41)" href="/assets/logo-d36b5212042cebc89b96df4bf6ac24e43db316143e89926c0db839ff694d2de4.svg" rel="mask-icon">
-<meta content="/assets/msapplication-tile-1196ec67452f618d39cdd85e2e3a542f76574c071051ae7effbfde01710eb17d.png" name="msapplication-TileImage">
-<meta content="#30353E" name="msapplication-TileColor">
+# Description
+
+Perform subpixel coregistration of two satellite image datasets using Fourier Shift Theorem proposed by Foroosh et al. 2002: Foroosh, H., Zerubia, J. B., & Berthod, M. (2002). Extension of phase correlation to subpixel registration. IEEE Transactions on Image Processing, 11(3), 188-199. doi:10.1109/83.988953); Python implementation by Daniel Scheffler (daniel.scheffler [at] gfz-potsdam [dot] de).
+
+The program detects and corrects global X/Y-shifts between two input images in the subpixel scale, that are often present in satellite imagery. It does not correct scaling or rotation issues and will not apply any higher grade transformation. Therefore it will also not correct for shifts that are locally present in the input images.
+
+Prerequisites and hints:
+The input images can have any GDAL compatible image format (http://www.gdal.org/formats_list.html). Both of them must be georeferenced. In case of ENVI files, this means they must have a 'map info' and a 'coordinate system string' as attributes of their header file. Different projection systems are currently not supported. The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any spatial resampling of the input images before applying this algorithm. Any needed resampling of the data is done automatically. Thus the input images can have different spatial resolutions. The current algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order to prevent local shifts in the output image. By default the calculated subpixel-shifts are applied to the header file of the output image. No spatial resampling is done automatically as long as the both input images have the same projection. If you need the output image to be aligned to the reference image coordinate grid (by using an appropriate resampling algorithm), use the '-align_grids' option. The image overlap area is automatically calculated. Thereby no-data regions within the images are standardly respected. Providing the map coordinates of the actual data corners lets you save some calculation time, because in this case the automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image corners. The verbose program mode gives some more output about the interim results, shows some figures and writes the used footprint and overlap polygons to disk. The figures must be manually closed in in order to continue the processing.
 
 
+# Install
+
+For now, there is no automatic install script. Just clone the repository, install the dependencies and add the root directory of CoReg_Sat to your PATH environment variable.
+
+CoReg_Sat has been tested with Python 3.5. It is not completely compatible with Python 2.7 (at least at the moment).
+
+The following non-standard Python libraries are required:
+    - gdal, osr, ogr
+    - geopandas
+    - pykrige
+    - argparse
+    - shapely
+    - pyfftw is optional but will speed up calculation
+    
+In addition clone the repository "py_tools_ds" and add its root directory to your PATH environment variable:
+
+    https://gitext.gfz-potsdam.de/danschef/py_tools_ds
+Since py_tools_ds is not a public repository right now, contact Daniel Scheffler if you can not access it.
+
+# Modules
+
+## CoReg
+
+This module calculates spatial shifts and performs a global correction (based on a single matching window).
+
+### Python Interface
+
+#### calculate spatial shifts - with input data on disk
 
 
-<style>
-  [data-user-is] {
-    display: none !important;
-  }
-  
-  [data-user-is="76"] {
-    display: block !important;
-  }
-  
-  [data-user-is="76"][data-display="inline"] {
-    display: inline !important;
-  }
-  
-  [data-user-is-not] {
-    display: block !important;
-  }
-  
-  [data-user-is-not][data-display="inline"] {
-    display: inline !important;
-  }
-  
-  [data-user-is-not="76"] {
-    display: none !important;
-  }
-</style>
+```python
+from CoReg_Sat import COREG
 
-</head>
+im_reference = '/path/to/your/ref_image.bsq'
+im_target    = '/path/to/your/tgt_image.bsq'
 
-<body class="ui_charcoal" data-group="" data-page="projects:blob:show" data-project="S2MSI">
-<script>
-//<![CDATA[
-window.gon={};gon.api_version="v3";gon.default_avatar_url="https:\/\/git.gfz-potsdam.de\/assets\/no_avatar-849f9c04a3a0d0cea2424ae97b27447dc64a7dbfae83c036c45b403392f0e8ba.png";gon.max_file_size=10;gon.relative_url_root="";gon.shortcuts_path="\/help\/shortcuts";gon.user_color_scheme="monokai";gon.award_menu_url="\/emojis";gon.current_user_id=76;
-//]]>
-</script>
-<script>
-  window.project_uploads_path = "/hollstei/S2MSI/uploads";
-  window.preview_markdown_path = "/hollstei/S2MSI/preview_markdown";
-</script>
+CR = COREG(im_reference, im_target, wp=(354223, 5805559), ws=(256,256))
+CR.calculate_spatial_shifts()
+```
 
-<header class="navbar navbar-fixed-top navbar-gitlab with-horizontal-nav">
-<div class="container-fluid">
-<div class="header-content">
-<button aria-label="Toggle global navigation" class="side-nav-toggle" type="button">
-<span class="sr-only">Toggle navigation</span>
-<i class="fa fa-bars"></i>
-</button>
-<button class="navbar-toggle" type="button">
-<span class="sr-only">Toggle navigation</span>
-<i class="fa fa-ellipsis-v"></i>
-</button>
-<div class="navbar-collapse collapse">
-<ul class="nav navbar-nav">
-<li class="hidden-sm hidden-xs">
-<div class="has-location-badge search search-form">
-<form class="navbar-form" action="/search" accept-charset="UTF-8" method="get"><input name="utf8" type="hidden" value="&#x2713;" /><div class="search-input-container">
-<div class="location-badge">This project</div>
-<div class="search-input-wrap">
-<div class="dropdown" data-url="/search/autocomplete">
-<input type="search" name="search" id="search" placeholder="Search" class="search-input dropdown-menu-toggle" spellcheck="false" tabindex="1" autocomplete="off" data-toggle="dropdown" />
-<div class="dropdown-menu dropdown-select">
-<div class="dropdown-content"><ul>
-<li>
-<a class="is-focused dropdown-menu-empty-link">
-Loading...
-</a>
-</li>
-</ul>
-</div><div class="dropdown-loading"><i class="fa fa-spinner fa-spin"></i></div>
-</div>
-<i class="search-icon"></i>
-<i class="clear-icon js-clear-input"></i>
-</div>
-</div>
-</div>
-<input type="hidden" name="group_id" id="group_id" />
-<input type="hidden" name="project_id" id="search_project_id" value="321" />
-<input type="hidden" name="search_code" id="search_code" value="true" />
-<script>
-  gl.projectOptions = gl.projectOptions || {};
-  gl.projectOptions["S2MSI"] = {
-    issuesPath: "/hollstei/S2MSI/issues",
-    mrPath: "/hollstei/S2MSI/merge_requests",
-    name: "S2MSI"
-  };
-</script>
-<script>
-  gl.dashboardOptions = {
-    issuesPath: "https://git.gfz-potsdam.de/dashboard/issues",
-    mrPath: "https://git.gfz-potsdam.de/dashboard/merge_requests"
-  };
-</script>
-<input type="hidden" name="repository_ref" id="repository_ref" value="master" />
-
-<div class="search-autocomplete-opts hide" data-autocomplete-path="/search/autocomplete" data-autocomplete-project-id="321" data-autocomplete-project-ref="master"></div>
-</form></div>
-
-</li>
-<li class="visible-sm visible-xs">
-<a title="Search" aria-label="Search" data-toggle="tooltip" data-placement="bottom" data-container="body" href="/search"><i class="fa fa-search"></i>
-</a></li>
-<li>
-<a title="Todos" aria-label="Todos" data-toggle="tooltip" data-placement="bottom" data-container="body" href="/dashboard/todos"><i class="fa fa-bell fa-fw"></i>
-<span class="badge hidden todos-pending-count">
-0
-</span>
-</a></li>
-<li>
-<a title="New project" aria-label="New project" data-toggle="tooltip" data-placement="bottom" data-container="body" href="/projects/new"><i class="fa fa-plus fa-fw"></i>
-</a></li>
-<li class="header-user dropdown">
-<a class="header-user-dropdown-toggle" data-toggle="dropdown" href="/u/danschef"><img width="26" height="26" class="header-user-avatar" src="https://secure.gravatar.com/avatar/7e89f8a658f61ea3b510ff308d65e0bb?s=52&amp;d=identicon" alt="7e89f8a658f61ea3b510ff308d65e0bb?s=52&amp;d=identicon" />
-<span class="caret"></span>
-</a><div class="dropdown-menu-nav dropdown-menu-align-right">
-<ul>
-<li>
-<a class="profile-link" aria-label="Profile" data-user="danschef" href="/u/danschef">Profile</a>
-</li>
-<li>
-<a aria-label="Profile Settings" href="/profile">Profile Settings</a>
-</li>
-<li class="divider"></li>
-<li>
-<a class="sign-out-link" aria-label="Sign out" rel="nofollow" data-method="delete" href="/users/sign_out">Sign out</a>
-</li>
-</ul>
-</div>
-</li>
-</ul>
-</div>
-<h1 class="title"><a href="/u/hollstei">Andre Hollstein</a> / <a class="project-item-select-holder" href="/hollstei/S2MSI">S2MSI</a><button name="button" type="button" class="dropdown-toggle-caret js-projects-dropdown-toggle" aria-label="Toggle switch project dropdown" data-target=".js-dropdown-menu-projects" data-toggle="dropdown"><i class="fa fa-chevron-down"></i></button></h1>
-<div class="header-logo">
-<a class="home" title="Dashboard" id="logo" href="/"><svg width="36" height="36" class="tanuki-logo">
-  <path class="tanuki-shape tanuki-left-ear" fill="#e24329" d="M2 14l9.38 9v-9l-4-12.28c-.205-.632-1.176-.632-1.38 0z"/>
-  <path class="tanuki-shape tanuki-right-ear" fill="#e24329" d="M34 14l-9.38 9v-9l4-12.28c.205-.632 1.176-.632 1.38 0z"/>
-  <path class="tanuki-shape tanuki-nose" fill="#e24329" d="M18,34.38 3,14 33,14 Z"/>
-  <path class="tanuki-shape tanuki-left-eye" fill="#fc6d26" d="M18,34.38 11.38,14 2,14 6,25Z"/>
-  <path class="tanuki-shape tanuki-right-eye" fill="#fc6d26" d="M18,34.38 24.62,14 34,14 30,25Z"/>
-  <path class="tanuki-shape tanuki-left-cheek" fill="#fca326" d="M2 14L.1 20.16c-.18.565 0 1.2.5 1.56l17.42 12.66z"/>
-  <path class="tanuki-shape tanuki-right-cheek" fill="#fca326" d="M34 14l1.9 6.16c.18.565 0 1.2-.5 1.56L18 34.38z"/>
-</svg>
-
-</a></div>
-<div class="js-dropdown-menu-projects">
-<div class="dropdown-menu dropdown-select dropdown-menu-projects">
-<div class="dropdown-title"><span>Go to a project</span><button class="dropdown-title-button dropdown-menu-close" aria-label="Close" type="button"><i class="fa fa-times dropdown-menu-close-icon"></i></button></div>
-<div class="dropdown-input"><input type="search" id="" class="dropdown-input-field" placeholder="Search your projects" autocomplete="off" /><i class="fa fa-search dropdown-input-search"></i><i role="button" class="fa fa-times dropdown-input-clear js-dropdown-input-clear"></i></div>
-<div class="dropdown-content"></div>
-<div class="dropdown-loading"><i class="fa fa-spinner fa-spin"></i></div>
-</div>
-</div>
-
-</div>
-</div>
-</header>
-
-<script>
-  var findFileURL = "/hollstei/S2MSI/find_file/master";
-</script>
-
-<div class="page-with-sidebar">
-<div class="sidebar-wrapper nicescroll">
-<div class="sidebar-action-buttons">
-<a class="nav-header-btn toggle-nav-collapse" title="Open/Close" href="#"><span class="sr-only">Toggle navigation</span>
-<i class="fa fa-bars"></i>
-</a><a class="nav-header-btn pin-nav-btn has-tooltip  js-nav-pin" title="Pin Navigation" data-placement="right" data-container="body" href="#"><span class="sr-only">Toggle navigation pinning</span>
-<i class="fa fa-fw fa-thumb-tack"></i>
-</a></div>
-<ul class="nav nav-sidebar">
-<li class="active home"><a title="Projects" class="dashboard-shortcuts-projects" href="/dashboard/projects"><span>
-Projects
-</span>
-</a></li><li class=""><a title="Todos" href="/dashboard/todos"><span>
-Todos
-<span class="count">0</span>
-</span>
-</a></li><li class=""><a class="dashboard-shortcuts-activity" title="Activity" href="/dashboard/activity"><span>
-Activity
-</span>
-</a></li><li class=""><a title="Groups" href="/dashboard/groups"><span>
-Groups
-</span>
-</a></li><li class=""><a title="Milestones" href="/dashboard/milestones"><span>
-Milestones
-</span>
-</a></li><li class=""><a title="Issues" class="dashboard-shortcuts-issues" href="/dashboard/issues?assignee_id=76"><span>
-Issues
-<span class="count">0</span>
-</span>
-</a></li><li class=""><a title="Merge Requests" class="dashboard-shortcuts-merge_requests" href="/dashboard/merge_requests?assignee_id=76"><span>
-Merge Requests
-<span class="count">0</span>
-</span>
-</a></li><li class=""><a title="Snippets" href="/dashboard/snippets"><span>
-Snippets
-</span>
-</a></li><li class=""><a title="Help" href="/help"><span>
-Help
-</span>
-</a></li><li class=""><a title="Profile Settings" data-placement="bottom" href="/profile"><span>
-Profile Settings
-</span>
-</a></li></ul>
-
-</div>
-<div class="layout-nav">
-<div class="container-fluid">
-<div class="controls">
-<div class="dropdown project-settings-dropdown">
-<a class="dropdown-new btn btn-default" data-toggle="dropdown" href="#" id="project-settings-button">
-<i class="fa fa-cog"></i>
-<i class="fa fa-caret-down"></i>
-</a>
-<ul class="dropdown-menu dropdown-menu-align-right">
-<li class=""><a title="Members" class="team-tab tab" href="/hollstei/S2MSI/project_members"><span>
-Members
-</span>
-</a></li>
-<li class="divider"></li>
-<li>
-<a data-confirm="Are you sure you want to leave the &quot;Andre Hollstein / S2MSI&quot; project?" title="Leave project" rel="nofollow" data-method="delete" href="/hollstei/S2MSI/project_members/leave">Leave Project
-</a></li>
-</ul>
-</div>
-</div>
-<div class="nav-control scrolling-tabs-container">
-<div class="fade-left">
-<i class="fa fa-angle-left"></i>
-</div>
-<div class="fade-right">
-<i class="fa fa-angle-right"></i>
-</div>
-<ul class="nav-links scrolling-tabs">
-<li class="home"><a title="Project" class="shortcuts-project" href="/hollstei/S2MSI"><span>
-Project
-</span>
-</a></li><li class=""><a title="Activity" class="shortcuts-project-activity" href="/hollstei/S2MSI/activity"><span>
-Activity
-</span>
-</a></li><li class="active"><a title="Repository" class="shortcuts-tree" href="/hollstei/S2MSI/tree/master"><span>
-Repository
-</span>
-</a></li><li class=""><a title="Pipelines" class="shortcuts-pipelines" href="/hollstei/S2MSI/pipelines"><span>
-Pipelines
-</span>
-</a></li><li class=""><a title="Graphs" class="shortcuts-graphs" href="/hollstei/S2MSI/graphs/master"><span>
-Graphs
-</span>
-</a></li><li class=""><a title="Issues" class="shortcuts-issues" href="/hollstei/S2MSI/issues"><span>
-Issues
-<span class="badge count issue_counter">0</span>
-</span>
-</a></li><li class=""><a title="Merge Requests" class="shortcuts-merge_requests" href="/hollstei/S2MSI/merge_requests"><span>
-Merge Requests
-<span class="badge count merge_counter">0</span>
-</span>
-</a></li><li class=""><a title="Wiki" class="shortcuts-wiki" href="/hollstei/S2MSI/wikis/home"><span>
-Wiki
-</span>
-</a></li><li class="hidden">
-<a title="Network" class="shortcuts-network" href="/hollstei/S2MSI/network/master">Network
-</a></li>
-<li class="hidden">
-<a class="shortcuts-new-issue" href="/hollstei/S2MSI/issues/new">Create a new issue
-</a></li>
-<li class="hidden">
-<a title="Builds" class="shortcuts-builds" href="/hollstei/S2MSI/builds">Builds
-</a></li>
-<li class="hidden">
-<a title="Commits" class="shortcuts-commits" href="/hollstei/S2MSI/commits/master">Commits
-</a></li>
-<li class="hidden">
-<a title="Issue Boards" class="shortcuts-issue-boards" href="/hollstei/S2MSI/board">Issue Boards</a>
-</li>
-</ul>
-</div>
-
-</div>
-</div>
-<div class="content-wrapper page-with-layout-nav">
+    Calculating actual data corner coordinates for reference image...
+    Corner coordinates of reference image:
+    	[[319090.0, 5790510.0], [351800.0, 5899940.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319090.0, 5790250.0]]
+    Calculating actual data corner coordinates for image to be shifted...
+    Corner coordinates of image to be shifted:
+    	[[319460.0, 5790510.0], [352270.0, 5900040.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319460.0, 5790250.0]]
+    Matching window position (X,Y): 354223/5805559
+    Detected integer shifts (X/Y):       0/-2
+    Detected subpixel shifts (X/Y):      0.357885632465/0.433837319984
+    Calculated total shifts in fft pixel units (X/Y):         0.357885632465/-1.56616268002
+    Calculated total shifts in reference pixel units (X/Y):   0.357885632465/-1.56616268002
+    Calculated total shifts in target pixel units (X/Y):      0.357885632465/-1.56616268002
+    Calculated map shifts (X,Y):				  3.578856324660592 15.661626799963415
+    Original map info: ['UTM', 1, 1, 300000.0, 5900040.0, 10.0, 10.0, 33, 'North', 'WGS-84']
+    Updated map info:  ['UTM', 1, 1, '300003.57885632466', '5900055.6616268', 10.0, 10.0, 33, 'North', 'WGS-84']
 
 
-<div class="flash-container flash-container-page">
+#### calculate spatial shifts - without any disk access
+
+
+```python
+from py_tools_ds.ptds import GeoArray
+from CoReg_Sat import COREG
+
+im_reference = '/path/to/your/ref_image.bsq'
+im_target    = '/path/to/your/tgt_image.bsq'
+
+# get a sample numpy array with corresponding geoinformation as reference image
+geoArr  = GeoArray(im_reference)
+
+ref_ndarray = geoArr[:]            # numpy.ndarray with shape (10980, 10980)
+ref_gt      = geoArr.geotransform  # GDAL geotransform: (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0)
+ref_prj     = geoArr.projection    # projection as WKT string ('PROJCS["WGS 84 / UTM zone 33N....')
+
+# get a sample numpy array with corresponding geoinformation as target image
+geoArr  = GeoArray(im_target)
+
+tgt_ndarray = geoArr[:]            # numpy.ndarray with shape (10980, 10980)
+tgt_gt      = geoArr.geotransform  # GDAL geotransform: (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0)
+tgt_prj     = geoArr.projection    # projection as WKT string ('PROJCS["WGS 84 / UTM zone 33N....')
+
+# pass an instance of GeoArray to COREG and calculate spatial shifts
+geoArr_reference = GeoArray(ref_ndarray, ref_gt, ref_prj)
+geoArr_target    = GeoArray(tgt_ndarray, tgt_gt, tgt_prj)
+
+CR = COREG(geoArr_reference, geoArr_target, wp=(354223, 5805559), ws=(256,256))
+CR.calculate_spatial_shifts()
+```
+
+    Calculating actual data corner coordinates for reference image...
+    Corner coordinates of reference image:
+    	[[300000.0, 5848140.0], [409790.0, 5848140.0], [409790.0, 5790250.0], [300000.0, 5790250.0]]
+    Calculating actual data corner coordinates for image to be shifted...
+    Corner coordinates of image to be shifted:
+    	[[300000.0, 5847770.0], [409790.0, 5847770.0], [409790.0, 5790250.0], [300000.0, 5790250.0]]
+    Matching window position (X,Y): 354223/5805559
+    Detected integer shifts (X/Y):       0/-2
+    Detected subpixel shifts (X/Y):      0.357885632465/0.433837319984
+    Calculated total shifts in fft pixel units (X/Y):         0.357885632465/-1.56616268002
+    Calculated total shifts in reference pixel units (X/Y):   0.357885632465/-1.56616268002
+    Calculated total shifts in target pixel units (X/Y):      0.357885632465/-1.56616268002
+    Calculated map shifts (X,Y):				  3.578856324660592 15.661626799963415
+    Original map info: ['UTM', 1, 1, 300000.0, 5900040.0, 10.0, 10.0, 33, 'North', 'WGS-84']
+    Updated map info:  ['UTM', 1, 1, '300003.57885632466', '5900055.6616268', 10.0, 10.0, 33, 'North', 'WGS-84']
+
+
+#### correct shifts
+
+CR.correct_shifts() returns an an OrderedDict containing the coregistered numpy array and its corresponding geoinformation.
+
+
+```python
+CR.correct_shifts()
+```
+
+    Writing GeoArray of size (10978, 10978) to /home/gfz-fe/scheffler/temp.
+
+
+
+
+
+    OrderedDict([('band', None),
+                 ('is shifted', True),
+                 ('is resampled', False),
+                 ('updated map info',
+                  ['UTM',
+                   1,
+                   1,
+                   300003.57885632466,
+                   5900025.6616268,
+                   10.0,
+                   10.0,
+                   33,
+                   'North',
+                   'WGS-84']),
+                 ('updated projection',
+                  'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]'),
+                 ('arr_shifted', array([[   0,    0,    0, ...,  953,  972, 1044],
+                         [   0,    0,    0, ..., 1001,  973, 1019],
+                         [   0,    0,    0, ...,  953,  985, 1020],
+                         ..., 
+                         [   0,    0,    0, ...,  755,  763,  773],
+                         [   0,    0,    0, ...,  760,  763,  749],
+                         [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16))])
+
+
+
+To write the coregistered image to disk, the COREG class needs to be instanced with a filepath given to keyword 'path_out'.
+
+### Shell console interface
+
+The help instructions of the console interface can be accessed like this:
+
+
+```python
+cd /path/to/CoReg_Sat/
+python ./dsc__CoReg_Sat_FourierShiftTheorem.py -h
+```
+
+Follow these instructions to run CoReg_Sat from a shell console. For example, the most simple call would be like this:
+
+
+```python
+python ./dsc__CoReg_Sat_FourierShiftTheorem.py /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+```
+
+## Geometric quality grid
+
+This module calculates a grid of spatial shifts with points spread over the whole overlap area of the input images. At the moment, a shift correction using all of these points is planned but not yet implemented.
+
+### Python interface
+
+#### calculate geometric quality grid - with input data on disk
+
+
+```python
+from CoReg_Sat import Geom_Quality_Grid
+
+im_reference = '/path/to/your/ref_image.bsq'
+im_target    = '/path/to/your/tgt_image.bsq'
+kwargs = {
+    'grid_res'     : 100,
+    'window_size'  : (256,256),
+    'calc_corners' : True,
+    'dir_out'      : '/path/to/your/output/',
+    'projectName'  : 'my_project',
+    'q'            : True,
+}
+
+GQG = Geom_Quality_Grid(im_reference,im_target,**kwargs)
+GQG.get_quality_grid()
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>geometry</th>
+      <th>POINT_ID</th>
+      <th>X_IM</th>
+      <th>Y_IM</th>
+      <th>X_UTM</th>
+      <th>Y_UTM</th>
+      <th>WIN_SIZE</th>
+      <th>X_SHIFT_PX</th>
+      <th>Y_SHIFT_PX</th>
+      <th>X_SHIFT_M</th>
+      <th>Y_SHIFT_M</th>
+      <th>ABS_SHIFT</th>
+      <th>ANGLE</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>162</th>
+      <td>POINT (352000 5899040)</td>
+      <td>162</td>
+      <td>5200</td>
+      <td>100</td>
+      <td>352000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>163</th>
+      <td>POINT (353000 5899040)</td>
+      <td>163</td>
+      <td>5300</td>
+      <td>100</td>
+      <td>353000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>164</th>
+      <td>POINT (354000 5899040)</td>
+      <td>164</td>
+      <td>5400</td>
+      <td>100</td>
+      <td>354000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>165</th>
+      <td>POINT (355000 5899040)</td>
+      <td>165</td>
+      <td>5500</td>
+      <td>100</td>
+      <td>355000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-0.247889</td>
+      <td>-0.251688</td>
+      <td>-2.478889</td>
+      <td>-2.516880</td>
+      <td>3.532644</td>
+      <td>135.435699</td>
+    </tr>
+    <tr>
+      <th>166</th>
+      <td>POINT (356000 5899040)</td>
+      <td>166</td>
+      <td>5600</td>
+      <td>100</td>
+      <td>356000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>167</th>
+      <td>POINT (357000 5899040)</td>
+      <td>167</td>
+      <td>5700</td>
+      <td>100</td>
+      <td>357000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>168</th>
+      <td>POINT (358000 5899040)</td>
+      <td>168</td>
+      <td>5800</td>
+      <td>100</td>
+      <td>358000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>169</th>
+      <td>POINT (359000 5899040)</td>
+      <td>169</td>
+      <td>5900</td>
+      <td>100</td>
+      <td>359000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>170</th>
+      <td>POINT (360000 5899040)</td>
+      <td>170</td>
+      <td>6000</td>
+      <td>100</td>
+      <td>360000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>171</th>
+      <td>POINT (361000 5899040)</td>
+      <td>171</td>
+      <td>6100</td>
+      <td>100</td>
+      <td>361000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>172</th>
+      <td>POINT (362000 5899040)</td>
+      <td>172</td>
+      <td>6200</td>
+      <td>100</td>
+      <td>362000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>173</th>
+      <td>POINT (363000 5899040)</td>
+      <td>173</td>
+      <td>6300</td>
+      <td>100</td>
+      <td>363000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>0.185042</td>
+      <td>-26.788517</td>
+      <td>1.850425</td>
+      <td>-267.885169</td>
+      <td>267.891560</td>
+      <td>180.395766</td>
+    </tr>
+    <tr>
+      <th>174</th>
+      <td>POINT (364000 5899040)</td>
+      <td>174</td>
+      <td>6400</td>
+      <td>100</td>
+      <td>364000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>175</th>
+      <td>POINT (365000 5899040)</td>
+      <td>175</td>
+      <td>6500</td>
+      <td>100</td>
+      <td>365000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>176</th>
+      <td>POINT (366000 5899040)</td>
+      <td>176</td>
+      <td>6600</td>
+      <td>100</td>
+      <td>366000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>177</th>
+      <td>POINT (367000 5899040)</td>
+      <td>177</td>
+      <td>6700</td>
+      <td>100</td>
+      <td>367000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-0.255553</td>
+      <td>0.188893</td>
+      <td>-2.555527</td>
+      <td>1.888925</td>
+      <td>3.177854</td>
+      <td>53.529930</td>
+    </tr>
+    <tr>
+      <th>178</th>
+      <td>POINT (368000 5899040)</td>
+      <td>178</td>
+      <td>6800</td>
+      <td>100</td>
+      <td>368000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>179</th>
+      <td>POINT (369000 5899040)</td>
+      <td>179</td>
+      <td>6900</td>
+      <td>100</td>
+      <td>369000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>180</th>
+      <td>POINT (370000 5899040)</td>
+      <td>180</td>
+      <td>7000</td>
+      <td>100</td>
+      <td>370000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>181</th>
+      <td>POINT (371000 5899040)</td>
+      <td>181</td>
+      <td>7100</td>
+      <td>100</td>
+      <td>371000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>182</th>
+      <td>POINT (372000 5899040)</td>
+      <td>182</td>
+      <td>7200</td>
+      <td>100</td>
+      <td>372000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>183</th>
+      <td>POINT (373000 5899040)</td>
+      <td>183</td>
+      <td>7300</td>
+      <td>100</td>
+      <td>373000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>184</th>
+      <td>POINT (374000 5899040)</td>
+      <td>184</td>
+      <td>7400</td>
+      <td>100</td>
+      <td>374000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>1.687416</td>
+      <td>0.206791</td>
+      <td>16.874158</td>
+      <td>2.067906</td>
+      <td>17.000396</td>
+      <td>276.986685</td>
+    </tr>
+    <tr>
+      <th>185</th>
+      <td>POINT (375000 5899040)</td>
+      <td>185</td>
+      <td>7500</td>
+      <td>100</td>
+      <td>375000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>0.715882</td>
+      <td>-1.562482</td>
+      <td>7.158821</td>
+      <td>-15.624824</td>
+      <td>17.186734</td>
+      <td>204.615818</td>
+    </tr>
+    <tr>
+      <th>186</th>
+      <td>POINT (376000 5899040)</td>
+      <td>186</td>
+      <td>7600</td>
+      <td>100</td>
+      <td>376000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>187</th>
+      <td>POINT (377000 5899040)</td>
+      <td>187</td>
+      <td>7700</td>
+      <td>100</td>
+      <td>377000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>188</th>
+      <td>POINT (378000 5899040)</td>
+      <td>188</td>
+      <td>7800</td>
+      <td>100</td>
+      <td>378000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>189</th>
+      <td>POINT (379000 5899040)</td>
+      <td>189</td>
+      <td>7900</td>
+      <td>100</td>
+      <td>379000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>0.195506</td>
+      <td>42.665374</td>
+      <td>1.955060</td>
+      <td>426.653741</td>
+      <td>426.658220</td>
+      <td>359.737455</td>
+    </tr>
+    <tr>
+      <th>190</th>
+      <td>POINT (380000 5899040)</td>
+      <td>190</td>
+      <td>8000</td>
+      <td>100</td>
+      <td>380000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>191</th>
+      <td>POINT (381000 5899040)</td>
+      <td>191</td>
+      <td>8100</td>
+      <td>100</td>
+      <td>381000.0</td>
+      <td>5899040.0</td>
+      <td>228</td>
+      <td>-0.210588</td>
+      <td>0.042504</td>
+      <td>-2.105879</td>
+      <td>0.425039</td>
+      <td>2.148345</td>
+      <td>78.589040</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>12070</th>
+      <td>POINT (380000 5791040)</td>
+      <td>12070</td>
+      <td>8000</td>
+      <td>10900</td>
+      <td>380000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.423103</td>
+      <td>-1.284985</td>
+      <td>4.231027</td>
+      <td>-12.849851</td>
+      <td>13.528498</td>
+      <td>198.224989</td>
+    </tr>
+    <tr>
+      <th>12071</th>
+      <td>POINT (381000 5791040)</td>
+      <td>12071</td>
+      <td>8100</td>
+      <td>10900</td>
+      <td>381000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.295017</td>
+      <td>-1.258081</td>
+      <td>2.950171</td>
+      <td>-12.580810</td>
+      <td>12.922086</td>
+      <td>193.197273</td>
+    </tr>
+    <tr>
+      <th>12072</th>
+      <td>POINT (382000 5791040)</td>
+      <td>12072</td>
+      <td>8200</td>
+      <td>10900</td>
+      <td>382000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.351648</td>
+      <td>-1.200180</td>
+      <td>3.516481</td>
+      <td>-12.001803</td>
+      <td>12.506354</td>
+      <td>196.330375</td>
+    </tr>
+    <tr>
+      <th>12073</th>
+      <td>POINT (383000 5791040)</td>
+      <td>12073</td>
+      <td>8300</td>
+      <td>10900</td>
+      <td>383000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.404020</td>
+      <td>-1.261354</td>
+      <td>4.040197</td>
+      <td>-12.613543</td>
+      <td>13.244798</td>
+      <td>197.760587</td>
+    </tr>
+    <tr>
+      <th>12074</th>
+      <td>POINT (384000 5791040)</td>
+      <td>12074</td>
+      <td>8400</td>
+      <td>10900</td>
+      <td>384000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.440928</td>
+      <td>-1.271966</td>
+      <td>4.409277</td>
+      <td>-12.719659</td>
+      <td>13.462223</td>
+      <td>199.118903</td>
+    </tr>
+    <tr>
+      <th>12075</th>
+      <td>POINT (385000 5791040)</td>
+      <td>12075</td>
+      <td>8500</td>
+      <td>10900</td>
+      <td>385000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.448053</td>
+      <td>-1.264458</td>
+      <td>4.480532</td>
+      <td>-12.644577</td>
+      <td>13.414936</td>
+      <td>199.511483</td>
+    </tr>
+    <tr>
+      <th>12076</th>
+      <td>POINT (386000 5791040)</td>
+      <td>12076</td>
+      <td>8600</td>
+      <td>10900</td>
+      <td>386000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.368041</td>
+      <td>-1.225450</td>
+      <td>3.680410</td>
+      <td>-12.254503</td>
+      <td>12.795244</td>
+      <td>196.716656</td>
+    </tr>
+    <tr>
+      <th>12077</th>
+      <td>POINT (387000 5791040)</td>
+      <td>12077</td>
+      <td>8700</td>
+      <td>10900</td>
+      <td>387000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.421414</td>
+      <td>-1.248958</td>
+      <td>4.214138</td>
+      <td>-12.489578</td>
+      <td>13.181370</td>
+      <td>198.645029</td>
+    </tr>
+    <tr>
+      <th>12078</th>
+      <td>POINT (388000 5791040)</td>
+      <td>12078</td>
+      <td>8800</td>
+      <td>10900</td>
+      <td>388000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.390062</td>
+      <td>-1.179842</td>
+      <td>3.900622</td>
+      <td>-11.798421</td>
+      <td>12.426487</td>
+      <td>198.294167</td>
+    </tr>
+    <tr>
+      <th>12079</th>
+      <td>POINT (389000 5791040)</td>
+      <td>12079</td>
+      <td>8900</td>
+      <td>10900</td>
+      <td>389000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.415643</td>
+      <td>-1.148986</td>
+      <td>4.156429</td>
+      <td>-11.489856</td>
+      <td>12.218539</td>
+      <td>199.887474</td>
+    </tr>
+    <tr>
+      <th>12080</th>
+      <td>POINT (390000 5791040)</td>
+      <td>12080</td>
+      <td>9000</td>
+      <td>10900</td>
+      <td>390000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.404408</td>
+      <td>-1.165013</td>
+      <td>4.044082</td>
+      <td>-11.650125</td>
+      <td>12.332073</td>
+      <td>199.143308</td>
+    </tr>
+    <tr>
+      <th>12081</th>
+      <td>POINT (391000 5791040)</td>
+      <td>12081</td>
+      <td>9100</td>
+      <td>10900</td>
+      <td>391000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.425620</td>
+      <td>-1.187113</td>
+      <td>4.256201</td>
+      <td>-11.871128</td>
+      <td>12.611064</td>
+      <td>199.724473</td>
+    </tr>
+    <tr>
+      <th>12082</th>
+      <td>POINT (392000 5791040)</td>
+      <td>12082</td>
+      <td>9200</td>
+      <td>10900</td>
+      <td>392000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.412727</td>
+      <td>-1.140732</td>
+      <td>4.127267</td>
+      <td>-11.407319</td>
+      <td>12.131004</td>
+      <td>199.890562</td>
+    </tr>
+    <tr>
+      <th>12083</th>
+      <td>POINT (393000 5791040)</td>
+      <td>12083</td>
+      <td>9300</td>
+      <td>10900</td>
+      <td>393000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.420770</td>
+      <td>-1.208876</td>
+      <td>4.207698</td>
+      <td>-12.088759</td>
+      <td>12.800110</td>
+      <td>199.191321</td>
+    </tr>
+    <tr>
+      <th>12084</th>
+      <td>POINT (394000 5791040)</td>
+      <td>12084</td>
+      <td>9400</td>
+      <td>10900</td>
+      <td>394000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.411952</td>
+      <td>-1.213787</td>
+      <td>4.119517</td>
+      <td>-12.137869</td>
+      <td>12.817889</td>
+      <td>198.746894</td>
+    </tr>
+    <tr>
+      <th>12085</th>
+      <td>POINT (395000 5791040)</td>
+      <td>12085</td>
+      <td>9500</td>
+      <td>10900</td>
+      <td>395000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.442422</td>
+      <td>-0.854839</td>
+      <td>4.424218</td>
+      <td>-8.548387</td>
+      <td>9.625416</td>
+      <td>207.363827</td>
+    </tr>
+    <tr>
+      <th>12086</th>
+      <td>POINT (396000 5791040)</td>
+      <td>12086</td>
+      <td>9600</td>
+      <td>10900</td>
+      <td>396000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.410208</td>
+      <td>-1.201714</td>
+      <td>4.102077</td>
+      <td>-12.017142</td>
+      <td>12.697982</td>
+      <td>198.847450</td>
+    </tr>
+    <tr>
+      <th>12087</th>
+      <td>POINT (397000 5791040)</td>
+      <td>12087</td>
+      <td>9700</td>
+      <td>10900</td>
+      <td>397000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.394172</td>
+      <td>-1.189054</td>
+      <td>3.941716</td>
+      <td>-11.890545</td>
+      <td>12.526858</td>
+      <td>198.340361</td>
+    </tr>
+    <tr>
+      <th>12088</th>
+      <td>POINT (398000 5791040)</td>
+      <td>12088</td>
+      <td>9800</td>
+      <td>10900</td>
+      <td>398000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.372462</td>
+      <td>-1.105048</td>
+      <td>3.724623</td>
+      <td>-11.050478</td>
+      <td>11.661299</td>
+      <td>198.626667</td>
+    </tr>
+    <tr>
+      <th>12089</th>
+      <td>POINT (399000 5791040)</td>
+      <td>12089</td>
+      <td>9900</td>
+      <td>10900</td>
+      <td>399000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.222491</td>
+      <td>-1.150124</td>
+      <td>2.224915</td>
+      <td>-11.501243</td>
+      <td>11.714471</td>
+      <td>190.948626</td>
+    </tr>
+    <tr>
+      <th>12090</th>
+      <td>POINT (400000 5791040)</td>
+      <td>12090</td>
+      <td>10000</td>
+      <td>10900</td>
+      <td>400000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.228518</td>
+      <td>-1.205668</td>
+      <td>2.285181</td>
+      <td>-12.056680</td>
+      <td>12.271332</td>
+      <td>190.732335</td>
+    </tr>
+    <tr>
+      <th>12091</th>
+      <td>POINT (401000 5791040)</td>
+      <td>12091</td>
+      <td>10100</td>
+      <td>10900</td>
+      <td>401000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.179267</td>
+      <td>-1.124293</td>
+      <td>1.792668</td>
+      <td>-11.242928</td>
+      <td>11.384950</td>
+      <td>189.059463</td>
+    </tr>
+    <tr>
+      <th>12092</th>
+      <td>POINT (402000 5791040)</td>
+      <td>12092</td>
+      <td>10200</td>
+      <td>10900</td>
+      <td>402000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.249695</td>
+      <td>-1.089078</td>
+      <td>2.496946</td>
+      <td>-10.890779</td>
+      <td>11.173353</td>
+      <td>192.913120</td>
+    </tr>
+    <tr>
+      <th>12093</th>
+      <td>POINT (403000 5791040)</td>
+      <td>12093</td>
+      <td>10300</td>
+      <td>10900</td>
+      <td>403000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.244407</td>
+      <td>-0.743836</td>
+      <td>2.444071</td>
+      <td>-7.438364</td>
+      <td>7.829607</td>
+      <td>198.189303</td>
+    </tr>
+    <tr>
+      <th>12094</th>
+      <td>POINT (404000 5791040)</td>
+      <td>12094</td>
+      <td>10400</td>
+      <td>10900</td>
+      <td>404000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.271931</td>
+      <td>-0.778958</td>
+      <td>2.719314</td>
+      <td>-7.789583</td>
+      <td>8.250592</td>
+      <td>199.243899</td>
+    </tr>
+    <tr>
+      <th>12095</th>
+      <td>POINT (405000 5791040)</td>
+      <td>12095</td>
+      <td>10500</td>
+      <td>10900</td>
+      <td>405000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.227180</td>
+      <td>-0.774121</td>
+      <td>2.271795</td>
+      <td>-7.741213</td>
+      <td>8.067679</td>
+      <td>196.355253</td>
+    </tr>
+    <tr>
+      <th>12096</th>
+      <td>POINT (406000 5791040)</td>
+      <td>12096</td>
+      <td>10600</td>
+      <td>10900</td>
+      <td>406000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.225044</td>
+      <td>-0.771500</td>
+      <td>2.250443</td>
+      <td>-7.715001</td>
+      <td>8.036525</td>
+      <td>196.261809</td>
+    </tr>
+    <tr>
+      <th>12097</th>
+      <td>POINT (407000 5791040)</td>
+      <td>12097</td>
+      <td>10700</td>
+      <td>10900</td>
+      <td>407000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.307129</td>
+      <td>-0.782714</td>
+      <td>3.071287</td>
+      <td>-7.827140</td>
+      <td>8.408146</td>
+      <td>201.424520</td>
+    </tr>
+    <tr>
+      <th>12098</th>
+      <td>POINT (408000 5791040)</td>
+      <td>12098</td>
+      <td>10800</td>
+      <td>10900</td>
+      <td>408000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.284867</td>
+      <td>-0.810308</td>
+      <td>2.848671</td>
+      <td>-8.103080</td>
+      <td>8.589228</td>
+      <td>199.369333</td>
+    </tr>
+    <tr>
+      <th>12099</th>
+      <td>POINT (409000 5791040)</td>
+      <td>12099</td>
+      <td>10900</td>
+      <td>10900</td>
+      <td>409000.0</td>
+      <td>5791040.0</td>
+      <td>207</td>
+      <td>0.304630</td>
+      <td>-0.859407</td>
+      <td>3.046297</td>
+      <td>-8.594072</td>
+      <td>9.118004</td>
+      <td>199.517633</td>
+    </tr>
+  </tbody>
+</table>
+<p>8035 rows × 13 columns</p>
 </div>
 
 
-<div class=" ">
-<div class="content">
-<div class="scrolling-tabs-container sub-nav-scroll">
-<div class="fade-left">
-<i class="fa fa-angle-left"></i>
-</div>
-<div class="fade-right">
-<i class="fa fa-angle-right"></i>
-</div>
 
-<div class="nav-links sub-nav scrolling-tabs">
-<ul class="container-fluid">
-<li class="active"><a href="/hollstei/S2MSI/tree/master">Files
-</a></li><li class=""><a href="/hollstei/S2MSI/commits/master">Commits
-</a></li><li class=""><a href="/hollstei/S2MSI/network/master">Network
-</a></li><li class=""><a href="/hollstei/S2MSI/compare?from=master&amp;to=master">Compare
-</a></li><li class=""><a href="/hollstei/S2MSI/branches">Branches
-</a></li><li class=""><a href="/hollstei/S2MSI/tags">Tags
-</a></li></ul>
-</div>
-</div>
+#### calculate geometric quality grid - without any disk access
 
-<div class="container-fluid">
-
-<div class="tree-holder" id="tree-holder">
-<div class="nav-block">
-<div class="tree-ref-holder">
-<form class="project-refs-form" action="/hollstei/S2MSI/refs/switch" accept-charset="UTF-8" method="get"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="destination" id="destination" value="blob" />
-<input type="hidden" name="path" id="path" value="README.md" />
-<div class="dropdown">
-<button class="dropdown-menu-toggle js-project-refs-dropdown" type="button" data-toggle="dropdown" data-selected="master" data-ref="master" data-refs-url="/hollstei/S2MSI/refs" data-field-name="ref" data-submit-form-on-click="true"><span class="dropdown-toggle-text">master</span><i class="fa fa-chevron-down"></i></button>
-<div class="dropdown-menu dropdown-menu-selectable">
-<div class="dropdown-title"><span>Switch branch/tag</span><button class="dropdown-title-button dropdown-menu-close" aria-label="Close" type="button"><i class="fa fa-times dropdown-menu-close-icon"></i></button></div>
-<div class="dropdown-input"><input type="search" id="" class="dropdown-input-field" placeholder="Search branches and tags" autocomplete="off" /><i class="fa fa-search dropdown-input-search"></i><i role="button" class="fa fa-times dropdown-input-clear js-dropdown-input-clear"></i></div>
-<div class="dropdown-content"></div>
-<div class="dropdown-loading"><i class="fa fa-spinner fa-spin"></i></div>
-</div>
-</div>
-</form>
-</div>
-<ul class="breadcrumb repo-breadcrumb">
-<li>
-<a href="/hollstei/S2MSI/tree/master">S2MSI
-</a></li>
-<li>
-<a href="/hollstei/S2MSI/blob/master/README.md"><strong>
-README.md
-</strong>
-</a></li>
-</ul>
-</div>
-<ul class="blob-commit-info hidden-xs">
-<li class="commit js-toggle-container" id="commit-f2b2f625">
-<a href="mailto:andre.hollstein@gfz-potsdam.de"><img class="avatar has-tooltip hidden-xs s36" alt="André Hollstein&#39;s avatar" title="André Hollstein" data-container="body" src="https://secure.gravatar.com/avatar/aac1fb736480b4b297a1f33252f31bf3?s=72&amp;d=identicon" /></a>
-<div class="commit-info-block">
-<div class="commit-row-title">
-<span class="item-title">
-<a class="commit-row-message" href="/hollstei/S2MSI/commit/f2b2f6251fb4ad9c51577b70b60bbf8664e0cd1a">Update Readme</a>
-<span class="commit-row-message visible-xs-inline">
-&middot;
-f2b2f625
-</span>
-<div class="visible-xs-inline">
-<a class="ci-status-link ci-status-icon-skipped " title="Commit: skipped" data-toggle="tooltip" data-placement="auto left" data-container="body" href="/hollstei/S2MSI/commit/f2b2f6251fb4ad9c51577b70b60bbf8664e0cd1a/builds"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">
-  <g fill="#5C5C5C" fill-rule="evenodd">
-    <path d="M12.5,7 C12.5,3.96243388 10.0375661,1.5 7,1.5 C3.96243388,1.5 1.5,3.96243388 1.5,7 C1.5,10.0375661 3.96243388,12.5 7,12.5 C10.0375661,12.5 12.5,10.0375661 12.5,7 Z M0,7 C0,3.13400675 3.13400675,0 7,0 C10.8659932,0 14,3.13400675 14,7 C14,10.8659932 10.8659932,14 7,14 C3.13400675,14 0,10.8659932 0,7 Z"/>
-    <rect width="8" height="2" x="3" y="6" transform="rotate(45 7 7)" rx=".5"/>
-  </g>
-</svg>
-</a>
-</div>
-</span>
-<div class="commit-actions hidden-xs">
-<a class="ci-status-link ci-status-icon-skipped " title="Commit: skipped" data-toggle="tooltip" data-placement="auto left" data-container="body" href="/hollstei/S2MSI/commit/f2b2f6251fb4ad9c51577b70b60bbf8664e0cd1a/builds"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">
-  <g fill="#5C5C5C" fill-rule="evenodd">
-    <path d="M12.5,7 C12.5,3.96243388 10.0375661,1.5 7,1.5 C3.96243388,1.5 1.5,3.96243388 1.5,7 C1.5,10.0375661 3.96243388,12.5 7,12.5 C10.0375661,12.5 12.5,10.0375661 12.5,7 Z M0,7 C0,3.13400675 3.13400675,0 7,0 C10.8659932,0 14,3.13400675 14,7 C14,10.8659932 10.8659932,14 7,14 C3.13400675,14 0,10.8659932 0,7 Z"/>
-    <rect width="8" height="2" x="3" y="6" transform="rotate(45 7 7)" rx=".5"/>
-  </g>
-</svg>
-</a>
-<button class="btn btn-clipboard" data-toggle="tooltip" data-placement="bottom" data-container="body" data-clipboard-text="f2b2f6251fb4ad9c51577b70b60bbf8664e0cd1a" type="button" title="Copy to Clipboard"><i class="fa fa-clipboard"></i></button>
-<a class="commit-short-id btn btn-transparent" href="/hollstei/S2MSI/commit/f2b2f6251fb4ad9c51577b70b60bbf8664e0cd1a">f2b2f625</a>
-
-</div>
-</div>
-<div class="commit-row-info">
-<a class="commit-author-link has-tooltip" title="andre.hollstein@gfz-potsdam.de" href="mailto:andre.hollstein@gfz-potsdam.de">André Hollstein</a>
-authored
-<time class="js-timeago js-timeago-pending" datetime="2016-05-03T13:08:28Z" title="May 3, 2016 3:08pm" data-toggle="tooltip" data-placement="top" data-container="body">2016-05-03 15:08:28 +0200</time><script>
-//<![CDATA[
-$('.js-timeago-pending').removeClass('js-timeago-pending').timeago()
-//]]>
-</script>
-</div>
-</div>
-</li>
-
-</ul>
-<div class="blob-content-holder" id="blob-content-holder">
-<article class="file-holder">
-<div class="file-title">
-<i class="fa fa-file-text-o fa-fw"></i>
-<strong>
-README.md
-</strong>
-<small>
-3.71 KB
-</small>
-<div class="file-actions hidden-xs">
-<div class="btn-group tree-btn-group">
-<a class="btn btn-sm" target="_blank" href="/hollstei/S2MSI/raw/master/README.md">Raw</a>
-<a class="btn btn-sm" href="/hollstei/S2MSI/blame/master/README.md">Blame</a>
-<a class="btn btn-sm" href="/hollstei/S2MSI/commits/master/README.md">History</a>
-<a class="btn btn-sm" href="/hollstei/S2MSI/blob/e96e2a7f28d2a6286a08bb866d356151f53754bd/README.md">Permalink</a>
-</div>
-<div class="btn-group" role="group">
-<a class="btn btn-file-option" rel="nofollow" data-method="post" href="/hollstei/S2MSI/forks?continue%5Bnotice%5D=You%27re+not+allowed+to+make+changes+to+this+project+directly.+A+fork+of+this+project+has+been+created+that+you+can+make+changes+in%2C+so+you+can+submit+a+merge+request.&amp;continue%5Bnotice_now%5D=You%27re+not+allowed+to+make+changes+to+this+project+directly.+A+fork+of+this+project+is+being+created+that+you+can+make+changes+in%2C+so+you+can+submit+a+merge+request.&amp;continue%5Bto%5D=%2Fhollstei%2FS2MSI%2Fedit%2Fmaster%2FREADME.md&amp;namespace_key=86">Edit</a>
-<a class="btn btn-default" rel="nofollow" data-method="post" href="/hollstei/S2MSI/forks?continue%5Bnotice%5D=You%27re+not+allowed+to+make+changes+to+this+project+directly.+A+fork+of+this+project+has+been+created+that+you+can+make+changes+in%2C+so+you+can+submit+a+merge+request.+Try+to+replace+this+file+again.&amp;continue%5Bnotice_now%5D=You%27re+not+allowed+to+make+changes+to+this+project+directly.+A+fork+of+this+project+is+being+created+that+you+can+make+changes+in%2C+so+you+can+submit+a+merge+request.&amp;continue%5Bto%5D=%2Fhollstei%2FS2MSI%2Fblob%2Fmaster%2FREADME.md&amp;namespace_key=86">Replace</a>
-<a class="btn btn-remove" rel="nofollow" data-method="post" href="/hollstei/S2MSI/forks?continue%5Bnotice%5D=You%27re+not+allowed+to+make+changes+to+this+project+directly.+A+fork+of+this+project+has+been+created+that+you+can+make+changes+in%2C+so+you+can+submit+a+merge+request.+Try+to+delete+this+file+again.&amp;continue%5Bnotice_now%5D=You%27re+not+allowed+to+make+changes+to+this+project+directly.+A+fork+of+this+project+is+being+created+that+you+can+make+changes+in%2C+so+you+can+submit+a+merge+request.&amp;continue%5Bto%5D=%2Fhollstei%2FS2MSI%2Fblob%2Fmaster%2FREADME.md&amp;namespace_key=86">Delete</a>
-</div>
-
-</div>
-</div>
-<div class="file-content wiki">
-<h1>&#x000A;<a id="introduction" class="anchor" href="#introduction" aria-hidden="true"></a>Introduction</h1>&#x000A;&#x000A;<p>The S2MSI python module is intended to allow to perform basic tasks with <a href="https://sentinel.esa.int/web/sentinel/missions/sentinel-2" rel="nofollow noreferrer" target="_blank">Sentinel-2 MSI</a> images, such as:</p>&#x000A;&#x000A;<ul>&#x000A;<li>reading tiles into numpy arrays (using either glymur, gdal, or kakadu)</li>&#x000A;<li>getting spectral response functions for a Sentinel-2</li>&#x000A;<li>manage digital elevation models for Sentinel-2 tiles</li>&#x000A;<li>getting basic data about Sentinel-2 tiles </li>&#x000A;<li>general masking capabilities (e.g. clouds and cirrus)</li>&#x000A;<li>application of machine learning tools like the classical Bayesian classifier</li>&#x000A;<li>incorporating the functionality of GRASS GIS for Sentinel-2</li>&#x000A;</ul>&#x000A;&#x000A;<p>It is also work in progress since I add functionality as I need it.</p>&#x000A;&#x000A;<h1>&#x000A;<a id="install" class="anchor" href="#install" aria-hidden="true"></a>Install</h1>&#x000A;&#x000A;<p>For now, installing is a little peculiar. I try to include functionality from GRASS GIS, for which currently only <strong>python2.7</strong> bindings exists. Apart from that, all code is <strong>python3.4+</strong>. My solution is to have everything in one module (one <strong>setup.py</strong>) which should be called with a <strong>python3.4+</strong> and a <strong>python2.7</strong> interpreter. This is automated with a bash script:</p>&#x000A;&#x000A;<pre class="code highlight js-syntax-highlight plaintext"><code>bash ./setup.sh install &#x000A;</code></pre>&#x000A;&#x000A;<p>This script expects a <strong>python2.7</strong> environment which can be activated with <code>source activate ${py27env}</code> where <code>py27env</code> is an environment variable which can be set in <code>setup.sh</code> and is set to <code>py27</code> as a default. To get everything right, the usual way of executing <code>python setup.py install</code> is not recommended as long as the GRASS GIS parts are on <strong>python2.7</strong>.</p>&#x000A;&#x000A;<p>If you want to get in touch, <a href="http://www.gfz-potsdam.de/en/section/remote-sensing/staff/profil/andre-hollstein/" rel="nofollow noreferrer" target="_blank">try this</a>. </p>&#x000A;&#x000A;<h1>&#x000A;<a id="removal" class="anchor" href="#removal" aria-hidden="true"></a>Removal</h1>&#x000A;&#x000A;<p>For now, un-installing is only possible by manually removing the folders of the module. To get a list of to-be-removed folder, call:</p>&#x000A;&#x000A;<pre class="code highlight js-syntax-highlight plaintext"><code>bash ./setup.sh uninstall&#x000A;</code></pre>&#x000A;&#x000A;<h1>&#x000A;<a id="modules" class="anchor" href="#modules" aria-hidden="true"></a>Modules</h1>&#x000A;&#x000A;<p>High level documentation is mostly missing for now, but docstrings are in place.</p>&#x000A;&#x000A;<h2>&#x000A;<a id="granuleinfo-simple-dict-like-python-object-with-spatial-information-about-sentinel-2-msi-granules" class="anchor" href="#granuleinfo-simple-dict-like-python-object-with-spatial-information-about-sentinel-2-msi-granules" aria-hidden="true"></a>GranuleInfo: Simple Dict like Python Object with Spatial Information about Sentinel-2 MSI Granules</h2>&#x000A;&#x000A;<p>Data was derived from here: <a href="https://sentinel.esa.int/web/sentinel/missions/sentinel-2/data-products" rel="nofollow noreferrer" target="_blank">https://sentinel.esa.int/web/sentinel/missions/sentinel-2/data-products</a></p>&#x000A;&#x000A;<p>There was only limited testing of the data.</p>&#x000A;&#x000A;<pre class="code highlight js-syntax-highlight python"><code><span class="kn">from</span> <span class="nn">S2MSI.GranuleInfo</span> <span class="kn">import</span> <span class="n">GranuleInfo</span>&#x000A;<span class="n">Ginfo</span> <span class="o">=</span> <span class="n">GranuleInfo</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s">"lite"</span><span class="p">)</span>&#x000A;<span class="k">print</span><span class="p">(</span><span class="n">Ginfo</span><span class="p">[</span><span class="s">"32UPV"</span><span class="p">])</span>&#x000A;<span class="o">&gt;&gt;&gt;</span><span class="p">{</span><span class="s">'tr'</span><span class="p">:</span> <span class="p">{</span><span class="s">'lat'</span><span class="p">:</span> <span class="mf">49.6162737214</span><span class="p">,</span> <span class="s">'lon'</span><span class="p">:</span> <span class="mf">11.9045727629</span><span class="p">},</span> <span class="s">'ll'</span><span class="p">:</span> <span class="p">{</span><span class="s">'lat'</span><span class="p">:</span> <span class="mf">48.6570271781</span><span class="p">,</span> <span class="s">'lon'</span><span class="p">:</span> <span class="mf">10.3579107698</span><span class="p">}}</span>&#x000A;<span class="n">Ginfo</span> <span class="o">=</span> <span class="n">GranuleInfo</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s">"full"</span><span class="p">)</span>&#x000A;<span class="k">print</span><span class="p">(</span><span class="n">Ginfo</span><span class="p">[</span><span class="s">"32UPV"</span><span class="p">])</span>&#x000A;<span class="o">&gt;&gt;&gt;</span><span class="p">{</span><span class="s">'pos'</span><span class="p">:</span> <span class="p">{</span><span class="s">'tl'</span><span class="p">:</span> <span class="p">{</span><span class="s">'x'</span><span class="p">:</span> <span class="mf">600000.0000025682</span><span class="p">,</span> <span class="s">'lat'</span><span class="p">:</span> <span class="mf">49.644436702</span><span class="p">,</span> <span class="s">'lon'</span><span class="p">:</span> <span class="mf">10.3851737332</span><span class="p">,</span> <span class="s">'y'</span><span class="p">:</span> <span class="mf">5500020.000361709</span><span class="p">},</span> <span class="s">'tr'</span><span class="p">:</span> <span class="p">{</span><span class="s">'x'</span><span class="p">:</span> <span class="mf">709800.0000165974</span><span class="p">,</span> <span class="s">'lat'</span><span class="p">:</span> <span class="mf">49.6162737214</span><span class="p">,</span> <span class="s">'lon'</span><span class="p">:</span> <span class="mf">11.9045727629</span><span class="p">,</span> <span class="s">'y'</span><span class="p">:</span> <span class="mf">5500020.000351718</span><span class="p">},</span> <span class="s">'lr'</span><span class="p">:</span> <span class="p">{</span><span class="s">'x'</span><span class="p">:</span> <span class="mf">709800.0000132157</span><span class="p">,</span> <span class="s">'lat'</span><span class="p">:</span> <span class="mf">48.6298215752</span><span class="p">,</span> <span class="s">'lon'</span><span class="p">:</span> <span class="mf">11.8474784519</span><span class="p">,</span> <span class="s">'y'</span><span class="p">:</span> <span class="mf">5390220.000321694</span><span class="p">},</span> <span class="s">'ll'</span><span class="p">:</span> <span class="p">{</span><span class="s">'x'</span><span class="p">:</span> <span class="mf">599999.9999970878</span><span class="p">,</span> <span class="s">'lat'</span><span class="p">:</span> <span class="mf">48.6570271781</span><span class="p">,</span> <span class="s">'lon'</span><span class="p">:</span> <span class="mf">10.3579107698</span><span class="p">,</span> <span class="s">'y'</span><span class="p">:</span> <span class="mf">5390220.000326163</span><span class="p">}},</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'32UPV'</span><span class="p">,</span> <span class="s">'zone'</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span> <span class="s">'epsg'</span><span class="p">:</span> <span class="mi">32632</span><span class="p">}</span>&#x000A;</code></pre>&#x000A;&#x000A;<p>Data was created with this <a href="https://git.gfz-potsdam.de/hollstei/S2MSI/tree/master/S2MSI/GranuleInfo/s2_kml_to_dict.ipynb">notebook</a>.</p>&#x000A;&#x000A;<h1>&#x000A;<a id="license" class="anchor" href="#license" aria-hidden="true"></a>License</h1>&#x000A;&#x000A;<p><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow noreferrer" target="_blank"><img alt="Creative Commons License" src="https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png"></a><br><span>S2MSI</span> by <a href="https://github.com/hollstein/S2MSI" rel="nofollow noreferrer" target="_blank">S2MSI</a> is licensed under a <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow noreferrer" target="_blank">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.<br>Based on a work at <a href="https://github.com/hollstein/S2MSI" rel="nofollow noreferrer" target="_blank">https://github.com/hollstein/S2MSI</a>.</p>
-</div>
-
-</article>
-</div>
-
-</div>
-</div>
-
-</div>
-</div>
-</div>
-</div>
+All you have to do is to instanciate Geom_Quality_Grid with two instances of the GeoArray class as described above.
 
 
-</body>
-</html>
+```python
+GQG = Geom_Quality_Grid(GeoArray(ref_ndarray, ref_gt, ref_prj),GeoArray(tgt_ndarray, tgt_gt, tgt_prj),**kwargs)
+GQG.get_quality_grid()
+```
 
+#### export geometric quality grid to an ESRI point shapefile
+
+
+```python
+GQG.quality_grid_to_PointShapefile()
+```
+
+### Shell console interface
+
+By far, there is no shell console interface for this module.
