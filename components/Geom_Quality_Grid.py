@@ -272,11 +272,11 @@ class Geom_Quality_Grid(object):
 
 
     def test_if_singleprocessing_equals_multiprocessing_result(self):
-        self.mp = 1
+        self.CPUs = None
         dataframe = self.get_quality_grid()
         mp_out    = np.empty_like(dataframe.values)
         mp_out[:] = dataframe.values
-        self.mp = 0
+        self.CPUs = 1
         dataframe = self.get_quality_grid()
         sp_out    = np.empty_like(dataframe.values)
         sp_out[:] = dataframe.values
@@ -417,7 +417,7 @@ class Geom_Quality_Grid(object):
         OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical',verbose=False)
         zvalues, sigmasq = OK.execute('grid', grid_x, grid_y,backend='C',n_closest_points=12)
 
-        if self.mp:
+        if self.CPUs is None or self.CPUs>1:
             fName_out = fName_out if fName_out else \
                 "Kriging__%s__grid%s_ws%s_%s.tif" %(attrName,self.grid_res, self.window_size,tilepos)
         else:

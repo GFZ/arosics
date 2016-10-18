@@ -16,6 +16,7 @@ For now, there is no automatic install script. Just clone the repository, instal
 CoReg_Sat has been tested with Python 3.5. It is not completely compatible with Python 2.7 (at least at the moment).
 
 The following non-standard Python libraries are required:
+
     - gdal, osr, ogr
     - geopandas
     - pykrige
@@ -123,12 +124,6 @@ CR.correct_shifts() returns an an OrderedDict containing the coregistered numpy 
 ```python
 CR.correct_shifts()
 ```
-
-    Writing GeoArray of size (10978, 10978) to /home/gfz-fe/scheffler/temp.
-
-
-
-
 
     OrderedDict([('band', None),
                  ('is shifted', True),
