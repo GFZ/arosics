@@ -404,10 +404,15 @@ class COREG(object):
         # rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic # OLD
         # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
         tgt_xmin,tgt_xmax,tgt_ymin,tgt_ymax = self.matchWin.boundsMap
-        self.otherWin.data = warp_ndarray(self.otherWin.data, otherWin_subgt, self.otherWin.imParams.prj,
-                                              self.matchWin.imParams.prj, out_gsd=(self.imfft_gsd, self.imfft_gsd),
-                                              out_bounds=([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
-                                              rspAlg='cubic', in_nodata=self.otherWin.imParams.nodata)[0]
+        self.otherWin.data = warp_ndarray(self.otherWin.data,
+                                          otherWin_subgt,
+                                          self.otherWin.imParams.prj,
+                                          self.matchWin.imParams.prj,
+                                          out_gsd    = (self.imfft_gsd, self.imfft_gsd),
+                                          out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
+                                          rspAlg     = 'cubic',
+                                          in_nodata  = self.otherWin.imParams.nodata,
+                                          progress   = False) [0]
 
         if self.matchWin.data.shape != self.otherWin.data.shape:
             self.tracked_errors.append(
@@ -716,7 +721,7 @@ class COREG(object):
                                      "parameter to an appropriate value. Otherwise try to use a different window "
                                      "size for matching via the '-ws' parameter or define the spectral bands "
                                      "to be used for matching manually ('-br' and '-bs')."
-                                     % (self.x_shift_px, self.y_shift_px)))
+                                     % (x_totalshift, y_totalshift)))
                     if not self.ignErr:
                         raise self.tracked_errors[-1]
                 else:

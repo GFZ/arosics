@@ -53,22 +53,23 @@ class DESHIFTER(object):
             - resamp_alg(str)       the resampling algorithm to be used if neccessary
                                     (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
-            - warp_alg(str):        'GDAL' or 'rasterio' (default = 'rasterio')
+            - warp_alg(str):        'GDAL_cmd' or 'GDAL_lib' (default = 'GDAL_lib')
             - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
                                     areas outside of the actual bounds, default = True
             - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
                                     The given coordinates are automatically snapped to the output grid.
             - tempDir(str):         directory to be used for tempfiles (default: /dev/shm/)
+            - CPUs(int):            number of CPUs to use (default: None, which means 'all CPUs available')
             - v(bool):              verbose mode (default: False)
             - q(bool):              quiet mode (default: False)
 
         """
-        # FIXME add mp?
         # unpack args
         self.im2shift           = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
-        self.shift_prj          = im2shift.projection
-        self.shift_gt           = list(im2shift.geotransform)
+        self.shift_prj          = self.im2shift.projection
+        self.shift_gt           = list(self.im2shift.geotransform)
         self.nodata             = get_outFillZeroSaturated(self.im2shift.dtype)[0]
+        self.GCPList            = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
         mapI                    = coreg_results['updated map info']
         self.updated_map_info   = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
         self.original_map_info  = coreg_results['original map info']
@@ -88,7 +89,8 @@ class DESHIFTER(object):
         self.warpAlg      = kwargs.get('warp_alg'    , 'GDAL_lib')
         self.cliptoextent = kwargs.get('cliptoextent', True)
         self.clipextent   = kwargs.get('clipextent'  , None)
-        self.tempDir      = kwargs.get('tempDir'     ,'/dev/shm/')
+        self.tempDir      = kwargs.get('tempDir'     , '/dev/shm/')
+        self.CPUs         = kwargs.get('CPUs'        , None)
         self.v            = kwargs.get('v'           , False)
         self.q            = kwargs.get('q'           , False) if not self.v else False
         self.out_grid     = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
@@ -113,8 +115,8 @@ class DESHIFTER(object):
         out_grid    = init_kwargs.get('target_xyGrid', None)
 
         # assertions
-        assert out_grid is None or (isinstance(out_grid,(list, tuple)) and len(out_grid)==2)
-        assert out_gsd  is None or (isinstance(out_gsd, (int, list))   and len(out_gsd) ==2)
+        assert out_grid is None or (isinstance(out_grid,(list, tuple))      and len(out_grid)==2)
+        assert out_gsd  is None or (isinstance(out_gsd, (int, tuple, list)) and len(out_gsd) ==2)
 
         ref_xgsd, ref_ygsd = (self.ref_grid[0][1]-self.ref_grid[0][0],self.ref_grid[1][1]-self.ref_grid[1][0])
         get_grid           = lambda gt, xgsd, ygsd: [[gt[0], gt[0] + xgsd], [gt[3], gt[3] - ygsd]]
@@ -267,7 +269,8 @@ class DESHIFTER(object):
             elif self.warpAlg=='GDAL_lib':
                 # apply XY-shifts to shift_gt
                 in_arr = self.im2shift[self.band2process] if self.band2process else self.im2shift[:]
-                self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
+                if not self.GCPList:
+                    self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
 
                 # get resampled array
                 out_arr, out_gt, out_prj = \
@@ -276,7 +279,9 @@ class DESHIFTER(object):
                                  in_nodata  = self.nodata,
                                  out_nodata = self.nodata,
                                  out_gsd    = self.out_gsd,
-                                 out_bounds = self._get_out_extent())
+                                 out_bounds = self._get_out_extent(),
+                                 gcpList    = self.GCPList,
+                                 CPUs       = self.CPUs)
 
                 self.updated_projection = out_prj
                 self.arr_shifted        = out_arr
