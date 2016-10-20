@@ -27,7 +27,7 @@ from py_tools_ds.ptds.geo.vector.topology  import get_footprint_polygon, get_ove
 from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
 from py_tools_ds.ptds.geo.vector.geometry  import boxObj, round_shapelyPoly_coords
 from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid
-from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX
+from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, reproject_shapelyGeometry
 from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.ptds.geo.map_info         import geotransform2mapinfo
 from py_tools_ds.ptds.numeric.vector       import find_nearest
@@ -279,6 +279,30 @@ class COREG(object):
         assert prj_equal(self.ref.prj, self.shift.prj), \
             'Input projections are not equal. Different projections are currently not supported. Got %s / %s.'\
             %(get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj))
+
+
+    def show_image_footprints(self):
+        """This method is intended to be called from Jupyter Notebook and shows a web map containing the calculated
+        footprints of the input images as well as the corresponding overlap area."""
+        # TODO different colors for polygons
+        assert self.overlap_poly, 'Please calculate the overlap polygon first.'
+
+        try:
+            import folium, geojson
+        except ImportError:
+            raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
+                              "the shell command 'pip install folium geojson'.")
+
+        refPoly      = reproject_shapelyGeometry(self.ref  .poly  , self.ref  .GeoArray.epsg, 4326)
+        shiftPoly    = reproject_shapelyGeometry(self.shift.poly  , self.shift.GeoArray.epsg, 4326)
+        overlapPoly  = reproject_shapelyGeometry(self.overlap_poly, self.shift.GeoArray.epsg, 4326)
+        matchWinPoly = reproject_shapelyGeometry(self.matchWin.mapPoly, self.shift.GeoArray.epsg, 4326)
+
+        m = folium.Map(location=tuple(np.array(overlapPoly.centroid.coords.xy).flatten())[::-1])
+        for poly in [refPoly, shiftPoly, overlapPoly, matchWinPoly]:
+            gjs = geojson.Feature(geometry=poly, properties={})
+            folium.GeoJson(gjs).add_to(m)
+        return m
 
 
     def _get_opt_winpos_winsize(self):

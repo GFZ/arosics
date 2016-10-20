@@ -281,7 +281,8 @@ class DESHIFTER(object):
                                  out_gsd    = self.out_gsd,
                                  out_bounds = self._get_out_extent(),
                                  gcpList    = self.GCPList,
-                                 CPUs       = self.CPUs)
+                                 CPUs       = self.CPUs,
+                                 q          = self.q)
 
                 self.updated_projection = out_prj
                 self.arr_shifted        = out_arr

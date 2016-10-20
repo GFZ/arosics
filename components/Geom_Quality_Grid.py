@@ -5,20 +5,23 @@ import collections
 import multiprocessing
 import os
 import warnings
+from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # custom
 import gdal
 import numpy as np
-from geopandas        import GeoDataFrame
-from pykrige.ok       import OrdinaryKriging
-from shapely.geometry import Point
+from geopandas         import GeoDataFrame
+from pykrige.ok        import OrdinaryKriging
+from shapely.geometry  import Point
 
 # internal modules
 from .CoReg  import COREG, DESHIFTER
 from .       import geometry as GEO
 from .       import io       as IO
-from py_tools_ds.ptds                import GeoArray
-from py_tools_ds.ptds.geo.projection import isProjectedOrGeographic, get_UTMzone
+from py_tools_ds.ptds                 import GeoArray
+from py_tools_ds.ptds.geo.projection  import isProjectedOrGeographic, get_UTMzone, EPSG2WKT
+from py_tools_ds.ptds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
 
 
 
@@ -103,7 +106,7 @@ class Geom_Quality_Grid(object):
         self.corner_coord_imref       = self.COREG_obj.ref  .corner_coord
         self.corner_coord_im2shift    = self.COREG_obj.shift.corner_coord
         self.overlap_poly             = self.COREG_obj.overlap_poly
-        self.nodata                   = (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata)
+        self.nodata                   = self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata
 
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self.quality_grid                 = None # set by self.get_quality_grid()
@@ -199,8 +202,8 @@ class Geom_Quality_Grid(object):
             'max_shift'       : self.max_shift,
             'nodata'          : self.nodata,
             'binary_ws'       : self.bin_ws,
-            'v'               : self.v,
-            'q'               : self.q,
+            'v'               : self.v, # FIXME this could lead to massive console output
+            'q'               : self.q, # FIXME this could lead to massive console output
             'ignore_errors'   : True
         }
         list_coreg_kwargs = (get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index) # generator
@@ -454,3 +457,96 @@ class Geom_Quality_Grid(object):
                        q=self.q)
         deshift_results = DS.correct_shifts()
         return deshift_results
+
+
+    def view_results(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt'):
+        """Shows a map of the calculated quality grid with the target image as background.
+
+        :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
+        :param cmap:                <plt.cm.<colormap>> a custom color map to be applied to the plotted grid points
+                                                        (default: 'RdYlGn_r')
+        :param exclude_fillVals:    <bool> whether to exclude those points of the grid where spatial shift detection failed
+        :param backgroundIm:        <str> whether to use the target or the reference image as map background. Possible
+                                          options are 'ref' and 'tgt' (default: 'tgt')
+        """
+
+        assert self.quality_grid is not None, 'Calculate quality grid first!'
+
+        # get a map showing target image
+        if backgroundIm not in ['tgt','ref']: raise ValueError('backgroundIm')
+        backgroundIm      = self.im2shift if backgroundIm=='tgt' else self.imref
+        fig, ax, map2show = backgroundIm.show_map(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
+        # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
+        plt.title(attribute2plot)
+
+        # transform all points of quality grid to LonLat
+        GDF = self.quality_grid.loc[self.quality_grid.X_SHIFT_M!=self.outFillVal, ['geometry',attribute2plot]].copy() \
+                if exclude_fillVals else self.quality_grid.loc[:,['geometry',attribute2plot]]
+
+        # get LonLat coordinates for all points
+        get_LonLat     = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
+        GDF['LonLat']  = [*GDF['geometry'].map(lambda geom: get_LonLat(*tuple(np.array(geom.coords.xy)[:,0])))]
+
+        # get colors for all points
+        #vmin = min(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
+        #vmax = max(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
+        #norm = mpl_normalize(vmin=vmin, vmax=vmax)
+        palette = cmap if cmap else plt.cm.RdYlGn_r
+        #GDF['color'] = [*GDF[attribute2plot].map(lambda val: palette(norm(val)))]
+
+        # add quality grid to map
+        #plot_point = lambda row: ax.plot(*map2show(*row['LonLat']), marker='o', markersize=7.0, alpha=1.0, color=row['color'])
+        #GDF.apply(plot_point, axis=1)
+        GDF['plt_XY'] = [*GDF['LonLat'].map(lambda ll: map2show(*ll))]
+        GDF['plt_X']  = [*GDF['plt_XY'].map(lambda XY: XY[0])]
+        GDF['plt_Y']  = [*GDF['plt_XY'].map(lambda XY: XY[1])]
+        points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
+                             cmap=palette, marker='o', s=50, alpha=1.0)
+
+        # add colorbar
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes("right", size="2%", pad=0.1) # create axis on the right; size =2% of ax; padding = 0.1 inch
+        plt.colorbar(points, cax=cax)
+
+        plt.show()
+
+
+    def view_results_folium(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True):
+        warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
+        assert self.quality_grid is not None, 'Calculate quality grid first!'
+
+        try:
+            import folium, geojson
+            from folium import plugins
+        except ImportError:
+            raise ImportError("This method requires the library 'folium'. It can be installed with "
+                              "the shell command 'pip install folium'.")
+
+        lon_min, lat_min, lon_max, lat_max = \
+            reproject_shapelyGeometry(self.im2shift.box.mapPoly, self.im2shift.projection, 4326).bounds
+        center_lon, center_lat = (lon_min+lon_max)/2, (lat_min+lat_max)/2
+
+        # get image to plot
+        image2plot = self.im2shift[:]
+        from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
+        image2plot, gt, prj = warp_ndarray(image2plot, self.im2shift.geotransform, self.im2shift.projection, in_nodata=self.nodata[1], out_nodata=self.nodata[1],
+                                           out_XYdims=(1000, 1000), q=True, out_prj='epsg:3857') # image must be transformed into web mercator projection
+
+        # create map
+        map_osm = folium.Map(location=[center_lat, center_lon])#,zoom_start=3)
+        import matplotlib
+        plugins.ImageOverlay(
+            colormap=lambda x: (1, 0, 0, x), # TODO a colormap must be given
+            # colormap=matplotlib.cm.gray, # does not work
+            image=image2plot, bounds=[[lat_min, lon_min], [lat_max, lon_max]],
+            ).add_to(map_osm)
+
+        folium.GeoJson(self.quality_grid.loc[:,['geometry',attribute2plot]]).add_to(map_osm)
+
+        # add overlap polygon
+        overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.epsg, 4326)
+        gjs         = geojson.Feature(geometry=overlapPoly, properties={})
+        folium.GeoJson(gjs).add_to(map_osm)
+
+
+        return map_osm
