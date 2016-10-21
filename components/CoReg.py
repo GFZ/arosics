@@ -180,6 +180,8 @@ class COREG(object):
         self.y_shift_px          = None                # always in shift image units (image coords) # set by calculate_spatial_shifts()
         self.x_shift_map         = None                # set by self.get_updated_map_info()
         self.y_shift_map         = None                # set by self.get_updated_map_info()
+        self.vec_length_map      = None
+        self.vec_angle_deg       = None
         self.updated_map_info    = None                # set by self.get_updated_map_info()
 
         self.tracked_errors      = []                  # expanded each time an error occurs
@@ -436,6 +438,7 @@ class COREG(object):
                                           out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
                                           rspAlg     = 'cubic',
                                           in_nodata  = self.otherWin.imParams.nodata,
+                                          CPUs       = None if self.mp else 1,
                                           progress   = False) [0]
 
         if self.matchWin.data.shape != self.otherWin.data.shape:
@@ -683,89 +686,102 @@ class COREG(object):
         # calculate cross power spectrum without any de-shifting applied
         scps = self._calc_shifted_cross_power_spectrum()
 
-        ## calculate X/Y shifts for target image ##
-        x_shift_px,y_shift_px = None,None # defaults
-
         if scps is None:
             self.success = False
+            warnings.simplefilter('default')
+
+            return 'fail'
+
+
+        # calculate spatial shifts
+        count_iter = 1
+        x_intshift, y_intshift = self._calc_integer_shifts(scps)
+
+        if (x_intshift, y_intshift) == (0, 0):
+            self.success = True
         else:
-            # 1st attempt
-            count_iter = 1
-            x_intshift, y_intshift = self._calc_integer_shifts(scps)
+            valid_invalid, x_val_shift, y_val_shift, scps = \
+                self._validate_integer_shifts(im0, im1, x_intshift, y_intshift)
 
-            if (x_intshift, y_intshift) == (0, 0):
-                self.success = True
-            else:
-                valid_invalid, x_val_shift, y_val_shift, scps = \
-                    self._validate_integer_shifts(im0, im1, x_intshift, y_intshift)
+            while valid_invalid!='valid':
+                count_iter += 1
 
-                while valid_invalid!='valid':
-                    count_iter += 1
-
-                    if count_iter > self.max_iter:
-                        self.success = False
-                        self.tracked_errors.append(RuntimeError('No match found in the given window.'))
-                        if not self.ignErr:
-                            raise self.tracked_errors[-1]
-                        else:
-                            warnings.warn('No match found in the given window.'); break
-
-                    if valid_invalid=='invalid' and (x_val_shift, y_val_shift)==(None, None):
-                        # this happens if matching window became too small
-                        self.success = False
-                        break
-
-                    if not self.q: print('No clear match found yet. Jumping to iteration %s...' % count_iter)
-                    if not self.q: print('input shifts: ', x_val_shift, y_val_shift)
-
-                    valid_invalid, x_val_shift, y_val_shift, scps = \
-                        self._validate_integer_shifts(im0, im1, x_val_shift, y_val_shift)
-
-                    # overwrite previous integer shifts if a valid match has been found
-                    if valid_invalid=='valid':
-                        self.success = True
-                        x_intshift, y_intshift = x_val_shift, y_val_shift
-
-            if not self.success==False:
-                x_subshift,   y_subshift    = self.calc_subpixel_shifts(scps)
-                x_totalshift, y_totalshift  = self._get_total_shifts(x_intshift, y_intshift, x_subshift, y_subshift)
-                x_shift_px,   y_shift_px    = x_totalshift*gsd_factor, y_totalshift*gsd_factor
-                if not self.q:
-                    print('Detected integer shifts (X/Y):       %s/%s' %(x_intshift,y_intshift))
-                    print('Detected subpixel shifts (X/Y):      %s/%s' %(x_subshift,y_subshift))
-                    print('Calculated total shifts in fft pixel units (X/Y):         %s/%s' %(x_totalshift,y_totalshift))
-                    print('Calculated total shifts in reference pixel units (X/Y):   %s/%s' %(x_totalshift,y_totalshift))
-                    print('Calculated total shifts in target pixel units (X/Y):      %s/%s' %(x_shift_px,y_shift_px))
-
-                if max([abs(x_totalshift),abs(y_totalshift)]) > self.max_shift:
+                if count_iter > self.max_iter:
                     self.success = False
-                    self.tracked_errors.append(
-                        RuntimeError("The calculated shift (X: %s px / Y: %s px) is recognized as too large to "
-                                     "be valid. If you know that it is valid, just set the '-max_shift' "
-                                     "parameter to an appropriate value. Otherwise try to use a different window "
-                                     "size for matching via the '-ws' parameter or define the spectral bands "
-                                     "to be used for matching manually ('-br' and '-bs')."
-                                     % (x_totalshift, y_totalshift)))
+                    self.tracked_errors.append(RuntimeError('No match found in the given window.'))
                     if not self.ignErr:
                         raise self.tracked_errors[-1]
-                else:
-                    self.success = True
+                    else:
+                        warnings.warn('No match found in the given window.'); break
 
-        self.x_shift_px, self.y_shift_px = (x_shift_px,y_shift_px) if self.success else (None,None)
+                if valid_invalid=='invalid' and (x_val_shift, y_val_shift)==(None, None):
+                    # this happens if matching window became too small
+                    self.success = False
+                    break
+
+                if not self.q: print('No clear match found yet. Jumping to iteration %s...' % count_iter)
+                if not self.q: print('input shifts: ', x_val_shift, y_val_shift)
+
+                valid_invalid, x_val_shift, y_val_shift, scps = \
+                    self._validate_integer_shifts(im0, im1, x_val_shift, y_val_shift)
+
+                # overwrite previous integer shifts if a valid match has been found
+                if valid_invalid=='valid':
+                    self.success = True
+                    x_intshift, y_intshift = x_val_shift, y_val_shift
+
+        if self.success or self.success is None:
+            # get total pixel shifts
+            x_subshift,   y_subshift         = self.calc_subpixel_shifts(scps)
+            x_totalshift, y_totalshift       = self._get_total_shifts(x_intshift, y_intshift, x_subshift, y_subshift)
+
+            if max([abs(x_totalshift),abs(y_totalshift)]) > self.max_shift:
+                self.success = False
+                self.tracked_errors.append(
+                    RuntimeError("The calculated shift (X: %s px / Y: %s px) is recognized as too large to "
+                                 "be valid. If you know that it is valid, just set the '-max_shift' "
+                                 "parameter to an appropriate value. Otherwise try to use a different window "
+                                 "size for matching via the '-ws' parameter or define the spectral bands "
+                                 "to be used for matching manually ('-br' and '-bs')."
+                                 % (x_totalshift, y_totalshift)))
+                if not self.ignErr:
+                    raise self.tracked_errors[-1]
+            else:
+                self.success = True
+                self.x_shift_px, self.y_shift_px = x_totalshift*gsd_factor, y_totalshift*gsd_factor
+
+                # get map shifts
+                new_originY, new_originX    = pixelToMapYX([self.x_shift_px, self.y_shift_px],
+                                                geotransform=self.shift.gt, projection=self.shift.prj)[0]
+                self.x_shift_map, self.y_shift_map = new_originX - self.shift.gt[0], new_originY - self.shift.gt[3]
+
+                # get length of shift vecor in map units
+                self.vec_length_map = float(np.sqrt(self.x_shift_map ** 2 + self.y_shift_map ** 2))
+
+                # get angle of shift vector
+                self.vec_angle_deg  = GEO.angle_to_north((self.x_shift_px,self.y_shift_px)).tolist()[0]
+
+                # print results
+                if not self.q:
+                    print('Detected integer shifts (X/Y):                            %s/%s' %(x_intshift,y_intshift))
+                    print('Detected subpixel shifts (X/Y):                           %s/%s' %(x_subshift,y_subshift))
+                    print('Calculated total shifts in fft pixel units (X/Y):         %s/%s' %(x_totalshift,y_totalshift))
+                    print('Calculated total shifts in reference pixel units (X/Y):   %s/%s' %(x_totalshift,y_totalshift))
+                    print('Calculated total shifts in target pixel units (X/Y):      %s/%s' %(self.x_shift_px,self.y_shift_px))
+                    print('Calculated map shifts (X,Y):\t\t\t\t  %s/%s' %(self.x_shift_map, self.y_shift_map))
+                    print('Calculated absolute shift vector length in map units:     %s'    %self.vec_length_map)
+                    print('Calculated angle of shift vector in degrees from North:   %s'    %self.vec_angle_deg)
+
         if self.x_shift_px or self.y_shift_px:
             self._get_updated_map_info()
 
         warnings.simplefilter('default')
 
+        return 'success'
+
 
     def _get_updated_map_info(self):
-        original_map_info = geotransform2mapinfo(self.shift.gt, self.shift.prj)
-        new_originY, new_originX = pixelToMapYX([self.x_shift_px,self.y_shift_px],
-                                                     geotransform=self.shift.gt, projection=self.shift.prj)[0]
-        self.x_shift_map = new_originX - self.shift.gt[0]
-        self.y_shift_map = new_originY - self.shift.gt[3]
-        if not self.q: print('Calculated map shifts (X,Y):\t\t\t\t ', self.x_shift_map,self.y_shift_map)
-
+        original_map_info        = geotransform2mapinfo(self.shift.gt, self.shift.prj)
         self.updated_map_info    = original_map_info.copy()
         self.updated_map_info[3] = str(float(original_map_info[3]) + self.x_shift_map)
         self.updated_map_info[4] = str(float(original_map_info[4]) + self.y_shift_map)

@@ -20,7 +20,7 @@ from .CoReg  import COREG, DESHIFTER
 from .       import geometry as GEO
 from .       import io       as IO
 from py_tools_ds.ptds                 import GeoArray
-from py_tools_ds.ptds.geo.projection  import isProjectedOrGeographic, get_UTMzone, EPSG2WKT
+from py_tools_ds.ptds.geo.projection  import isProjectedOrGeographic, get_UTMzone
 from py_tools_ds.ptds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
 
 
@@ -138,10 +138,14 @@ class Geom_Quality_Grid(object):
         pointID = coreg_kwargs['pointID']
         del coreg_kwargs['pointID']
 
-        CR = COREG(global_shared_imref, global_shared_im2shift, **coreg_kwargs)
+        CR = COREG(global_shared_imref, global_shared_im2shift, **coreg_kwargs, multiproc=False)
         CR.calculate_spatial_shifts()
-        res = pointID, CR.ref.win.size_YX[0], CR.x_shift_px, CR.y_shift_px
-        return res
+
+        CR_res = [int(CR.matchWin.imDimsYX[0]), int(CR.matchWin.imDimsYX[1]),
+                  CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
+                  CR.vec_length_map, CR.vec_angle_deg]
+
+        return [pointID]+CR_res
 
 
     def get_quality_grid(self,exclude_outliers=1,dump_values=1):
@@ -173,14 +177,12 @@ class Geom_Quality_Grid(object):
             crs = None
 
         GDF        = GeoDataFrame(index=range(len(geomPoints)),crs=crs,
-                                  columns=['geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','WIN_SIZE',
-                                           'X_SHIFT_PX','Y_SHIFT_PX','X_SHIFT_M','Y_SHIFT_M','ABS_SHIFT','ANGLE'])
+                                  columns=['geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM'])
         GDF       ['geometry']       = geomPoints
         GDF       ['POINT_ID']       = range(len(geomPoints))
         GDF.loc[:,['X_IM','Y_IM']]   = self.XY_points
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
         GDF = GDF if not exclude_outliers else GDF[GDF['geometry'].within(self.overlap_poly)]
-        GDF.loc[:,['WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX','X_SHIFT_M','Y_SHIFT_M','ABS_SHIFT','ANGLE']] = self.outFillVal # Fehlwert
 
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift
@@ -203,7 +205,7 @@ class Geom_Quality_Grid(object):
             'nodata'          : self.nodata,
             'binary_ws'       : self.bin_ws,
             'v'               : self.v, # FIXME this could lead to massive console output
-            'q'               : self.q, # FIXME this could lead to massive console output
+            'q'               : True, # otherwise this would lead to massive console output
             'ignore_errors'   : True
         }
         list_coreg_kwargs = (get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index) # generator
@@ -216,30 +218,23 @@ class Geom_Quality_Grid(object):
                 results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
         else:
             if not self.q:
-                print("Calculating geometric quality grid in mode 'multiprocessing'...")
-            results = []
+                print("Calculating geometric quality grid in mode 'singleprocessing'...")
+            results = np.empty((len(geomPoints),9))
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
                 #print(argset[1])
                 #if not 0<i<10: continue
                 #if i>300 or i<100: continue
                 #if i!=127: continue
                 if i%100==0: print('Point #%s, ID %s' %(i,coreg_kwargs['pointID']))
-                res = self._get_spatial_shifts(coreg_kwargs)
-                results.append(res)
+                results[i,:] = self._get_spatial_shifts(coreg_kwargs)
 
-        for res in results:
-            pointID                       = res[0]
-            GDF.loc[pointID,'WIN_SIZE']   = res[1] if res[1] is not None else self.outFillVal
-            GDF.loc[pointID,'X_SHIFT_PX'] = res[2] if res[2] is not None else self.outFillVal
-            GDF.loc[pointID,'Y_SHIFT_PX'] = res[3] if res[3] is not None else self.outFillVal
+        # merge results with GDF
+        records = GeoDataFrame(np.array(results, np.object), columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE',
+                                                                      'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M',
+                                                                      'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE'])
+        GDF = GDF.merge(records, on='POINT_ID', how="inner")
+        GDF = GDF.fillna(int(self.outFillVal))
 
-        oFV = self.outFillVal
-        GDF['X_SHIFT_M'] = [*GDF['X_SHIFT_PX'].map(lambda px: oFV if px==oFV else px*self.im2shift.xgsd)]
-        GDF['Y_SHIFT_M'] = [*GDF['Y_SHIFT_PX'].map(lambda px: oFV if px==oFV else px*self.im2shift.ygsd)]
-        get_absShift     = lambda row: float(np.sqrt(row['X_SHIFT_M']**2 + row['Y_SHIFT_M']**2))
-        GDF['ABS_SHIFT'] = GDF.apply(lambda row: oFV if row['X_SHIFT_M']  == oFV else get_absShift(row), axis=1)
-        get_angle        = lambda row: GEO.angle_to_north((row['X_SHIFT_PX'],row['Y_SHIFT_PX'])).tolist()[0]
-        GDF['ANGLE']     = GDF.apply(lambda row: oFV if row['X_SHIFT_PX'] == oFV else get_angle(row)   , axis=1)
 
         self.quality_grid = GDF
 
@@ -442,24 +437,8 @@ class Geom_Quality_Grid(object):
         return self.Kriging_sp(*args,**kwargs)
 
 
-    def correct_shifts(self, max_GCP_count=None):
-        coreg_info = self.COREG_obj.coreg_info
-        coreg_info['GCPList'] = self.GCPList if self.GCPList else self.to_GCPList()
-
-        if max_GCP_count:
-            coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count]
-
-        DS = DESHIFTER(self.im2shift, coreg_info,
-                       path_out=None,
-                       out_gsd=(self.im2shift.xgsd,self.im2shift.ygsd),
-                       align_grids=True,
-                       v=self.v,
-                       q=self.q)
-        deshift_results = DS.correct_shifts()
-        return deshift_results
-
-
-    def view_results(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt'):
+    def view_results(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
+                     savefigPath='', savefigDPI=96):
         """Shows a map of the calculated quality grid with the target image as background.
 
         :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
@@ -501,7 +480,8 @@ class Geom_Quality_Grid(object):
         GDF['plt_X']  = [*GDF['plt_XY'].map(lambda XY: XY[0])]
         GDF['plt_Y']  = [*GDF['plt_XY'].map(lambda XY: XY[1])]
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
-                             cmap=palette, marker='o', s=50, alpha=1.0)
+                             #cmap=palette, marker='o', s=50, alpha=1.0)
+                             cmap=palette, marker='.', s=50, alpha=1.0)
 
         # add colorbar
         divider = make_axes_locatable(plt.gca())
@@ -509,6 +489,9 @@ class Geom_Quality_Grid(object):
         plt.colorbar(points, cax=cax)
 
         plt.show()
+
+        if savefigPath:
+            fig.savefig(savefigPath, dpi=savefigDPI)
 
 
     def view_results_folium(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True):
@@ -550,3 +533,30 @@ class Geom_Quality_Grid(object):
 
 
         return map_osm
+
+
+    def correct_shifts(self, max_GCP_count=None):
+        """Performs a local shift correction using all points from the previously calculated geometric quality grid
+        that contain valid matches as GCP points.
+
+        :param max_GCP_count: <int> maximum number of GCPs to use
+        :return:
+        """
+        coreg_info = self.COREG_obj.coreg_info
+        coreg_info['GCPList'] = self.GCPList if self.GCPList else self.to_GCPList()
+
+        if max_GCP_count:
+            coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
+
+        DS = DESHIFTER(self.im2shift, coreg_info,
+                       path_out     = None,
+                       out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
+                       align_grids  = True,
+                       #cliptoextent = True, # why?
+                       #clipextent   = self.im2shift.box.boxMapYX,
+                       #options      = '-wm 10000 -order 1',
+                       v            = self.v,
+                       q            = self.q)
+
+        deshift_results = DS.correct_shifts()
+        return deshift_results

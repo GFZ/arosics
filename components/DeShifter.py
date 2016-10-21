@@ -106,6 +106,7 @@ class DESHIFTER(object):
         self.is_resampled     = False # this is not included in COREG.coreg_info
         self.tracked_errors   = []
         self.arr_shifted      = None  # set by self.correct_shifts
+        self.GeoArray_shifted = None  # set by self.correct_shifts
 
 
     def _get_out_grid(self, init_kwargs):
@@ -253,6 +254,7 @@ class DESHIFTER(object):
                     else:
                         self.arr_shifted  = rasterio.open(path_tmp).read(self.band2process)
 
+                    self.GeoArray_shifted = GeoArray(self.arr_shifted,tuple(self.shift_gt), self.shift_prj)
                     self.is_shifted       = True
                     self.is_resampled     = True
 
@@ -281,6 +283,8 @@ class DESHIFTER(object):
                                  out_gsd    = self.out_gsd,
                                  out_bounds = self._get_out_extent(),
                                  gcpList    = self.GCPList,
+                                 polynomialOrder= None,
+                                 options    = None,#'-refine_gcps 500',
                                  CPUs       = self.CPUs,
                                  q          = self.q)
 
@@ -288,6 +292,7 @@ class DESHIFTER(object):
                 self.arr_shifted        = out_arr
                 self.updated_map_info   = geotransform2mapinfo(out_gt,out_prj)
                 self.shift_gt           = mapinfo2geotransform(self.updated_map_info)
+                self.GeoArray_shifted   = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
                 self.is_shifted         = True
                 self.is_resampled       = True
 
@@ -301,10 +306,12 @@ class DESHIFTER(object):
     @property
     def deshift_results(self):
         deshift_results = collections.OrderedDict()
-        deshift_results.update({'band'              :self.band2process})
-        deshift_results.update({'is shifted'        :self.is_shifted})
-        deshift_results.update({'is resampled'      :self.is_resampled})
-        deshift_results.update({'updated map info'  :self.updated_map_info})
-        deshift_results.update({'updated projection':self.updated_projection})
-        deshift_results.update({'arr_shifted'       :self.arr_shifted})
+        deshift_results.update({'band'                : self.band2process})
+        deshift_results.update({'is shifted'          : self.is_shifted})
+        deshift_results.update({'is resampled'        : self.is_resampled})
+        deshift_results.update({'updated map info'    : self.updated_map_info})
+        deshift_results.update({'updated geotransform': self.shift_gt})
+        deshift_results.update({'updated projection'  : self.updated_projection})
+        deshift_results.update({'arr_shifted'         : self.arr_shifted})
+        deshift_results.update({'GeoArray_shifted'    : self.GeoArray_shifted})
         return deshift_results
