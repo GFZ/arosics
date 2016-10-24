@@ -17,7 +17,6 @@ from shapely.geometry  import Point
 
 # internal modules
 from .CoReg  import COREG, DESHIFTER
-from .       import geometry as GEO
 from .       import io       as IO
 from py_tools_ds.ptds                 import GeoArray
 from py_tools_ds.ptds.geo.projection  import isProjectedOrGeographic, get_UTMzone
@@ -138,7 +137,7 @@ class Geom_Quality_Grid(object):
         pointID = coreg_kwargs['pointID']
         del coreg_kwargs['pointID']
 
-        CR = COREG(global_shared_imref, global_shared_im2shift, **coreg_kwargs, multiproc=False)
+        CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
 
         CR_res = [int(CR.matchWin.imDimsYX[0]), int(CR.matchWin.imDimsYX[1]),
@@ -480,8 +479,7 @@ class Geom_Quality_Grid(object):
         GDF['plt_X']  = [*GDF['plt_XY'].map(lambda XY: XY[0])]
         GDF['plt_Y']  = [*GDF['plt_XY'].map(lambda XY: XY[1])]
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
-                             #cmap=palette, marker='o', s=50, alpha=1.0)
-                             cmap=palette, marker='.', s=50, alpha=1.0)
+                             cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0)
 
         # add colorbar
         divider = make_axes_locatable(plt.gca())
