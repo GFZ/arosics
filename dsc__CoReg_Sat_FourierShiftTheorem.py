@@ -5,6 +5,7 @@ __author__ = "Daniel Scheffler"
 
 import time
 import sys
+import os
 
 # custom
 try:
@@ -21,7 +22,17 @@ except ImportError:
     from osgeo import ogr
 
 # internal modules
-from CoReg_Sat import COREG, __version__
+try:
+    from CoReg_Sat import COREG, __version__
+except ImportError:
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+    from CoReg_Sat import COREG, __version__
+
+try:
+    import py_tools_ds
+except ImportError:
+    sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append CoReg_Sat root directory
+    import py_tools_ds
 
 
 

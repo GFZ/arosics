@@ -138,7 +138,7 @@ class Geom_Quality_Grid(object):
         pointID = coreg_kwargs['pointID']
         del coreg_kwargs['pointID']
 
-        CR = COREG(global_shared_imref, global_shared_im2shift, **coreg_kwargs, multiproc=False)
+        CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
 
         CR_res = [int(CR.matchWin.imDimsYX[0]), int(CR.matchWin.imDimsYX[1]),
@@ -464,7 +464,7 @@ class Geom_Quality_Grid(object):
 
         # get LonLat coordinates for all points
         get_LonLat     = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
-        GDF['LonLat']  = [*GDF['geometry'].map(lambda geom: get_LonLat(*tuple(np.array(geom.coords.xy)[:,0])))]
+        GDF['LonLat']  = list(GDF['geometry'].map(lambda geom: get_LonLat(*tuple(np.array(geom.coords.xy)[:,0]))))
 
         # get colors for all points
         #vmin = min(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
@@ -476,9 +476,9 @@ class Geom_Quality_Grid(object):
         # add quality grid to map
         #plot_point = lambda row: ax.plot(*map2show(*row['LonLat']), marker='o', markersize=7.0, alpha=1.0, color=row['color'])
         #GDF.apply(plot_point, axis=1)
-        GDF['plt_XY'] = [*GDF['LonLat'].map(lambda ll: map2show(*ll))]
-        GDF['plt_X']  = [*GDF['plt_XY'].map(lambda XY: XY[0])]
-        GDF['plt_Y']  = [*GDF['plt_XY'].map(lambda XY: XY[1])]
+        GDF['plt_XY'] = list(GDF['LonLat'].map(lambda ll: map2show(*ll)))
+        GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
+        GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
                              #cmap=palette, marker='o', s=50, alpha=1.0)
                              cmap=palette, marker='.', s=50, alpha=1.0)
