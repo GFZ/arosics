@@ -105,15 +105,20 @@ class imParamObj(object):
 
 
 class COREG(object):
-    def __init__(self, im_ref, im_tgt, path_out='.', r_b4match=1, s_b4match=1, wp=(None,None), ws=(512, 512),
-                 max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None, data_corners_im0=None,
-                 data_corners_im1=None, nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True,
-                 force_quadratic_win=True, v=False, path_verbose_out=None, q=False, ignore_errors=False): # FIXME path_im0/1 can also be a GeoArray -> doc
+    def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', r_b4match=1, s_b4match=1, wp=(None,None),
+                 ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
+                 data_corners_im0=None, data_corners_im1=None, nodata=(None,None), calc_corners=True, multiproc=True,
+                 binary_ws=True, force_quadratic_win=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
         """
-        :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
-        :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is supported)
+        :param im_ref(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
+                                        of reference image
+        :param im_tgt(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
+                                        of image to be shifted
         :param path_out(str):           target path of the coregistered image
-                                        (default: /dir/of/im1/<im1>__shifted_to__<im0>.bsq)
+                                            - if None (default), the method correct_shifts() does not write to disk
+                                            - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
+        :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
+                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
         :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param wp(tuple):               custom matching window position as map values in the same projection like the
@@ -157,6 +162,7 @@ class COREG(object):
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
 
         self.path_out            = path_out            # updated by self.set_outpathes
+        self.fmt_out             = fmt_out
         self.win_pos_XY          = wp                  # updated by self.get_opt_winpos_winsize()
         self.win_size_XY         = ws                  # updated by self.get_opt_winpos_winsize()
         self.max_iter            = max_iter
@@ -229,8 +235,12 @@ class COREG(object):
         path_im_ref = im_ref.filePath if isinstance(im_ref, GeoArray) else im_ref
         path_im_tgt = im_tgt.filePath if isinstance(im_tgt, GeoArray) else im_tgt
 
-        if self.path_out:
-            dir_out, fName_out = os.path.split(self.path_out)
+        if self.path_out: # this also applies to self.path_out='auto'
+
+            if self.path_out == 'auto':
+                dir_out, fName_out = os.path.dirname(path_im_tgt), ''
+            else:
+                dir_out, fName_out = os.path.split(path_im_tgt)
 
             if dir_out and fName_out:
                 # a valid output path is given => do nothing
@@ -245,15 +255,18 @@ class COREG(object):
                         dir_out = os.path.dirname(path_im_ref)
 
                 if not fName_out:
-                    fName_out           = fName_out if not fName_out in ['.',''] else '%s__shifted_to__%s.bsq' \
-                                            %(get_baseN(path_im_tgt), get_baseN(path_im_ref))
+                    ext         = 'bsq' if self.fmt_out=='ENVI' else \
+                                    gdal.GetDriverByName(self.fmt_out).GetMetadataItem(gdal.DMD_EXTENSION)
+                    fName_out   = fName_out if not fName_out in ['.',''] else '%s__shifted_to__%s' \
+                                    %(get_baseN(path_im_tgt), get_baseN(path_im_ref))
+                    fName_out   = fName_out+'.%s'%ext if ext else fName_out
 
-                self.path_out       = os.path.abspath(os.path.join(dir_out,fName_out))
+                self.path_out   = os.path.abspath(os.path.join(dir_out,fName_out))
 
                 assert ' ' not in self.path_out, \
                     "The path of the output image contains whitespaces. This is not supported by GDAL."
         else:
-            # this only happens if COREG is not instanced from within Python and self.path_out is not set
+            # this only happens if COREG is not instanced from within Python and self.path_out is explicitly set to None
             # => DESHIFTER will return an array
             pass
 
@@ -809,8 +822,8 @@ class COREG(object):
 
 
     def correct_shifts(self):
-        DS = DESHIFTER(self.shift.GeoArray, self.coreg_info, path_out=self.path_out, out_gsd=self.out_gsd,
-                       align_grids=self.align_grids, match_gsd=self.match_gsd, v=self.v, q=self.q)
+        DS = DESHIFTER(self.shift.GeoArray, self.coreg_info, path_out=self.path_out, fmt_out=self.fmt_out,
+                       out_gsd=self.out_gsd, align_grids=self.align_grids, match_gsd=self.match_gsd, v=self.v, q=self.q)
         deshift_results = DS.correct_shifts()
         return deshift_results
 

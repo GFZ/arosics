@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-o', nargs='?', dest='path_out', type=str,
                         help="target path of the coregistered image (default: /dir/of/im1/<im1>__shifted_to__<im0>.bsq)",
-                        default='.')
+                        default='auto')
 
     parser.add_argument('-br', nargs='?',type=int, help='band of reference image to be used for matching '\
                        '(starts with 1; default: 1)', default=1)

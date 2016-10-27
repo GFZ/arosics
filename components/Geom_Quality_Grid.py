@@ -547,7 +547,7 @@ class Geom_Quality_Grid(object):
             coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
 
         DS = DESHIFTER(self.im2shift, coreg_info,
-                       path_out     = None,
+                       path_out     = None, # TODO implement that
                        out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
                        align_grids  = True,
                        #cliptoextent = True, # why?

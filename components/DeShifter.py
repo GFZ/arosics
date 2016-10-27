@@ -40,6 +40,8 @@ class DESHIFTER(object):
 
         :Keyword Arguments:
             - path_out(str):        /output/directory/filename for coregistered results
+            - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
+                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
             - band2process (int):   The index of the band to be processed within the given array (starts with 1),
                                     default = None (all bands are processed)
             - out_gsd (float):      output pixel size in units of the reference coordinate system (default = pixel size
@@ -81,6 +83,7 @@ class DESHIFTER(object):
 
         # unpack kwargs
         self.path_out     = kwargs.get('path_out'    , None)
+        self.fmt_out      = kwargs.get('fmt_out'     , 'ENVI')
         self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
         self.align_grids  = kwargs.get('align_grids' , False)
         tempAsENVI        = kwargs.get('tempAsENVI'  , False)
@@ -221,9 +224,10 @@ class DESHIFTER(object):
             else:
                 # array keeps the same; updated gt and prj are taken from coreg_info
                 self.arr_shifted = self.im2shift[:]
+            self.GeoArray_shifted = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
 
             if self.path_out:
-                GeoArray(self.arr_shifted, self.updated_gt, self.updated_projection).save(self.path_out)
+                GeoArray(self.arr_shifted,self.updated_gt,self.updated_projection).save(self.path_out,fmt=self.fmt_out)
 
         else: # FIXME equal_prj==False ist noch NICHT implementiert
             """RESAMPLING NEEDED"""
@@ -297,7 +301,7 @@ class DESHIFTER(object):
                 self.is_resampled       = True
 
                 if self.path_out:
-                    GeoArray(out_arr, out_gt, out_prj).save(self.path_out)
+                    GeoArray(out_arr, out_gt, out_prj).save(self.path_out,fmt=self.fmt_out)
 
         if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results
