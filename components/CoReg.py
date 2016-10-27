@@ -7,11 +7,15 @@ import shutil
 import subprocess
 import time
 import warnings
+from copy import copy
 
 # custom
 import gdal
 import numpy as np
-import pyfftw
+try:
+    import pyfftw
+except ImportError:
+    pass
 from shapely.geometry import Point
 
 # internal modules
@@ -398,9 +402,9 @@ class COREG(object):
 
         is_avail_rsp_average = int(gdal.VersionInfo()[0]) >= 2 #FIXME move to output image generation
         if not is_avail_rsp_average:
-            warnings.warn("The GDAL version on this server does not yet support the resampling algorithm "
-                          "'average'. This can affect the correct detection of subpixel shifts. To avoid this "
-                          "please update GDAL to a version above 2.0.0!")
+            warnings.warn("The GDAL version on this server does not yet support the resampling algorithm 'average'. "
+                          "This can affect the correct detection of subpixel shifts. To avoid this please update GDAL "
+                          "to a version above 2.0.0!")
 
         self.matchWin.imParams = self.ref   if self.grid2use=='ref' else self.shift
         self.otherWin.imParams = self.shift if self.grid2use=='ref' else self.ref
@@ -782,7 +786,7 @@ class COREG(object):
 
     def _get_updated_map_info(self):
         original_map_info        = geotransform2mapinfo(self.shift.gt, self.shift.prj)
-        self.updated_map_info    = original_map_info.copy()
+        self.updated_map_info    = copy(original_map_info)
         self.updated_map_info[3] = str(float(original_map_info[3]) + self.x_shift_map)
         self.updated_map_info[4] = str(float(original_map_info[4]) + self.y_shift_map)
         if not self.q: print('Original map info:', original_map_info)
