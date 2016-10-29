@@ -109,10 +109,10 @@ if __name__ == '__main__':
     parser.add_argument('-max_shift', nargs='?', type=int,help="maximum shift distance in reference image pixel units "\
                        "(default: 5 px)", default=5)
 
-    parser.add_argument('-align_grids', nargs='?',type=int, help='align the coordinate grids of the image to be '\
-           'and the reference image (default: 0)', default=0, choices=[0,1])
+    parser.add_argument('-align_grids', nargs='?',type=int, help='align the coordinate grids of the output image to '\
+           'the reference image (default: 0)', default=0, choices=[0,1])
 
-    parser.add_argument('-match_gsd', nargs='?',type=int, help='match the output pixel size to pixel size of the '\
+    parser.add_argument('-match_gsd', nargs='?',type=int, help='match the output pixel size to the pixel size of the '\
         'reference image (default: 0)', default=0, choices=[0,1])
 
     parser.add_argument('-out_gsd', nargs=2,type=float, help='xgsd ygsd: set the output pixel size in map units'\

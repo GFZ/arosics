@@ -8,7 +8,7 @@ from .components import utilities
 from .components import geometry
 
 __author__ = 'Daniel Scheffler'
-__version__= '2016-10-28_01'
+__version__= '2016-10-29_01'
 
 __all__=['COREG',
          'DESHIFTER',

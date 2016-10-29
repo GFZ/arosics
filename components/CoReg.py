@@ -15,7 +15,7 @@ import numpy as np
 try:
     import pyfftw
 except ImportError:
-    pass
+    pyfftw = None
 from shapely.geometry import Point
 
 # internal modules
@@ -105,10 +105,13 @@ class imParamObj(object):
 
 
 class COREG(object):
+    _dict_rspAlg_rsp_Int = DESHIFTER._dict_rspAlg_rsp_Int
+
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', r_b4match=1, s_b4match=1, wp=(None,None),
                  ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
-                 data_corners_im0=None, data_corners_im1=None, nodata=(None,None), calc_corners=True, multiproc=True,
-                 binary_ws=True, force_quadratic_win=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
+                 resamp_alg_deshift='cubic', resamp_alg_calc='cubic', data_corners_im0=None, data_corners_im1=None,
+                 nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
+                 v=False, path_verbose_out=None, q=False, ignore_errors=False):
         """
         :param im_ref(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
                                         of reference image
@@ -130,7 +133,15 @@ class COREG(object):
         :param match_gsd(bool):         match the output pixel size to pixel size of the reference image (default: 0)
         :param out_gsd(tuple):          xgsd ygsd: set the output pixel size in map units
                                         (default: original pixel size of the image to be shifted)
-        :param rspAlg(str)              the resampling algorithm to be used if neccessary
+        :param resamp_alg_deshift(str)  the resampling algorithm to be used for shift correction (if neccessary)
+                                        valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
+                                                          max, min, med, q1, q3
+                                        default: cubic
+        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
+                                        of spatial shifts
+                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
+                                                       max, min, med, q1, q3)
+                                        default: cubic (highly recommended)
         :param data_corners_im0(list):  map coordinates of data corners within reference image
         :param data_corners_im1(list):  map coordinates of data corners within image to be shifted
         :param nodata(tuple):           no data values for reference image and image to be shifted
@@ -149,7 +160,6 @@ class COREG(object):
                                         is None
         """
 
-        # FIXME add resamp_alg  # FIXME resamp_alg: "average" causes sinus-shaped patterns in fft images
         self.params              = dict([x for x in locals().items() if x[0] != "self"])
 
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
@@ -160,6 +170,12 @@ class COREG(object):
             data_corners_im1 = [data_corners_im1[i:i+2] for i in range(0, len(data_corners_im1), 2)]
         if nodata: assert isinstance(nodata, tuple) and len(nodata) == 2, "'nodata' must be a tuple with two values." \
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
+        for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
+            assert rspAlg in self._dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
+        if resamp_alg_calc=='average':
+            warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
+                          "affect the precision of the calculated spatial shifts! It is highly recommended to"
+                          "choose another resampling algorithm")
 
         self.path_out            = path_out            # updated by self.set_outpathes
         self.fmt_out             = fmt_out
@@ -170,6 +186,8 @@ class COREG(object):
         self.align_grids         = align_grids
         self.match_gsd           = match_gsd
         self.out_gsd             = out_gsd
+        self.rspAlg_DS           = resamp_alg_deshift
+        self.rspAlg_calc         = resamp_alg_calc
         self.calc_corners        = calc_corners
         self.mp                  = multiproc
         self.bin_ws              = binary_ws
@@ -309,6 +327,8 @@ class COREG(object):
         try:
             import folium, geojson
         except ImportError:
+            folium, geojson = None, None
+        if not folium or not geojson:
             raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
                               "the shell command 'pip install folium geojson'.")
 
@@ -413,12 +433,6 @@ class COREG(object):
         resolution and the pixel grid of the matching window. The result consists of two images with the same
         dimensions and exactly the same corner coordinates."""
 
-        is_avail_rsp_average = int(gdal.VersionInfo()[0]) >= 2 #FIXME move to output image generation
-        if not is_avail_rsp_average:
-            warnings.warn("The GDAL version on this server does not yet support the resampling algorithm 'average'. "
-                          "This can affect the correct detection of subpixel shifts. To avoid this please update GDAL "
-                          "to a version above 2.0.0!")
-
         self.matchWin.imParams = self.ref   if self.grid2use=='ref' else self.shift
         self.otherWin.imParams = self.shift if self.grid2use=='ref' else self.ref
 
@@ -453,7 +467,7 @@ class COREG(object):
                                           self.matchWin.imParams.prj,
                                           out_gsd    = (self.imfft_gsd, self.imfft_gsd),
                                           out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
-                                          rspAlg     = 'cubic',
+                                          rspAlg     = self.rspAlg_calc,
                                           in_nodata  = self.otherWin.imParams.nodata,
                                           CPUs       = None if self.mp else 1,
                                           progress   = False) [0]
@@ -522,18 +536,19 @@ class COREG(object):
                 PLT.subplot_imshow([in_arr0.astype(np.float32), in_arr1.astype(np.float32)],
                                ['FFTin '+self.ref.title,'FFTin '+self.shift.title], grid=True)
 
-            if 'pyfft' in globals():
+            if pyfftw: # if module is installed
                 fft_arr0 = pyfftw.FFTW(in_arr0,np.empty_like(in_arr0), axes=(0,1))()
                 fft_arr1 = pyfftw.FFTW(in_arr1,np.empty_like(in_arr1), axes=(0,1))()
             else:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)
+
             if self.v: print('forward FFTW: %.2fs' %(time.time() -time0))
 
             eps = np.abs(fft_arr1).max() * 1e-15
             # cps == cross-power spectrum of im0 and im2
 
-            temp = (fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
+            temp = np.array(fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
 
             time0 = time.time()
             if 'pyfft' in globals():
@@ -565,7 +580,7 @@ class COREG(object):
     @staticmethod
     def _get_peakpos(scps):
         max_flat_idx = np.argmax(scps)
-        return np.unravel_index(max_flat_idx, scps.shape)
+        return np.array(np.unravel_index(max_flat_idx, scps.shape))
 
 
     @staticmethod
@@ -669,7 +684,7 @@ class COREG(object):
             return 'valid', 0, 0, None
 
 
-    def calc_subpixel_shifts(self,scps):
+    def _calc_subpixel_shifts(self, scps):
         sidemax_lr, sidemax_ab = self._find_side_maximum(scps, self.v)
         x_subshift = (sidemax_lr['direction_factor']*sidemax_lr['value'])/(np.max(scps)+sidemax_lr['value'])
         y_subshift = (sidemax_ab['direction_factor']*sidemax_ab['value'])/(np.max(scps)+sidemax_ab['value'])
@@ -749,7 +764,7 @@ class COREG(object):
 
         if self.success or self.success is None:
             # get total pixel shifts
-            x_subshift,   y_subshift         = self.calc_subpixel_shifts(scps)
+            x_subshift,   y_subshift         = self._calc_subpixel_shifts(scps)
             x_totalshift, y_totalshift       = self._get_total_shifts(x_intshift, y_intshift, x_subshift, y_subshift)
 
             if max([abs(x_totalshift),abs(y_totalshift)]) > self.max_shift:
@@ -822,8 +837,17 @@ class COREG(object):
 
 
     def correct_shifts(self):
-        DS = DESHIFTER(self.shift.GeoArray, self.coreg_info, path_out=self.path_out, fmt_out=self.fmt_out,
-                       out_gsd=self.out_gsd, align_grids=self.align_grids, match_gsd=self.match_gsd, v=self.v, q=self.q)
+        DS = DESHIFTER(self.shift.GeoArray, self.coreg_info,
+                       path_out     = self.path_out,
+                       fmt_out      = self.fmt_out,
+                       out_gsd      = self.out_gsd,
+                       resamp_alg   = self.rspAlg_DS,
+                       align_grids  = self.align_grids,
+                       match_gsd    = self.match_gsd,
+                       nodata       = self.shift.nodata,
+                       CPUs         = None if self.mp else 1,
+                       v            = self.v,
+                       q            = self.q)
         deshift_results = DS.correct_shifts()
         return deshift_results
 
@@ -953,8 +977,8 @@ class COREG(object):
         dst_ds = ds_im2shift = None
 
         if not self.q: print('Resampling shift image without aligning of coordinate grids. ')
-        cmd = "gdalwarp -r cubic -tr %s %s -t_srs '%s' -of ENVI %s %s -overwrite" \
-              %(xgsd,ygsd,self.ref.prj,pathVRT,self.path_out)
+        cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of ENVI %s %s -overwrite" \
+              %(self.rspAlg_calc,xgsd,ygsd,self.ref.prj,pathVRT,self.path_out)
         output = subprocess.check_output(cmd, shell=True)
         if output!=1 and os.path.exists(self.path_out):
             if not self.q: print('Coregistered and resampled image written to %s.' %self.path_out)

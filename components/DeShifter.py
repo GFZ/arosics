@@ -28,9 +28,6 @@ from py_tools_ds.ptds.processing.shell     import subcall_with_output
 
 
 class DESHIFTER(object):
-    dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
-                           'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
-
     def __init__(self, im2shift, coreg_results, **kwargs):
         """
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
@@ -44,6 +41,7 @@ class DESHIFTER(object):
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
             - band2process (int):   The index of the band to be processed within the given array (starts with 1),
                                     default = None (all bands are processed)
+            - nodata(int, float):   no data value of an image to be de-shifted
             - out_gsd (float):      output pixel size in units of the reference coordinate system (default = pixel size
                                     of the input array), given values are overridden by match_gsd=True
             - align_grids (bool):   True: align the input coordinate grid to the reference (does not affect the
@@ -70,7 +68,6 @@ class DESHIFTER(object):
         self.im2shift           = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
         self.shift_prj          = self.im2shift.projection
         self.shift_gt           = list(self.im2shift.geotransform)
-        self.nodata             = get_outFillZeroSaturated(self.im2shift.dtype)[0]
         self.GCPList            = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
         mapI                    = coreg_results['updated map info']
         self.updated_map_info   = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
@@ -85,9 +82,10 @@ class DESHIFTER(object):
         self.path_out     = kwargs.get('path_out'    , None)
         self.fmt_out      = kwargs.get('fmt_out'     , 'ENVI')
         self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
+        self.nodata       = kwargs.get('nodata'      , get_outFillZeroSaturated(self.im2shift.dtype)[0]) # TODO auto-detection here?
         self.align_grids  = kwargs.get('align_grids' , False)
         tempAsENVI        = kwargs.get('tempAsENVI'  , False)
-        self.outFmt       = 'VRT' if not tempAsENVI else 'ENVI'
+        self.outFmt       = 'VRT' if not tempAsENVI else 'ENVI' # FIXME eliminate that
         self.rspAlg       = kwargs.get('resamp_alg'  , 'cubic')
         self.warpAlg      = kwargs.get('warp_alg'    , 'GDAL_lib')
         self.cliptoextent = kwargs.get('cliptoextent', True)
@@ -100,7 +98,7 @@ class DESHIFTER(object):
         self.out_gsd      = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
-        assert self.rspAlg  in self.dict_rspAlg_rsp_Int.keys(), \
+        assert self.rspAlg  in self._dict_rspAlg_rsp_Int.keys(), \
             "'%s' is not a supported resampling algorithm." %self.rspAlg
         assert self.warpAlg in ['GDAL_cmd', 'GDAL_lib']
 
@@ -110,6 +108,12 @@ class DESHIFTER(object):
         self.tracked_errors   = []
         self.arr_shifted      = None  # set by self.correct_shifts
         self.GeoArray_shifted = None  # set by self.correct_shifts
+
+
+    @property
+    def _dict_rspAlg_rsp_Int(self):
+        return {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
+                'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
 
 
     def _get_out_grid(self, init_kwargs):
@@ -281,14 +285,14 @@ class DESHIFTER(object):
                 # get resampled array
                 out_arr, out_gt, out_prj = \
                     warp_ndarray(in_arr, self.shift_gt, self.shift_prj, self.ref_prj,
-                                 rspAlg     = self.dict_rspAlg_rsp_Int[self.rspAlg],
+                                 rspAlg     = self._dict_rspAlg_rsp_Int[self.rspAlg],
                                  in_nodata  = self.nodata,
                                  out_nodata = self.nodata,
                                  out_gsd    = self.out_gsd,
                                  out_bounds = self._get_out_extent(),
                                  gcpList    = self.GCPList,
                                  polynomialOrder= None,
-                                 options    = None,#'-refine_gcps 500',
+                                 options    = None,  #'-refine_gcps 500',
                                  CPUs       = self.CPUs,
                                  q          = self.q)
 
