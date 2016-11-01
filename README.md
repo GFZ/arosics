@@ -13,7 +13,7 @@ The input images can have any GDAL compatible image format (http://www.gdal.org/
 
 For now, there is no automatic install script. Just clone the repository, install the dependencies and add the root directory of CoReg_Sat to your PATH environment variable.
 
-CoReg_Sat has been tested with Python 3.5. It is not completely compatible with Python 2.7 (at least at the moment).
+CoReg_Sat has been tested with Python 3.5 and Python 2.7. It should be fully compatible to all Python versions above 2.7.
 
 The following non-standard Python libraries are required:
 
@@ -23,10 +23,12 @@ The following non-standard Python libraries are required:
     - argparse
     - shapely
     - pyfftw is optional but will speed up calculation
+    - folium and geojson for some visualization functions
     
 In addition clone the repository "py_tools_ds" and add its root directory to your PATH environment variable:
 
     https://gitext.gfz-potsdam.de/danschef/py_tools_ds
+    
 Since py_tools_ds is not a public repository right now, contact Daniel Scheffler if you can not access it.
 
 # Modules
@@ -234,31 +236,140 @@ Follow these instructions to run CoReg_Sat from a shell console. For example, th
 python ./dsc__CoReg_Sat_FourierShiftTheorem.py /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
 ```
 
-## Geometric quality grid
+## CoReg_local
 
-This module calculates a grid of spatial shifts with points spread over the whole overlap area of the input images. At the moment, a shift correction using all of these points is planned but not yet implemented.
+This module has been designed to detect and correct geometric shifts present locally in your input image. The class COREG_LOCAL calculates a grid of spatial shifts with points spread over the whole overlap area of the input images. Based on this grid a correction of local shifts can be performed.
 
 ### Python interface
 
-#### calculate geometric quality grid - with input data on disk
+#### detect and correct local shifts - with input data on disk
 
 
 ```python
-from CoReg_Sat import Geom_Quality_Grid
+from CoReg_Sat import COREG_LOCAL
 
 im_reference = '/path/to/your/ref_image.bsq'
 im_target    = '/path/to/your/tgt_image.bsq'
 kwargs = {
-    'grid_res'     : 100,
-    'window_size'  : (256,256),
-    'calc_corners' : True,
-    'dir_out'      : '/path/to/your/output/',
-    'projectName'  : 'my_project',
-    'q'            : True,
+    'grid_res'     : 200,
+    'window_size'  : (64,64),
+    'path_out'     : 'auto',
+    'projectDir'   : 'my_project',
+    'q'            : False,
 }
 
-GQG = Geom_Quality_Grid(im_reference,im_target,**kwargs)
-GQG.get_quality_grid()
+CRL = COREG_LOCAL(im_reference,im_target,**kwargs)
+CRL.correct_shifts()
+```
+
+    Calculating actual data corner coordinates for reference image...
+    Corner coordinates of reference image:
+    	[[319090.0, 5790510.0], [351800.0, 5899940.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319090.0, 5790250.0]]
+    Calculating actual data corner coordinates for image to be shifted...
+    Corner coordinates of image to be shifted:
+    	[[319460.0, 5790510.0], [352270.0, 5900040.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319460.0, 5790250.0]]
+    Matching window position (X,Y): 372220.10753674706/5841066.947109019
+    Calculating geometric quality grid (1977 points) in mode 'multiprocessing'...
+    Translating progress |==================================================| 100.0% Complete
+    Warping progress     |==================================================| 100.0% Complete
+    Writing GeoArray of size (10979, 9033) to /home/gfz-fe/scheffler/jupyter/CoReg_Sat_jupyter/my_project/S2A_OPER_MSI_L1C_TL_SGS__20160608T153121_A005024_T33UUU_B03__shifted_to__S2A_OPER_MSI_L1C_TL_SGS__20160529T153631_A004881_T33UUU_B03.bsq.
+
+
+
+
+
+    OrderedDict([('band', None),
+                 ('is shifted', True),
+                 ('is resampled', True),
+                 ('updated map info',
+                  ['UTM',
+                   1,
+                   1,
+                   319460.0,
+                   5900030.0,
+                   10.0,
+                   10.0,
+                   33,
+                   'North',
+                   'WGS-84']),
+                 ('updated geotransform',
+                  [319460.0, 10.0, 0.0, 5900030.0, 0.0, -10.0]),
+                 ('updated projection',
+                  'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]'),
+                 ('arr_shifted', array([[   0,    0,    0, ...,  952,  984, 1058],
+                         [   0,    0,    0, ...,  997,  976, 1037],
+                         [   0,    0,    0, ...,  960,  991, 1030],
+                         ..., 
+                         [   0,    0,    0, ...,  760,  769,  804],
+                         [   0,    0,    0, ...,  762,  754,  765],
+                         [   0,    0,    0, ...,    0,    0,    0]], dtype=uint16)),
+                 ('GeoArray_shifted',
+                  <py_tools_ds.ptds.io.raster.GeoArray.GeoArray at 0x7f0592b297f0>)])
+
+
+
+#### detect and correct local shifts - without any disk access
+
+All you have to do is to instanciate COREG_LOCAL with two instances of the GeoArray class as described above.
+
+
+```python
+CRL = COREG_LOCAL(GeoArray(ref_ndarray, ref_gt, ref_prj),GeoArray(tgt_ndarray, tgt_gt, tgt_prj),**kwargs)
+CRL.correct_shifts()
+```
+
+#### visualize geometric quality grid with INITIAL shifts present in your input target image
+
+Use the function COREG_LOCAL.view_CoRegPoints() to visualize the geometric quality grid with the calculated absolute lenghts of the shift vectors (the unit corresponds to the input projection - UTM in the shown example, thus the unit is 'meters'.).
+
+NOTE: a calculation of reliable shifts above cloud covered areas is not possible. In the current version of CoReg_Sat these areas are not masked. A proper masking is planned.
+
+
+```python
+%matplotlib inline
+
+CRL.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
+```
+
+    Note: array has been downsampled to 1000 x 1000 for faster visualization.
+
+
+
+![png](output_36_1.png)
+
+
+#### visualize geometric quality grid with shifts present AFTER shift correction
+
+The remaining shifts after local correction can be visualized by instanciating COREG_LOCAL with the output path of the above instance of COREG_LOCAL.
+
+
+```python
+CRL_after_corr = COREG_LOCAL(im_reference, CRL.path_out, **kwargs)
+CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
+```
+
+    Calculating actual data corner coordinates for reference image...
+    Corner coordinates of reference image:
+    	[[319090.0, 5790510.0], [351800.0, 5899940.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319090.0, 5790250.0]]
+    Calculating actual data corner coordinates for image to be shifted...
+    Corner coordinates of image to be shifted:
+    	[[319460.0, 5790540.0], [352280.0, 5900030.0], [409780.0, 5900030.0], [409780.0, 5790260.0], [322940.0, 5790250.0], [319460.0, 5790280.0]]
+    Matching window position (X,Y): 372215.77905147866/5841065.066319922
+    Note: array has been downsampled to 1000 x 1000 for faster visualization.
+    Calculating geometric quality grid (2014 points) in mode 'multiprocessing'...
+
+
+
+![png](output_39_1.png)
+
+
+#### show the points table of the calculated geometric quality grid
+
+NOTE: Point records where no valid match has been found are filled with -9999.
+
+
+```python
+CRL.CoRegPoints_table
 ```
 
 
@@ -275,7 +386,8 @@ GQG.get_quality_grid()
       <th>Y_IM</th>
       <th>X_UTM</th>
       <th>Y_UTM</th>
-      <th>WIN_SIZE</th>
+      <th>X_WIN_SIZE</th>
+      <th>Y_WIN_SIZE</th>
       <th>X_SHIFT_PX</th>
       <th>Y_SHIFT_PX</th>
       <th>X_SHIFT_M</th>
@@ -286,14 +398,15 @@ GQG.get_quality_grid()
   </thead>
   <tbody>
     <tr>
-      <th>162</th>
-      <td>POINT (352000 5899040)</td>
-      <td>162</td>
+      <th>0</th>
+      <td>POINT (352000 5898040)</td>
+      <td>81</td>
       <td>5200</td>
-      <td>100</td>
+      <td>200</td>
       <td>352000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -302,94 +415,49 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>163</th>
-      <td>POINT (353000 5899040)</td>
-      <td>163</td>
-      <td>5300</td>
-      <td>100</td>
-      <td>353000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>164</th>
-      <td>POINT (354000 5899040)</td>
-      <td>164</td>
+      <th>1</th>
+      <td>POINT (354000 5898040)</td>
+      <td>82</td>
       <td>5400</td>
-      <td>100</td>
+      <td>200</td>
       <td>354000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.372470</td>
+      <td>-0.285500</td>
+      <td>3.724704</td>
+      <td>2.855005</td>
+      <td>4.693024</td>
+      <td>232.529646</td>
     </tr>
     <tr>
-      <th>165</th>
-      <td>POINT (355000 5899040)</td>
-      <td>165</td>
-      <td>5500</td>
-      <td>100</td>
-      <td>355000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-0.247889</td>
-      <td>-0.251688</td>
-      <td>-2.478889</td>
-      <td>-2.516880</td>
-      <td>3.532644</td>
-      <td>135.435699</td>
-    </tr>
-    <tr>
-      <th>166</th>
-      <td>POINT (356000 5899040)</td>
-      <td>166</td>
+      <th>2</th>
+      <td>POINT (356000 5898040)</td>
+      <td>83</td>
       <td>5600</td>
-      <td>100</td>
+      <td>200</td>
       <td>356000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.260948</td>
+      <td>-0.293539</td>
+      <td>2.609479</td>
+      <td>2.935389</td>
+      <td>3.927580</td>
+      <td>221.636201</td>
     </tr>
     <tr>
-      <th>167</th>
-      <td>POINT (357000 5899040)</td>
-      <td>167</td>
-      <td>5700</td>
-      <td>100</td>
-      <td>357000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>168</th>
-      <td>POINT (358000 5899040)</td>
-      <td>168</td>
+      <th>3</th>
+      <td>POINT (358000 5898040)</td>
+      <td>84</td>
       <td>5800</td>
-      <td>100</td>
+      <td>200</td>
       <td>358000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -398,30 +466,15 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>169</th>
-      <td>POINT (359000 5899040)</td>
-      <td>169</td>
-      <td>5900</td>
-      <td>100</td>
-      <td>359000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>170</th>
-      <td>POINT (360000 5899040)</td>
-      <td>170</td>
+      <th>4</th>
+      <td>POINT (360000 5898040)</td>
+      <td>85</td>
       <td>6000</td>
-      <td>100</td>
+      <td>200</td>
       <td>360000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -430,30 +483,15 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>171</th>
-      <td>POINT (361000 5899040)</td>
-      <td>171</td>
-      <td>6100</td>
-      <td>100</td>
-      <td>361000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>172</th>
-      <td>POINT (362000 5899040)</td>
-      <td>172</td>
+      <th>5</th>
+      <td>POINT (362000 5898040)</td>
+      <td>86</td>
       <td>6200</td>
-      <td>100</td>
+      <td>200</td>
       <td>362000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -462,94 +500,49 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>173</th>
-      <td>POINT (363000 5899040)</td>
-      <td>173</td>
-      <td>6300</td>
-      <td>100</td>
-      <td>363000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>0.185042</td>
-      <td>-26.788517</td>
-      <td>1.850425</td>
-      <td>-267.885169</td>
-      <td>267.891560</td>
-      <td>180.395766</td>
-    </tr>
-    <tr>
-      <th>174</th>
-      <td>POINT (364000 5899040)</td>
-      <td>174</td>
+      <th>6</th>
+      <td>POINT (364000 5898040)</td>
+      <td>87</td>
       <td>6400</td>
-      <td>100</td>
+      <td>200</td>
       <td>364000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.141693</td>
+      <td>0.187036</td>
+      <td>1.416935</td>
+      <td>-1.870360</td>
+      <td>2.346476</td>
+      <td>322.853405</td>
     </tr>
     <tr>
-      <th>175</th>
-      <td>POINT (365000 5899040)</td>
-      <td>175</td>
-      <td>6500</td>
-      <td>100</td>
-      <td>365000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>176</th>
-      <td>POINT (366000 5899040)</td>
-      <td>176</td>
+      <th>7</th>
+      <td>POINT (366000 5898040)</td>
+      <td>88</td>
       <td>6600</td>
-      <td>100</td>
+      <td>200</td>
       <td>366000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.230941</td>
+      <td>0.121139</td>
+      <td>-2.309409</td>
+      <td>-1.211389</td>
+      <td>2.607841</td>
+      <td>62.320969</td>
     </tr>
     <tr>
-      <th>177</th>
-      <td>POINT (367000 5899040)</td>
-      <td>177</td>
-      <td>6700</td>
-      <td>100</td>
-      <td>367000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-0.255553</td>
-      <td>0.188893</td>
-      <td>-2.555527</td>
-      <td>1.888925</td>
-      <td>3.177854</td>
-      <td>53.529930</td>
-    </tr>
-    <tr>
-      <th>178</th>
-      <td>POINT (368000 5899040)</td>
-      <td>178</td>
+      <th>8</th>
+      <td>POINT (368000 5898040)</td>
+      <td>89</td>
       <td>6800</td>
-      <td>100</td>
+      <td>200</td>
       <td>368000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -558,62 +551,32 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>179</th>
-      <td>POINT (369000 5899040)</td>
-      <td>179</td>
-      <td>6900</td>
-      <td>100</td>
-      <td>369000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>180</th>
-      <td>POINT (370000 5899040)</td>
-      <td>180</td>
+      <th>9</th>
+      <td>POINT (370000 5898040)</td>
+      <td>90</td>
       <td>7000</td>
-      <td>100</td>
+      <td>200</td>
       <td>370000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.035693</td>
+      <td>0.084596</td>
+      <td>-0.356928</td>
+      <td>-0.845957</td>
+      <td>0.918172</td>
+      <td>22.875994</td>
     </tr>
     <tr>
-      <th>181</th>
-      <td>POINT (371000 5899040)</td>
-      <td>181</td>
-      <td>7100</td>
-      <td>100</td>
-      <td>371000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>182</th>
-      <td>POINT (372000 5899040)</td>
-      <td>182</td>
+      <th>10</th>
+      <td>POINT (372000 5898040)</td>
+      <td>91</td>
       <td>7200</td>
-      <td>100</td>
+      <td>200</td>
       <td>372000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -622,62 +585,32 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>183</th>
-      <td>POINT (373000 5899040)</td>
-      <td>183</td>
-      <td>7300</td>
-      <td>100</td>
-      <td>373000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>184</th>
-      <td>POINT (374000 5899040)</td>
-      <td>184</td>
+      <th>11</th>
+      <td>POINT (374000 5898040)</td>
+      <td>92</td>
       <td>7400</td>
-      <td>100</td>
+      <td>200</td>
       <td>374000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>1.687416</td>
-      <td>0.206791</td>
-      <td>16.874158</td>
-      <td>2.067906</td>
-      <td>17.000396</td>
-      <td>276.986685</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>185</th>
-      <td>POINT (375000 5899040)</td>
-      <td>185</td>
-      <td>7500</td>
-      <td>100</td>
-      <td>375000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>0.715882</td>
-      <td>-1.562482</td>
-      <td>7.158821</td>
-      <td>-15.624824</td>
-      <td>17.186734</td>
-      <td>204.615818</td>
-    </tr>
-    <tr>
-      <th>186</th>
-      <td>POINT (376000 5899040)</td>
-      <td>186</td>
+      <th>12</th>
+      <td>POINT (376000 5898040)</td>
+      <td>93</td>
       <td>7600</td>
-      <td>100</td>
+      <td>200</td>
       <td>376000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -686,30 +619,15 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>187</th>
-      <td>POINT (377000 5899040)</td>
-      <td>187</td>
-      <td>7700</td>
-      <td>100</td>
-      <td>377000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-      <td>-9999.000000</td>
-    </tr>
-    <tr>
-      <th>188</th>
-      <td>POINT (378000 5899040)</td>
-      <td>188</td>
+      <th>13</th>
+      <td>POINT (378000 5898040)</td>
+      <td>94</td>
       <td>7800</td>
-      <td>100</td>
+      <td>200</td>
       <td>378000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -718,30 +636,15 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>189</th>
-      <td>POINT (379000 5899040)</td>
-      <td>189</td>
-      <td>7900</td>
-      <td>100</td>
-      <td>379000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>0.195506</td>
-      <td>42.665374</td>
-      <td>1.955060</td>
-      <td>426.653741</td>
-      <td>426.658220</td>
-      <td>359.737455</td>
-    </tr>
-    <tr>
-      <th>190</th>
-      <td>POINT (380000 5899040)</td>
-      <td>190</td>
+      <th>14</th>
+      <td>POINT (380000 5898040)</td>
+      <td>95</td>
       <td>8000</td>
-      <td>100</td>
+      <td>200</td>
       <td>380000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
       <td>-9999.000000</td>
@@ -750,20 +653,259 @@ GQG.get_quality_grid()
       <td>-9999.000000</td>
     </tr>
     <tr>
-      <th>191</th>
-      <td>POINT (381000 5899040)</td>
-      <td>191</td>
-      <td>8100</td>
+      <th>15</th>
+      <td>POINT (382000 5898040)</td>
+      <td>96</td>
+      <td>8200</td>
+      <td>200</td>
+      <td>382000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>POINT (384000 5898040)</td>
+      <td>97</td>
+      <td>8400</td>
+      <td>200</td>
+      <td>384000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>POINT (386000 5898040)</td>
+      <td>98</td>
+      <td>8600</td>
+      <td>200</td>
+      <td>386000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>POINT (388000 5898040)</td>
+      <td>99</td>
+      <td>8800</td>
+      <td>200</td>
+      <td>388000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.656098</td>
+      <td>2.533985</td>
+      <td>6.560977</td>
+      <td>-25.339852</td>
+      <td>26.175457</td>
+      <td>345.483797</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>POINT (390000 5898040)</td>
       <td>100</td>
-      <td>381000.0</td>
-      <td>5899040.0</td>
-      <td>228</td>
-      <td>-0.210588</td>
-      <td>0.042504</td>
-      <td>-2.105879</td>
-      <td>0.425039</td>
-      <td>2.148345</td>
-      <td>78.589040</td>
+      <td>9000</td>
+      <td>200</td>
+      <td>390000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>POINT (392000 5898040)</td>
+      <td>101</td>
+      <td>9200</td>
+      <td>200</td>
+      <td>392000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>POINT (394000 5898040)</td>
+      <td>102</td>
+      <td>9400</td>
+      <td>200</td>
+      <td>394000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>POINT (396000 5898040)</td>
+      <td>103</td>
+      <td>9600</td>
+      <td>200</td>
+      <td>396000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>POINT (398000 5898040)</td>
+      <td>104</td>
+      <td>9800</td>
+      <td>200</td>
+      <td>398000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>POINT (400000 5898040)</td>
+      <td>105</td>
+      <td>10000</td>
+      <td>200</td>
+      <td>400000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.147210</td>
+      <td>-0.223871</td>
+      <td>-1.472098</td>
+      <td>2.238708</td>
+      <td>2.679344</td>
+      <td>146.672433</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>POINT (402000 5898040)</td>
+      <td>106</td>
+      <td>10200</td>
+      <td>200</td>
+      <td>402000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>POINT (404000 5898040)</td>
+      <td>107</td>
+      <td>10400</td>
+      <td>200</td>
+      <td>404000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>POINT (406000 5898040)</td>
+      <td>108</td>
+      <td>10600</td>
+      <td>200</td>
+      <td>406000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.249318</td>
+      <td>0.214416</td>
+      <td>2.493182</td>
+      <td>-2.144158</td>
+      <td>3.288369</td>
+      <td>310.695805</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>POINT (408000 5898040)</td>
+      <td>109</td>
+      <td>10800</td>
+      <td>200</td>
+      <td>408000.0</td>
+      <td>5898040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.372511</td>
+      <td>-1.410450</td>
+      <td>3.725107</td>
+      <td>14.104504</td>
+      <td>14.588127</td>
+      <td>194.794441</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>POINT (352000 5896040)</td>
+      <td>136</td>
+      <td>5200</td>
+      <td>400</td>
+      <td>352000.0</td>
+      <td>5896040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
     </tr>
     <tr>
       <th>...</th>
@@ -780,509 +922,530 @@ GQG.get_quality_grid()
       <td>...</td>
       <td>...</td>
       <td>...</td>
+      <td>...</td>
     </tr>
     <tr>
-      <th>12070</th>
-      <td>POINT (380000 5791040)</td>
-      <td>12070</td>
-      <td>8000</td>
-      <td>10900</td>
-      <td>380000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.423103</td>
-      <td>-1.284985</td>
-      <td>4.231027</td>
-      <td>-12.849851</td>
-      <td>13.528498</td>
-      <td>198.224989</td>
-    </tr>
-    <tr>
-      <th>12071</th>
-      <td>POINT (381000 5791040)</td>
-      <td>12071</td>
-      <td>8100</td>
-      <td>10900</td>
-      <td>381000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.295017</td>
-      <td>-1.258081</td>
-      <td>2.950171</td>
-      <td>-12.580810</td>
-      <td>12.922086</td>
-      <td>193.197273</td>
-    </tr>
-    <tr>
-      <th>12072</th>
-      <td>POINT (382000 5791040)</td>
-      <td>12072</td>
-      <td>8200</td>
-      <td>10900</td>
-      <td>382000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.351648</td>
-      <td>-1.200180</td>
-      <td>3.516481</td>
-      <td>-12.001803</td>
-      <td>12.506354</td>
-      <td>196.330375</td>
-    </tr>
-    <tr>
-      <th>12073</th>
-      <td>POINT (383000 5791040)</td>
-      <td>12073</td>
-      <td>8300</td>
-      <td>10900</td>
-      <td>383000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.404020</td>
-      <td>-1.261354</td>
-      <td>4.040197</td>
-      <td>-12.613543</td>
-      <td>13.244798</td>
-      <td>197.760587</td>
-    </tr>
-    <tr>
-      <th>12074</th>
-      <td>POINT (384000 5791040)</td>
-      <td>12074</td>
-      <td>8400</td>
-      <td>10900</td>
-      <td>384000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.440928</td>
-      <td>-1.271966</td>
-      <td>4.409277</td>
-      <td>-12.719659</td>
-      <td>13.462223</td>
-      <td>199.118903</td>
-    </tr>
-    <tr>
-      <th>12075</th>
-      <td>POINT (385000 5791040)</td>
-      <td>12075</td>
-      <td>8500</td>
-      <td>10900</td>
-      <td>385000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.448053</td>
-      <td>-1.264458</td>
-      <td>4.480532</td>
-      <td>-12.644577</td>
-      <td>13.414936</td>
-      <td>199.511483</td>
-    </tr>
-    <tr>
-      <th>12076</th>
-      <td>POINT (386000 5791040)</td>
-      <td>12076</td>
-      <td>8600</td>
-      <td>10900</td>
-      <td>386000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.368041</td>
-      <td>-1.225450</td>
-      <td>3.680410</td>
-      <td>-12.254503</td>
-      <td>12.795244</td>
-      <td>196.716656</td>
-    </tr>
-    <tr>
-      <th>12077</th>
-      <td>POINT (387000 5791040)</td>
-      <td>12077</td>
-      <td>8700</td>
-      <td>10900</td>
-      <td>387000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.421414</td>
-      <td>-1.248958</td>
-      <td>4.214138</td>
-      <td>-12.489578</td>
-      <td>13.181370</td>
-      <td>198.645029</td>
-    </tr>
-    <tr>
-      <th>12078</th>
-      <td>POINT (388000 5791040)</td>
-      <td>12078</td>
-      <td>8800</td>
-      <td>10900</td>
-      <td>388000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.390062</td>
-      <td>-1.179842</td>
-      <td>3.900622</td>
-      <td>-11.798421</td>
-      <td>12.426487</td>
-      <td>198.294167</td>
-    </tr>
-    <tr>
-      <th>12079</th>
-      <td>POINT (389000 5791040)</td>
-      <td>12079</td>
-      <td>8900</td>
-      <td>10900</td>
-      <td>389000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.415643</td>
-      <td>-1.148986</td>
-      <td>4.156429</td>
-      <td>-11.489856</td>
-      <td>12.218539</td>
-      <td>199.887474</td>
-    </tr>
-    <tr>
-      <th>12080</th>
-      <td>POINT (390000 5791040)</td>
-      <td>12080</td>
-      <td>9000</td>
-      <td>10900</td>
-      <td>390000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.404408</td>
-      <td>-1.165013</td>
-      <td>4.044082</td>
-      <td>-11.650125</td>
-      <td>12.332073</td>
-      <td>199.143308</td>
-    </tr>
-    <tr>
-      <th>12081</th>
-      <td>POINT (391000 5791040)</td>
-      <td>12081</td>
-      <td>9100</td>
-      <td>10900</td>
-      <td>391000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.425620</td>
-      <td>-1.187113</td>
-      <td>4.256201</td>
-      <td>-11.871128</td>
-      <td>12.611064</td>
-      <td>199.724473</td>
-    </tr>
-    <tr>
-      <th>12082</th>
-      <td>POINT (392000 5791040)</td>
-      <td>12082</td>
-      <td>9200</td>
-      <td>10900</td>
-      <td>392000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.412727</td>
-      <td>-1.140732</td>
-      <td>4.127267</td>
-      <td>-11.407319</td>
-      <td>12.131004</td>
-      <td>199.890562</td>
-    </tr>
-    <tr>
-      <th>12083</th>
-      <td>POINT (393000 5791040)</td>
-      <td>12083</td>
-      <td>9300</td>
-      <td>10900</td>
-      <td>393000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.420770</td>
-      <td>-1.208876</td>
-      <td>4.207698</td>
-      <td>-12.088759</td>
-      <td>12.800110</td>
-      <td>199.191321</td>
-    </tr>
-    <tr>
-      <th>12084</th>
-      <td>POINT (394000 5791040)</td>
-      <td>12084</td>
-      <td>9400</td>
-      <td>10900</td>
-      <td>394000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.411952</td>
-      <td>-1.213787</td>
-      <td>4.119517</td>
-      <td>-12.137869</td>
-      <td>12.817889</td>
-      <td>198.746894</td>
-    </tr>
-    <tr>
-      <th>12085</th>
-      <td>POINT (395000 5791040)</td>
-      <td>12085</td>
-      <td>9500</td>
-      <td>10900</td>
-      <td>395000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.442422</td>
-      <td>-0.854839</td>
-      <td>4.424218</td>
-      <td>-8.548387</td>
-      <td>9.625416</td>
-      <td>207.363827</td>
-    </tr>
-    <tr>
-      <th>12086</th>
-      <td>POINT (396000 5791040)</td>
-      <td>12086</td>
-      <td>9600</td>
-      <td>10900</td>
-      <td>396000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.410208</td>
-      <td>-1.201714</td>
-      <td>4.102077</td>
-      <td>-12.017142</td>
-      <td>12.697982</td>
-      <td>198.847450</td>
-    </tr>
-    <tr>
-      <th>12087</th>
-      <td>POINT (397000 5791040)</td>
-      <td>12087</td>
-      <td>9700</td>
-      <td>10900</td>
-      <td>397000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.394172</td>
-      <td>-1.189054</td>
-      <td>3.941716</td>
-      <td>-11.890545</td>
-      <td>12.526858</td>
-      <td>198.340361</td>
-    </tr>
-    <tr>
-      <th>12088</th>
-      <td>POINT (398000 5791040)</td>
-      <td>12088</td>
-      <td>9800</td>
-      <td>10900</td>
-      <td>398000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.372462</td>
-      <td>-1.105048</td>
-      <td>3.724623</td>
-      <td>-11.050478</td>
-      <td>11.661299</td>
-      <td>198.626667</td>
-    </tr>
-    <tr>
-      <th>12089</th>
-      <td>POINT (399000 5791040)</td>
-      <td>12089</td>
-      <td>9900</td>
-      <td>10900</td>
-      <td>399000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.222491</td>
-      <td>-1.150124</td>
-      <td>2.224915</td>
-      <td>-11.501243</td>
-      <td>11.714471</td>
-      <td>190.948626</td>
-    </tr>
-    <tr>
-      <th>12090</th>
-      <td>POINT (400000 5791040)</td>
-      <td>12090</td>
-      <td>10000</td>
-      <td>10900</td>
-      <td>400000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.228518</td>
-      <td>-1.205668</td>
-      <td>2.285181</td>
-      <td>-12.056680</td>
-      <td>12.271332</td>
-      <td>190.732335</td>
-    </tr>
-    <tr>
-      <th>12091</th>
-      <td>POINT (401000 5791040)</td>
-      <td>12091</td>
-      <td>10100</td>
-      <td>10900</td>
-      <td>401000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.179267</td>
-      <td>-1.124293</td>
-      <td>1.792668</td>
-      <td>-11.242928</td>
-      <td>11.384950</td>
-      <td>189.059463</td>
-    </tr>
-    <tr>
-      <th>12092</th>
-      <td>POINT (402000 5791040)</td>
-      <td>12092</td>
-      <td>10200</td>
-      <td>10900</td>
-      <td>402000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.249695</td>
-      <td>-1.089078</td>
-      <td>2.496946</td>
-      <td>-10.890779</td>
-      <td>11.173353</td>
-      <td>192.913120</td>
-    </tr>
-    <tr>
-      <th>12093</th>
-      <td>POINT (403000 5791040)</td>
-      <td>12093</td>
-      <td>10300</td>
-      <td>10900</td>
-      <td>403000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.244407</td>
-      <td>-0.743836</td>
-      <td>2.444071</td>
-      <td>-7.438364</td>
-      <td>7.829607</td>
-      <td>198.189303</td>
-    </tr>
-    <tr>
-      <th>12094</th>
-      <td>POINT (404000 5791040)</td>
-      <td>12094</td>
-      <td>10400</td>
-      <td>10900</td>
-      <td>404000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.271931</td>
-      <td>-0.778958</td>
-      <td>2.719314</td>
-      <td>-7.789583</td>
-      <td>8.250592</td>
-      <td>199.243899</td>
-    </tr>
-    <tr>
-      <th>12095</th>
-      <td>POINT (405000 5791040)</td>
-      <td>12095</td>
-      <td>10500</td>
-      <td>10900</td>
-      <td>405000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.227180</td>
-      <td>-0.774121</td>
-      <td>2.271795</td>
-      <td>-7.741213</td>
-      <td>8.067679</td>
-      <td>196.355253</td>
-    </tr>
-    <tr>
-      <th>12096</th>
-      <td>POINT (406000 5791040)</td>
-      <td>12096</td>
-      <td>10600</td>
-      <td>10900</td>
-      <td>406000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.225044</td>
-      <td>-0.771500</td>
-      <td>2.250443</td>
-      <td>-7.715001</td>
-      <td>8.036525</td>
-      <td>196.261809</td>
-    </tr>
-    <tr>
-      <th>12097</th>
-      <td>POINT (407000 5791040)</td>
-      <td>12097</td>
-      <td>10700</td>
-      <td>10900</td>
-      <td>407000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.307129</td>
-      <td>-0.782714</td>
-      <td>3.071287</td>
-      <td>-7.827140</td>
-      <td>8.408146</td>
-      <td>201.424520</td>
-    </tr>
-    <tr>
-      <th>12098</th>
-      <td>POINT (408000 5791040)</td>
-      <td>12098</td>
+      <th>1947</th>
+      <td>POINT (350000 5792040)</td>
+      <td>2995</td>
+      <td>5000</td>
       <td>10800</td>
-      <td>10900</td>
-      <td>408000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.284867</td>
-      <td>-0.810308</td>
-      <td>2.848671</td>
-      <td>-8.103080</td>
-      <td>8.589228</td>
-      <td>199.369333</td>
+      <td>350000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.209144</td>
+      <td>-1.750348</td>
+      <td>2.091443</td>
+      <td>17.503485</td>
+      <td>17.627992</td>
+      <td>186.813809</td>
     </tr>
     <tr>
-      <th>12099</th>
-      <td>POINT (409000 5791040)</td>
-      <td>12099</td>
-      <td>10900</td>
-      <td>10900</td>
-      <td>409000.0</td>
-      <td>5791040.0</td>
-      <td>207</td>
-      <td>0.304630</td>
-      <td>-0.859407</td>
-      <td>3.046297</td>
-      <td>-8.594072</td>
-      <td>9.118004</td>
-      <td>199.517633</td>
+      <th>1948</th>
+      <td>POINT (352000 5792040)</td>
+      <td>2996</td>
+      <td>5200</td>
+      <td>10800</td>
+      <td>352000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.367216</td>
+      <td>-1.643834</td>
+      <td>3.672159</td>
+      <td>16.438337</td>
+      <td>16.843505</td>
+      <td>192.592548</td>
+    </tr>
+    <tr>
+      <th>1949</th>
+      <td>POINT (354000 5792040)</td>
+      <td>2997</td>
+      <td>5400</td>
+      <td>10800</td>
+      <td>354000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.288332</td>
+      <td>-1.711756</td>
+      <td>2.883320</td>
+      <td>17.117562</td>
+      <td>17.358700</td>
+      <td>189.561275</td>
+    </tr>
+    <tr>
+      <th>1950</th>
+      <td>POINT (356000 5792040)</td>
+      <td>2998</td>
+      <td>5600</td>
+      <td>10800</td>
+      <td>356000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.349523</td>
+      <td>-1.629551</td>
+      <td>3.495229</td>
+      <td>16.295510</td>
+      <td>16.666142</td>
+      <td>192.105965</td>
+    </tr>
+    <tr>
+      <th>1951</th>
+      <td>POINT (358000 5792040)</td>
+      <td>2999</td>
+      <td>5800</td>
+      <td>10800</td>
+      <td>358000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>1952</th>
+      <td>POINT (360000 5792040)</td>
+      <td>3000</td>
+      <td>6000</td>
+      <td>10800</td>
+      <td>360000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.356829</td>
+      <td>-1.353932</td>
+      <td>3.568290</td>
+      <td>13.539322</td>
+      <td>14.001641</td>
+      <td>194.764576</td>
+    </tr>
+    <tr>
+      <th>1953</th>
+      <td>POINT (362000 5792040)</td>
+      <td>3001</td>
+      <td>6200</td>
+      <td>10800</td>
+      <td>362000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.332107</td>
+      <td>-1.475567</td>
+      <td>3.321073</td>
+      <td>14.755674</td>
+      <td>15.124795</td>
+      <td>192.684252</td>
+    </tr>
+    <tr>
+      <th>1954</th>
+      <td>POINT (364000 5792040)</td>
+      <td>3002</td>
+      <td>6400</td>
+      <td>10800</td>
+      <td>364000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.260931</td>
+      <td>-1.235276</td>
+      <td>2.609308</td>
+      <td>12.352761</td>
+      <td>12.625339</td>
+      <td>191.927413</td>
+    </tr>
+    <tr>
+      <th>1955</th>
+      <td>POINT (366000 5792040)</td>
+      <td>3003</td>
+      <td>6600</td>
+      <td>10800</td>
+      <td>366000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>1956</th>
+      <td>POINT (368000 5792040)</td>
+      <td>3004</td>
+      <td>6800</td>
+      <td>10800</td>
+      <td>368000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.230095</td>
+      <td>-1.258021</td>
+      <td>2.300948</td>
+      <td>12.580208</td>
+      <td>12.788901</td>
+      <td>190.364959</td>
+    </tr>
+    <tr>
+      <th>1957</th>
+      <td>POINT (370000 5792040)</td>
+      <td>3005</td>
+      <td>7000</td>
+      <td>10800</td>
+      <td>370000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.096170</td>
+      <td>-0.463691</td>
+      <td>-0.961701</td>
+      <td>4.636910</td>
+      <td>4.735589</td>
+      <td>168.282899</td>
+    </tr>
+    <tr>
+      <th>1958</th>
+      <td>POINT (372000 5792040)</td>
+      <td>3006</td>
+      <td>7200</td>
+      <td>10800</td>
+      <td>372000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.194545</td>
+      <td>0.126613</td>
+      <td>1.945447</td>
+      <td>-1.266134</td>
+      <td>2.321176</td>
+      <td>303.056848</td>
+    </tr>
+    <tr>
+      <th>1959</th>
+      <td>POINT (374000 5792040)</td>
+      <td>3007</td>
+      <td>7400</td>
+      <td>10800</td>
+      <td>374000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+      <td>-9999.000000</td>
+    </tr>
+    <tr>
+      <th>1960</th>
+      <td>POINT (376000 5792040)</td>
+      <td>3008</td>
+      <td>7600</td>
+      <td>10800</td>
+      <td>376000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.192273</td>
+      <td>-0.410461</td>
+      <td>-1.922730</td>
+      <td>4.104609</td>
+      <td>4.532627</td>
+      <td>154.900105</td>
+    </tr>
+    <tr>
+      <th>1961</th>
+      <td>POINT (378000 5792040)</td>
+      <td>3009</td>
+      <td>7800</td>
+      <td>10800</td>
+      <td>378000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.411476</td>
+      <td>-1.231980</td>
+      <td>4.114758</td>
+      <td>12.319801</td>
+      <td>12.988792</td>
+      <td>198.469086</td>
+    </tr>
+    <tr>
+      <th>1962</th>
+      <td>POINT (380000 5792040)</td>
+      <td>3010</td>
+      <td>8000</td>
+      <td>10800</td>
+      <td>380000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.262658</td>
+      <td>-0.490337</td>
+      <td>2.626580</td>
+      <td>4.903369</td>
+      <td>5.562549</td>
+      <td>208.176553</td>
+    </tr>
+    <tr>
+      <th>1963</th>
+      <td>POINT (382000 5792040)</td>
+      <td>3011</td>
+      <td>8200</td>
+      <td>10800</td>
+      <td>382000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.186922</td>
+      <td>-1.105403</td>
+      <td>1.869221</td>
+      <td>11.054032</td>
+      <td>11.210959</td>
+      <td>189.597841</td>
+    </tr>
+    <tr>
+      <th>1964</th>
+      <td>POINT (384000 5792040)</td>
+      <td>3012</td>
+      <td>8400</td>
+      <td>10800</td>
+      <td>384000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.267606</td>
+      <td>0.342886</td>
+      <td>-2.676062</td>
+      <td>-3.428858</td>
+      <td>4.349526</td>
+      <td>37.970358</td>
+    </tr>
+    <tr>
+      <th>1965</th>
+      <td>POINT (386000 5792040)</td>
+      <td>3013</td>
+      <td>8600</td>
+      <td>10800</td>
+      <td>386000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.368027</td>
+      <td>-1.232417</td>
+      <td>3.680269</td>
+      <td>12.324169</td>
+      <td>12.861941</td>
+      <td>196.626786</td>
+    </tr>
+    <tr>
+      <th>1966</th>
+      <td>POINT (388000 5792040)</td>
+      <td>3014</td>
+      <td>8800</td>
+      <td>10800</td>
+      <td>388000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.405260</td>
+      <td>-0.790863</td>
+      <td>4.052597</td>
+      <td>7.908634</td>
+      <td>8.886509</td>
+      <td>207.131823</td>
+    </tr>
+    <tr>
+      <th>1967</th>
+      <td>POINT (390000 5792040)</td>
+      <td>3015</td>
+      <td>9000</td>
+      <td>10800</td>
+      <td>390000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.372675</td>
+      <td>-1.224506</td>
+      <td>3.726746</td>
+      <td>12.245065</td>
+      <td>12.799619</td>
+      <td>196.927457</td>
+    </tr>
+    <tr>
+      <th>1968</th>
+      <td>POINT (392000 5792040)</td>
+      <td>3016</td>
+      <td>9200</td>
+      <td>10800</td>
+      <td>392000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.386730</td>
+      <td>-1.438051</td>
+      <td>3.867297</td>
+      <td>14.380515</td>
+      <td>14.891447</td>
+      <td>195.052215</td>
+    </tr>
+    <tr>
+      <th>1969</th>
+      <td>POINT (394000 5792040)</td>
+      <td>3017</td>
+      <td>9400</td>
+      <td>10800</td>
+      <td>394000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.433132</td>
+      <td>-1.209992</td>
+      <td>4.331321</td>
+      <td>12.099919</td>
+      <td>12.851785</td>
+      <td>199.695480</td>
+    </tr>
+    <tr>
+      <th>1970</th>
+      <td>POINT (396000 5792040)</td>
+      <td>3018</td>
+      <td>9600</td>
+      <td>10800</td>
+      <td>396000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.410025</td>
+      <td>-0.784237</td>
+      <td>4.100254</td>
+      <td>7.842365</td>
+      <td>8.849563</td>
+      <td>207.602090</td>
+    </tr>
+    <tr>
+      <th>1971</th>
+      <td>POINT (398000 5792040)</td>
+      <td>3019</td>
+      <td>9800</td>
+      <td>10800</td>
+      <td>398000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.376237</td>
+      <td>-1.138838</td>
+      <td>3.762373</td>
+      <td>11.388382</td>
+      <td>11.993777</td>
+      <td>198.281973</td>
+    </tr>
+    <tr>
+      <th>1972</th>
+      <td>POINT (400000 5792040)</td>
+      <td>3020</td>
+      <td>10000</td>
+      <td>10800</td>
+      <td>400000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.071339</td>
+      <td>-0.964923</td>
+      <td>0.713385</td>
+      <td>9.649233</td>
+      <td>9.675568</td>
+      <td>184.228288</td>
+    </tr>
+    <tr>
+      <th>1973</th>
+      <td>POINT (402000 5792040)</td>
+      <td>3021</td>
+      <td>10200</td>
+      <td>10800</td>
+      <td>402000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.246210</td>
+      <td>-1.129963</td>
+      <td>2.462099</td>
+      <td>11.299628</td>
+      <td>11.564754</td>
+      <td>192.292166</td>
+    </tr>
+    <tr>
+      <th>1974</th>
+      <td>POINT (404000 5792040)</td>
+      <td>3022</td>
+      <td>10400</td>
+      <td>10800</td>
+      <td>404000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>-0.263890</td>
+      <td>-0.903314</td>
+      <td>-2.638901</td>
+      <td>9.033142</td>
+      <td>9.410709</td>
+      <td>163.715048</td>
+    </tr>
+    <tr>
+      <th>1975</th>
+      <td>POINT (406000 5792040)</td>
+      <td>3023</td>
+      <td>10600</td>
+      <td>10800</td>
+      <td>406000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.239090</td>
+      <td>-1.235482</td>
+      <td>2.390904</td>
+      <td>12.354817</td>
+      <td>12.584034</td>
+      <td>190.952493</td>
+    </tr>
+    <tr>
+      <th>1976</th>
+      <td>POINT (408000 5792040)</td>
+      <td>3024</td>
+      <td>10800</td>
+      <td>10800</td>
+      <td>408000.0</td>
+      <td>5792040.0</td>
+      <td>64</td>
+      <td>64</td>
+      <td>0.272772</td>
+      <td>-0.964375</td>
+      <td>2.727717</td>
+      <td>9.643754</td>
+      <td>10.022098</td>
+      <td>195.793451</td>
     </tr>
   </tbody>
 </table>
-<p>8035 rows × 13 columns</p>
+<p>1977 rows × 14 columns</p>
 </div>
 
 
-
-#### calculate geometric quality grid - without any disk access
-
-All you have to do is to instanciate Geom_Quality_Grid with two instances of the GeoArray class as described above.
-
-
-```python
-GQG = Geom_Quality_Grid(GeoArray(ref_ndarray, ref_gt, ref_prj),GeoArray(tgt_ndarray, tgt_gt, tgt_prj),**kwargs)
-GQG.get_quality_grid()
-```
 
 #### export geometric quality grid to an ESRI point shapefile
 
 
 ```python
-GQG.quality_grid_to_PointShapefile()
+CRL.quality_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
 ```
 
 ### Shell console interface

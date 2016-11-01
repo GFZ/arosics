@@ -30,12 +30,12 @@ class COREG_LOCAL(object):
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
         correction performs a polynomial transformation using te calculated shifts of each point in the grid as GCPs.
-        Thus 'Geom_Quality_Grid' can be used to correct for locally varying geometric distortions of the target image.
+        Thus 'COREG_LOCAL' can be used to correct for locally varying geometric distortions of the target image.
 
         :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
         :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is supported)
         :param grid_res:                grid resolution in pixels of the target image
-        :param window_size(tuple):      custom matching window size [pixels] (default: (512,512))
+        :param window_size(tuple):      custom matching window size [pixels] (default: (256,256))
         :param path_out(str):           target path of the coregistered image
                                             - if None (default), the method correct_shifts() does not write to disk
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
@@ -53,7 +53,7 @@ class COREG_LOCAL(object):
         :param nodata(tuple):           no data values for reference image and image to be shifted
         :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
                                         matching window position within the actual image overlap
-                                        (default: 1; deactivated if '-cor0' and '-cor1' are given
+                                        (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are given
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
