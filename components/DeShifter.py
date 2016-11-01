@@ -8,24 +8,24 @@ import time
 import warnings
 
 # custom
-import gdal
+try:
+    import gdal
+except ImportError:
+    from osgeo import gdal
 import numpy as np
 import rasterio
-from shapely.geometry import box
 
 # internal modules
-from . import geometry  as GEO
 from py_tools_ds.ptds                      import GeoArray
-from py_tools_ds.ptds.numeric.array        import get_outFillZeroSaturated
 from py_tools_ds.ptds.geo.map_info         import mapinfo2geotransform, geotransform2mapinfo
-from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
 from py_tools_ds.ptds.geo.coord_grid       import is_coord_grid_equal
 from py_tools_ds.ptds.geo.projection       import prj_equal
 from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.ptds.numeric.vector       import find_nearest
 from py_tools_ds.ptds.processing.shell     import subcall_with_output
 
-
+_dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
+                        'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
 
 class DESHIFTER(object):
     def __init__(self, im2shift, coreg_results, **kwargs):
@@ -82,7 +82,7 @@ class DESHIFTER(object):
         self.path_out     = kwargs.get('path_out'    , None)
         self.fmt_out      = kwargs.get('fmt_out'     , 'ENVI')
         self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
-        self.nodata       = kwargs.get('nodata'      , get_outFillZeroSaturated(self.im2shift.dtype)[0]) # TODO auto-detection here?
+        self.nodata       = kwargs.get('nodata'      , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids' , False)
         tempAsENVI        = kwargs.get('tempAsENVI'  , False)
         self.outFmt       = 'VRT' if not tempAsENVI else 'ENVI' # FIXME eliminate that
@@ -98,7 +98,7 @@ class DESHIFTER(object):
         self.out_gsd      = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
-        assert self.rspAlg  in self._dict_rspAlg_rsp_Int.keys(), \
+        assert self.rspAlg  in _dict_rspAlg_rsp_Int.keys(), \
             "'%s' is not a supported resampling algorithm." %self.rspAlg
         assert self.warpAlg in ['GDAL_cmd', 'GDAL_lib']
 
@@ -108,12 +108,6 @@ class DESHIFTER(object):
         self.tracked_errors   = []
         self.arr_shifted      = None  # set by self.correct_shifts
         self.GeoArray_shifted = None  # set by self.correct_shifts
-
-
-    @property
-    def _dict_rspAlg_rsp_Int(self):
-        return {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
-                'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
 
 
     def _get_out_grid(self, init_kwargs):
@@ -181,13 +175,9 @@ class DESHIFTER(object):
 
     def _get_out_extent(self):
         if self.cliptoextent and self.clipextent is None:
-            # calculate actual corner coords (input image projection)
-            trueCorner_mapXY       = GEO.get_true_corner_mapXY(self.im2shift, bandNr=1, noDataVal=self.nodata, mp=1,v=0)
-            xmin, xmax, ymin, ymax = corner_coord_to_minmax(trueCorner_mapXY)
-            self.clipextent        = box(xmin, ymin, xmax, ymax).bounds
+            self.clipextent        = self.im2shift.footprint_poly.bounds
         else:
-            xmin, xmax, ymin, ymax = corner_coord_to_minmax(get_corner_coordinates(
-                                    gt=self.shift_gt, cols=self.im2shift.cols, rows=self.im2shift.rows))
+            xmin, xmax, ymin, ymax = self.im2shift.box.boundsMap
             self.clipextent        = xmin, ymin, xmax, ymax
 
 
@@ -285,13 +275,13 @@ class DESHIFTER(object):
                 # get resampled array
                 out_arr, out_gt, out_prj = \
                     warp_ndarray(in_arr, self.shift_gt, self.shift_prj, self.ref_prj,
-                                 rspAlg     = self._dict_rspAlg_rsp_Int[self.rspAlg],
+                                 rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg],
                                  in_nodata  = self.nodata,
                                  out_nodata = self.nodata,
                                  out_gsd    = self.out_gsd,
                                  out_bounds = self._get_out_extent(),
                                  gcpList    = self.GCPList,
-                                 polynomialOrder= None,
+                                 polynomialOrder = None,
                                  options    = None,  #'-refine_gcps 500',
                                  CPUs       = self.CPUs,
                                  q          = self.q)

@@ -10,7 +10,10 @@ import warnings
 from copy import copy
 
 # custom
-import gdal
+try:
+    import gdal
+except ImportError:
+    from osgeo import gdal
 import numpy as np
 try:
     import pyfftw
@@ -19,15 +22,14 @@ except ImportError:
 from shapely.geometry import Point
 
 # internal modules
-from .DeShifter import DESHIFTER
+from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
 from .          import geometry  as GEO
 from .          import io        as IO
 from .          import plotting  as PLT
 
 from py_tools_ds.ptds                      import GeoArray
 from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
-from py_tools_ds.ptds.geo.vector.topology  import get_footprint_polygon, get_overlap_polygon, \
-                                                  get_smallest_boxImYX_that_contains_boxMapYX
+from py_tools_ds.ptds.geo.vector.topology  import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
 from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
 from py_tools_ds.ptds.geo.vector.geometry  import boxObj, round_shapelyPoly_coords
 from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid
@@ -79,7 +81,7 @@ class imParamObj(object):
         if CoReg_params['nodata'][0 if imID == 'ref' else 1] is not None:
             self.nodata = CoReg_params['nodata'][0 if imID == 'ref' else 1]
         else:
-            self.nodata = GEO.find_noDataVal(self.GeoArray)
+            self.nodata = self.GeoArray.nodata
 
         # set corner coords
         given_corner_coord = CoReg_params['data_corners_%s' % ('im0' if imID == 'ref' else 'im1')]
@@ -96,7 +98,8 @@ class imParamObj(object):
             self.corner_coord = given_corner_coord
 
         # set footprint polygon
-        self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True)
+        #self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True) # this is the old algorithm
+        self.poly = self.GeoArray.footprint_poly
         for XY in self.corner_coord:
             assert self.poly.contains(Point(XY)) or self.poly.touches(Point(XY)), \
                 "The corner position '%s' is outside of the %s." % (XY, self.imName)
@@ -105,8 +108,6 @@ class imParamObj(object):
 
 
 class COREG(object):
-    _dict_rspAlg_rsp_Int = DESHIFTER._dict_rspAlg_rsp_Int
-
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', r_b4match=1, s_b4match=1, wp=(None,None),
                  ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', data_corners_im0=None, data_corners_im1=None,
@@ -171,7 +172,7 @@ class COREG(object):
         if nodata: assert isinstance(nodata, tuple) and len(nodata) == 2, "'nodata' must be a tuple with two values." \
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
-            assert rspAlg in self._dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
+            assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
         if resamp_alg_calc=='average':
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
                           "affect the precision of the calculated spatial shifts! It is highly recommended to"
@@ -214,6 +215,7 @@ class COREG(object):
 
         self.tracked_errors      = []                  # expanded each time an error occurs
         self.success             = False               # default
+        self.deshift_results     = None                # set by self.correct_shifts()
 
         gdal.AllRegister()
         self._get_image_params()
@@ -360,8 +362,18 @@ class COREG(object):
             overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
             wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
+        # validate window position
         assert self.overlap_poly.contains(Point(wp)), 'The provided window position is outside of the overlap area of '\
                                                       'the two input images. Check the coordinates.'
+        #for im in [self.ref, self.shift]:
+        #    imX, imY = mapXY2imXY(wp, im.gt)
+            #if self.ignErr:
+            #    if  im.GeoArray[int(imY), int(imX), im.band4match]!=im.nodata:
+            #        self.success = False
+            #else:
+        #    assert im.GeoArray[int(imY), int(imX), im.band4match]!=im.nodata,\
+        #        'The provided window position is within the nodata area of the %s. Check the coordinates.' %im.imName
+
         self.win_pos_XY  = wp
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512,512)
 
@@ -848,8 +860,8 @@ class COREG(object):
                        CPUs         = None if self.mp else 1,
                        v            = self.v,
                        q            = self.q)
-        deshift_results = DS.correct_shifts()
-        return deshift_results
+        self.deshift_results = DS.correct_shifts()
+        return self.deshift_results
 
 
     def correct_shifts_OLD(self):

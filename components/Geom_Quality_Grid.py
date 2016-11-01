@@ -5,22 +5,23 @@ import collections
 import multiprocessing
 import os
 import warnings
-from matplotlib import pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # custom
-import gdal
+try:
+    import gdal
+except ImportError:
+    from osgeo import gdal
 import numpy as np
 from geopandas         import GeoDataFrame
 from pykrige.ok        import OrdinaryKriging
 from shapely.geometry  import Point
 
 # internal modules
-from .CoReg  import COREG, DESHIFTER
+from .CoReg  import COREG
 from .       import io       as IO
 from py_tools_ds.ptds                 import GeoArray
 from py_tools_ds.ptds.geo.projection  import isProjectedOrGeographic, get_UTMzone
-from py_tools_ds.ptds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
+from py_tools_ds.ptds.io.pathgen      import get_generic_outpath
 
 
 
@@ -29,94 +30,77 @@ global_shared_im2shift = None
 
 
 class Geom_Quality_Grid(object):
-    def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), dir_out=None, projectName=None,
-                 r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
-                 data_corners_im1=None, outFillVal=-9999, nodata=(None,None), calc_corners=True, binary_ws=True,
-                 CPUs=None, v=False, q=False):
+    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, dir_out=None, CPUs=None, v=False, q=False):
 
-        """
+        """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
+        are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
+        correction performs a polynomial transformation using te calculated shifts of each point in the grid as GCPs.
+        Thus 'Geom_Quality_Grid' can be used to correct for locally varying geometric distortions of the target image.
 
-        :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
-        :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is supported)
+        :param COREG_obj(object):       an instance of COREG class
         :param grid_res:                grid resolution in pixels of the target image
-        :param window_size(tuple):      custom matching window size [pixels] (default: (512,512))
-        :param dir_out:
-        :param projectName:
-        :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
-        :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
-        :param max_iter(int):           maximum number of iterations for matching (default: 5)
-        :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
-        :param data_corners_im0(list):  map coordinates of data corners within reference image
-        :param data_corners_im1(list):  map coordinates of data corners within image to be shifted
         :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
-        :param nodata(tuple):           no data values for reference image and image to be shifted
-        :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
-                                        matching window position within the actual image overlap
-                                        (default: 1; deactivated if '-cor0' and '-cor1' are given
-        :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
+        :param dir_out(str):            output directory to be used for all outputs if nothing else is given
+                                        to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
         :param v(bool):                 verbose mode (default: 0)
         :param q(bool):                 quiet mode (default: 0)
         """
-        self.imref         = im_ref if isinstance(im_ref, GeoArray) else GeoArray(im_ref)
-        self.im2shift      = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt)
-        self.dir_out       = dir_out
-        self.grid_res      = grid_res
-        self.window_size   = window_size
-        self.max_shift     = max_shift
-        self.max_iter      = max_iter
-        self.r_b4match     = r_b4match
-        self.s_b4match     = s_b4match
-        self.calc_corners  = calc_corners
-        self.nodata        = nodata
-        self.outFillVal    = outFillVal
-        self.bin_ws        = binary_ws
-        self.CPUs          = CPUs
-        self.v             = v
-        self.q             = q
 
-        self.projectName   = projectName if projectName else 'UntitledProject_1'
-        while projectName is None and os.path.isdir(os.path.join(self.dir_out,self.projectName)):
-            self.projectName = '%s_%s' %(self.projectName.split('_')[0],int(self.projectName.split('_')[1])+1)
-        self.dir_out = os.path.join(self.dir_out,self.projectName)
-        if not os.path.exists(self.dir_out): os.makedirs(self.dir_out)
+        if not isinstance(COREG_obj, COREG): raise ValueError("'COREG_obj' must be an instance of COREG class.")
 
-        gdal.AllRegister()
+        self.COREG_obj  = COREG_obj
+        self.grid_res   = grid_res
+        self.dir_out    = dir_out
+        self.outFillVal = outFillVal
+        self.CPUs       = CPUs
+        self.v          = v
+        self.q          = q
 
-        self.COREG_obj = COREG(self.imref, self.im2shift,
-                               data_corners_im0 = data_corners_im0,
-                               data_corners_im1 = data_corners_im1,
-                               calc_corners     = calc_corners,
-                               r_b4match        = r_b4match,
-                               s_b4match        = s_b4match,
-                               max_iter         = max_iter,
-                               max_shift        = max_shift,
-                               nodata           = nodata,
-                               multiproc        = self.CPUs is None or self.CPUs>1,
-                               binary_ws        = self.bin_ws,
-                               v                = v,
-                               q                = q,
-                               ignore_errors    = True)
-
-        self.ref_shape                = [self.COREG_obj.ref  .rows, self.COREG_obj.ref  .cols]
-        self.tgt_shape                = [self.COREG_obj.shift.rows, self.COREG_obj.shift.cols]
-        self.corner_coord_imref       = self.COREG_obj.ref  .corner_coord
-        self.corner_coord_im2shift    = self.COREG_obj.shift.corner_coord
-        self.overlap_poly             = self.COREG_obj.overlap_poly
-        self.nodata                   = self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata
+        self.ref        = self.COREG_obj.ref  .GeoArray
+        self.shift      = self.COREG_obj.shift.GeoArray
 
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
-        self.quality_grid                 = None # set by self.get_quality_grid()
-        self.GCPList                      = None # set by self.to_GCPList()
+        self._CoRegPoints_table           = None # set by self.CoRegPoints_table
+        self._GCPList                     = None # set by self.to_GCPList()
+        self.kriged                       = None # set by Raster_using_Kriging()
 
 
-    def _get_imXY__mapXY_points(self,grid_res):
-        Xarr,Yarr       = np.meshgrid(np.arange(0,self.tgt_shape[1],grid_res),
-                                      np.arange(0,self.tgt_shape[0],grid_res))
+    @property
+    def CoRegPoints_table(self):
+        if self._CoRegPoints_table is not None:
+            return self._CoRegPoints_table
+        else:
+            self._CoRegPoints_table = self.get_CoRegPoints_table()
+            return self._CoRegPoints_table
 
-        ULmapYX, URmapYX, LRmapYX, LLmapYX = self.im2shift.box.boxMapYX
+
+    @CoRegPoints_table.setter
+    def CoRegPoints_table(self, CoRegPoints_table):
+        self._CoRegPoints_table = CoRegPoints_table
+
+
+    @property
+    def GCPList(self):
+        if self._GCPList:
+            return self._GCPList
+        else:
+            self._GCPList = self.to_GCPList()
+            return self.to_GCPList()
+
+
+    @GCPList.setter
+    def GCPList(self, GCPList):
+        self._GCPList = GCPList
+
+
+    def _get_imXY__mapXY_points(self, grid_res):
+        Xarr,Yarr       = np.meshgrid(np.arange(0,self.shift.shape[1],grid_res),
+                                      np.arange(0,self.shift.shape[0],grid_res))
+
+        ULmapYX, URmapYX, LRmapYX, LLmapYX = self.shift.box.boxMapYX
 
         mapXarr,mapYarr = np.meshgrid(np.arange(ULmapYX[1],LRmapYX[1],     self.grid_res*self.COREG_obj.shift.xgsd),
                                       np.arange(ULmapYX[0],LRmapYX[0],-abs(self.grid_res*self.COREG_obj.shift.ygsd)))
@@ -137,6 +121,11 @@ class Geom_Quality_Grid(object):
         pointID = coreg_kwargs['pointID']
         del coreg_kwargs['pointID']
 
+        #for im in [global_shared_imref, global_shared_im2shift]:
+        #    imX, imY = mapXY2imXY(coreg_kwargs['wp'], im.gt)
+        #    if im.GeoArray[int(imY), int(imX), im.band4match]==im.nodata,\
+        #        return
+
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
 
@@ -147,7 +136,7 @@ class Geom_Quality_Grid(object):
         return [pointID]+CR_res
 
 
-    def get_quality_grid(self,exclude_outliers=1,dump_values=1):
+    def get_CoRegPoints_table(self, exclude_outliers=1):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
         #ref_ds,tgt_ds = gdal.Open(self.path_imref),gdal.Open(self.path_im2shift)
@@ -181,28 +170,37 @@ class Geom_Quality_Grid(object):
         GDF       ['POINT_ID']       = range(len(geomPoints))
         GDF.loc[:,['X_IM','Y_IM']]   = self.XY_points
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
-        GDF = GDF if not exclude_outliers else GDF[GDF['geometry'].within(self.overlap_poly)]
+
+        if exclude_outliers:
+            GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly)]
+
+            #not_within_nodata = \
+            #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
+            #              self.shift[r.Y_IM,r.X_IM, self.COREG_obj.shift.band4match] != self.COREG_obj.shift.nodata)[0,0]
+
+            #GDF['not_within_nodata'] = GDF.apply(lambda GDF_row: not_within_nodata(GDF_row),axis=1)
+            #GDF = GDF[GDF.not_within_nodata]
 
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift
         global_shared_imref = \
-            GeoArray(self.imref[:,:,self.r_b4match-1], self.imref.geotransform, self.imref.projection)
+            GeoArray(self.ref[:,:,self.COREG_obj.ref.band4match-1], self.ref.geotransform, self.ref.projection)
         global_shared_im2shift = \
-            GeoArray(self.im2shift[:,:,self.s_b4match-1], self.im2shift.geotransform,self.im2shift.projection)
+            GeoArray(self.shift[:,:,self.COREG_obj.shift.band4match-1], self.shift.geotransform,self.shift.projection)
 
         # get all variations of kwargs for coregistration
         get_coreg_kwargs = lambda pID, wp: {
             'pointID'         : pID,
             'wp'              : wp,
-            'ws'              : self.window_size,
-            'data_corners_im0': self.corner_coord_imref,
-            'data_corners_im1': self.corner_coord_im2shift,
-            'r_b4match'       : self.r_b4match,
-            's_b4match'       : self.s_b4match,
-            'max_iter'        : self.max_iter,
-            'max_shift'       : self.max_shift,
-            'nodata'          : self.nodata,
-            'binary_ws'       : self.bin_ws,
+            'ws'              : self.COREG_obj.win_size_XY,
+            'data_corners_im0': self.COREG_obj.ref.corner_coord,
+            'data_corners_im1': self.COREG_obj.shift.corner_coord,
+            'r_b4match'       : self.COREG_obj.ref.band4match,
+            's_b4match'       : self.COREG_obj.shift.band4match,
+            'max_iter'        : self.COREG_obj.max_iter,
+            'max_shift'       : self.COREG_obj.max_shift,
+            'nodata'          : (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+            'binary_ws'       : self.COREG_obj.bin_ws,
             'v'               : self.v, # FIXME this could lead to massive console output
             'q'               : True, # otherwise this would lead to massive console output
             'ignore_errors'   : True
@@ -212,12 +210,12 @@ class Geom_Quality_Grid(object):
         # run co-registration for whole grid
         if self.CPUs is None or self.CPUs>1:
             if not self.q:
-                print("Calculating geometric quality grid in mode 'multiprocessing'...")
+                print("Calculating geometric quality grid (%s points) in mode 'multiprocessing'..." %len(GDF))
             with multiprocessing.Pool(self.CPUs) as pool:
                 results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
         else:
             if not self.q:
-                print("Calculating geometric quality grid in mode 'singleprocessing'...")
+                print("Calculating geometric quality grid (%s points) in mode 'singleprocessing'..." %len(GDF))
             results = np.empty((len(geomPoints),9))
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
                 #print(argset[1])
@@ -234,30 +232,23 @@ class Geom_Quality_Grid(object):
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
-
-        self.quality_grid = GDF
-
-        if dump_values:
-            self.dump_quality_grid()
+        self.CoRegPoints_table = GDF # TODO catch GDF with no found matches
 
         return GDF
 
 
-    def dump_quality_grid(self):
-        assert self.quality_grid is not None, 'Quality is None. Thus dumping it to disk makes no sense.'
-
-        fName_out = "CoRegMatrix_grid%s_ws%s__T_%s__R_%s.pkl" % (self.grid_res, self.window_size, os.path.splitext(
-            os.path.basename(self.im2shift.filePath))[0], os.path.splitext(os.path.basename(self.imref.filePath))[0])  # FIXME does not work for inmem GeoArrays
-        path_out = os.path.join(self.dir_out, 'CoRegMatrix', fName_out)
-        if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
-        self.quality_grid.to_pickle(path_out)
+    def dump_CoRegPoints_table(self, path_out=None):
+        path_out = path_out if path_out else get_generic_outpath(dir_out=self.dir_out,
+            fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl" % (self.grid_res, self.COREG_obj.win_size_XY[0],
+                        self.COREG_obj.win_size_XY[1], self.shift.basename, self.ref.basename))
+        if not self.q:
+            print('Writing %s ...' % path_out)
+        self.CoRegPoints_table.to_pickle(path_out)
 
 
     def to_GCPList(self):
-        assert self.quality_grid is not None, 'Calculate quality grid first!'
-
         # get copy of quality grid without no data
-        GDF = self.quality_grid.loc[self.quality_grid.X_SHIFT_M!=self.outFillVal, :].copy()
+        GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, :].copy()
 
         # calculate GCPs
         GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
@@ -270,66 +261,62 @@ class Geom_Quality_Grid(object):
 
     def test_if_singleprocessing_equals_multiprocessing_result(self):
         self.CPUs = None
-        dataframe = self.get_quality_grid()
+        dataframe = self.get_CoRegPoints_table()
         mp_out    = np.empty_like(dataframe.values)
         mp_out[:] = dataframe.values
         self.CPUs = 1
-        dataframe = self.get_quality_grid()
+        dataframe = self.get_CoRegPoints_table()
         sp_out    = np.empty_like(dataframe.values)
         sp_out[:] = dataframe.values
 
         return np.array_equal(sp_out,mp_out)
 
 
-    def get_line_by_PID(self,PID):
-        assert self.quality_grid is not None, 'Calculate quality grid first!'
-        return self.quality_grid.loc[PID,:]
+    def _get_line_by_PID(self, PID):
+        return self.CoRegPoints_table.loc[PID, :]
 
 
-    def get_lines_by_PIDs(self,PIDs):
-        assert self.quality_grid is not None, 'Calculate quality grid first!'
+    def _get_lines_by_PIDs(self, PIDs):
         assert isinstance(PIDs,list)
-        lines = np.zeros((len(PIDs),self.quality_grid.shape[1]))
+        lines = np.zeros((len(PIDs),self.CoRegPoints_table.shape[1]))
         for i,PID in enumerate(PIDs):
-            lines[i,:] = self.quality_grid[self.quality_grid['POINT_ID']==PID]
+            lines[i,:] = self.CoRegPoints_table[self.CoRegPoints_table['POINT_ID'] == PID]
         return lines
 
 
-    def quality_grid_to_PointShapefile(self,skip_nodata=1,skip_nodata_col = 'ABS_SHIFT'):
-        GDF            = self.quality_grid
+    def to_PointShapefile(self, skip_nodata=1, skip_nodata_col ='ABS_SHIFT', path_out=None):
+        GDF            = self.CoRegPoints_table
         GDF2pass       = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
-        fName_out = "CoRegPoints_grid%s_ws(%s_%s)__T_%s__R_%s.shp" \
-                    %(self.grid_res, self.window_size[0], self.window_size[1],os.path.splitext(
-            os.path.basename(self.im2shift.filePath))[0], os.path.splitext(os.path.basename(self.imref.filePath))[0]) # FIXME does not work for inmem GeoArrays
-        path_out  = os.path.join(self.dir_out, 'CoRegPoints', fName_out)
-        if not os.path.exists(os.path.dirname(path_out)): os.makedirs(os.path.dirname(path_out))
+        path_out = path_out if path_out else get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
+            fName_out="CoRegPoints_grid%s_ws(%s_%s)__T_%s__R_%s.shp" % (self.grid_res, self.COREG_obj.win_size_XY[0],
+                        self.COREG_obj.win_size_XY[1], self.shift.basename, self.ref.basename))
         if not self.q:
             print('Writing %s ...' %path_out)
         GDF2pass.to_file(path_out)
 
 
-    def _quality_grid_to_PointShapefile(self,skip_nodata=1,skip_nodata_col = 'ABS_SHIFT'):
-        warnings.warn(DeprecationWarning("'_quality_grid_to_PointShapefile' is deprecated."
+    def _to_PointShapefile(self, skip_nodata=1, skip_nodata_col ='ABS_SHIFT'):
+        warnings.warn(DeprecationWarning("'_quality_grid_to_PointShapefile' is deprecated." # TODO delete if other method validated
                                          " 'quality_grid_to_PointShapefile' is much faster."))
-        GDF            = self.quality_grid
+        GDF            = self.CoRegPoints_table
         GDF2pass       = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
         shapely_points = GDF2pass['geometry'].values.tolist()
         attr_dicts     = [collections.OrderedDict(zip(GDF2pass.columns,GDF2pass.loc[i].values)) for i in GDF2pass.index]
 
 
-        fName_out = "CoRegPoints_grid%s_ws%s.shp" %(self.grid_res, self.window_size)
+        fName_out = "CoRegPoints_grid%s_ws%s.shp" %(self.grid_res, self.COREG_obj.win_size_XY)
         path_out = os.path.join(self.dir_out, fName_out)
         IO.write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
 
 
-    def quality_grid_to_Raster_using_KrigingOLD(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
-                                             fName_out=None,tilepos=None):
-        GDF             = self.quality_grid
+    def to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+                                   path_out=None, tilepos=None):
+        GDF             = self.CoRegPoints_table
         GDF2pass        = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
         # subset if tilepos is given
-        rows,cols = tilepos if tilepos else self.tgt_shape
+        rows,cols = tilepos if tilepos else self.shift.shape
         GDF2pass        = GDF2pass.loc[(GDF2pass['X_IM']>=cols[0])&(GDF2pass['X_IM']<=cols[1])&
                                        (GDF2pass['Y_IM']>=rows[0])&(GDF2pass['Y_IM']<=rows[1])]
 
@@ -346,9 +333,9 @@ class Geom_Quality_Grid(object):
         OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical',verbose=False)
         zvalues, sigmasq = OK.execute('grid', grid_x, grid_y)#,backend='C',)
 
-        fName_out = fName_out if fName_out else \
-            "Kriging__%s__grid%s_ws%s.tif" %(attrName,self.grid_res, self.window_size)
-        path_out  = os.path.join(self.dir_out, fName_out)
+        path_out = path_out if path_out else get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
+            fName_out="Kriging__%s__grid%s_ws(%s_%s).tif"  % (attrName, self.grid_res, self.COREG_obj.win_size_XY[0],
+                        self.COREG_obj.win_size_XY[1]))
         print('Writing %s ...' %path_out)
         # add a half pixel grid points are centered on the output pixels
         xmin,ymin,xmax,ymax = xmin-grid_res/2,ymin-grid_res/2,xmax+grid_res/2,ymax+grid_res/2
@@ -357,12 +344,12 @@ class Geom_Quality_Grid(object):
         return zvalues
 
 
-    def quality_grid_to_Raster_using_Kriging(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
-                                             fName_out=None,tilepos=None,tilesize=500,mp=None):
+    def Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+                             fName_out=None, tilepos=None, tilesize=500, mp=None):
 
-        mp = mp if mp else self.mp
-        self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
-                outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
+        mp = False if self.CPUs==1 else True
+        self._Kriging_sp(attrName, skip_nodata=skip_nodata, skip_nodata_col=skip_nodata_col,
+                         outGridRes=outGridRes, fName_out=fName_out, tilepos=tilepos)
 
         # if mp:
         #     tilepositions = UTL.get_image_tileborders([tilesize,tilesize],self.tgt_shape)
@@ -386,9 +373,9 @@ class Geom_Quality_Grid(object):
         return res
 
 
-    def Kriging_sp(self,attrName,skip_nodata=1,skip_nodata_col='ABS_SHIFT',outGridRes=None,
-                                             fName_out=None,tilepos=None):
-        GDF             = self.quality_grid
+    def _Kriging_sp(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+                    fName_out=None, tilepos=None):
+        GDF             = self.CoRegPoints_table
         GDF2pass        = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
 #         # subset if tilepos is given
@@ -416,11 +403,11 @@ class Geom_Quality_Grid(object):
 
         if self.CPUs is None or self.CPUs>1:
             fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s_%s.tif" %(attrName,self.grid_res, self.window_size,tilepos)
+                "Kriging__%s__grid%s_ws%s_%s.tif" %(attrName,self.grid_res, self.COREG_obj.win_size_XY,tilepos)
         else:
             fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s.tif" %(attrName,self.grid_res, self.window_size)
-        path_out  = os.path.join(self.dir_out, fName_out)
+                "Kriging__%s__grid%s_ws%s.tif" %(attrName,self.grid_res, self.COREG_obj.win_size_XY)
+        path_out  = get_generic_outpath(dir_out=self.dir_out, fName_out=fName_out)
         print('Writing %s ...' %path_out)
         # add a half pixel grid points are centered on the output pixels
         xmin,ymin,xmax,ymax = xmin-grid_res/2,ymin-grid_res/2,xmax+grid_res/2,ymax+grid_res/2
@@ -429,132 +416,8 @@ class Geom_Quality_Grid(object):
         return zvalues
 
 
-    def Kriging_mp(self,args_kwargs_dict):
+    def _Kriging_mp(self, args_kwargs_dict):
         args   = args_kwargs_dict.get('args',[])
         kwargs = args_kwargs_dict.get('kwargs',[])
 
-        return self.Kriging_sp(*args,**kwargs)
-
-
-    def view_results(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
-                     savefigPath='', savefigDPI=96):
-        """Shows a map of the calculated quality grid with the target image as background.
-
-        :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
-        :param cmap:                <plt.cm.<colormap>> a custom color map to be applied to the plotted grid points
-                                                        (default: 'RdYlGn_r')
-        :param exclude_fillVals:    <bool> whether to exclude those points of the grid where spatial shift detection failed
-        :param backgroundIm:        <str> whether to use the target or the reference image as map background. Possible
-                                          options are 'ref' and 'tgt' (default: 'tgt')
-        """
-
-        assert self.quality_grid is not None, 'Calculate quality grid first!'
-
-        # get a map showing target image
-        if backgroundIm not in ['tgt','ref']: raise ValueError('backgroundIm')
-        backgroundIm      = self.im2shift if backgroundIm=='tgt' else self.imref
-        fig, ax, map2show = backgroundIm.show_map(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
-        # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
-        plt.title(attribute2plot)
-
-        # transform all points of quality grid to LonLat
-        GDF = self.quality_grid.loc[self.quality_grid.X_SHIFT_M!=self.outFillVal, ['geometry',attribute2plot]].copy() \
-                if exclude_fillVals else self.quality_grid.loc[:,['geometry',attribute2plot]]
-
-        # get LonLat coordinates for all points
-        get_LonLat     = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
-        GDF['LonLat']  = list(GDF['geometry'].map(lambda geom: get_LonLat(*tuple(np.array(geom.coords.xy)[:,0]))))
-
-        # get colors for all points
-        #vmin = min(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
-        #vmax = max(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
-        #norm = mpl_normalize(vmin=vmin, vmax=vmax)
-        palette = cmap if cmap else plt.cm.RdYlGn_r
-        #GDF['color'] = [*GDF[attribute2plot].map(lambda val: palette(norm(val)))]
-
-        # add quality grid to map
-        #plot_point = lambda row: ax.plot(*map2show(*row['LonLat']), marker='o', markersize=7.0, alpha=1.0, color=row['color'])
-        #GDF.apply(plot_point, axis=1)
-        GDF['plt_XY'] = list(GDF['LonLat'].map(lambda ll: map2show(*ll)))
-        GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
-        GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
-        points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
-                             cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0)
-
-        # add colorbar
-        divider = make_axes_locatable(plt.gca())
-        cax = divider.append_axes("right", size="2%", pad=0.1) # create axis on the right; size =2% of ax; padding = 0.1 inch
-        plt.colorbar(points, cax=cax)
-
-        plt.show()
-
-        if savefigPath:
-            fig.savefig(savefigPath, dpi=savefigDPI)
-
-
-    def view_results_folium(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True):
-        warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
-        assert self.quality_grid is not None, 'Calculate quality grid first!'
-
-        try:
-            import folium, geojson
-            from folium import plugins
-        except ImportError:
-            raise ImportError("This method requires the library 'folium'. It can be installed with "
-                              "the shell command 'pip install folium'.")
-
-        lon_min, lat_min, lon_max, lat_max = \
-            reproject_shapelyGeometry(self.im2shift.box.mapPoly, self.im2shift.projection, 4326).bounds
-        center_lon, center_lat = (lon_min+lon_max)/2, (lat_min+lat_max)/2
-
-        # get image to plot
-        image2plot = self.im2shift[:]
-        from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
-        image2plot, gt, prj = warp_ndarray(image2plot, self.im2shift.geotransform, self.im2shift.projection, in_nodata=self.nodata[1], out_nodata=self.nodata[1],
-                                           out_XYdims=(1000, 1000), q=True, out_prj='epsg:3857') # image must be transformed into web mercator projection
-
-        # create map
-        map_osm = folium.Map(location=[center_lat, center_lon])#,zoom_start=3)
-        import matplotlib
-        plugins.ImageOverlay(
-            colormap=lambda x: (1, 0, 0, x), # TODO a colormap must be given
-            # colormap=matplotlib.cm.gray, # does not work
-            image=image2plot, bounds=[[lat_min, lon_min], [lat_max, lon_max]],
-            ).add_to(map_osm)
-
-        folium.GeoJson(self.quality_grid.loc[:,['geometry',attribute2plot]]).add_to(map_osm)
-
-        # add overlap polygon
-        overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.epsg, 4326)
-        gjs         = geojson.Feature(geometry=overlapPoly, properties={})
-        folium.GeoJson(gjs).add_to(map_osm)
-
-
-        return map_osm
-
-
-    def correct_shifts(self, max_GCP_count=None):
-        """Performs a local shift correction using all points from the previously calculated geometric quality grid
-        that contain valid matches as GCP points.
-
-        :param max_GCP_count: <int> maximum number of GCPs to use
-        :return:
-        """
-        coreg_info = self.COREG_obj.coreg_info
-        coreg_info['GCPList'] = self.GCPList if self.GCPList else self.to_GCPList()
-
-        if max_GCP_count:
-            coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
-
-        DS = DESHIFTER(self.im2shift, coreg_info,
-                       path_out     = None, # TODO implement that
-                       out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
-                       align_grids  = True,
-                       #cliptoextent = True, # why?
-                       #clipextent   = self.im2shift.box.boxMapYX,
-                       #options      = '-wm 10000 -order 1',
-                       v            = self.v,
-                       q            = self.q)
-
-        deshift_results = DS.correct_shifts()
-        return deshift_results
+        return self._Kriging_sp(*args, **kwargs)
