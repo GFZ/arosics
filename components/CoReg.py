@@ -51,7 +51,7 @@ class imParamObj(object):
         self.q = CoReg_params['q'] if not self.v else False
 
         # set GeoArray
-        get_geoArr = lambda p: GeoArray(p) if not isinstance(p,GeoArray) else p
+        get_geoArr    = lambda p: GeoArray(p) if not isinstance(p,GeoArray) else p
         self.GeoArray = get_geoArr(CoReg_params['im_ref']) if imID == 'ref' else get_geoArr(CoReg_params['im_tgt'])
 
         # set title to be used in plots
@@ -101,7 +101,7 @@ class imParamObj(object):
         #self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True) # this is the old algorithm
         self.poly = self.GeoArray.footprint_poly
         for XY in self.corner_coord:
-            assert self.poly.contains(Point(XY)) or self.poly.touches(Point(XY)), \
+            assert self.GeoArray.box.mapPoly.contains(Point(XY)) or self.GeoArray.box.mapPoly.touches(Point(XY)), \
                 "The corner position '%s' is outside of the %s." % (XY, self.imName)
 
         if not CoReg_params['q']: print('Corner coordinates of %s:\n\t%s' % (self.imName, self.corner_coord))
@@ -112,7 +112,7 @@ class COREG(object):
                  ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', data_corners_im0=None, data_corners_im1=None,
                  nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
-                 v=False, path_verbose_out=None, q=False, ignore_errors=False):
+                 progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
         """
         :param im_ref(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
                                         of reference image
@@ -152,6 +152,7 @@ class COREG(object):
         :param multiproc(bool):         enable multiprocessing (default: 1)
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
         :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
+        :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: 0)
         :param path_verbose_out(str):   an optional output directory for intermediate results
                                         (if not given, no intermediate results are written to disk)
@@ -195,7 +196,9 @@ class COREG(object):
         self.force_quadratic_win = force_quadratic_win
         self.v                   = v
         self.path_verbose_out    = path_verbose_out
-        self.q                   = q if not v else False
+        self.q                   = q if not v else False # overridden by v
+        self.progress            = progress if not q else False  # overridden by q
+
         self.ignErr              = ignore_errors
         self.max_win_sz_changes  = 3                   # TODO: änderung der window size, falls nach max_iter kein valider match gefunden
         self.ref                 = None                # set by self.get_image_params
@@ -245,7 +248,8 @@ class COREG(object):
             IO.write_shp(os.path.join(self.path_verbose_out, 'poly_matchWin.shp'),
                          self.matchWin.mapPoly, self.matchWin.prj)
 
-        self.success = None if self.matchWin.boxMapYX else False
+        self.success     = None if self.matchWin.boxMapYX else False
+        self._coreg_info = None # private attribute to be filled by self.coreg_info property
 
 
     def _set_outpathes(self, im_ref, im_tgt):
@@ -334,9 +338,9 @@ class COREG(object):
             raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
                               "the shell command 'pip install folium geojson'.")
 
-        refPoly      = reproject_shapelyGeometry(self.ref  .poly  , self.ref  .GeoArray.epsg, 4326)
-        shiftPoly    = reproject_shapelyGeometry(self.shift.poly  , self.shift.GeoArray.epsg, 4326)
-        overlapPoly  = reproject_shapelyGeometry(self.overlap_poly, self.shift.GeoArray.epsg, 4326)
+        refPoly      = reproject_shapelyGeometry(self.ref  .poly      , self.ref  .GeoArray.epsg, 4326)
+        shiftPoly    = reproject_shapelyGeometry(self.shift.poly      , self.shift.GeoArray.epsg, 4326)
+        overlapPoly  = reproject_shapelyGeometry(self.overlap_poly    , self.shift.GeoArray.epsg, 4326)
         matchWinPoly = reproject_shapelyGeometry(self.matchWin.mapPoly, self.shift.GeoArray.epsg, 4326)
 
         m = folium.Map(location=tuple(np.array(overlapPoly.centroid.coords.xy).flatten())[::-1])
@@ -363,8 +367,8 @@ class COREG(object):
             wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
         # validate window position
-        assert self.overlap_poly.contains(Point(wp)), 'The provided window position is outside of the overlap area of '\
-                                                      'the two input images. Check the coordinates.'
+        assert self.overlap_poly.contains(Point(wp)), 'The provided window position %s/%s is outside of the overlap ' \
+                                                      'area of the two input images. Check the coordinates.' %wp
         #for im in [self.ref, self.shift]:
         #    imX, imY = mapXY2imXY(wp, im.gt)
             #if self.ignErr:
@@ -835,17 +839,22 @@ class COREG(object):
 
     @property
     def coreg_info(self):
-        return {
-            'corrected_shifts_px'   : {'x':self.x_shift_px,  'y':self.y_shift_px },
-            'corrected_shifts_map'  : {'x':self.x_shift_map, 'y':self.y_shift_map},
-            'original map info'     : geotransform2mapinfo(self.shift.gt, self.shift.prj),
-            'updated map info'      : self.updated_map_info,
-            'reference projection'  : self.ref.prj,
-            'reference geotransform': self.ref.gt,
-            'reference grid'        : [ [self.ref.gt[0], self.ref.gt[0]+self.ref.gt[1]],
-                                        [self.ref.gt[3], self.ref.gt[3]+self.ref.gt[5]] ],
-            'reference extent'      : {'cols':self.ref.xgsd, 'rows':self.ref.ygsd}, # FIXME not needed anymore
-            'success'               : self.success}
+        if self._coreg_info:
+            return self._coreg_info
+        else:
+            self.calculate_spatial_shifts()
+            self._coreg_info = {
+                'corrected_shifts_px'   : {'x':self.x_shift_px,  'y':self.y_shift_px },
+                'corrected_shifts_map'  : {'x':self.x_shift_map, 'y':self.y_shift_map},
+                'original map info'     : geotransform2mapinfo(self.shift.gt, self.shift.prj),
+                'updated map info'      : self.updated_map_info,
+                'reference projection'  : self.ref.prj,
+                'reference geotransform': self.ref.gt,
+                'reference grid'        : [ [self.ref.gt[0], self.ref.gt[0]+self.ref.gt[1]],
+                                            [self.ref.gt[3], self.ref.gt[3]+self.ref.gt[5]] ],
+                'reference extent'      : {'cols':self.ref.xgsd, 'rows':self.ref.ygsd}, # FIXME not needed anymore
+                'success'               : self.success}
+            return self.coreg_info
 
 
     def correct_shifts(self):
@@ -858,6 +867,7 @@ class COREG(object):
                        match_gsd    = self.match_gsd,
                        nodata       = self.shift.nodata,
                        CPUs         = None if self.mp else 1,
+                       progress     = self.progress,
                        v            = self.v,
                        q            = self.q)
         self.deshift_results = DS.correct_shifts()

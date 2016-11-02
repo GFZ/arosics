@@ -2,8 +2,6 @@
 __author__='Daniel Scheffler'
 
 import collections
-import os
-import tempfile
 import time
 import warnings
 
@@ -12,8 +10,6 @@ try:
     import gdal
 except ImportError:
     from osgeo import gdal
-import numpy as np
-import rasterio
 
 # internal modules
 from py_tools_ds.ptds                      import GeoArray
@@ -22,7 +18,6 @@ from py_tools_ds.ptds.geo.coord_grid       import is_coord_grid_equal
 from py_tools_ds.ptds.geo.projection       import prj_equal
 from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.ptds.numeric.vector       import find_nearest
-from py_tools_ds.ptds.processing.shell     import subcall_with_output
 
 _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
                         'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
@@ -33,7 +28,8 @@ class DESHIFTER(object):
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
         :param im2shift:            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
-        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info
+        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info  or
+                                    COREG_LOCAL.coreg_info respectively
 
         :Keyword Arguments:
             - path_out(str):        /output/directory/filename for coregistered results
@@ -53,13 +49,12 @@ class DESHIFTER(object):
             - resamp_alg(str)       the resampling algorithm to be used if neccessary
                                     (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
-            - warp_alg(str):        'GDAL_cmd' or 'GDAL_lib' (default = 'GDAL_lib')
             - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
                                     areas outside of the actual bounds, default = True
             - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
                                     The given coordinates are automatically snapped to the output grid.
-            - tempDir(str):         directory to be used for tempfiles (default: /dev/shm/)
             - CPUs(int):            number of CPUs to use (default: None, which means 'all CPUs available')
+            - progress(bool):       show progress bars (default: True)
             - v(bool):              verbose mode (default: False)
             - q(bool):              quiet mode (default: False)
 
@@ -69,10 +64,11 @@ class DESHIFTER(object):
         self.shift_prj          = self.im2shift.projection
         self.shift_gt           = list(self.im2shift.geotransform)
         self.GCPList            = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
-        mapI                    = coreg_results['updated map info']
-        self.updated_map_info   = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
-        self.original_map_info  = coreg_results['original map info']
-        self.updated_gt         = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
+        if not self.GCPList:
+            mapI                    = coreg_results['updated map info']
+            self.updated_map_info   = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
+            self.original_map_info  = coreg_results['original map info']
+            self.updated_gt         = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
         self.ref_gt             = coreg_results['reference geotransform']
         self.ref_grid           = coreg_results['reference grid']
         self.ref_prj            = coreg_results['reference projection']
@@ -84,23 +80,19 @@ class DESHIFTER(object):
         self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
         self.nodata       = kwargs.get('nodata'      , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids' , False)
-        tempAsENVI        = kwargs.get('tempAsENVI'  , False)
-        self.outFmt       = 'VRT' if not tempAsENVI else 'ENVI' # FIXME eliminate that
         self.rspAlg       = kwargs.get('resamp_alg'  , 'cubic')
-        self.warpAlg      = kwargs.get('warp_alg'    , 'GDAL_lib')
         self.cliptoextent = kwargs.get('cliptoextent', True)
         self.clipextent   = kwargs.get('clipextent'  , None)
-        self.tempDir      = kwargs.get('tempDir'     , '/dev/shm/')
         self.CPUs         = kwargs.get('CPUs'        , None)
         self.v            = kwargs.get('v'           , False)
-        self.q            = kwargs.get('q'           , False) if not self.v else False
+        self.q            = kwargs.get('q'           , False) if not self.v else False # overridden by v
+        self.progress     = kwargs.get('progress'    , True)  if not self.q else False # overridden by q
         self.out_grid     = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
         self.out_gsd      = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
         assert self.rspAlg  in _dict_rspAlg_rsp_Int.keys(), \
             "'%s' is not a supported resampling algorithm." %self.rspAlg
-        assert self.warpAlg in ['GDAL_cmd', 'GDAL_lib']
 
         # set defaults for general class attributes
         self.is_shifted       = False # this is not included in COREG.coreg_info
@@ -193,6 +185,9 @@ class DESHIFTER(object):
     def correct_shifts(self):
         # type: (DESHIFTER) -> collections.OrderedDict
 
+        if not self.q:
+            print('Correcting geometric shifts...')
+
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
@@ -225,77 +220,83 @@ class DESHIFTER(object):
 
         else: # FIXME equal_prj==False ist noch NICHT implementiert
             """RESAMPLING NEEDED"""
-            if self.warpAlg=='GDAL_cmd':
-                warnings.warn('This method has not been tested in its current state!')
-                # FIXME nicht multiprocessing-fähig, weil immer kompletter array gewarpt wird und sich ergebnisse gegenseitig überschreiben
-                # create tempfile
-                fd, path_tmp = tempfile.mkstemp(prefix='CoReg_Sat', suffix=self.outFmt, dir=self.tempDir)
-                os.close(fd)
+            # if self.warpAlg=='GDAL_cmd':
+            #     warnings.warn('This method has not been tested in its current state!')
+            #     # FIX ME nicht multiprocessing-fähig, weil immer kompletter array gewarpt wird und sich ergebnisse gegenseitig überschreiben
+            #     # create tempfile
+            #     fd, path_tmp = tempfile.mkstemp(prefix='CoReg_Sat', suffix=self.outFmt, dir=self.tempDir)
+            #     os.close(fd)
+            #
+            #     t_extent   = " -te %s %s %s %s" %self._get_out_extent()
+            #     xgsd, ygsd = self.out_gsd
+            #     cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of %s %s %s -srcnodata %s -dstnodata %s -overwrite%s"\
+            #           %(self.rspAlg, xgsd,ygsd,self.ref_prj,self.outFmt,self.im2shift.filePath,
+            #             path_tmp, self.nodata, self.nodata, t_extent)
+            #     out, exitcode, err = subcall_with_output(cmd)
+            #
+            #     if exitcode!=1 and os.path.exists(path_tmp):
+            #         """update map info, arr_shifted, geotransform and projection"""
+            #         ds_shifted = gdal.OpenShared(path_tmp) if self.outFmt == 'VRT' else gdal.Open(path_tmp)
+            #         self.shift_gt, self.shift_prj = ds_shifted.GetGeoTransform(), ds_shifted.GetProjection()
+            #         self.updated_map_info         = geotransform2mapinfo(self.shift_gt,self.shift_prj)
+            #
+            #         print('reading from', ds_shifted.GetDescription())
+            #         if self.band2process is None:
+            #             dim2RowsColsBands = lambda A: np.swapaxes(np.swapaxes(A,0,2),0,1) # rasterio.open(): [bands,rows,cols]
+            #             self.arr_shifted  = dim2RowsColsBands(rasterio.open(path_tmp).read())
+            #         else:
+            #             self.arr_shifted  = rasterio.open(path_tmp).read(self.band2process)
+            #
+            #         self.GeoArray_shifted = GeoArray(self.arr_shifted,tuple(self.shift_gt), self.shift_prj)
+            #         self.is_shifted       = True
+            #         self.is_resampled     = True
+            #
+            #         ds_shifted            = None
+            #         [gdal.Unlink(p) for p in [path_tmp] if os.path.exists(p)] # delete tempfiles
+            #     else:
+            #         print("\n%s\nCommand was:  '%s'" %(err.decode('utf8'),cmd))
+            #         [gdal.Unlink(p) for p in [path_tmp] if os.path.exists(p)] # delete tempfiles
+            #         self.tracked_errors.append(RuntimeError('Resampling failed.'))
+            #         raise self.tracked_errors[-1]
+            #
+            #     # TO DO implement output writer
 
-                t_extent   = " -te %s %s %s %s" %self._get_out_extent()
-                xgsd, ygsd = self.out_gsd
-                cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of %s %s %s -srcnodata %s -dstnodata %s -overwrite%s"\
-                      %(self.rspAlg, xgsd,ygsd,self.ref_prj,self.outFmt,self.im2shift.filePath,
-                        path_tmp, self.nodata, self.nodata, t_extent)
-                out, exitcode, err = subcall_with_output(cmd)
+            in_arr = self.im2shift[self.band2process] if self.band2process else self.im2shift[:]
 
-                if exitcode!=1 and os.path.exists(path_tmp):
-                    """update map info, arr_shifted, geotransform and projection"""
-                    ds_shifted = gdal.OpenShared(path_tmp) if self.outFmt == 'VRT' else gdal.Open(path_tmp)
-                    self.shift_gt, self.shift_prj = ds_shifted.GetGeoTransform(), ds_shifted.GetProjection()
-                    self.updated_map_info         = geotransform2mapinfo(self.shift_gt,self.shift_prj)
-
-                    print('reading from', ds_shifted.GetDescription())
-                    if self.band2process is None:
-                        dim2RowsColsBands = lambda A: np.swapaxes(np.swapaxes(A,0,2),0,1) # rasterio.open(): [bands,rows,cols]
-                        self.arr_shifted  = dim2RowsColsBands(rasterio.open(path_tmp).read())
-                    else:
-                        self.arr_shifted  = rasterio.open(path_tmp).read(self.band2process)
-
-                    self.GeoArray_shifted = GeoArray(self.arr_shifted,tuple(self.shift_gt), self.shift_prj)
-                    self.is_shifted       = True
-                    self.is_resampled     = True
-
-                    ds_shifted            = None
-                    [gdal.Unlink(p) for p in [path_tmp] if os.path.exists(p)] # delete tempfiles
-                else:
-                    print("\n%s\nCommand was:  '%s'" %(err.decode('utf8'),cmd))
-                    [gdal.Unlink(p) for p in [path_tmp] if os.path.exists(p)] # delete tempfiles
-                    self.tracked_errors.append(RuntimeError('Resampling failed.'))
-                    raise self.tracked_errors[-1]
-
-                # TODO implement output writer
-
-            elif self.warpAlg=='GDAL_lib':
+            if not self.GCPList:
                 # apply XY-shifts to shift_gt
-                in_arr = self.im2shift[self.band2process] if self.band2process else self.im2shift[:]
-                if not self.GCPList:
-                    self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
+                self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
 
-                # get resampled array
-                out_arr, out_gt, out_prj = \
-                    warp_ndarray(in_arr, self.shift_gt, self.shift_prj, self.ref_prj,
-                                 rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg],
-                                 in_nodata  = self.nodata,
-                                 out_nodata = self.nodata,
-                                 out_gsd    = self.out_gsd,
-                                 out_bounds = self._get_out_extent(),
-                                 gcpList    = self.GCPList,
-                                 polynomialOrder = None,
-                                 options    = None,  #'-refine_gcps 500',
-                                 CPUs       = self.CPUs,
-                                 q          = self.q)
+            # get resampled array
+            out_arr, out_gt, out_prj = \
+                warp_ndarray(in_arr, self.shift_gt, self.shift_prj, self.ref_prj,
+                             rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg],
+                             in_nodata  = self.nodata,
+                             out_nodata = self.nodata,
+                             out_gsd    = self.out_gsd,
+                             out_bounds = self._get_out_extent(),
+                             gcpList    = self.GCPList,
+                             #polynomialOrder = str(3),
+                             #options    = '-refine_gcps 500 1.9',
+                             #warpOptions= ['-refine_gcps 500 1.9'],
+                             #options      = '-wm 10000',# -order 3',
+                             #options      = ['-order 3'],
+#                                 options = ['GDAL_CACHEMAX 800 '],
+                             #warpMemoryLimit=125829120, # 120MB
+                             CPUs       = self.CPUs,
+                             progress   = self.progress,
+                             q          = self.q)
 
-                self.updated_projection = out_prj
-                self.arr_shifted        = out_arr
-                self.updated_map_info   = geotransform2mapinfo(out_gt,out_prj)
-                self.shift_gt           = mapinfo2geotransform(self.updated_map_info)
-                self.GeoArray_shifted   = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
-                self.is_shifted         = True
-                self.is_resampled       = True
+            self.updated_projection = out_prj
+            self.arr_shifted        = out_arr
+            self.updated_map_info   = geotransform2mapinfo(out_gt,out_prj)
+            self.shift_gt           = mapinfo2geotransform(self.updated_map_info)
+            self.GeoArray_shifted   = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
+            self.is_shifted         = True
+            self.is_resampled       = True
 
-                if self.path_out:
-                    GeoArray(out_arr, out_gt, out_prj).save(self.path_out,fmt=self.fmt_out)
+            if self.path_out:
+                GeoArray(out_arr, out_gt, out_prj).save(self.path_out,fmt=self.fmt_out)
 
         if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results
