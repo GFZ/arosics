@@ -5,6 +5,7 @@ import collections
 import multiprocessing
 import os
 import warnings
+import time
 
 # custom
 try:
@@ -18,10 +19,10 @@ from shapely.geometry  import Point
 
 # internal modules
 from .CoReg  import COREG
-from .       import io       as IO
-from py_tools_ds.ptds                 import GeoArray
-from py_tools_ds.ptds.geo.projection  import isProjectedOrGeographic, get_UTMzone
-from py_tools_ds.ptds.io.pathgen      import get_generic_outpath
+from .       import io    as IO
+from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, get_UTMzone
+from py_tools_ds.ptds.io.pathgen              import get_generic_outpath
+from py_tools_ds.ptds.processing.progress_mon import printProgress
 
 
 
@@ -30,7 +31,7 @@ global_shared_im2shift = None
 
 
 class Geom_Quality_Grid(object):
-    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, dir_out=None, CPUs=None, v=False, q=False):
+    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, dir_out=None, CPUs=None, progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -45,6 +46,7 @@ class Geom_Quality_Grid(object):
                                         to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
+        :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: 0)
         :param q(bool):                 quiet mode (default: 0)
         """
@@ -57,7 +59,8 @@ class Geom_Quality_Grid(object):
         self.outFillVal = outFillVal
         self.CPUs       = CPUs
         self.v          = v
-        self.q          = q
+        self.q          = q        if not v else False # overridden by v
+        self.progress   = progress if not q else False # overridden by q
 
         self.ref        = self.COREG_obj.ref  .GeoArray
         self.shift      = self.COREG_obj.shift.GeoArray
@@ -125,7 +128,8 @@ class Geom_Quality_Grid(object):
         #    imX, imY = mapXY2imXY(coreg_kwargs['wp'], im.gt)
         #    if im.GeoArray[int(imY), int(imX), im.band4match]==im.nodata,\
         #        return
-
+        assert global_shared_imref    is not None
+        assert global_shared_im2shift is not None
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
 
@@ -183,10 +187,12 @@ class Geom_Quality_Grid(object):
 
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift
-        global_shared_imref = \
-            GeoArray(self.ref[:,:,self.COREG_obj.ref.band4match-1], self.ref.geotransform, self.ref.projection)
-        global_shared_im2shift = \
-            GeoArray(self.shift[:,:,self.COREG_obj.shift.band4match-1], self.shift.geotransform,self.shift.projection)
+        assert self.ref  .footprint_poly # this also checks for mask_nodata and nodata value
+        assert self.shift.footprint_poly
+        if not self.ref  .is_inmem: self.ref.cache_array_subset(self.ref  [self.COREG_obj.ref  .band4match])
+        if not self.shift.is_inmem: self.ref.cache_array_subset(self.shift[self.COREG_obj.shift.band4match])
+        global_shared_imref    = self.ref
+        global_shared_im2shift = self.shift
 
         # get all variations of kwargs for coregistration
         get_coreg_kwargs = lambda pID, wp: {
@@ -211,21 +217,34 @@ class Geom_Quality_Grid(object):
         if self.CPUs is None or self.CPUs>1:
             if not self.q:
                 print("Calculating geometric quality grid (%s points) in mode 'multiprocessing'..." %len(GDF))
+
+            t0 = time.time()
             with multiprocessing.Pool(self.CPUs) as pool:
-                results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
+                if self.q or not self.progress:
+                    results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
+                else:
+                    results = pool.map_async(self._get_spatial_shifts, list_coreg_kwargs, chunksize=1)
+
+                    while True:
+                        time.sleep(.1)
+                        numberDone = len(GDF)-results._number_left # this does not really represent the remaining tasks but the remaining chunks -> thus chunksize=1
+                        printProgress(percent=numberDone/len(GDF)*100, barLength=50, prefix='\tprogress:',
+                                      suffix='[%s/%s] Complete %.2f sek'%(numberDone,len(GDF), time.time()-t0))
+                        if results.ready():
+                            results = results.get() # FIXME in some cases the code hangs here ==> x
+                            break
         else:
             if not self.q:
                 print("Calculating geometric quality grid (%s points) in mode 'singleprocessing'..." %len(GDF))
             results = np.empty((len(geomPoints),9))
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
-                #print(argset[1])
-                #if not 0<i<10: continue
-                #if i>300 or i<100: continue
-                #if i!=127: continue
-                if i%100==0: print('Point #%s, ID %s' %(i,coreg_kwargs['pointID']))
+                if not self.q:
+                    printProgress(percent=(i+1)/len(GDF)*100, prefix='\tprogress:',
+                                  suffix='[%s/%s] Complete'%((i+1),len(GDF)), decimals=1, barLength=50)
                 results[i,:] = self._get_spatial_shifts(coreg_kwargs)
+            # FIXME in some cases the code hangs here ==> x
 
-        # merge results with GDF
+         # merge results with GDF
         records = GeoDataFrame(np.array(results, np.object), columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE',
                                                                       'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M',
                                                                       'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE'])
@@ -233,7 +252,6 @@ class Geom_Quality_Grid(object):
         GDF = GDF.fillna(int(self.outFillVal))
 
         self.CoRegPoints_table = GDF # TODO catch GDF with no found matches
-
         return GDF
 
 

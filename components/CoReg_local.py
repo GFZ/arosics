@@ -25,7 +25,7 @@ class COREG_LOCAL(object):
     def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI', projectDir=None,
                  r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
                  data_corners_im1=None, outFillVal=-9999, nodata=(None,None), calc_corners=True, binary_ws=True,
-                 CPUs=None, v=False, q=False):
+                 CPUs=None, progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -54,11 +54,12 @@ class COREG_LOCAL(object):
         :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
                                         matching window position within the actual image overlap
                                         (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are given
-        :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
+        :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: True)
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
-        :param v(bool):                 verbose mode (default: 0)
-        :param q(bool):                 quiet mode (default: 0)
+        :param progress(bool):          show progress bars (default: True)
+        :param v(bool):                 verbose mode (default: False)
+        :param q(bool):                 quiet mode (default: False)
         """
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
@@ -81,7 +82,8 @@ class COREG_LOCAL(object):
         self.bin_ws       = binary_ws
         self.CPUs         = CPUs
         self.v            = v
-        self.q            = q
+        self.q            = q if not v else False        # overridden by v
+        self.progress     = progress if not q else False # overridden by v
 
         COREG.__dict__['_set_outpathes'](self, self.imref, self.im2shift)
         # make sure that the output directory of coregistered image is the project directory if a project directory is given
@@ -108,6 +110,7 @@ class COREG_LOCAL(object):
 
         self._quality_grid      = None # set by self.quality_grid
         self._CoRegPoints_table = None # set by self.CoRegPoints_table
+        self._coreg_info        = None # set by self.coreg_info
         self.deshift_results    = None # set by self.correct_shifts()
 
 
@@ -133,7 +136,8 @@ class COREG_LOCAL(object):
             return self._quality_grid
         else:
             self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res, outFillVal=self.outFillVal,
-                                                   dir_out=self.projectDir, CPUs=self.CPUs, v=self.v, q=self.q)
+                                                   dir_out=self.projectDir, CPUs=self.CPUs, progress=self.progress,
+                                                   v=self.v, q=self.q)
             return self._quality_grid
 
 
@@ -218,9 +222,11 @@ class COREG_LOCAL(object):
         center_lon, center_lat = (lon_min+lon_max)/2, (lat_min+lat_max)/2
 
         # get image to plot
-        image2plot = self.im2shift[:]
+        image2plot = self.im2shift[0] # FIXME hardcoded band
+
         from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
-        image2plot, gt, prj = warp_ndarray(image2plot, self.im2shift.geotransform, self.im2shift.projection, in_nodata=self.nodata[1], out_nodata=self.nodata[1],
+        image2plot, gt, prj = warp_ndarray(image2plot, self.im2shift.geotransform, self.im2shift.projection,
+                                           in_nodata=self.nodata[1], out_nodata=self.nodata[1],
                                            out_XYdims=(1000, 1000), q=True, out_prj='epsg:3857') # image must be transformed into web mercator projection
 
         # create map
@@ -243,15 +249,32 @@ class COREG_LOCAL(object):
         return map_osm
 
 
-    def correct_shifts(self, max_GCP_count=None):
+    @property
+    def coreg_info(self):
+        if self._coreg_info:
+            return self._coreg_info
+        else:
+            self._coreg_info = {
+                'GCPList'               : self.quality_grid.GCPList,
+                'reference projection'  : self.imref.prj,
+                'reference geotransform': self.im2shift.gt,
+                'reference grid'        : [ [self.imref.gt[0], self.imref.gt[0]+self.imref.gt[1]],
+                                            [self.imref.gt[3], self.imref.gt[3]+self.imref.gt[5]] ],
+                'reference extent'      : {'cols':self.imref.xgsd, 'rows':self.imref.ygsd}, # FIXME not needed anymore
+                #'success'               : self.success
+            }
+            return self.coreg_info
+
+    def correct_shifts(self, max_GCP_count=None, cliptoextent=False):
         """Performs a local shift correction using all points from the previously calculated geometric quality grid
         that contain valid matches as GCP points.
 
         :param max_GCP_count: <int> maximum number of GCPs to use
+        :param cliptoextent:  <bool> whether to clip the output image to its real extent
         :return:
         """
-        coreg_info = self.COREG_obj.coreg_info
-        coreg_info['GCPList'] = self.quality_grid.GCPList
+
+        coreg_info = self.coreg_info
 
         if max_GCP_count:
             coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
@@ -261,10 +284,9 @@ class COREG_LOCAL(object):
                        fmt_out      = self.fmt_out,
                        out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
                        align_grids  = True,
-                       #cliptoextent = True, # why?
-                       #cliptoextent = False,
+                       cliptoextent = cliptoextent,
                        #clipextent   = self.im2shift.box.boxMapYX,
-                       #options      = '-wm 10000 -order 1',
+                       progress     = self.progress,
                        v            = self.v,
                        q            = self.q)
 
