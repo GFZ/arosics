@@ -77,8 +77,6 @@ class COREG_LOCAL(object):
         self.window_size  = window_size
         self.max_shift    = max_shift
         self.max_iter     = max_iter
-        self.r_b4match    = r_b4match
-        self.s_b4match    = s_b4match
         self.calc_corners = calc_corners
         self.nodata       = nodata
         self.outFillVal   = outFillVal
