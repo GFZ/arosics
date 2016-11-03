@@ -91,7 +91,7 @@ class Geom_Quality_Grid(object):
             return self._GCPList
         else:
             self._GCPList = self.to_GCPList()
-            return self.to_GCPList()
+            return self._GCPList
 
 
     @GCPList.setter
@@ -207,8 +207,8 @@ class Geom_Quality_Grid(object):
             'max_shift'       : self.COREG_obj.max_shift,
             'nodata'          : (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
             'binary_ws'       : self.COREG_obj.bin_ws,
-            'v'               : self.v, # FIXME this could lead to massive console output
-            'q'               : True, # otherwise this would lead to massive console output
+            'v'               : False, # otherwise this would lead to massive console output
+            'q'               : True,  # otherwise this would lead to massive console output
             'ignore_errors'   : True
         }
         list_coreg_kwargs = (get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index) # generator
@@ -251,7 +251,7 @@ class Geom_Quality_Grid(object):
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
-        self.CoRegPoints_table = GDF # TODO catch GDF with no found matches
+        self.CoRegPoints_table = GDF
         return GDF
 
 
@@ -268,13 +268,20 @@ class Geom_Quality_Grid(object):
         # get copy of quality grid without no data
         GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, :].copy()
 
-        # calculate GCPs
-        GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
-        GDF['Y_UTM_new'] = GDF.Y_UTM + GDF.Y_SHIFT_M
-        GDF['GCP']       = GDF.apply(lambda GDF_row:    gdal.GCP(GDF_row.X_UTM_new, GDF_row.Y_UTM_new, 0,
-                                                                 GDF_row.X_IM, GDF_row.Y_IM), axis=1)
-        self.GCPList = GDF.GCP.tolist()
-        return self.GCPList
+        if getattr(GDF,'empty'): # GDF.empty returns AttributeError
+            return []
+        else:
+            # calculate GCPs
+            GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
+            GDF['Y_UTM_new'] = GDF.Y_UTM + GDF.Y_SHIFT_M
+            GDF['GCP']       = GDF.apply(lambda GDF_row:    gdal.GCP(GDF_row.X_UTM_new, GDF_row.Y_UTM_new, 0,
+                                                                     GDF_row.X_IM, GDF_row.Y_IM), axis=1)
+            self.GCPList = GDF.GCP.tolist()
+
+            if not self.q:
+                print('Found %s valid GCPs.' %len(self.GCPList))
+
+            return self.GCPList
 
 
     def test_if_singleprocessing_equals_multiprocessing_result(self):

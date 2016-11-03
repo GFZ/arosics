@@ -29,15 +29,15 @@ class COREG_LOCAL(object):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
-        correction performs a polynomial transformation using te calculated shifts of each point in the grid as GCPs.
-        Thus 'COREG_LOCAL' can be used to correct for locally varying geometric distortions of the target image.
+        correction performs a polynomial transformation using the calculated shifts of each point in the grid as GCPs.
+        Thus this class can be used to correct for locally varying geometric distortions of the target image.
 
         :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
         :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is supported)
-        :param grid_res:                grid resolution in pixels of the target image
+        :param grid_res:                quality grid resolution in pixels of the target image
         :param window_size(tuple):      custom matching window size [pixels] (default: (256,256))
         :param path_out(str):           target path of the coregistered image
-                                            - if None (default), the method correct_shifts() does not write to disk
+                                            - if None (default), no output is written to disk
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
         :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
@@ -61,6 +61,9 @@ class COREG_LOCAL(object):
         :param v(bool):                 verbose mode (default: False)
         :param q(bool):                 quiet mode (default: False)
         """
+        # TODO outgsd, matchgsd
+        # assertions
+        assert fmt_out
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
@@ -81,6 +84,7 @@ class COREG_LOCAL(object):
         self.outFillVal   = outFillVal
         self.bin_ws       = binary_ws
         self.CPUs         = CPUs
+        self.path_verbose_out = '' # TODO
         self.v            = v
         self.q            = q if not v else False        # overridden by v
         self.progress     = progress if not q else False # overridden by v
@@ -112,6 +116,7 @@ class COREG_LOCAL(object):
         self._CoRegPoints_table = None # set by self.CoRegPoints_table
         self._coreg_info        = None # set by self.coreg_info
         self.deshift_results    = None # set by self.correct_shifts()
+        self._success           = None # set by self.success property
 
 
     @property
@@ -138,12 +143,22 @@ class COREG_LOCAL(object):
             self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res, outFillVal=self.outFillVal,
                                                    dir_out=self.projectDir, CPUs=self.CPUs, progress=self.progress,
                                                    v=self.v, q=self.q)
+            if self.v:
+                self.view_CoRegPoints(figsize=(10,10))
             return self._quality_grid
 
 
     @property
     def CoRegPoints_table(self):
         return self.quality_grid.CoRegPoints_table
+
+
+    @property
+    def success(self):
+        self._success = self.quality_grid.GCPList != []
+        if not self._success and not self.q:
+            warnings.warn('No valid GCPs could by identified.')
+        return self._success
 
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
@@ -190,15 +205,17 @@ class COREG_LOCAL(object):
         GDF['plt_XY'] = list(GDF['LonLat'].map(lambda ll: map2show(*ll)))
         GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
         GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
+        vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
-                             cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0)
+                             cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0,
+                             vmin=vmin, vmax=vmax)
 
         # add colorbar
         divider = make_axes_locatable(plt.gca())
         cax = divider.append_axes("right", size="2%", pad=0.1) # create axis on the right; size =2% of ax; padding = 0.1 inch
         plt.colorbar(points, cax=cax)
 
-        plt.show()
+        plt.show(block=True)
 
         if savefigPath:
             fig.savefig(savefigPath, dpi=savefigDPI)
@@ -261,9 +278,10 @@ class COREG_LOCAL(object):
                 'reference grid'        : [ [self.imref.gt[0], self.imref.gt[0]+self.imref.gt[1]],
                                             [self.imref.gt[3], self.imref.gt[3]+self.imref.gt[5]] ],
                 'reference extent'      : {'cols':self.imref.xgsd, 'rows':self.imref.ygsd}, # FIXME not needed anymore
-                #'success'               : self.success
+                'success'               : self.success
             }
             return self.coreg_info
+
 
     def correct_shifts(self, max_GCP_count=None, cliptoextent=False):
         """Performs a local shift correction using all points from the previously calculated geometric quality grid
@@ -276,19 +294,23 @@ class COREG_LOCAL(object):
 
         coreg_info = self.coreg_info
 
-        if max_GCP_count:
-            coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
+        if self.quality_grid.GCPList:
+            if max_GCP_count:
+                coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
 
-        DS = DESHIFTER(self.im2shift, coreg_info,
-                       path_out     = self.path_out,
-                       fmt_out      = self.fmt_out,
-                       out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
-                       align_grids  = True,
-                       cliptoextent = cliptoextent,
-                       #clipextent   = self.im2shift.box.boxMapYX,
-                       progress     = self.progress,
-                       v            = self.v,
-                       q            = self.q)
+            DS = DESHIFTER(self.im2shift, coreg_info,
+                           path_out     = self.path_out,
+                           fmt_out      = self.fmt_out,
+                           out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
+                           align_grids  = True,
+                           cliptoextent = cliptoextent,
+                           #clipextent   = self.im2shift.box.boxMapYX,
+                           progress     = self.progress,
+                           v            = self.v,
+                           q            = self.q)
 
-        self.deshift_results = DS.correct_shifts()
-        return self.deshift_results
+            self.deshift_results = DS.correct_shifts()
+            return self.deshift_results
+        else:
+            if not self.q:
+                warnings.warn('Correction of geometric shifts failed because the input GCP list is empty!')

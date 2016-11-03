@@ -23,16 +23,72 @@ except ImportError:
 
 # internal modules
 try:
-    from CoReg_Sat import COREG, __version__
+    from CoReg_Sat import COREG, COREG_LOCAL, __version__
 except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-    from CoReg_Sat import COREG, __version__
+    from CoReg_Sat import COREG, COREG_LOCAL, __version__
 
 try:
     import py_tools_ds
 except ImportError:
     sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append CoReg_Sat root directory
     import py_tools_ds
+
+
+
+#sub-command functions
+def run_global_coreg(args):
+    COREG_obj = COREG(args.path_im0,
+                      args.path_im1,
+                      path_out         = args.path_out,
+                      r_b4match        = args.br,
+                      s_b4match        = args.bs,
+                      wp               = args.wp,
+                      ws               = args.ws,
+                      max_iter         = args.max_iter,
+                      max_shift        = args.max_shift,
+                      align_grids      = args.align_grids,
+                      match_gsd        = args.match_gsd,
+                      out_gsd          = args.out_gsd,
+                      data_corners_im0 = args.cor0,
+                      data_corners_im1 = args.cor1,
+                      nodata           = args.nodata,
+                      calc_corners     = args.calc_cor,
+                      multiproc        = args.mp,
+                      binary_ws        = args.bin_ws,
+                      v                = args.v,
+                      path_verbose_out = args.vo,
+                      q                = args.q,
+                      ignore_errors    = args.ignore_errors)
+    COREG_obj.correct_shifts()
+
+
+#sub-command functions
+def run_local_coreg(args):
+    CRL = COREG_LOCAL(args.path_im0,
+                      args.path_im1,
+                      path_out         = args.path_out,
+                      fmt_out          = args.fmt_out,
+                      grid_res         = args.grid_res,
+                      r_b4match        = args.br,
+                      s_b4match        = args.bs,
+                      window_size      = args.ws,
+                      max_iter         = args.max_iter,
+                      max_shift        = args.max_shift,
+                      #align_grids      = args.align_grids,
+                      #match_gsd        = args.match_gsd,
+                      #out_gsd          = args.out_gsd,
+                      data_corners_im0 = args.cor0,
+                      data_corners_im1 = args.cor1,
+                      nodata           = args.nodata,
+                      calc_corners     = args.calc_cor,
+                      CPUs             = None if args.mp else 1,
+                      binary_ws        = args.bin_ws,
+                      progress         = args.progress,
+                      v                = args.v,
+                      q                = args.q,
+                      )
+    CRL.correct_shifts()
 
 
 
@@ -78,81 +134,155 @@ if __name__ == '__main__':
         "The following non-standard Python libraries are required: gdal, osr, ogr, geopandas, rasterio, pykrige, "\
         "argparse and shapely. pyfftw is optional but will speed up calculation.")
 
-    parser.add_argument('path_im0',
-                        type=str,
-                        help='source path of reference image (any GDAL compatible image format is supported)')
-
-    parser.add_argument('path_im1',
-                        type=str,
-                        help='source path of image to be shifted (any GDAL compatible image format is supported)')
-
-    parser.add_argument('-o', nargs='?', dest='path_out', type=str,
-                        help="target path of the coregistered image (default: /dir/of/im1/<im1>__shifted_to__<im0>.bsq)",
-                        default='auto')
-
-    parser.add_argument('-br', nargs='?',type=int, help='band of reference image to be used for matching '\
-                       '(starts with 1; default: 1)', default=1)
-
-    parser.add_argument('-bs', nargs='?',type=int, help='band of shift image to be used for matching '\
-                       '(starts with 1; default: 1)', default=1)
-
-    parser.add_argument('-wp', nargs=2, metavar=('X', 'Y'),type=float,help="custom matching window position as map "\
-                       "values in the same projection like the reference image "\
-                       "(default: central position of image overlap)", default=(None,None))
-
-    parser.add_argument('-ws', nargs=2, metavar=('X size', 'Y size'),type=float,
-                       help="custom matching window size [pixels] (default: (512,512))", default=(512,512))
-
-    parser.add_argument('-max_iter', nargs='?', type=int,help="maximum number of iterations for matching (default: 5)",
-                        default=5)
-
-    parser.add_argument('-max_shift', nargs='?', type=int,help="maximum shift distance in reference image pixel units "\
-                       "(default: 5 px)", default=5)
-
-    parser.add_argument('-align_grids', nargs='?',type=int, help='align the coordinate grids of the output image to '\
-           'the reference image (default: 0)', default=0, choices=[0,1])
-
-    parser.add_argument('-match_gsd', nargs='?',type=int, help='match the output pixel size to the pixel size of the '\
-        'reference image (default: 0)', default=0, choices=[0,1])
-
-    parser.add_argument('-out_gsd', nargs=2,type=float, help='xgsd ygsd: set the output pixel size in map units'\
-        '(default: original pixel size of the image to be shifted)',metavar=('xgsd','ygsd'))
-
-    parser.add_argument('-cor0', nargs=8,type=float, help="map coordinates of data corners within reference image: ",
-        metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')),default=None)
-
-    parser.add_argument('-cor1', nargs=8,type=float,help="map coordinates of data corners within image to be shifted: ",
-        metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')),default=None)
-
-    parser.add_argument('-nodata', nargs=2,type=float, metavar=('im0','im1'),
-                        help='no data values for reference image and image to be shifted',default=(None,None))
-
-    parser.add_argument('-calc_cor', nargs='?',type=int, choices=[0,1],default=1, help="calculate true positions of "\
-                        "the dataset corners in order to get a useful matching window position within the actual "\
-                        "image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
-
-    parser.add_argument('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0,1])
-
-    parser.add_argument('-bin_ws', nargs='?', type=int, help='use binary X/Y dimensions for the matching window '
-                                                             '(default: 1)', default=1, choices=[0, 1])
-
-    parser.add_argument('-quadratic_win', nargs='?', type=int, help='force a quadratic matching window (default: 1)',
-                        default=1, choices=[0, 1])
-
-    parser.add_argument('-v', nargs='?',type=int, help='verbose mode (default: 0)', default=0, choices=[0,1])
-
-    parser.add_argument('-vo', nargs='?',type=str, help='an optional output directory for intermediate results '
-                        '(if not given, no intermediate results are written to disk)', default=0, choices=[0,1])
-
-    parser.add_argument('-q', nargs='?',type=int, help='quiet mode (default: 0)', default=0, choices=[0,1])
-
-    parser.add_argument('-ignore_errors', nargs='?',type=int, help='Useful for batch processing. (default: 0) '
-                        'In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None',
-                        default=0, choices=[0,1])
-
     parser.add_argument('--version', action='version', version=__version__)
 
-    args = parser.parse_args()
+    subparsers = parser.add_subparsers()
+
+    # TODO add option to apply coreg results to multiple files
+    ### SUBPARSER FOR COREG
+    parse_coreg_global = subparsers.add_parser('global',
+        description= None,
+        help='detect and correct global X/Y shifts (sub argument parser)')
+
+    gloArg = parse_coreg_global.add_argument
+    gloArg('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
+
+    gloArg('path_im1', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
+
+    gloArg('-o', nargs='?', dest='path_out', type=str, default='auto',
+           help="target path of the coregistered image (default: /dir/of/im1/<im1>__shifted_to__<im0>.bsq)")
+
+    gloArg('-br', nargs='?', type=int,
+           help='band of reference image to be used for matching (starts with 1; default: 1)', default=1)
+
+    gloArg('-bs', nargs='?', type=int,
+           help='band of shift image to be used for matching (starts with 1; default: 1)', default=1)
+
+    gloArg('-wp', nargs=2, metavar=('X', 'Y'), type=float,
+           help="custom matching window position as map values in the same projection like the reference image "
+                "(default: central position of image overlap)", default=(None,None))
+
+    gloArg('-ws', nargs=2, metavar=('X size', 'Y size'), type=float,
+           help="custom matching window size [pixels] (default: (512,512))", default=(512,512))
+
+    gloArg('-max_iter', nargs='?', type=int, help="maximum number of iterations for matching (default: 5)", default=5)
+
+    gloArg('-max_shift', nargs='?', type=int,
+           help="maximum shift distance in reference image pixel units (default: 5 px)", default=5)
+
+    gloArg('-align_grids', nargs='?', type=int, choices=[0, 1],
+           help='align the coordinate grids of the output image to the reference image (default: 0)', default=0)
+
+    gloArg('-match_gsd', nargs='?', type=int, choices=[0, 1],
+           help='match the output pixel size to the pixel size of the reference image (default: 0)', default=0)
+
+    gloArg('-out_gsd', nargs=2, type=float, help='xgsd ygsd: set the output pixel size in map units'\
+           '(default: original pixel size of the image to be shifted)', metavar=('xgsd','ygsd'))
+
+    gloArg('-cor0', nargs=8, type=float, help="map coordinates of data corners within reference image: ",
+           metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)
+
+    gloArg('-cor1', nargs=8, type=float, help="map coordinates of data corners within image to be shifted: ",
+           metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)
+
+    gloArg('-nodata', nargs=2, type=float, metavar=('im0', 'im1'),
+           help='no data values for reference image and image to be shifted', default=(None,None))
+
+    gloArg('-calc_cor', nargs='?', type=int, choices=[0, 1], default=1,
+           help="calculate true positions of the dataset corners in order to get a useful matching window position "
+                "within the actual image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
+
+    gloArg('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0, 1])
+
+    gloArg('-bin_ws', nargs='?', type=int,
+           help='use binary X/Y dimensions for the matching window (default: 1)', default=1, choices=[0, 1])
+
+    gloArg('-quadratic_win', nargs='?', type=int,
+           help='force a quadratic matching window (default: 1)', default=1, choices=[0, 1])
+
+    gloArg('-v', nargs='?', type=int, help='verbose mode (default: 0)', default=0, choices=[0, 1])
+
+    gloArg('-vo', nargs='?', type=str, choices=[0, 1], help='an optional output directory for outputs of verbose mode'
+           '(if not given, no outputs are written to disk)', default=0, )
+
+    gloArg('-q', nargs='?', type=int, help='quiet mode (default: 0)', default=0, choices=[0, 1])
+
+    gloArg('-ignore_errors', nargs='?', type=int, help='Useful for batch processing. (default: 0) In case of error '
+           'COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None', default=0, choices=[0,1])
+
+    parse_coreg_global.set_defaults(func=run_global_coreg)
+
+
+
+    ### SUBPARSER FOR COREG LOCAL
+    parse_coreg_local = subparsers.add_parser('local',
+        description= 'Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. '
+                     'Spatial shifts are calculated for each point in grid of which the parameters can be adjusted '
+                     'using keyword arguments. Shift correction performs a polynomial transformation using the '
+                     'calculated shifts of each point in the grid as GCPs. Thus this class can be used to correct ' \
+                     'for locally varying geometric distortions of the target image.',
+        help='detect and correct local shifts (sub argument parser)')
+
+    locArg = parse_coreg_local.add_argument
+    locArg('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
+
+    locArg('path_im1', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
+
+    locArg('grid_res', type=int, help='quality grid resolution in pixels of the target image')
+
+    locArg('-o', nargs='?', type=str, dest='path_out', default='auto',
+           help="target path of the coregistered image. If 'auto' (default): /dir/of/im1/<im1>__shifted_to__<im0>.bsq")
+
+    locArg('-fmt_out', nargs='?', type=str, help="raster file format for output file. ignored if path_out is None. can "
+           "be any GDAL compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)", default='ENVI')
+
+    locArg('-projectDir', nargs='?', type=str, help=None, default=None)
+
+    locArg('-ws', nargs=2, type=int, help='custom matching window size [pixels] (default: (256,256))')
+
+    locArg('-br', nargs='?', type=int,
+           help='band of reference image to be used for matching (starts with 1; default: 1)', default=1)
+
+    locArg('-bs', nargs='?', type=int,
+           help='band of shift image to be used for matching (starts with 1; default: 1)', default=1)
+
+    locArg('-max_iter', nargs='?', type=int, help="maximum number of iterations for matching (default: 5)", default=5)
+
+    locArg('-max_shift', nargs='?', type=int,
+           help="maximum shift distance in reference image pixel units (default: 5 px)", default=5)
+
+    locArg('-cor0', nargs=8, type=float, help="map coordinates of data corners within reference image: ",
+           metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)
+
+    locArg('-cor1', nargs=8, type=float, help="map coordinates of data corners within image to be shifted: ",
+           metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)
+
+    locArg('-nodata', nargs=2, type=float, metavar=('im0', 'im1'),
+           help='no data values for reference image and image to be shifted', default=(None,None))
+
+    locArg('-calc_cor', nargs='?', type=int, choices=[0, 1], default=1,
+           help="calculate true positions of the dataset corners in order to get a useful matching window position "
+                "within the actual image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
+
+    locArg('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0, 1])
+
+    locArg('-bin_ws', nargs='?', type=int,
+           help='use binary X/Y dimensions for the matching window (default: 1)', default=1, choices=[0, 1])
+
+    locArg('-quadratic_win', nargs='?', type=int,
+           help='force a quadratic matching window (default: 1)', default=1, choices=[0, 1])
+
+    locArg('-progress', nargs='?', type=int, help='show progress bars (default: 1)', default=1, choices=[0, 1])
+
+    locArg('-v', nargs='?', type=int, help='verbose mode (default: 0)', default=0, choices=[0, 1])
+
+    locArg('-q', nargs='?', type=int, help='quiet mode (default: 0)', default=0, choices=[0, 1])
+
+    parse_coreg_local.set_defaults(func=run_local_coreg)
+
+
+
+    parsed_args = parser.parse_args()
 
     print('==================================================================\n'
           '#          SUBPIXEL COREGISTRATION FOR SATELLITE IMAGERY         #\n'
@@ -161,30 +291,7 @@ if __name__ == '__main__':
           '==================================================================\n')
 
     t0 = time.time()
-    COREG_obj = COREG(args.path_im0,
-                      args.path_im1,
-                      path_out         = args.path_out,
-                      r_b4match        = args.br,
-                      s_b4match        = args.bs,
-                      wp               = args.wp,
-                      ws               = args.ws,
-                      max_iter         = args.max_iter,
-                      max_shift        = args.max_shift,
-                      align_grids      = args.align_grids,
-                      match_gsd        = args.match_gsd,
-                      out_gsd          = args.out_gsd,
-                      data_corners_im0 = args.cor0,
-                      data_corners_im1 = args.cor1,
-                      nodata           = args.nodata,
-                      calc_corners     = args.calc_cor,
-                      multiproc        = args.mp,
-                      binary_ws        = args.bin_ws,
-                      v                = args.v,
-                      path_verbose_out = args.vo,
-                      q                = args.q,
-                      ignore_errors    = args.ignore_errors)
-    COREG_obj.calculate_spatial_shifts()
-    COREG_obj.correct_shifts()
+    parsed_args.func(parsed_args)
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
 
 else:
