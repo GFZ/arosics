@@ -6,6 +6,7 @@ __author__ = "Daniel Scheffler"
 import time
 import sys
 import os
+import warnings
 
 # custom
 try:
@@ -101,7 +102,7 @@ if __name__ == '__main__':
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
     parser = argparse.ArgumentParser(
-        prog='dsc__CoReg_Sat_FourierShiftTheorem.py',
+        prog='coreg_cmd.py',
 
         description='Perform subpixel coregistration of two satellite image datasets ' \
                     'using Fourier Shift Theorem proposed by Foroosh et al. 2002: ' \
@@ -133,7 +134,7 @@ if __name__ == '__main__':
         "continue the processing."
         "The following non-standard Python libraries are required: gdal, osr, ogr, geopandas, rasterio, pykrige, "\
         "argparse and shapely. pyfftw is optional but will speed up calculation.")
-
+    # TODO update epilog
     parser.add_argument('--version', action='version', version=__version__)
 
     subparsers = parser.add_subparsers()
@@ -141,7 +142,9 @@ if __name__ == '__main__':
     # TODO add option to apply coreg results to multiple files
     ### SUBPARSER FOR COREG
     parse_coreg_global = subparsers.add_parser('global',
-        description= None,
+        description= 'Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are '
+                     'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
+                     'X- or Y direction.',
         help='detect and correct global X/Y shifts (sub argument parser)')
 
     gloArg = parse_coreg_global.add_argument
@@ -295,4 +298,5 @@ if __name__ == '__main__':
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
 
 else:
-    pass # TODO
+    warnings.warn("The script 'coreg_cmd.py' provides a command line argument parser for CoReg_Sat and is not to be "
+                  "used as a normal Python module.")

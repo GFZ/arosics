@@ -9,6 +9,8 @@ Prerequisites and hints:
 The input images can have any GDAL compatible image format (http://www.gdal.org/formats_list.html). Both of them must be georeferenced. In case of ENVI files, this means they must have a 'map info' and a 'coordinate system string' as attributes of their header file. Different projection systems are currently not supported. The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any spatial resampling of the input images before applying this algorithm. Any needed resampling of the data is done automatically. Thus the input images can have different spatial resolutions. The current algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order to prevent local shifts in the output image. By default the calculated subpixel-shifts are applied to the header file of the output image. No spatial resampling is done automatically as long as the both input images have the same projection. If you need the output image to be aligned to the reference image coordinate grid (by using an appropriate resampling algorithm), use the '-align_grids' option. The image overlap area is automatically calculated. Thereby no-data regions within the images are standardly respected. Providing the map coordinates of the actual data corners lets you save some calculation time, because in this case the automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image corners. The verbose program mode gives some more output about the interim results, shows some figures and writes the used footprint and overlap polygons to disk. The figures must be manually closed in in order to continue the processing.
 
 
+ 
+
 # Install
 
 For now, there is no automatic install script. Just clone the repository, install the dependencies and add the root directory of CoReg_Sat to your PATH environment variable.
@@ -31,6 +33,8 @@ In addition clone the repository "py_tools_ds" and add its root directory to you
     
 Since py_tools_ds is not a public repository right now, contact Daniel Scheffler if you can not access it.
 
+ 
+
 # Modules
 
 ## CoReg
@@ -45,8 +49,8 @@ This module calculates spatial shifts and performs a global correction (based on
 ```python
 from CoReg_Sat import COREG
 
-im_reference = '/path/to/your/ref_image.bsq'
-im_target    = '/path/to/your/tgt_image.bsq'
+#im_reference = '/path/to/your/ref_image.bsq'
+#im_target    = '/path/to/your/tgt_image.bsq'
 
 CR = COREG(im_reference, im_target, wp=(354223, 5805559), ws=(256,256))
 CR.calculate_spatial_shifts()
@@ -76,8 +80,8 @@ CR.calculate_spatial_shifts()
 from py_tools_ds.ptds import GeoArray
 from CoReg_Sat import COREG
 
-#im_reference = '/path/to/your/ref_image.bsq'
-#im_target    = '/path/to/your/tgt_image.bsq'
+im_reference = '/path/to/your/ref_image.bsq'
+im_target    = '/path/to/your/tgt_image.bsq'
 
 # get a sample numpy array with corresponding geoinformation as reference image
 geoArr  = GeoArray(im_reference)
@@ -174,7 +178,9 @@ To write the coregistered image to disk, the COREG class needs to be instanced w
 #### apply detected shifts to multiple images
 
 Sometimes it can be useful to apply the same shifts to multiple images - e.g. to different mask images derived from the same satellite dataset.
-For this purpose you can calculate spatial shifts using the COREG class (see above) and then apply the calculated shifts to mulitple images using the DESHIFTER class:
+For this purpose you can calculate spatial shifts using the COREG class (see above) and then apply the calculated shifts to mulitple images using the DESHIFTER class.
+
+Take a look at the keyword arguments of the DESHIFTER class when you need further adjustments (e.g. output paths for the corrected images; aligned output grid, ...).
 
 
 ```python
@@ -217,7 +223,7 @@ DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
 
 
 
-Take a look at the keyword arguments of the DESHIFTER class when you need further adjustments (e.g. output paths for the corrected images; aligned output grid, ...).
+ 
 
 ### Shell console interface
 
@@ -235,6 +241,10 @@ Follow these instructions to run CoReg_Sat from a shell console. For example, th
 ```python
 python ./dsc__CoReg_Sat_FourierShiftTheorem.py /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
 ```
+
+ 
+
+ 
 
 ## CoReg_local
 
@@ -270,9 +280,12 @@ CRL.correct_shifts()
     	[[319460.0, 5790510.0], [352270.0, 5900040.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319460.0, 5790250.0]]
     Matching window position (X,Y): 372220.10753674706/5841066.947109019
     Calculating geometric quality grid (1977 points) in mode 'multiprocessing'...
+    	progress: |==================================================| 100.0% [1977/1977] Complete 9.75 sek
+    Found 1144 valid GCPs.
+    Correcting geometric shifts...
     Translating progress |==================================================| 100.0% Complete
     Warping progress     |==================================================| 100.0% Complete
-    Writing GeoArray of size (10979, 9033) to /home/gfz-fe/scheffler/jupyter/CoReg_Sat_jupyter/my_project/S2A_OPER_MSI_L1C_TL_SGS__20160608T153121_A005024_T33UUU_B03__shifted_to__S2A_OPER_MSI_L1C_TL_SGS__20160529T153631_A004881_T33UUU_B03.bsq.
+    Writing GeoArray of size (10979, 10979) to /home/gfz-fe/scheffler/jupyter/CoReg_Sat_jupyter/my_project/S2A_OPER_MSI_L1C_TL_SGS__20160608T153121_A005024_T33UUU_B03__shifted_to__S2A_OPER_MSI_L1C_TL_SGS__20160529T153631_A004881_T33UUU_B03.bsq.
 
 
 
@@ -285,7 +298,7 @@ CRL.correct_shifts()
                   ['UTM',
                    1,
                    1,
-                   319460.0,
+                   300000.0,
                    5900030.0,
                    10.0,
                    10.0,
@@ -293,18 +306,18 @@ CRL.correct_shifts()
                    'North',
                    'WGS-84']),
                  ('updated geotransform',
-                  [319460.0, 10.0, 0.0, 5900030.0, 0.0, -10.0]),
+                  [300000.0, 10.0, 0.0, 5900030.0, 0.0, -10.0]),
                  ('updated projection',
                   'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]'),
-                 ('arr_shifted', array([[   0,    0,    0, ...,  952,  984, 1058],
-                         [   0,    0,    0, ...,  997,  976, 1037],
-                         [   0,    0,    0, ...,  960,  991, 1030],
+                 ('arr_shifted', array([[   0,    0,    0, ..., 1034,  996, 1001],
+                         [   0,    0,    0, ..., 1046, 1114, 1124],
+                         [   0,    0,    0, ..., 1021, 1126, 1148],
                          ..., 
-                         [   0,    0,    0, ...,  760,  769,  804],
-                         [   0,    0,    0, ...,  762,  754,  765],
+                         [   0,    0,    0, ...,  760,  769,  805],
+                         [   0,    0,    0, ...,  762,  755,  765],
                          [   0,    0,    0, ...,    0,    0,    0]], dtype=uint16)),
                  ('GeoArray_shifted',
-                  <py_tools_ds.ptds.io.raster.GeoArray.GeoArray at 0x7f0592b297f0>)])
+                  <py_tools_ds.ptds.io.raster.GeoArray.GeoArray at 0x7f451ac14a90>)])
 
 
 
@@ -335,12 +348,14 @@ CRL.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
 
 
 
-![png](output_36_1.png)
+![png](output_40_1.png)
 
+
+The output figure shows the calculated absolute lenghts of the shift vectors - in this case with shifts up to ~25 meters.
 
 #### visualize geometric quality grid with shifts present AFTER shift correction
 
-The remaining shifts after local correction can be visualized by instanciating COREG_LOCAL with the output path of the above instance of COREG_LOCAL.
+The remaining shifts after local correction can be calculated and visualized by instanciating COREG_LOCAL with the output path of the above instance of COREG_LOCAL.
 
 
 ```python
@@ -353,15 +368,18 @@ CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
     	[[319090.0, 5790510.0], [351800.0, 5899940.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319090.0, 5790250.0]]
     Calculating actual data corner coordinates for image to be shifted...
     Corner coordinates of image to be shifted:
-    	[[319460.0, 5790540.0], [352280.0, 5900030.0], [409780.0, 5900030.0], [409780.0, 5790260.0], [322940.0, 5790250.0], [319460.0, 5790280.0]]
-    Matching window position (X,Y): 372215.77905147866/5841065.066319922
+    	[[319460.0, 5790540.0], [352270.0, 5900030.0], [409780.0, 5900030.0], [409780.0, 5790260.0], [322970.0, 5790250.0], [319460.0, 5790280.0]]
+    Matching window position (X,Y): 372216.38593955856/5841068.390957352
     Note: array has been downsampled to 1000 x 1000 for faster visualization.
-    Calculating geometric quality grid (2014 points) in mode 'multiprocessing'...
+    Calculating geometric quality grid (1977 points) in mode 'multiprocessing'...
+    	progress: |==================================================| 100.0% [1977/1977] Complete 10.78 sek
 
 
 
-![png](output_39_1.png)
+![png](output_44_1.png)
 
+
+The output figure shows a significant reduction of geometric shifts.
 
 #### show the points table of the calculated geometric quality grid
 
@@ -1447,6 +1465,8 @@ CRL.CoRegPoints_table
 ```python
 CRL.quality_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
 ```
+
+ 
 
 ### Shell console interface
 

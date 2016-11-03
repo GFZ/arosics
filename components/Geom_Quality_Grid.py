@@ -31,6 +31,8 @@ global_shared_im2shift = None
 
 
 class Geom_Quality_Grid(object):
+    """See help(Geom_Quality_Grid) for documentation!"""
+
     def __init__(self, COREG_obj, grid_res, outFillVal=-9999, dir_out=None, CPUs=None, progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
