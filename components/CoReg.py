@@ -72,8 +72,8 @@ class imParamObj(object):
         assert self.gt, 'The %s has no map information.' % self.imName
 
         # set band4match
-        self.band4match = CoReg_params['r_b4match'] if imID == 'ref' else CoReg_params['s_b4match']
-        assert self.bands >= self.band4match >= 1, "The %s has %s %s. So its band number to match must be %s%s." \
+        self.band4match = (CoReg_params['r_b4match'] if imID == 'ref' else CoReg_params['s_b4match'])-1
+        assert self.bands >= self.band4match+1 >= 1, "The %s has %s %s. So its band number to match must be %s%s." \
             % (self.imName, self.bands, 'bands' if self.bands > 1 else 'band', 'between 1 and '
                 if self.bands > 1 else '', self.bands)
 
@@ -99,7 +99,7 @@ class imParamObj(object):
 
         # set footprint polygon
         #self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True) # this is the old algorithm
-        self.GeoArray.calc_mask_nodata(fromBand=self.band4match) # this avoids that are bands have to be read
+        self.GeoArray.calc_mask_nodata(fromBand=self.band4match) # this avoids that all bands have to be read
         self.poly = self.GeoArray.footprint_poly
 
         for XY in self.corner_coord:

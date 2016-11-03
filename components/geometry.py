@@ -35,7 +35,17 @@ def angle_to_north(XY):
     return np.abs(np.degrees(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2)%360)
 
 
-def get_true_corner_mapXY(fPath_or_geoarray, bandNr=1, noDataVal=None, mp=1, v=0, q=0):
+def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, q=0):
+    """
+
+    :param fPath_or_geoarray:
+    :param band:                <int> index of the band to be used (starting with 0)
+    :param noDataVal:
+    :param mp:
+    :param v:
+    :param q:
+    :return:
+    """
     geoArr    = GeoArray(fPath_or_geoarray) if not isinstance(fPath_or_geoarray,GeoArray) else fPath_or_geoarray
 
     rows,cols = geoArr.shape[:2]
@@ -53,7 +63,7 @@ def get_true_corner_mapXY(fPath_or_geoarray, bandNr=1, noDataVal=None, mp=1, v=0
               "To avoid this provide the correct no data values for reference and shift image via '-nodata'")
         mask_1bit[:,:] = 1
     else:
-        band_data = geoArr[bandNr-1] # TODO implement gdal_ReadAsArray_mp (reading in multiprocessing)
+        band_data = geoArr[band] # TODO implement gdal_ReadAsArray_mp (reading in multiprocessing)
         mask_1bit[band_data!=noDataVal] = 1
 
     if v: print('detected no data value',noDataVal)

@@ -201,8 +201,8 @@ class Geom_Quality_Grid(object):
             'ws'              : self.COREG_obj.win_size_XY,
             'data_corners_im0': self.COREG_obj.ref.corner_coord,
             'data_corners_im1': self.COREG_obj.shift.corner_coord,
-            'r_b4match'       : self.COREG_obj.ref.band4match,
-            's_b4match'       : self.COREG_obj.shift.band4match,
+            'r_b4match'       : self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
+            's_b4match'       : self.COREG_obj.shift.band4match+1, # band4match is internally saved as index, starting from 0
             'max_iter'        : self.COREG_obj.max_iter,
             'max_shift'       : self.COREG_obj.max_shift,
             'nodata'          : (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
