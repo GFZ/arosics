@@ -110,12 +110,17 @@ class imParamObj(object):
 
 
 class COREG(object):
+    """See help(COREG) for documentation!"""
+
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', r_b4match=1, s_b4match=1, wp=(None,None),
                  ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', data_corners_im0=None, data_corners_im1=None,
                  nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
                  progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
-        """
+
+        """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
+        at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
+
         :param im_ref(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
                                         of reference image
         :param im_tgt(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance

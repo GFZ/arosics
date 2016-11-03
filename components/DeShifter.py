@@ -23,12 +23,13 @@ _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline':
                         'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
 
 class DESHIFTER(object):
+    """See help(DESHIFTER) for documentation!"""
     def __init__(self, im2shift, coreg_results, **kwargs):
         """
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
         :param im2shift:            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
-        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info  or
+        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info or
                                     COREG_LOCAL.coreg_info respectively
 
         :Keyword Arguments:
@@ -314,3 +315,27 @@ class DESHIFTER(object):
         deshift_results.update({'arr_shifted'         : self.arr_shifted})
         deshift_results.update({'GeoArray_shifted'    : self.GeoArray_shifted})
         return deshift_results
+
+
+
+def deshift_image_using_coreg_info(im2shift, coreg_results, path_out=None, fmt_out='ENVI', q=False):
+    """Corrects a geometrically distorted image using previously calculated coregistration info. This function can be
+    used for example to corrects spatial shifts of mask files using the same transformation parameters that have been
+    used to correct their source images.
+
+    :param im2shift:      <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
+    :param coreg_results: <dict> the results of the co-registration as given by COREG.coreg_info or
+                          COREG_LOCAL.coreg_info respectively
+    :param path_out:      /output/directory/filename for coregistered results. If None, no output is written - only
+                          the shift corrected results are returned.
+    :param fmt_out:       raster file format for output file. ignored if path_out is None. can be any GDAL
+                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+    :param q:             quiet mode (default: False)
+    :return:
+    """
+    deshift_results = DESHIFTER(im2shift, coreg_results).correct_shifts()
+
+    if path_out:
+        deshift_results['GeoArray_shifted'].save(path_out, fmt_out=fmt_out, q=q)
+
+    return deshift_results

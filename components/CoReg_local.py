@@ -22,6 +22,8 @@ from py_tools_ds.ptds                 import GeoArray
 
 
 class COREG_LOCAL(object):
+    """See help(COREG_LOCAL) for documentation!"""
+
     def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI', projectDir=None,
                  r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
                  data_corners_im1=None, outFillVal=-9999, nodata=(None,None), calc_corners=True, binary_ws=True,
