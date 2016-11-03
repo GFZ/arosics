@@ -99,7 +99,9 @@ class imParamObj(object):
 
         # set footprint polygon
         #self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True) # this is the old algorithm
+        self.GeoArray.calc_mask_nodata(fromBand=self.band4match) # this avoids that are bands have to be read
         self.poly = self.GeoArray.footprint_poly
+
         for XY in self.corner_coord:
             assert self.GeoArray.box.mapPoly.contains(Point(XY)) or self.GeoArray.box.mapPoly.touches(Point(XY)), \
                 "The corner position '%s' is outside of the %s." % (XY, self.imName)
