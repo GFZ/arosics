@@ -145,7 +145,8 @@ if __name__ == '__main__':
         description= 'Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are '
                      'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                      'X- or Y direction.',
-        help='detect and correct global X/Y shifts (sub argument parser)')
+        help="detect and correct global X/Y shifts (sub argument parser) - "
+             "use '>>> python /path/to/CoReg_Sat/coreg_cmd.py global -h' for documentation and usage hints")
 
     gloArg = parse_coreg_global.add_argument
     gloArg('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
@@ -224,7 +225,8 @@ if __name__ == '__main__':
                      'using keyword arguments. Shift correction performs a polynomial transformation using the '
                      'calculated shifts of each point in the grid as GCPs. Thus this class can be used to correct ' \
                      'for locally varying geometric distortions of the target image.',
-        help='detect and correct local shifts (sub argument parser)')
+        help="detect and correct local shifts (sub argument parser)"
+             "use '>>> python /path/to/CoReg_Sat/coreg_cmd.py local -h' for documentation and usage hints")
 
     locArg = parse_coreg_local.add_argument
     locArg('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
@@ -288,6 +290,7 @@ if __name__ == '__main__':
     parsed_args = parser.parse_args()
 
     print('==================================================================\n'
+          '#                     CoReg_Sat v%s                   #'%__version__+'\n'
           '#          SUBPIXEL COREGISTRATION FOR SATELLITE IMAGERY         #\n'
           '#          - algorithm proposed by Foroosh et al. 2002           #\n'
           '#          - python implementation by Daniel Scheffler           #\n'
