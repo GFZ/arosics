@@ -113,7 +113,7 @@ class DESHIFTER(object):
         assert out_grid is None or (isinstance(out_grid,(list, tuple))      and len(out_grid)==2)
         assert out_gsd  is None or (isinstance(out_gsd, (int, tuple, list)) and len(out_gsd) ==2)
 
-        ref_xgsd, ref_ygsd = (self.ref_grid[0][1]-self.ref_grid[0][0],self.ref_grid[1][1]-self.ref_grid[1][0])
+        ref_xgsd, ref_ygsd = (self.ref_grid[0][1]-self.ref_grid[0][0],  abs(self.ref_grid[1][1]-self.ref_grid[1][0]))
         get_grid           = lambda gt, xgsd, ygsd: [[gt[0], gt[0] + xgsd], [gt[3], gt[3] - ygsd]]
 
         # get out_grid
