@@ -135,7 +135,7 @@ class Geom_Quality_Grid(object):
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
 
-        CR_res = [int(CR.matchWin.imDimsYX[0]), int(CR.matchWin.imDimsYX[1]),
+        CR_res = [int(CR.matchWin.imDimsYX[1]), int(CR.matchWin.imDimsYX[0]),
                   CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
                   CR.vec_length_map, CR.vec_angle_deg]
 

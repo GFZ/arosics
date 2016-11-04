@@ -38,7 +38,7 @@ class DESHIFTER(object):
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
             - band2process (int):   The index of the band to be processed within the given array (starts with 1),
                                     default = None (all bands are processed)
-            - nodata(int, float):   no data value of an image to be de-shifted
+            - nodata(int, float):   no data value of the image to be de-shifted
             - out_gsd (float):      output pixel size in units of the reference coordinate system (default = pixel size
                                     of the input array), given values are overridden by match_gsd=True
             - align_grids (bool):   True: align the input coordinate grid to the reference (does not affect the
@@ -62,24 +62,16 @@ class DESHIFTER(object):
         """
         # unpack args
         self.im2shift           = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
-        self.shift_prj          = self.im2shift.projection
-        self.shift_gt           = list(self.im2shift.geotransform)
         self.GCPList            = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
-        if not self.GCPList:
-            mapI                    = coreg_results['updated map info']
-            self.updated_map_info   = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
-            self.original_map_info  = coreg_results['original map info']
-            self.updated_gt         = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
         self.ref_gt             = coreg_results['reference geotransform']
         self.ref_grid           = coreg_results['reference grid']
         self.ref_prj            = coreg_results['reference projection']
-        self.updated_projection = self.ref_prj
 
         # unpack kwargs
         self.path_out     = kwargs.get('path_out'    , None)
         self.fmt_out      = kwargs.get('fmt_out'     , 'ENVI')
         self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
-        self.nodata       = kwargs.get('nodata'      , self.im2shift.nodata)
+        self.nodata       = kwargs.get('nodata'      , None) # FIXME can be replaced by self.im2shift.nodata
         self.align_grids  = kwargs.get('align_grids' , False)
         self.rspAlg       = kwargs.get('resamp_alg'  , 'cubic')
         self.cliptoextent = kwargs.get('cliptoextent', True)
@@ -88,8 +80,20 @@ class DESHIFTER(object):
         self.v            = kwargs.get('v'           , False)
         self.q            = kwargs.get('q'           , False) if not self.v else False # overridden by v
         self.progress     = kwargs.get('progress'    , True)  if not self.q else False # overridden by q
-        self.out_grid     = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
-        self.out_gsd      = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
+
+        self.im2shift.nodata    = self.nodata
+        self.im2shift.q         = self.q
+        self.shift_prj          = self.im2shift.projection
+        self.shift_gt           = list(self.im2shift.geotransform)
+        if not self.GCPList:
+            mapI                   = coreg_results['updated map info']
+            self.updated_map_info  = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
+            self.original_map_info = coreg_results['original map info']
+            self.updated_gt        = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
+        self.updated_projection    = self.ref_prj
+
+        self.out_grid = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
+        self.out_gsd  = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
         assert self.rspAlg  in _dict_rspAlg_rsp_Int.keys(), \
@@ -168,7 +172,7 @@ class DESHIFTER(object):
 
     def _get_out_extent(self):
         if self.cliptoextent and self.clipextent is None:
-            self.clipextent        = self.im2shift.footprint_poly.bounds
+            self.clipextent        = self.im2shift.footprint_poly.envelope.bounds # FIXME
         else:
             xmin, xmax, ymin, ymax = self.im2shift.box.boundsMap
             self.clipextent        = xmin, ymin, xmax, ymax
@@ -192,7 +196,7 @@ class DESHIFTER(object):
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.align_grids:
+        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.align_grids and not self.GCPList:
             # FIXME buggy condition:
             # reconstructable with correct_spatial_shifts from GMS
             #DS = DESHIFTER(geoArr, self.coreg_info,
