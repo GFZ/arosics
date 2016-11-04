@@ -463,13 +463,13 @@ class COREG(object):
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.matchWin.boxImYX)
         assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])), \
             'Got negative values in gdalReadInputs for %s.' %self.matchWin.imParams.imName
-        self.matchWin.data = self.matchWin.imParams.GeoArray[rS:rE,cS:cE, self.matchWin.imParams.band4match-1]
+        self.matchWin.data = self.matchWin.imParams.GeoArray[rS:rE,cS:cE, self.matchWin.imParams.band4match]
 
         # otherWin per subset-read einlesen
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherWin.boxImYX)
         assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])), \
             'Got negative values in gdalReadInputs for %s.' %self.otherWin.imParams.imName
-        self.otherWin.data = self.otherWin.imParams.GeoArray[rS:rE, cS:cE, self.otherWin.imParams.band4match - 1]
+        self.otherWin.data = self.otherWin.imParams.GeoArray[rS:rE, cS:cE, self.otherWin.imParams.band4match]
 
         if self.v:
             print('Original matching windows:')
@@ -481,7 +481,6 @@ class COREG(object):
 
         # resample otherWin.data to the resolution of matchWin AND make sure the pixel edges are identical
         # (in order to make each image show the same window with the same coordinates)
-        # rsp_algor = 5 if is_avail_rsp_average else 2 # average if possible else cubic # OLD
         # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
         tgt_xmin,tgt_xmax,tgt_ymin,tgt_ymax = self.matchWin.boundsMap
         self.otherWin.data = warp_ndarray(self.otherWin.data,
@@ -717,6 +716,80 @@ class COREG(object):
     @staticmethod
     def _get_total_shifts(x_intshift, y_intshift, x_subshift, y_subshift):
         return x_intshift+x_subshift, y_intshift+y_subshift
+
+
+    def _validate_ssim_improvement(self):
+        # get image dynamic range
+        dr = max(self.ref.win.data.max(), self.shift.win.data.max()) - \
+             min(self.ref.win.data.max(), self.shift.win.data.max())
+
+        # compute ssim BEFORE shift correction
+        from py_tools_ds.ptds.similarity.raster import calc_ssim
+        ssim_before = calc_ssim(self.matchWin.data, self.otherWin.data, dynamic_range=dr)
+        print('SSIM before', ssim_before)
+
+        #ws = int(self.matchWin.imDimsYX[1]), int(self.matchWin.imDimsYX[0])
+
+        # get shifted GeoArray in the reference image grid
+        shifted_geoArr         = copy(self.shift.GeoArray)
+        geotransform           = list(shifted_geoArr.gt)
+        geotransform[0]       += self.x_shift_map
+        geotransform[3]       += self.y_shift_map
+        shifted_geoArr.gt      = geotransform
+        tgt_xmin, tgt_xmax, tgt_ymin, tgt_ymax = self.ref.win.boundsMap
+
+        arr2warp = shifted_geoArr[:,:,self.shift.band4match] if shifted_geoArr.ndim==3 else shifted_geoArr[:] # FIXME dont read complete band
+
+        from py_tools_ds.ptds.io.raster.GeoArray import get_array_at_mapPos
+        sub_arr, sub_gt, sub_prj = get_array_at_mapPos(arr2warp, shifted_geoArr.gt, shifted_geoArr.prj, self.ref.prj,
+                                                       mapBounds=(tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax),
+                                                       mapBounds_prj=self.ref.prj,
+                                                       out_gsd=(5,5), # FIXME stimmt das?
+                                                       rspAlg='cubic')
+
+        # # otherWin per subset-read einlesen
+        # rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherWin.boxImYX)
+        # assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])), \
+        #     'Got negative values in gdalReadInputs for %s.' % self.otherWin.imParams.imName
+        # data2warp = shifted_geoArr[rS:rE, cS:cE, self.otherWin.imParams.band4match]
+        #
+        #
+        # if self.v:
+        #     print('Original matching windows:')
+        #     ref_data, shift_data =  (self.matchWin.data, self.otherWin.data) if self.grid2use=='ref' else \
+        #                             (self.otherWin.data, self.matchWin.data)
+        #     PLT.subplot_imshow([ref_data, shift_data],[self.ref.title,self.shift.title], grid=True)
+        #
+        # otherWin_subgt = GEO.get_subset_GeoTransform(self.otherWin.gt, self.otherWin.boxImYX)
+        #
+        # # resample otherWin.data to the resolution of matchWin AND make sure the pixel edges are identical
+        # # (in order to make each image show the same window with the same coordinates)
+        # # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
+        # #tgt_xmin,tgt_xmax,tgt_ymin,tgt_ymax = self.matchWin.boundsMap
+        # sub_arr = warp_ndarray(data2warp,
+        #                                   otherWin_subgt,
+        #                                   self.shift.prj,
+        #                                   self.ref.prj,
+        #                                   out_gsd    = (self.imfft_gsd, self.imfft_gsd),
+        #                                   out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
+        #                                   rspAlg     = self.rspAlg_calc,
+        #                                   in_nodata  = self.shift.nodata,
+        #                                   CPUs       = None if self.mp else 1,
+        #                                   progress   = False) [0]
+
+
+
+
+        #out_arr, out_gt, out_prj = \
+        #    warp_ndarray(arr, arr_gt, arr_prj, out_prj=out_prj, out_bounds=mapBounds, out_bounds_prj=mapBounds_prj,
+        #                 in_nodata=fillVal, out_nodata=fillVal, rspAlg=rspAlg, out_gsd=out_gsd)
+
+        print(sub_arr.shape)
+        #GeoArray(sub_arr).show(figsize=(15,15))
+
+        ssim_after = calc_ssim(sub_arr, self.otherWin.data)
+        print('SSIM after', ssim_after)
+
 
 
     def calculate_spatial_shifts(self):

@@ -180,12 +180,14 @@ class COREG_LOCAL(object):
         # get a map showing target image
         if backgroundIm not in ['tgt','ref']: raise ValueError('backgroundIm')
         backgroundIm      = self.im2shift if backgroundIm=='tgt' else self.imref
-        fig, ax, map2show = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True)
+        fig, ax, map2show = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True,
+                                                  band=self.COREG_obj.shift.band4match)
         # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
         plt.title(attribute2plot)
 
         # transform all points of quality grid to LonLat
-        GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot]].copy() \
+        GDF = self.CoRegPoints_table.loc\
+                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot]].copy() \
                 if exclude_fillVals else self.CoRegPoints_table.loc[:, ['geometry', attribute2plot]]
 
         # get LonLat coordinates for all points
