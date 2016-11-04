@@ -69,8 +69,15 @@ class COREG_LOCAL(object):
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
-        self.imref        = im_ref if isinstance(im_ref, GeoArray) else GeoArray(im_ref)
-        self.im2shift     = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt)
+        if isinstance(im_ref, GeoArray) and nodata is not None: im_ref.nodata = nodata[0]
+        if isinstance(im_tgt, GeoArray) and nodata is not None: im_tgt.nodata = nodata[1]
+        self.imref        = im_ref if isinstance(im_tgt, GeoArray) else GeoArray(im_ref, nodata=nodata[0])
+        self.im2shift     = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt, nodata=nodata[1])
+        self.imref.progress    = progress
+        self.im2shift.progress = progress
+        self.imref.q           = q
+        self.im2shift.q        = q
+
 
         self.path_out     = path_out  # updated by self.set_outpathes
         self.fmt_out      = fmt_out
@@ -95,7 +102,6 @@ class COREG_LOCAL(object):
             self.path_out = os.path.join(self.projectDir, os.path.basename(self.path_out))
 
         gdal.AllRegister()
-
         self.COREG_obj = COREG(self.imref, self.im2shift,
                                ws               = window_size,
                                data_corners_im0 = data_corners_im0,
@@ -108,6 +114,7 @@ class COREG_LOCAL(object):
                                nodata           = nodata,
                                multiproc        = self.CPUs is None or self.CPUs > 1,
                                binary_ws        = self.bin_ws,
+                               progress         = self.progress,
                                v                = v,
                                q                = q,
                                ignore_errors    = True)

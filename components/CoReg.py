@@ -53,6 +53,10 @@ class imParamObj(object):
         # set GeoArray
         get_geoArr    = lambda p: GeoArray(p) if not isinstance(p,GeoArray) else p
         self.GeoArray = get_geoArr(CoReg_params['im_ref']) if imID == 'ref' else get_geoArr(CoReg_params['im_tgt'])
+        init_nodata   = CoReg_params['nodata'][0 if imID == 'ref' else 1]
+        self.GeoArray.nodata   = init_nodata if init_nodata is not None else self.GeoArray.nodata
+        self.GeoArray.progress = CoReg_params['progress']
+        self.GeoArray.q        = CoReg_params['q']
 
         # set title to be used in plots
         self.title = os.path.basename(self.GeoArray.filePath) if self.GeoArray.filePath else self.imName
@@ -89,6 +93,7 @@ class imParamObj(object):
             if CoReg_params['calc_corners']:
                 if not CoReg_params['q']:
                     print('Calculating actual data corner coordinates for %s...' % self.imName)
+
                 self.corner_coord = GEO.get_true_corner_mapXY(self.GeoArray, self.band4match, self.nodata,
                                         CoReg_params['multiproc'], v=self.v, q=self.q)
             else:
@@ -100,6 +105,7 @@ class imParamObj(object):
         # set footprint polygon
         #self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True) # this is the old algorithm
         self.GeoArray.calc_mask_nodata(fromBand=self.band4match) # this avoids that all bands have to be read
+
         self.poly = self.GeoArray.footprint_poly
 
         for XY in self.corner_coord:

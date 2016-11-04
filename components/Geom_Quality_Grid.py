@@ -49,8 +49,8 @@ class Geom_Quality_Grid(object):
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
         :param progress(bool):          show progress bars (default: True)
-        :param v(bool):                 verbose mode (default: 0)
-        :param q(bool):                 quiet mode (default: 0)
+        :param v(bool):                 verbose mode (default: False)
+        :param q(bool):                 quiet mode (default: False)
         """
 
         if not isinstance(COREG_obj, COREG): raise ValueError("'COREG_obj' must be an instance of COREG class.")
