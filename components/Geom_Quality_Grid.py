@@ -180,6 +180,8 @@ class Geom_Quality_Grid(object):
         if exclude_outliers:
             GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly)]
 
+        assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check yout input data!' # FIXME track that
+
             #not_within_nodata = \
             #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
             #              self.shift[r.Y_IM,r.X_IM, self.COREG_obj.shift.band4match] != self.COREG_obj.shift.nodata)[0,0]
@@ -198,20 +200,20 @@ class Geom_Quality_Grid(object):
 
         # get all variations of kwargs for coregistration
         get_coreg_kwargs = lambda pID, wp: {
-            'pointID'         : pID,
-            'wp'              : wp,
-            'ws'              : self.COREG_obj.win_size_XY,
-            'data_corners_im0': self.COREG_obj.ref.corner_coord,
-            'data_corners_im1': self.COREG_obj.shift.corner_coord,
-            'r_b4match'       : self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
-            's_b4match'       : self.COREG_obj.shift.band4match+1, # band4match is internally saved as index, starting from 0
-            'max_iter'        : self.COREG_obj.max_iter,
-            'max_shift'       : self.COREG_obj.max_shift,
-            'nodata'          : (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-            'binary_ws'       : self.COREG_obj.bin_ws,
-            'v'               : False, # otherwise this would lead to massive console output
-            'q'               : True,  # otherwise this would lead to massive console output
-            'ignore_errors'   : True
+            'pointID'            : pID,
+            'wp'                 : wp,
+            'ws'                 : self.COREG_obj.win_size_XY,
+            'footprint_poly_ref' : self.COREG_obj.ref.poly,
+            'footprint_poly_tgt' : self.COREG_obj.shift.poly,
+            'r_b4match'          : self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
+            's_b4match'          : self.COREG_obj.shift.band4match+1, # band4match is internally saved as index, starting from 0
+            'max_iter'           : self.COREG_obj.max_iter,
+            'max_shift'          : self.COREG_obj.max_shift,
+            'nodata'             : (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+            'binary_ws'          : self.COREG_obj.bin_ws,
+            'v'                  : False, # otherwise this would lead to massive console output
+            'q'                  : True,  # otherwise this would lead to massive console output
+            'ignore_errors'      : True
         }
         list_coreg_kwargs = (get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index) # generator
 

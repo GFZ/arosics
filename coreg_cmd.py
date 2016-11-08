@@ -51,8 +51,8 @@ def run_global_coreg(args):
                       align_grids      = args.align_grids,
                       match_gsd        = args.match_gsd,
                       out_gsd          = args.out_gsd,
-                      data_corners_im0 = args.cor0,
-                      data_corners_im1 = args.cor1,
+                      data_corners_ref = args.cor0,
+                      data_corners_tgt = args.cor1,
                       nodata           = args.nodata,
                       calc_corners     = args.calc_cor,
                       multiproc        = args.mp,
@@ -79,8 +79,8 @@ def run_local_coreg(args):
                       #align_grids      = args.align_grids,
                       #match_gsd        = args.match_gsd,
                       #out_gsd          = args.out_gsd,
-                      data_corners_im0 = args.cor0,
-                      data_corners_im1 = args.cor1,
+                      data_corners_ref = args.cor0,
+                      data_corners_tgt = args.cor1,
                       nodata           = args.nodata,
                       calc_corners     = args.calc_cor,
                       CPUs             = None if args.mp else 1,
@@ -183,6 +183,8 @@ if __name__ == '__main__':
     gloArg('-out_gsd', nargs=2, type=float, help='xgsd ygsd: set the output pixel size in map units'\
            '(default: original pixel size of the image to be shifted)', metavar=('xgsd','ygsd'))
 
+    # TODO implement footprint_poly_ref, footprint_poly_tgt
+
     gloArg('-cor0', nargs=8, type=float, help="map coordinates of data corners within reference image: ",
            metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)
 
@@ -255,6 +257,8 @@ if __name__ == '__main__':
 
     locArg('-max_shift', nargs='?', type=int,
            help="maximum shift distance in reference image pixel units (default: 5 px)", default=5)
+
+    # TODO implement footprint_poly_ref, footprint_poly_tgt
 
     locArg('-cor0', nargs=8, type=float, help="map coordinates of data corners within reference image: ",
            metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)

@@ -25,9 +25,9 @@ class COREG_LOCAL(object):
     """See help(COREG_LOCAL) for documentation!"""
 
     def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI', projectDir=None,
-                 r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, data_corners_im0=None,
-                 data_corners_im1=None, outFillVal=-9999, nodata=(None,None), calc_corners=True, binary_ws=True,
-                 CPUs=None, progress=True, v=False, q=False):
+                 r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, footprint_poly_ref=None, footprint_poly_tgt=None,
+                 data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None),
+                 calc_corners=True, binary_ws=True, CPUs=None, progress=True, v=False, q=False, ignore_errors=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -48,8 +48,14 @@ class COREG_LOCAL(object):
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
         :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
-        :param data_corners_im0(list):  map coordinates of data corners within reference image
-        :param data_corners_im1(list):  map coordinates of data corners within image to be shifted
+        :param footprint_poly_ref(str): footprint polygon of the reference image (WKT string or shapely.geometry.Polygon),
+                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
+                                                        299999 6000000))'
+        :param footprint_poly_tgt(str): footprint polygon of the image to be shifted (WKT string or shapely.geometry.Polygon)
+                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
+                                                299999 6000000))'
+        :param data_corners_ref(list):  map coordinates of data corners within reference image
+        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted
         :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
         :param nodata(tuple):           no data values for reference image and image to be shifted
@@ -62,6 +68,7 @@ class COREG_LOCAL(object):
         :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: False)
         :param q(bool):                 quiet mode (default: False)
+        :param ignore_errors(bool):     Useful for batch processing. (default: False)
         """
         # TODO outgsd, matchgsd
         # assertions
@@ -95,6 +102,7 @@ class COREG_LOCAL(object):
         self.v            = v
         self.q            = q if not v else False        # overridden by v
         self.progress     = progress if not q else False # overridden by v
+        self.ignErr       = ignore_errors
 
         COREG.__dict__['_set_outpathes'](self, self.imref, self.im2shift)
         # make sure that the output directory of coregistered image is the project directory if a project directory is given
@@ -103,21 +111,23 @@ class COREG_LOCAL(object):
 
         gdal.AllRegister()
         self.COREG_obj = COREG(self.imref, self.im2shift,
-                               ws               = window_size,
-                               data_corners_im0 = data_corners_im0,
-                               data_corners_im1 = data_corners_im1,
-                               calc_corners     = calc_corners,
-                               r_b4match        = r_b4match,
-                               s_b4match        = s_b4match,
-                               max_iter         = max_iter,
-                               max_shift        = max_shift,
-                               nodata           = nodata,
-                               multiproc        = self.CPUs is None or self.CPUs > 1,
-                               binary_ws        = self.bin_ws,
-                               progress         = self.progress,
-                               v                = v,
-                               q                = q,
-                               ignore_errors    = True)
+                               ws                 = window_size,
+                               footprint_poly_ref = footprint_poly_ref,
+                               footprint_poly_tgt = footprint_poly_tgt,
+                               data_corners_ref   = data_corners_ref,
+                               data_corners_tgt   = data_corners_tgt,
+                               calc_corners       = calc_corners,
+                               r_b4match          = r_b4match,
+                               s_b4match          = s_b4match,
+                               max_iter           = max_iter,
+                               max_shift          = max_shift,
+                               nodata             = nodata,
+                               multiproc          = self.CPUs is None or self.CPUs > 1,
+                               binary_ws          = self.bin_ws,
+                               progress           = self.progress,
+                               v                  = v,
+                               q                  = q,
+                               ignore_errors      = self.ignErr)
 
         self._quality_grid      = None # set by self.quality_grid
         self._CoRegPoints_table = None # set by self.CoRegPoints_table
