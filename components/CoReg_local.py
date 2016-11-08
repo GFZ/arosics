@@ -147,7 +147,7 @@ class COREG_LOCAL(object):
             # return a project name that not already has a corresponding folder on disk
             projectDir = os.path.join(os.path.dirname(self.im2shift.filePath), 'UntitledProject_1')
             while os.path.isdir(projectDir):
-                projectDir = '%s_%s' % (projectDir.split('_')[0], int(projectDir.split('_')[1]) + 1)
+                projectDir = '%s_%s' % (projectDir.split('_')[0], int(projectDir.split('_')[-1]) + 1)
             self._projectDir = projectDir
             return self._projectDir
 
@@ -167,6 +167,10 @@ class COREG_LOCAL(object):
 
     @property
     def CoRegPoints_table(self):
+        """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
+        'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
+        information containing all the results frm coregistration for all points in the geometric quality grid.
+        """
         return self.quality_grid.CoRegPoints_table
 
 
@@ -176,6 +180,12 @@ class COREG_LOCAL(object):
         if not self._success and not self.q:
             warnings.warn('No valid GCPs could by identified.')
         return self._success
+
+
+    def show_image_footprints(self):
+        """This method is intended to be called from Jupyter Notebook and shows a web map containing the calculated
+        footprints of the input images as well as the corresponding overlap area."""
+        return self.COREG_obj.show_image_footprints()
 
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',

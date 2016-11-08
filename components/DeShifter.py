@@ -71,7 +71,7 @@ class DESHIFTER(object):
         self.path_out     = kwargs.get('path_out'    , None)
         self.fmt_out      = kwargs.get('fmt_out'     , 'ENVI')
         self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
-        self.nodata       = kwargs.get('nodata'      , None) # FIXME can be replaced by self.im2shift.nodata
+        self.nodata       = kwargs.get('nodata'      , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids' , False)
         self.rspAlg       = kwargs.get('resamp_alg'  , 'cubic')
         self.cliptoextent = kwargs.get('cliptoextent', True)
@@ -81,7 +81,7 @@ class DESHIFTER(object):
         self.q            = kwargs.get('q'           , False) if not self.v else False # overridden by v
         self.progress     = kwargs.get('progress'    , True)  if not self.q else False # overridden by q
 
-        self.im2shift.nodata    = self.nodata
+        self.im2shift.nodata    = kwargs.get('nodata', self.im2shift.nodata)
         self.im2shift.q         = self.q
         self.shift_prj          = self.im2shift.projection
         self.shift_gt           = list(self.im2shift.geotransform)
@@ -172,7 +172,7 @@ class DESHIFTER(object):
 
     def _get_out_extent(self):
         if self.cliptoextent and self.clipextent is None:
-            self.clipextent        = self.im2shift.footprint_poly.envelope.bounds # FIXME
+            self.clipextent        = self.im2shift.footprint_poly.envelope.bounds
         else:
             xmin, xmax, ymin, ymax = self.im2shift.box.boundsMap
             self.clipextent        = xmin, ymin, xmax, ymax
@@ -301,7 +301,9 @@ class DESHIFTER(object):
             self.is_resampled       = True
 
             if self.path_out:
-                GeoArray(out_arr, out_gt, out_prj).save(self.path_out,fmt=self.fmt_out)
+                out_geoArr        = GeoArray(out_arr, out_gt, out_prj, q=self.q)
+                out_geoArr.nodata = self.nodata # equals self.im2shift.nodata after __init__()
+                out_geoArr.save(self.path_out,fmt=self.fmt_out)
 
         if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results

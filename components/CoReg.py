@@ -941,7 +941,8 @@ class COREG(object):
         if self._coreg_info:
             return self._coreg_info
         else:
-            self.calculate_spatial_shifts()
+            if self.success is None:
+                self.calculate_spatial_shifts()
             self._coreg_info = {
                 'corrected_shifts_px'   : {'x':self.x_shift_px,  'y':self.y_shift_px },
                 'corrected_shifts_map'  : {'x':self.x_shift_map, 'y':self.y_shift_map},
