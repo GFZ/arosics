@@ -46,6 +46,7 @@ def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, 
     :param q:
     :return:
     """
+    warnings.warn('This function is not in use anymore. Use it on your own risk!', DeprecationWarning)
     geoArr    = GeoArray(fPath_or_geoarray) if not isinstance(fPath_or_geoarray,GeoArray) else fPath_or_geoarray
 
     rows,cols = geoArr.shape[:2]

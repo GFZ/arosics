@@ -19,7 +19,7 @@ try:
     import pyfftw
 except ImportError:
     pyfftw = None
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
@@ -87,32 +87,29 @@ class imParamObj(object):
         else:
             self.nodata = self.GeoArray.nodata
 
-        # set corner coords
-        given_corner_coord = CoReg_params['data_corners_%s' % ('im0' if imID == 'ref' else 'im1')]
-        if given_corner_coord is None:
-            if CoReg_params['calc_corners']:
-                if not CoReg_params['q']:
-                    print('Calculating actual data corner coordinates for %s...' % self.imName)
+        # set footprint_poly
+        given_footprint_poly = CoReg_params['footprint_poly_%s' % ('ref' if imID == 'ref' else 'tgt')]
+        given_corner_coord   = CoReg_params['data_corners_%s'   % ('ref' if imID == 'ref' else 'tgt')]
 
-                self.corner_coord = GEO.get_true_corner_mapXY(self.GeoArray, self.band4match, self.nodata,
-                                        CoReg_params['multiproc'], v=self.v, q=self.q)
-            else:
-                self.corner_coord = get_corner_coordinates(gt=self.GeoArray.geotransform,
-                                                               cols=self.cols,rows=self.rows)
+        if given_footprint_poly:
+            self.GeoArray.footprint_poly = given_footprint_poly
+        elif given_corner_coord is not None:
+            self.GeoArray.footprint_poly = Polygon(given_corner_coord)
+        elif not CoReg_params['calc_corners']:
+            # use the image extent
+            self.GeoArray.footprint_poly = Polygon(get_corner_coordinates(gt=self.GeoArray.geotransform,
+                                                                          cols=self.cols,rows=self.rows))
         else:
-            self.corner_coord = given_corner_coord
+            # footprint_poly is calculated automatically by GeoArray
+            if not CoReg_params['q']:
+                print('Calculating actual data corner coordinates for %s...' % self.imName)
+            self.GeoArray.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
-        # set footprint polygon
-        #self.poly = get_footprint_polygon(self.corner_coord, fix_invalid=True) # this is the old algorithm
-        self.GeoArray.calc_mask_nodata(fromBand=self.band4match) # this avoids that all bands have to be read
+        self.poly = self.GeoArray.footprint_poly  # returns a shapely geometry
 
-        self.poly = self.GeoArray.footprint_poly
+        if not CoReg_params['q']:
+            print('Bounding box of calculated footprint for %s:\n\t%s' % (self.imName, self.poly.bounds))
 
-        for XY in self.corner_coord:
-            assert self.GeoArray.box.mapPoly.contains(Point(XY)) or self.GeoArray.box.mapPoly.touches(Point(XY)), \
-                "The corner position '%s' is outside of the %s." % (XY, self.imName)
-
-        if not CoReg_params['q']: print('Corner coordinates of %s:\n\t%s' % (self.imName, self.corner_coord))
 
 
 class COREG(object):
@@ -120,7 +117,8 @@ class COREG(object):
 
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', r_b4match=1, s_b4match=1, wp=(None,None),
                  ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
-                 resamp_alg_deshift='cubic', resamp_alg_calc='cubic', data_corners_im0=None, data_corners_im1=None,
+                 resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
+                 data_corners_ref=None, data_corners_tgt=None,
                  nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
                  progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
 
@@ -156,8 +154,10 @@ class COREG(object):
                                         (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
                                         default: cubic (highly recommended)
-        :param data_corners_im0(list):  map coordinates of data corners within reference image
-        :param data_corners_im1(list):  map coordinates of data corners within image to be shifted
+        :param footprint_poly_ref(str):
+        :param footprint_poly_tgt(str):
+        :param data_corners_ref(list):  map coordinates of data corners within reference image
+        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted
         :param nodata(tuple):           no data values for reference image and image to be shifted
         :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
                                         matching window position within the actual image overlap
@@ -166,11 +166,11 @@ class COREG(object):
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
         :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
         :param progress(bool):          show progress bars (default: True)
-        :param v(bool):                 verbose mode (default: 0)
+        :param v(bool):                 verbose mode (default: False)
         :param path_verbose_out(str):   an optional output directory for intermediate results
                                         (if not given, no intermediate results are written to disk)
-        :param q(bool):                 quiet mode (default: 0)
-        :param ignore_errors(bool):     Useful for batch processing. (default: 0)
+        :param q(bool):                 quiet mode (default: False)
+        :param ignore_errors(bool):     Useful for batch processing. (default: False)
                                         In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px
                                         is None
         """
@@ -179,10 +179,10 @@ class COREG(object):
 
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
-        if data_corners_im0 and not isinstance(data_corners_im0[0],list): # group if not [[x,y],[x,y]..] but [x,y,x,y,]
-            data_corners_im0 = [data_corners_im0[i:i+2] for i in range(0, len(data_corners_im0), 2)]
-        if data_corners_im1 and not isinstance(data_corners_im1[0],list): # group if not [[x,y],[x,y]..]
-            data_corners_im1 = [data_corners_im1[i:i+2] for i in range(0, len(data_corners_im1), 2)]
+        if data_corners_ref and not isinstance(data_corners_ref[0], list): # group if not [[x,y],[x,y]..] but [x,y,x,y,]
+            data_corners_ref = [data_corners_ref[i:i + 2] for i in range(0, len(data_corners_ref), 2)]
+        if data_corners_tgt and not isinstance(data_corners_tgt[0], list): # group if not [[x,y],[x,y]..]
+            data_corners_tgt = [data_corners_tgt[i:i + 2] for i in range(0, len(data_corners_tgt), 2)]
         if nodata: assert isinstance(nodata, tuple) and len(nodata) == 2, "'nodata' must be a tuple with two values." \
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
@@ -230,7 +230,7 @@ class COREG(object):
         self.updated_map_info    = None                # set by self.get_updated_map_info()
 
         self.tracked_errors      = []                  # expanded each time an error occurs
-        self.success             = False               # default
+        self.success             = None                # default
         self.deshift_results     = None                # set by self.correct_shifts()
 
         gdal.AllRegister()
@@ -257,11 +257,11 @@ class COREG(object):
         if not self.q: print('Matching window position (X,Y): %s/%s' % (self.win_pos_XY[0], self.win_pos_XY[1]))
         self._get_clip_window_properties()
 
-        if self.v and self.path_verbose_out and self.matchWin.mapPoly:
+        if self.v and self.path_verbose_out and self.matchWin.mapPoly and self.success is not False:
             IO.write_shp(os.path.join(self.path_verbose_out, 'poly_matchWin.shp'),
                          self.matchWin.mapPoly, self.matchWin.prj)
 
-        self.success     = None if self.matchWin.boxMapYX else False
+        self.success     = False if self.success is False or not self.matchWin.boxMapYX else None
         self._coreg_info = None # private attribute to be filled by self.coreg_info property
 
 
@@ -438,23 +438,36 @@ class COREG(object):
             # -> match Fenster verkleinern und neues anderes Fenster berechnen
             xLarger, yLarger = otherWin.is_larger_DimXY(overlapWin.boundsIm)
             matchWin.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
+            previous_area    = otherWin.mapPoly.area
             otherWin.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchWin.boxMapYX,otherWin.gt)
 
-        # check results
-        assert matchWin.mapPoly.within(otherWin.mapPoly)
-        assert otherWin.mapPoly.within(overlapWin.mapPoly)
+            if previous_area == otherWin.mapPoly.area:
+                self.tracked_errors.append(
+                    RuntimeError('Matching window in target image is larger than overlap area but further shrinking '
+                                 'the matching window is not possible. Check if the footprints of the input data have '
+                                 'been computed correctly. '))
+                if not self.ignErr:
+                    raise self.tracked_errors[-1]
+                break # break out of while loop in order to avoid that code gets stuck here
 
-        self.imfft_gsd              = self.ref.xgsd       if self.grid2use =='ref' else self.shift.xgsd
-        self.ref.win,self.shift.win = (matchWin,otherWin) if self.grid2use =='ref' else (otherWin,matchWin)
-        self.matchWin,self.otherWin = matchWin, otherWin
-        self.ref.  win.size_YX      = tuple([int(i) for i in self.ref.  win.imDimsYX])
-        self.shift.win.size_YX      = tuple([int(i) for i in self.shift.win.imDimsYX])
-        match_win_size_XY           = tuple(reversed([int(i) for i in matchWin.imDimsYX]))
-        if not self.q and match_win_size_XY != self.win_size_XY:
-            print('Target window size %s not possible due to too small overlap area or window position too close '
-                  'to an image edge. New matching window size: %s.' %(self.win_size_XY,match_win_size_XY))
-        #IO.write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchWin.mapPoly,matchWin.prj)
-        #IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherWin.mapPoly,otherWin.prj)
+        if self.tracked_errors:
+            self.success = False
+        else:
+            # check results
+            assert matchWin.mapPoly.within(otherWin.mapPoly)
+            assert otherWin.mapPoly.within(overlapWin.mapPoly)
+
+            self.imfft_gsd              = self.ref.xgsd       if self.grid2use =='ref' else self.shift.xgsd
+            self.ref.win,self.shift.win = (matchWin,otherWin) if self.grid2use =='ref' else (otherWin,matchWin)
+            self.matchWin,self.otherWin = matchWin, otherWin
+            self.ref.  win.size_YX      = tuple([int(i) for i in self.ref.  win.imDimsYX])
+            self.shift.win.size_YX      = tuple([int(i) for i in self.shift.win.imDimsYX])
+            match_win_size_XY           = tuple(reversed([int(i) for i in matchWin.imDimsYX]))
+            if not self.q and match_win_size_XY != self.win_size_XY:
+                print('Target window size %s not possible due to too small overlap area or window position too close '
+                      'to an image edge. New matching window size: %s.' %(self.win_size_XY,match_win_size_XY))
+            #IO.write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchWin.mapPoly,matchWin.prj)
+            #IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherWin.mapPoly,otherWin.prj)
 
 
     def _get_image_windows_to_match(self):
