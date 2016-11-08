@@ -22,7 +22,7 @@ from .CoReg  import COREG
 from .       import io    as IO
 from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, get_UTMzone
 from py_tools_ds.ptds.io.pathgen              import get_generic_outpath
-from py_tools_ds.ptds.processing.progress_mon import printProgress
+from py_tools_ds.ptds.processing.progress_mon import ProgressBar
 
 
 
@@ -75,6 +75,10 @@ class Geom_Quality_Grid(object):
 
     @property
     def CoRegPoints_table(self):
+        """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
+        'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
+        information containing all the results frm coregistration for all points in the geometric quality grid.
+        """
         if self._CoRegPoints_table is not None:
             return self._CoRegPoints_table
         else:
@@ -89,6 +93,8 @@ class Geom_Quality_Grid(object):
 
     @property
     def GCPList(self):
+        """Returns a list of GDAL compatible GCP objects.
+        """
         if self._GCPList:
             return self._GCPList
         else:
@@ -102,6 +108,9 @@ class Geom_Quality_Grid(object):
 
 
     def _get_imXY__mapXY_points(self, grid_res):
+        if not self.q:
+            print('Initializing geometric quality grid...')
+
         Xarr,Yarr       = np.meshgrid(np.arange(0,self.shift.shape[1],grid_res),
                                       np.arange(0,self.shift.shape[0],grid_res))
 
@@ -182,12 +191,12 @@ class Geom_Quality_Grid(object):
 
         assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check yout input data!' # FIXME track that
 
-            #not_within_nodata = \
-            #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
-            #              self.shift[r.Y_IM,r.X_IM, self.COREG_obj.shift.band4match] != self.COREG_obj.shift.nodata)[0,0]
+        #not_within_nodata = \
+        #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
+        #              self.shift[r.Y_IM,r.X_IM, self.COREG_obj.shift.band4match] != self.COREG_obj.shift.nodata)[0,0]
 
-            #GDF['not_within_nodata'] = GDF.apply(lambda GDF_row: not_within_nodata(GDF_row),axis=1)
-            #GDF = GDF[GDF.not_within_nodata]
+        #GDF['not_within_nodata'] = GDF.apply(lambda GDF_row: not_within_nodata(GDF_row),axis=1)
+        #GDF = GDF[GDF.not_within_nodata]
 
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift
@@ -228,12 +237,12 @@ class Geom_Quality_Grid(object):
                     results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
                 else:
                     results = pool.map_async(self._get_spatial_shifts, list_coreg_kwargs, chunksize=1)
-
+                    bar     = ProgressBar(prefix='\tprogress:')
                     while True:
                         time.sleep(.1)
                         numberDone = len(GDF)-results._number_left # this does not really represent the remaining tasks but the remaining chunks -> thus chunksize=1
-                        printProgress(percent=numberDone/len(GDF)*100, barLength=50, prefix='\tprogress:',
-                                      suffix='[%s/%s] Complete %.2f sek'%(numberDone,len(GDF), time.time()-t0))
+                        if self.progress:
+                            bar.print_progress(percent=numberDone/len(GDF)*100)
                         if results.ready():
                             results = results.get() # FIXME in some cases the code hangs here ==> x
                             break
@@ -241,10 +250,10 @@ class Geom_Quality_Grid(object):
             if not self.q:
                 print("Calculating geometric quality grid (%s points) in mode 'singleprocessing'..." %len(GDF))
             results = np.empty((len(geomPoints),9))
+            bar     = ProgressBar(prefix='\tprogress:')
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
-                if not self.q:
-                    printProgress(percent=(i+1)/len(GDF)*100, prefix='\tprogress:',
-                                  suffix='[%s/%s] Complete'%((i+1),len(GDF)), decimals=1, barLength=50)
+                if self.progress:
+                    bar.print_progress((i+1)/len(GDF)*100)
                 results[i,:] = self._get_spatial_shifts(coreg_kwargs)
             # FIXME in some cases the code hangs here ==> x
 
@@ -313,7 +322,16 @@ class Geom_Quality_Grid(object):
         return lines
 
 
-    def to_PointShapefile(self, skip_nodata=1, skip_nodata_col ='ABS_SHIFT', path_out=None):
+    def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col ='ABS_SHIFT'):
+        # type: (str, bool, str)
+        """Writes the calculated geometric quality grid to a point shapefile containing
+        Geom_Quality_Grid.CoRegPoints_table as attribute table. This shapefile can easily be displayed using GIS software.
+
+        :param path_out:        <str> the output path. If not given, it is automatically defined.
+        :param skip_nodata:     <bool> whether to skip all points where no valid match could be found
+        :param skip_nodata_col: <str> determines which column of Geom_Quality_Grid.CoRegPoints_table is used to
+                                identify points where no valid match could be found
+        """
         GDF            = self.CoRegPoints_table
         GDF2pass       = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
@@ -325,7 +343,7 @@ class Geom_Quality_Grid(object):
         GDF2pass.to_file(path_out)
 
 
-    def _to_PointShapefile(self, skip_nodata=1, skip_nodata_col ='ABS_SHIFT'):
+    def _to_PointShapefile(self, skip_nodata=True, skip_nodata_col ='ABS_SHIFT'):
         warnings.warn(DeprecationWarning("'_quality_grid_to_PointShapefile' is deprecated." # TODO delete if other method validated
                                          " 'quality_grid_to_PointShapefile' is much faster."))
         GDF            = self.CoRegPoints_table
