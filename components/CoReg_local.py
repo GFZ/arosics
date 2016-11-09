@@ -26,9 +26,10 @@ class COREG_LOCAL(object):
 
     def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI',
                  out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
-                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
-                 outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True, CPUs=None, progress=True,
-                 v=False, q=False, ignore_errors=False):
+                 align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic',
+                 resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None,
+                 data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True,
+                 CPUs=None, progress=True, v=False, q=False, ignore_errors=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -52,6 +53,24 @@ class COREG_LOCAL(object):
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
         :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
+        :param out_gsd (float):         output pixel size in units of the reference coordinate system (default = pixel
+                                        size of the input array), given values are overridden by match_gsd=True
+        :param align_grids (bool):      True: align the input coordinate grid to the reference (does not affect the
+                                        output pixel size as long as input and output pixel sizes are compatible
+                                        (5:30 or 10:30 but not 4:30), default = True
+        :param match_gsd (bool):        True: match the input pixel size to the reference pixel size,
+                                        default = False
+        :param target_xyGrid(list):     a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
+                                        This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
+        :param resamp_alg_deshift(str)  the resampling algorithm to be used for shift correction (if neccessary)
+                                        valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
+                                                          max, min, med, q1, q3
+                                        default: cubic
+        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
+                                        of spatial shifts
+                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
+                                                       max, min, med, q1, q3)
+                                        default: cubic (highly recommended)
         :param footprint_poly_ref(str): footprint polygon of the reference image (WKT string or shapely.geometry.Polygon),
                                         e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
                                                         299999 6000000))'
@@ -76,9 +95,11 @@ class COREG_LOCAL(object):
         :param q(bool):                 quiet mode (default: False)
         :param ignore_errors(bool):     Useful for batch processing. (default: False)
         """
-        # TODO outgsd, matchgsd
+
         # assertions
-        assert fmt_out
+        assert fmt_out, "'%s' is not a valid GDAL driver code." %fmt_out
+        if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
+        if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
@@ -99,6 +120,12 @@ class COREG_LOCAL(object):
         self.window_size       = window_size
         self.max_shift         = max_shift
         self.max_iter          = max_iter
+        self.align_grids       = align_grids
+        self.match_gsd         = match_gsd
+        self.out_gsd           = out_gsd
+        self.target_xyGrid     = target_xyGrid
+        self.rspAlg_DS         = resamp_alg_deshift
+        self.rspAlg_calc       = resamp_alg_calc
         self.calc_corners      = calc_corners
         self.nodata            = nodata
         self.outFillVal        = outFillVal
@@ -122,6 +149,7 @@ class COREG_LOCAL(object):
                                footprint_poly_tgt = footprint_poly_tgt,
                                data_corners_ref   = data_corners_ref,
                                data_corners_tgt   = data_corners_tgt,
+                               resamp_alg_calc    = self.rspAlg_calc,
                                calc_corners       = calc_corners,
                                r_b4match          = r_b4match,
                                s_b4match          = s_b4match,
@@ -164,8 +192,8 @@ class COREG_LOCAL(object):
             return self._quality_grid
         else:
             self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res, outFillVal=self.outFillVal,
-                                                   dir_out=self.projectDir, CPUs=self.CPUs, progress=self.progress,
-                                                   v=self.v, q=self.q)
+                                                   resamp_alg_calc=self.rspAlg_calc, dir_out=self.projectDir,
+                                                   CPUs=self.CPUs, progress=self.progress, v=self.v, q=self.q)
             if self.v:
                 self.view_CoRegPoints(figsize=(10,10))
             return self._quality_grid
@@ -337,8 +365,11 @@ class COREG_LOCAL(object):
                            path_out         = self.path_out,
                            fmt_out          = self.fmt_out,
                            out_crea_options = self.out_creaOpt,
-                           out_gsd          = (self.im2shift.xgsd,self.im2shift.ygsd),
-                           align_grids      = True,
+                           align_grids      = self.align_grids,
+                           match_gsd        = self.match_gsd,
+                           out_gsd          = self.out_gsd,
+                           target_xyGrid    = self.target_xyGrid,
+                           resamp_alg       = self.rspAlg_DS,
                            cliptoextent     = cliptoextent,
                            #clipextent      = self.im2shift.box.boxMapYX,
                            progress         = self.progress,

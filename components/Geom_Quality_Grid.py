@@ -33,7 +33,8 @@ global_shared_im2shift = None
 class Geom_Quality_Grid(object):
     """See help(Geom_Quality_Grid) for documentation!"""
 
-    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, dir_out=None, CPUs=None, progress=True, v=False, q=False):
+    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, resamp_alg_calc='cubic', dir_out=None, CPUs=None,
+                 progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -44,6 +45,11 @@ class Geom_Quality_Grid(object):
         :param grid_res:                grid resolution in pixels of the target image
         :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
+        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
+                                        of spatial shifts
+                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
+                                                       max, min, med, q1, q3)
+                                        default: cubic (highly recommended)
         :param dir_out(str):            output directory to be used for all outputs if nothing else is given
                                         to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
@@ -55,17 +61,18 @@ class Geom_Quality_Grid(object):
 
         if not isinstance(COREG_obj, COREG): raise ValueError("'COREG_obj' must be an instance of COREG class.")
 
-        self.COREG_obj  = COREG_obj
-        self.grid_res   = grid_res
-        self.dir_out    = dir_out
-        self.outFillVal = outFillVal
-        self.CPUs       = CPUs
-        self.v          = v
-        self.q          = q        if not v else False # overridden by v
-        self.progress   = progress if not q else False # overridden by q
+        self.COREG_obj   = COREG_obj
+        self.grid_res    = grid_res
+        self.outFillVal  = outFillVal
+        self.rspAlg_calc = resamp_alg_calc
+        self.dir_out     = dir_out
+        self.CPUs        = CPUs
+        self.v           = v
+        self.q           = q        if not v else False # overridden by v
+        self.progress    = progress if not q else False # overridden by q
 
-        self.ref        = self.COREG_obj.ref  .GeoArray
-        self.shift      = self.COREG_obj.shift.GeoArray
+        self.ref         = self.COREG_obj.ref  .GeoArray
+        self.shift       = self.COREG_obj.shift.GeoArray
 
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table           = None # set by self.CoRegPoints_table
@@ -212,6 +219,7 @@ class Geom_Quality_Grid(object):
             'pointID'            : pID,
             'wp'                 : wp,
             'ws'                 : self.COREG_obj.win_size_XY,
+            'resamp_alg_calc'    : self.rspAlg_calc,
             'footprint_poly_ref' : self.COREG_obj.ref.poly,
             'footprint_poly_tgt' : self.COREG_obj.shift.poly,
             'r_b4match'          : self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
@@ -229,7 +237,8 @@ class Geom_Quality_Grid(object):
         # run co-registration for whole grid
         if self.CPUs is None or self.CPUs>1:
             if not self.q:
-                print("Calculating geometric quality grid (%s points) in mode 'multiprocessing'..." %len(GDF))
+                cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
+                print("Calculating geometric quality grid (%s points) using %s CPU cores..." %(len(GDF), cpus))
 
             t0 = time.time()
             with multiprocessing.Pool(self.CPUs) as pool:
@@ -248,7 +257,7 @@ class Geom_Quality_Grid(object):
                             break
         else:
             if not self.q:
-                print("Calculating geometric quality grid (%s points) in mode 'singleprocessing'..." %len(GDF))
+                print("Calculating geometric quality grid (%s points) 1 CPU core..." %len(GDF))
             results = np.empty((len(geomPoints),9))
             bar     = ProgressBar(prefix='\tprogress:')
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
@@ -292,7 +301,7 @@ class Geom_Quality_Grid(object):
             self.GCPList = GDF.GCP.tolist()
 
             if not self.q:
-                print('Found %s valid GCPs.' %len(self.GCPList))
+                print('Found %s valid tie points.' %len(self.GCPList))
 
             return self.GCPList
 

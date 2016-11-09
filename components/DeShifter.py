@@ -48,7 +48,8 @@ class DESHIFTER(object):
                                     (5:30 or 10:30 but not 4:30), default = False
             - match_gsd (bool):     True: match the input pixel size to the reference pixel size,
                                     default = False
-            - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]]
+            - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]].
+                                    This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
             - resamp_alg(str)       the resampling algorithm to be used if neccessary
                                     (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)

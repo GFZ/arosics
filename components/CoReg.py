@@ -117,10 +117,10 @@ class COREG(object):
 
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', out_crea_options=None, r_b4match=1, s_b4match=1,
                  wp=(None,None), ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
-                 out_gsd=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None,
-                 footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None, nodata=(None,None),
-                 calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True, progress=True, v=False,
-                 path_verbose_out=None, q=False, ignore_errors=False):
+                 out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
+                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
+                 nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
+                 progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
 
         """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
         at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
@@ -147,6 +147,8 @@ class COREG(object):
         :param match_gsd(bool):         match the output pixel size to pixel size of the reference image (default: 0)
         :param out_gsd(tuple):          xgsd ygsd: set the output pixel size in map units
                                         (default: original pixel size of the image to be shifted)
+        :param target_xyGrid(list):     a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
+                                        This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
         :param resamp_alg_deshift(str)  the resampling algorithm to be used for shift correction (if neccessary)
                                         valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                           max, min, med, q1, q3
@@ -185,6 +187,8 @@ class COREG(object):
 
         self.params              = dict([x for x in locals().items() if x[0] != "self"])
 
+        # assertions
+        assert fmt_out, "'%s' is not a valid GDAL driver code." %fmt_out
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
         if data_corners_ref and not isinstance(data_corners_ref[0], list): # group if not [[x,y],[x,y]..] but [x,y,x,y,]
@@ -195,10 +199,10 @@ class COREG(object):
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
             assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
-        if resamp_alg_calc=='average':
+        if resamp_alg_calc=='average' and (v or not q):
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
-                          "affect the precision of the calculated spatial shifts! It is highly recommended to"
-                          "choose another resampling algorithm")
+                          "affect the precision of the calculated spatial shifts! It is highly recommended to "
+                          "choose another resampling algorithm.")
 
         self.path_out            = path_out            # updated by self.set_outpathes
         self.fmt_out             = fmt_out
@@ -210,6 +214,7 @@ class COREG(object):
         self.align_grids         = align_grids
         self.match_gsd           = match_gsd
         self.out_gsd             = out_gsd
+        self.target_xyGrid       = target_xyGrid
         self.rspAlg_DS           = resamp_alg_deshift
         self.rspAlg_calc         = resamp_alg_calc
         self.calc_corners        = calc_corners
@@ -975,6 +980,7 @@ class COREG(object):
                        resamp_alg       = self.rspAlg_DS,
                        align_grids      = self.align_grids,
                        match_gsd        = self.match_gsd,
+                       target_xyGrid    = self.target_xyGrid,
                        nodata           = self.shift.nodata,
                        CPUs             = None if self.mp else 1,
                        progress         = self.progress,
