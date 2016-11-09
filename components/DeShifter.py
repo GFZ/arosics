@@ -36,6 +36,8 @@ class DESHIFTER(object):
             - path_out(str):        /output/directory/filename for coregistered results
             - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+            - out_crea_options(list): GDAL creation options for the output image,
+                                    e.g. ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
             - band2process (int):   The index of the band to be processed within the given array (starts with 1),
                                     default = None (all bands are processed)
             - nodata(int, float):   no data value of the image to be de-shifted
@@ -68,18 +70,19 @@ class DESHIFTER(object):
         self.ref_prj            = coreg_results['reference projection']
 
         # unpack kwargs
-        self.path_out     = kwargs.get('path_out'    , None)
-        self.fmt_out      = kwargs.get('fmt_out'     , 'ENVI')
-        self.band2process = kwargs.get('band2process', None) # starts with 1 # FIXME warum?
-        self.nodata       = kwargs.get('nodata'      , self.im2shift.nodata)
-        self.align_grids  = kwargs.get('align_grids' , False)
-        self.rspAlg       = kwargs.get('resamp_alg'  , 'cubic')
-        self.cliptoextent = kwargs.get('cliptoextent', True)
-        self.clipextent   = kwargs.get('clipextent'  , None)
-        self.CPUs         = kwargs.get('CPUs'        , None)
-        self.v            = kwargs.get('v'           , False)
-        self.q            = kwargs.get('q'           , False) if not self.v else False # overridden by v
-        self.progress     = kwargs.get('progress'    , True)  if not self.q else False # overridden by q
+        self.path_out     = kwargs.get('path_out'        , None)
+        self.fmt_out      = kwargs.get('fmt_out'         , 'ENVI')
+        self.out_creaOpt  = kwargs.get('out_crea_options', [])
+        self.band2process = kwargs.get('band2process'    , None) # starts with 1 # FIXME warum?
+        self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
+        self.align_grids  = kwargs.get('align_grids'     , False)
+        self.rspAlg       = kwargs.get('resamp_alg'      , 'cubic')
+        self.cliptoextent = kwargs.get('cliptoextent'    , True)
+        self.clipextent   = kwargs.get('clipextent'      , None)
+        self.CPUs         = kwargs.get('CPUs'            , None)
+        self.v            = kwargs.get('v'               , False)
+        self.q            = kwargs.get('q'               , False) if not self.v else False # overridden by v
+        self.progress     = kwargs.get('progress'        , True)  if not self.q else False # overridden by q
 
         self.im2shift.nodata    = kwargs.get('nodata', self.im2shift.nodata)
         self.im2shift.q         = self.q
@@ -303,7 +306,7 @@ class DESHIFTER(object):
             if self.path_out:
                 out_geoArr        = GeoArray(out_arr, out_gt, out_prj, q=self.q)
                 out_geoArr.nodata = self.nodata # equals self.im2shift.nodata after __init__()
-                out_geoArr.save(self.path_out,fmt=self.fmt_out)
+                out_geoArr.save(self.path_out,fmt=self.fmt_out, creationOptions=self.out_creaOpt)
 
         if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results
