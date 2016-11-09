@@ -24,10 +24,11 @@ from py_tools_ds.ptds                 import GeoArray
 class COREG_LOCAL(object):
     """See help(COREG_LOCAL) for documentation!"""
 
-    def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI', projectDir=None,
-                 r_b4match=1, s_b4match=1, max_iter=5, max_shift=5, footprint_poly_ref=None, footprint_poly_tgt=None,
-                 data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None),
-                 calc_corners=True, binary_ws=True, CPUs=None, progress=True, v=False, q=False, ignore_errors=False):
+    def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI',
+                 out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
+                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
+                 outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True, CPUs=None, progress=True,
+                 v=False, q=False, ignore_errors=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -43,7 +44,10 @@ class COREG_LOCAL(object):
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
         :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
-        :param projectDir:
+        :param out_crea_options(list):  GDAL creation options for the output image,
+                                        e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
+        :param projectDir(str):         name of a project directory where to store all the output results. If given,
+                                        name is inserted into all automatically generated output paths.
         :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
@@ -53,9 +57,11 @@ class COREG_LOCAL(object):
                                                         299999 6000000))'
         :param footprint_poly_tgt(str): footprint polygon of the image to be shifted (WKT string or shapely.geometry.Polygon)
                                         e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
-                                                299999 6000000))'
-        :param data_corners_ref(list):  map coordinates of data corners within reference image
-        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted
+                                                        299999 6000000))'
+        :param data_corners_ref(list):  map coordinates of data corners within reference image.
+                                        ignored if footprint_poly_ref is given.
+        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted.
+                                        ignored if footprint_poly_tgt is given.
         :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
         :param nodata(tuple):           no data values for reference image and image to be shifted
@@ -78,31 +84,31 @@ class COREG_LOCAL(object):
 
         if isinstance(im_ref, GeoArray) and nodata is not None: im_ref.nodata = nodata[0]
         if isinstance(im_tgt, GeoArray) and nodata is not None: im_tgt.nodata = nodata[1]
-        self.imref        = im_ref if isinstance(im_tgt, GeoArray) else GeoArray(im_ref, nodata=nodata[0])
-        self.im2shift     = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt, nodata=nodata[1])
+        self.imref             = im_ref if isinstance(im_tgt, GeoArray) else GeoArray(im_ref, nodata=nodata[0])
+        self.im2shift          = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt, nodata=nodata[1])
         self.imref.progress    = progress
         self.im2shift.progress = progress
         self.imref.q           = q
         self.im2shift.q        = q
 
-
-        self.path_out     = path_out  # updated by self.set_outpathes
-        self.fmt_out      = fmt_out
-        self._projectDir  = projectDir
-        self.grid_res     = grid_res
-        self.window_size  = window_size
-        self.max_shift    = max_shift
-        self.max_iter     = max_iter
-        self.calc_corners = calc_corners
-        self.nodata       = nodata
-        self.outFillVal   = outFillVal
-        self.bin_ws       = binary_ws
-        self.CPUs         = CPUs
-        self.path_verbose_out = '' # TODO
-        self.v            = v
-        self.q            = q if not v else False        # overridden by v
-        self.progress     = progress if not q else False # overridden by v
-        self.ignErr       = ignore_errors
+        self.path_out          = path_out  # updated by self.set_outpathes
+        self.fmt_out           = fmt_out
+        self.out_creaOpt       = out_crea_options
+        self._projectDir       = projectDir
+        self.grid_res          = grid_res
+        self.window_size       = window_size
+        self.max_shift         = max_shift
+        self.max_iter          = max_iter
+        self.calc_corners      = calc_corners
+        self.nodata            = nodata
+        self.outFillVal        = outFillVal
+        self.bin_ws            = binary_ws
+        self.CPUs              = CPUs
+        self.path_verbose_out  = '' # TODO
+        self.v                 = v
+        self.q                 = q if not v else False        # overridden by v
+        self.progress          = progress if not q else False # overridden by v
+        self.ignErr            = ignore_errors
 
         COREG.__dict__['_set_outpathes'](self, self.imref, self.im2shift)
         # make sure that the output directory of coregistered image is the project directory if a project directory is given
@@ -328,15 +334,16 @@ class COREG_LOCAL(object):
                 coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
 
             DS = DESHIFTER(self.im2shift, coreg_info,
-                           path_out     = self.path_out,
-                           fmt_out      = self.fmt_out,
-                           out_gsd      = (self.im2shift.xgsd,self.im2shift.ygsd),
-                           align_grids  = True,
-                           cliptoextent = cliptoextent,
-                           #clipextent   = self.im2shift.box.boxMapYX,
-                           progress     = self.progress,
-                           v            = self.v,
-                           q            = self.q)
+                           path_out         = self.path_out,
+                           fmt_out          = self.fmt_out,
+                           out_crea_options = self.out_creaOpt,
+                           out_gsd          = (self.im2shift.xgsd,self.im2shift.ygsd),
+                           align_grids      = True,
+                           cliptoextent     = cliptoextent,
+                           #clipextent      = self.im2shift.box.boxMapYX,
+                           progress         = self.progress,
+                           v                = self.v,
+                           q                = self.q)
 
             self.deshift_results = DS.correct_shifts()
             return self.deshift_results

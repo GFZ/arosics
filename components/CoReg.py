@@ -115,12 +115,12 @@ class imParamObj(object):
 class COREG(object):
     """See help(COREG) for documentation!"""
 
-    def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', r_b4match=1, s_b4match=1, wp=(None,None),
-                 ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False, out_gsd=None,
-                 resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
-                 data_corners_ref=None, data_corners_tgt=None,
-                 nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
-                 progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
+    def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', out_crea_options=None, r_b4match=1, s_b4match=1,
+                 wp=(None,None), ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
+                 out_gsd=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None,
+                 footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None, nodata=(None,None),
+                 calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True, progress=True, v=False,
+                 path_verbose_out=None, q=False, ignore_errors=False):
 
         """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
         at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
@@ -134,6 +134,8 @@ class COREG(object):
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
         :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+        :param out_crea_options(list):  GDAL creation options for the output image,
+                                        e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
         :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param wp(tuple):               custom matching window position as map values in the same projection like the
@@ -154,10 +156,16 @@ class COREG(object):
                                         (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
                                         default: cubic (highly recommended)
-        :param footprint_poly_ref(str):
-        :param footprint_poly_tgt(str):
-        :param data_corners_ref(list):  map coordinates of data corners within reference image
-        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted
+        :param footprint_poly_ref(str): footprint polygon of the reference image (WKT string or shapely.geometry.Polygon),
+                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
+                                                        299999 6000000))'
+        :param footprint_poly_tgt(str): footprint polygon of the image to be shifted (WKT string or shapely.geometry.Polygon)
+                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
+                                                        299999 6000000))'
+        :param data_corners_ref(list):  map coordinates of data corners within reference image.
+                                        ignored if footprint_poly_ref is given.
+        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted.
+                                        ignored if footprint_poly_tgt is given.
         :param nodata(tuple):           no data values for reference image and image to be shifted
         :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
                                         matching window position within the actual image overlap
@@ -194,6 +202,7 @@ class COREG(object):
 
         self.path_out            = path_out            # updated by self.set_outpathes
         self.fmt_out             = fmt_out
+        self.out_creaOpt         = out_crea_options
         self.win_pos_XY          = wp                  # updated by self.get_opt_winpos_winsize()
         self.win_size_XY         = ws                  # updated by self.get_opt_winpos_winsize()
         self.max_iter            = max_iter
@@ -959,17 +968,18 @@ class COREG(object):
 
     def correct_shifts(self):
         DS = DESHIFTER(self.shift.GeoArray, self.coreg_info,
-                       path_out     = self.path_out,
-                       fmt_out      = self.fmt_out,
-                       out_gsd      = self.out_gsd,
-                       resamp_alg   = self.rspAlg_DS,
-                       align_grids  = self.align_grids,
-                       match_gsd    = self.match_gsd,
-                       nodata       = self.shift.nodata,
-                       CPUs         = None if self.mp else 1,
-                       progress     = self.progress,
-                       v            = self.v,
-                       q            = self.q)
+                       path_out         = self.path_out,
+                       fmt_out          = self.fmt_out,
+                       out_crea_options = self.out_creaOpt,
+                       out_gsd          = self.out_gsd,
+                       resamp_alg       = self.rspAlg_DS,
+                       align_grids      = self.align_grids,
+                       match_gsd        = self.match_gsd,
+                       nodata           = self.shift.nodata,
+                       CPUs             = None if self.mp else 1,
+                       progress         = self.progress,
+                       v                = self.v,
+                       q                = self.q)
         self.deshift_results = DS.correct_shifts()
         return self.deshift_results
 

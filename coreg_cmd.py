@@ -42,6 +42,7 @@ def run_global_coreg(args):
     COREG_obj = COREG(args.path_im0,
                       args.path_im1,
                       path_out         = args.path_out,
+                      fmt_out          = args.fmt_out,
                       r_b4match        = args.br,
                       s_b4match        = args.bs,
                       wp               = args.wp,
@@ -155,6 +156,11 @@ if __name__ == '__main__':
 
     gloArg('-o', nargs='?', dest='path_out', type=str, default='auto',
            help="target path of the coregistered image (default: /dir/of/im1/<im1>__shifted_to__<im0>.bsq)")
+
+    gloArg('-fmt_out', nargs='?', type=str, help="raster file format for output file. ignored if path_out is None. can "
+           "be any GDAL compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)", default='ENVI')
+
+
 
     gloArg('-br', nargs='?', type=int,
            help='band of reference image to be used for matching (starts with 1; default: 1)', default=1)
