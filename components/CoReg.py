@@ -37,6 +37,7 @@ from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, reproject_shapel
 from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.ptds.geo.map_info         import geotransform2mapinfo
 from py_tools_ds.ptds.numeric.vector       import find_nearest
+from py_tools_ds.ptds.similarity.raster    import calc_ssim
 
 
 
@@ -62,13 +63,14 @@ class imParamObj(object):
         self.title = os.path.basename(self.GeoArray.filePath) if self.GeoArray.filePath else self.imName
 
         # set params
-        self.prj   = self.GeoArray.projection
-        self.gt    = self.GeoArray.geotransform
-        self.xgsd  = self.GeoArray.xgsd
-        self.ygsd  = self.GeoArray.ygsd
-        self.rows  = self.GeoArray.rows
-        self.cols  = self.GeoArray.cols
-        self.bands = self.GeoArray.bands
+        self.prj          = self.GeoArray.projection
+        self.gt           = self.GeoArray.geotransform
+        self.xgsd         = self.GeoArray.xgsd
+        self.ygsd         = self.GeoArray.ygsd
+        self.xygrid_specs = self.GeoArray.xygrid_specs
+        self.rows         = self.GeoArray.rows
+        self.cols         = self.GeoArray.cols
+        self.bands        = self.GeoArray.bands
 
         # validate params
         assert self.prj, 'The %s has no projection.' % self.imName
@@ -77,9 +79,9 @@ class imParamObj(object):
 
         # set band4match
         self.band4match = (CoReg_params['r_b4match'] if imID == 'ref' else CoReg_params['s_b4match'])-1
-        assert self.bands >= self.band4match+1 >= 1, "The %s has %s %s. So its band number to match must be %s%s." \
-            % (self.imName, self.bands, 'bands' if self.bands > 1 else 'band', 'between 1 and '
-                if self.bands > 1 else '', self.bands)
+        assert self.bands >= self.band4match+1 >= 1, "The %s has %s %s. So its band number to match must be %s%s. " \
+            "Got %s." % (self.imName, self.bands, 'bands' if self.bands > 1 else 'band', 'between 1 and '
+            if self.bands > 1 else '', self.bands, self.band4match)
 
         # set nodata
         if CoReg_params['nodata'][0 if imID == 'ref' else 1] is not None:
@@ -117,10 +119,10 @@ class COREG(object):
 
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', out_crea_options=None, r_b4match=1, s_b4match=1,
                  wp=(None,None), ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
-                 out_gsd=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None,
-                 footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None, nodata=(None,None),
-                 calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True, progress=True, v=False,
-                 path_verbose_out=None, q=False, ignore_errors=False):
+                 out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
+                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
+                 nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
+                 progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
 
         """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
         at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
@@ -147,6 +149,8 @@ class COREG(object):
         :param match_gsd(bool):         match the output pixel size to pixel size of the reference image (default: 0)
         :param out_gsd(tuple):          xgsd ygsd: set the output pixel size in map units
                                         (default: original pixel size of the image to be shifted)
+        :param target_xyGrid(list):     a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
+                                        This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
         :param resamp_alg_deshift(str)  the resampling algorithm to be used for shift correction (if neccessary)
                                         valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                           max, min, med, q1, q3
@@ -185,6 +189,8 @@ class COREG(object):
 
         self.params              = dict([x for x in locals().items() if x[0] != "self"])
 
+        # assertions
+        assert fmt_out, "'%s' is not a valid GDAL driver code." %fmt_out
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
         if data_corners_ref and not isinstance(data_corners_ref[0], list): # group if not [[x,y],[x,y]..] but [x,y,x,y,]
@@ -195,10 +201,10 @@ class COREG(object):
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
             assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
-        if resamp_alg_calc=='average':
+        if resamp_alg_calc=='average' and (v or not q):
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
-                          "affect the precision of the calculated spatial shifts! It is highly recommended to"
-                          "choose another resampling algorithm")
+                          "affect the precision of the calculated spatial shifts! It is highly recommended to "
+                          "choose another resampling algorithm.")
 
         self.path_out            = path_out            # updated by self.set_outpathes
         self.fmt_out             = fmt_out
@@ -210,6 +216,7 @@ class COREG(object):
         self.align_grids         = align_grids
         self.match_gsd           = match_gsd
         self.out_gsd             = out_gsd
+        self.target_xyGrid       = target_xyGrid
         self.rspAlg_DS           = resamp_alg_deshift
         self.rspAlg_calc         = resamp_alg_calc
         self.calc_corners        = calc_corners
@@ -237,6 +244,9 @@ class COREG(object):
         self.vec_length_map      = None
         self.vec_angle_deg       = None
         self.updated_map_info    = None                # set by self.get_updated_map_info()
+        self.ssim_orig           = None                # set by self._validate_ssim_improvement()
+        self.ssim_deshifted      = None                # set by self._validate_ssim_improvement()
+        self._ssim_improved      = None                # private attribute to be filled by self.ssim_improved
 
         self.tracked_errors      = []                  # expanded each time an error occurs
         self.success             = None                # default
@@ -389,8 +399,14 @@ class COREG(object):
             wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
         # validate window position
-        assert self.overlap_poly.contains(Point(wp)), 'The provided window position %s/%s is outside of the overlap ' \
-                                                      'area of the two input images. Check the coordinates.' %wp
+        if not self.overlap_poly.contains(Point(wp)):
+            self.success=False
+            self.tracked_errors.append(ValueError('The provided window position %s/%s is outside of the overlap ' \
+                                                  'area of the two input images. Check the coordinates.' %wp))
+            if not self.ignErr:
+                raise self.tracked_errors[-1]
+#        assert self.overlap_poly.contains(Point(wp)), 'The provided window position %s/%s is outside of the overlap ' \
+#                                                      'area of the two input images. Check the coordinates.' %wp
         #for im in [self.ref, self.shift]:
         #    imX, imY = mapXY2imXY(wp, im.gt)
             #if self.ignErr:
@@ -517,7 +533,7 @@ class COREG(object):
                                           self.matchWin.imParams.prj,
                                           out_gsd    = (self.imfft_gsd, self.imfft_gsd),
                                           out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
-                                          rspAlg     = self.rspAlg_calc,
+                                          rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg_calc],
                                           in_nodata  = self.otherWin.imParams.nodata,
                                           CPUs       = None if self.mp else 1,
                                           progress   = False) [0]
@@ -746,78 +762,110 @@ class COREG(object):
         return x_intshift+x_subshift, y_intshift+y_subshift
 
 
-    def _validate_ssim_improvement(self):
+    def _get_deshifted_otherWin(self):
+        """Returns a de-shifted version of self.otherWin as a GeoArray instance.The output dimensions and geographic
+        bounds are equal to those of self.matchWin and geometric shifts are corrected according to the previously
+        computed X/Y shifts within the matching window. This allows direct application of algorithms e.g. measuring
+        image similarity.
+
+        The image subset that is resampled in this function is always the same that has been resampled during
+        computation of geometric shifts (usually the image with the higher geometric resolution).
+
+        :returns:   GeoArray instance of de-shifted self.otherWin
+        """
+
+        # shift vectors have been calculated to fit target image onto reference image
+        # -> so the shift vectors have to be inverted if shifts are applied to reference image
+        coreg_info = self._get_inverted_coreg_info() if self.otherWin.imParams.imName=='reference image' else \
+                     self.coreg_info
+
+        ds_results = DESHIFTER(self.otherWin.imParams.GeoArray, coreg_info,
+                               band2process  = self.otherWin.imParams.band4match+1,
+                               clipextent    = list(np.array(self.matchWin.boundsMap)[[0,2,1,3]]),
+                               target_xyGrid = self.matchWin.imParams.xygrid_specs,
+                               q             = True
+                               ).correct_shifts()
+        return ds_results['GeoArray_shifted']
+
+
+    def _validate_ssim_improvement(self, v=False):
+        """Computes mean structural similarity index between reference and target image before and after correction
+        of geometric shifts..
+
+        :param v:   <bool> verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
+        :return:    <tuple> SSIM before an after shift correction
+        """
+
+        assert self.success is not None,\
+            'Calculate geometric shifts first before trying to measure image similarity improvement!'
+        assert self.success in [True, None],\
+            'Since calculation of geometric shifts failed, no image similarity improvement can be measured.'
+
         # get image dynamic range
-        dr = max(self.ref.win.data.max(), self.shift.win.data.max()) - \
-             min(self.ref.win.data.max(), self.shift.win.data.max())
 
-        # compute ssim BEFORE shift correction
-        from py_tools_ds.ptds.similarity.raster import calc_ssim
-        ssim_before = calc_ssim(self.matchWin.data, self.otherWin.data, dynamic_range=dr)
-        print('SSIM before', ssim_before)
-
-        #ws = int(self.matchWin.imDimsYX[1]), int(self.matchWin.imDimsYX[0])
-
-        # get shifted GeoArray in the reference image grid
-        shifted_geoArr         = copy(self.shift.GeoArray)
-        geotransform           = list(shifted_geoArr.gt)
-        geotransform[0]       += self.x_shift_map
-        geotransform[3]       += self.y_shift_map
-        shifted_geoArr.gt      = geotransform
-        tgt_xmin, tgt_xmax, tgt_ymin, tgt_ymax = self.ref.win.boundsMap
-
-        arr2warp = shifted_geoArr[:,:,self.shift.band4match] if shifted_geoArr.ndim==3 else shifted_geoArr[:] # FIXME dont read complete band
-
-        from py_tools_ds.ptds.io.raster.GeoArray import get_array_at_mapPos
-        sub_arr, sub_gt, sub_prj = get_array_at_mapPos(arr2warp, shifted_geoArr.gt, shifted_geoArr.prj, self.ref.prj,
-                                                       mapBounds=(tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax),
-                                                       mapBounds_prj=self.ref.prj,
-                                                       out_gsd=(5,5), # FIXME stimmt das?
-                                                       rspAlg='cubic')
-
-        # # otherWin per subset-read einlesen
-        # rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherWin.boxImYX)
-        # assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])), \
-        #     'Got negative values in gdalReadInputs for %s.' % self.otherWin.imParams.imName
-        # data2warp = shifted_geoArr[rS:rE, cS:cE, self.otherWin.imParams.band4match]
-        #
-        #
-        # if self.v:
-        #     print('Original matching windows:')
-        #     ref_data, shift_data =  (self.matchWin.data, self.otherWin.data) if self.grid2use=='ref' else \
-        #                             (self.otherWin.data, self.matchWin.data)
-        #     PLT.subplot_imshow([ref_data, shift_data],[self.ref.title,self.shift.title], grid=True)
-        #
-        # otherWin_subgt = GEO.get_subset_GeoTransform(self.otherWin.gt, self.otherWin.boxImYX)
-        #
-        # # resample otherWin.data to the resolution of matchWin AND make sure the pixel edges are identical
-        # # (in order to make each image show the same window with the same coordinates)
-        # # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
-        # #tgt_xmin,tgt_xmax,tgt_ymin,tgt_ymax = self.matchWin.boundsMap
-        # sub_arr = warp_ndarray(data2warp,
-        #                                   otherWin_subgt,
-        #                                   self.shift.prj,
-        #                                   self.ref.prj,
-        #                                   out_gsd    = (self.imfft_gsd, self.imfft_gsd),
-        #                                   out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
-        #                                   rspAlg     = self.rspAlg_calc,
-        #                                   in_nodata  = self.shift.nodata,
-        #                                   CPUs       = None if self.mp else 1,
-        #                                   progress   = False) [0]
+        dr = max(self.matchWin.data.max(), self.otherWin.data.max()) - \
+             min(self.matchWin.data.min(), self.otherWin.data.min())
 
 
+        # compute SSIM BEFORE shift correction
+        self.ssim_orig = calc_ssim(self.matchWin.data, self.otherWin.data, dynamic_range=dr, gaussian_weights=True)
 
 
-        #out_arr, out_gt, out_prj = \
-        #    warp_ndarray(arr, arr_gt, arr_prj, out_prj=out_prj, out_bounds=mapBounds, out_bounds_prj=mapBounds_prj,
-        #                 in_nodata=fillVal, out_nodata=fillVal, rspAlg=rspAlg, out_gsd=out_gsd)
+        # compute SSIM AFTER shift correction
 
-        print(sub_arr.shape)
-        #GeoArray(sub_arr).show(figsize=(15,15))
+        ## resample otherWin while correcting detected shifts and match geographic bounds of matchWin
+        otherWin_deshift_geoArr = self._get_deshifted_otherWin()
 
-        ssim_after = calc_ssim(sub_arr, self.otherWin.data)
-        print('SSIM after', ssim_after)
+        ## get the corresponding matchWin data
+        matchWinData = self.matchWin.data
 
+        ## check if shapes of two images are equal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
+        ## the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
+        if not self.matchWin.data.shape == otherWin_deshift_geoArr.shape:
+            matchWinData, matchWinGt, matchWinPrj = self.matchWin.imParams.GeoArray.get_mapPos(
+                    list(np.array(self.matchWin.boundsMap)[[0, 2, 1, 3]]), self.matchWin.imParams.prj, rspAlg='cubic',
+                    band2get=self.matchWin.imParams.band4match)
+
+        self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr, gaussian_weights=True)
+
+
+        if v:
+            GeoArray(matchWinData).show()
+            GeoArray(self.otherWin.data).show()
+            otherWin_deshift_geoArr.show()
+
+        if not self.q:
+            print('Image similarity within the matching window (SSIM before/after correction): %.4f => %.4f'
+                  % (self.ssim_orig, self.ssim_deshifted))
+
+        self.ssim_improved = self.ssim_orig < self.ssim_deshifted
+
+        # write win data to disk
+        #outDir = '/home/gfz-fe/scheffler/temp/ssim_debugging/'
+        #GeoArray(matchWinData, matchWinGt, matchWinPrj).save(outDir+'matchWinData.bsq')
+
+        #otherWinGt = (self.otherWin.boundsMap[0], self.matchWin.imParams.xgsd, 0, self.otherWin.boundsMap[3], 0, -self.matchWin.imParams.ygsd)
+        #GeoArray(self.otherWin.data, therWinGt, self.otherWin.imParams.prj).save(outDir+'otherWin.data.bsq')
+
+        # otherWin_deshift_geoArr.save(outDir+''shifted.bsq')
+
+        return self.ssim_orig, self.ssim_deshifted
+
+
+    @property
+    def ssim_improved(self):
+        """Returns True if image similarity within the matching window has been improved by correcting the previously
+         computed geometric shifts."""
+        if self.success is True:
+            if self._ssim_improved is None:
+                ssim_orig, ssim_deshifted = self._validate_ssim_improvement()
+                self._ssim_improved       = ssim_orig <= ssim_deshifted
+            return self._ssim_improved
+
+
+    @ssim_improved.setter
+    def ssim_improved(self, has_improved):
+        self._ssim_improved = has_improved
 
 
     def calculate_spatial_shifts(self):
@@ -928,8 +976,12 @@ class COREG(object):
                     print('Calculated absolute shift vector length in map units:     %s'    %self.vec_length_map)
                     print('Calculated angle of shift vector in degrees from North:   %s'    %self.vec_angle_deg)
 
+
         if self.x_shift_px or self.y_shift_px:
             self._get_updated_map_info()
+
+            # set self.ssim_before and ssim_after
+            self._validate_ssim_improvement()
 
         warnings.simplefilter('default')
 
@@ -966,6 +1018,28 @@ class COREG(object):
             return self.coreg_info
 
 
+    def _get_inverted_coreg_info(self):
+        """Returns an inverted dictionary of coreg_info that can be passed to DESHIFTER in order to fit the REFERENCE
+        image onto the TARGET image."""
+        inv_coreg_info = copy(self.coreg_info)
+        inv_coreg_info['corrected_shifts_px']['x']  *= -1
+        inv_coreg_info['corrected_shifts_px']['y']  *= -1
+        inv_coreg_info['corrected_shifts_map']['x'] *= -1
+        inv_coreg_info['corrected_shifts_map']['y'] *= -1
+        inv_coreg_info['original map info']          = geotransform2mapinfo(self.ref.gt, self.ref.prj)
+        inv_coreg_info['reference geotransform']     = self.shift.gt
+        inv_coreg_info['reference grid']             = self.shift.xygrid_specs
+        inv_coreg_info['reference projection']       = self.shift.prj
+
+        if inv_coreg_info['updated map info']:
+            updated_map_info    = copy(inv_coreg_info['original map info'] )
+            updated_map_info[3] = str(float(inv_coreg_info['original map info'][3]) - self.x_shift_map)
+            updated_map_info[4] = str(float(inv_coreg_info['original map info'][4]) - self.y_shift_map)
+            inv_coreg_info['updated map info'] = updated_map_info
+
+        return inv_coreg_info
+
+
     def correct_shifts(self):
         DS = DESHIFTER(self.shift.GeoArray, self.coreg_info,
                        path_out         = self.path_out,
@@ -975,6 +1049,7 @@ class COREG(object):
                        resamp_alg       = self.rspAlg_DS,
                        align_grids      = self.align_grids,
                        match_gsd        = self.match_gsd,
+                       target_xyGrid    = self.target_xyGrid,
                        nodata           = self.shift.nodata,
                        CPUs             = None if self.mp else 1,
                        progress         = self.progress,

@@ -48,7 +48,8 @@ class DESHIFTER(object):
                                     (5:30 or 10:30 but not 4:30), default = False
             - match_gsd (bool):     True: match the input pixel size to the reference pixel size,
                                     default = False
-            - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]]
+            - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]].
+                                    This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
             - resamp_alg(str)       the resampling algorithm to be used if neccessary
                                     (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
@@ -62,6 +63,10 @@ class DESHIFTER(object):
             - q(bool):              quiet mode (default: False)
 
         """
+        # TODO validate kwargs for typos
+        self.init_args   = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
+        self.init_kwargs = self.init_args['kwargs']
+
         # unpack args
         self.im2shift           = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
         self.GCPList            = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
@@ -74,6 +79,7 @@ class DESHIFTER(object):
         self.fmt_out      = kwargs.get('fmt_out'         , 'ENVI')
         self.out_creaOpt  = kwargs.get('out_crea_options', [])
         self.band2process = kwargs.get('band2process'    , None) # starts with 1 # FIXME warum?
+        self.band2process = self.band2process-1 if self.band2process is not None else None # internally handled as band index
         self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids'     , False)
         self.rspAlg       = kwargs.get('resamp_alg'      , 'cubic')
@@ -88,6 +94,7 @@ class DESHIFTER(object):
         self.im2shift.q         = self.q
         self.shift_prj          = self.im2shift.projection
         self.shift_gt           = list(self.im2shift.geotransform)
+
         if not self.GCPList:
             mapI                   = coreg_results['updated map info']
             self.updated_map_info  = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
@@ -95,12 +102,17 @@ class DESHIFTER(object):
             self.updated_gt        = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
         self.updated_projection    = self.ref_prj
 
-        self.out_grid = self._get_out_grid(kwargs) # needs self.ref_grid, self.im2shift
+        self.out_grid = self._get_out_grid() # needs self.ref_grid, self.im2shift
         self.out_gsd  = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
         # assertions
         assert self.rspAlg  in _dict_rspAlg_rsp_Int.keys(), \
             "'%s' is not a supported resampling algorithm." %self.rspAlg
+        if self.band2process is not None:
+            assert self.im2shift.bands-1 >= self.band2process >= 0, "The %s '%s' has %s %s. So 'band2process' must be " \
+                "%s%s. Got %s." % (self.im2shift.__class__.__name__, self.im2shift.basename, self.im2shift.bands,
+                'bands' if self.im2shift.bands > 1 else 'band', 'between 1 and ' if self.im2shift.bands > 1 else '',
+                self.im2shift.bands, self.band2process+1)
 
         # set defaults for general class attributes
         self.is_shifted       = False # this is not included in COREG.coreg_info
@@ -110,11 +122,11 @@ class DESHIFTER(object):
         self.GeoArray_shifted = None  # set by self.correct_shifts
 
 
-    def _get_out_grid(self, init_kwargs):
+    def _get_out_grid(self):
         # parse given params
-        out_gsd     = init_kwargs.get('out_gsd'      , None)
-        match_gsd   = init_kwargs.get('match_gsd'    , False)
-        out_grid    = init_kwargs.get('target_xyGrid', None)
+        out_gsd     = self.init_kwargs.get('out_gsd'      , None)
+        match_gsd   = self.init_kwargs.get('match_gsd'    , False)
+        out_grid    = self.init_kwargs.get('target_xyGrid', None)
 
         # assertions
         assert out_grid is None or (isinstance(out_grid,(list, tuple))      and len(out_grid)==2)
@@ -158,35 +170,37 @@ class DESHIFTER(object):
                 return get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
 
 
-    @staticmethod
-    def _grids_alignable(in_xgsd, in_ygsd, out_xgsd, out_ygsd):
+    def _grids_alignable(self,in_xgsd, in_ygsd, out_xgsd, out_ygsd):
         is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
         if not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd):
-            warnings.warn("\nThe targeted output coordinate grid is not alignable with the image to be shifted because "
-                          "their pixel sizes are not exact multiples of each other (input [X/Y]: "
-                          "%s %s; output [X/Y]: %s %s). Therefore the targeted output grid is "
-                          "chosen for the resampled output image. If you don´t like that you can use the '-out_gsd' "
-                          "parameter to set an appropriate output pixel size.\n"
-                          % (in_xgsd, in_ygsd, out_xgsd, out_ygsd))
+            if not self.q:
+                warnings.warn("\nThe coordinate grid of the image to be shifted cannot be aligned to the reference "
+                              "grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
+                              "%s/%s; output [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
+                              "output image. If you don´t like that you can use the '-out_gsd' parameter to set an "
+                              "appropriate output pixel size.\n" % (in_xgsd, in_ygsd, out_xgsd, out_ygsd))
             return False
         else:
             return True
 
 
     def _get_out_extent(self):
-        if self.cliptoextent and self.clipextent is None:
-            self.clipextent        = self.im2shift.footprint_poly.envelope.bounds
-        else:
-            xmin, xmax, ymin, ymax = self.im2shift.box.boundsMap
-            self.clipextent        = xmin, ymin, xmax, ymax
-
+        if self.clipextent is None:
+            # no clip extent has been given
+            if self.cliptoextent:
+                # use actual image corners as clip extent
+                self.clipextent        = self.im2shift.footprint_poly.envelope.bounds
+            else:
+                # use outer bounds of the image as clip extent
+                xmin, xmax, ymin, ymax = self.im2shift.box.boundsMap
+                self.clipextent        = xmin, ymin, xmax, ymax
 
         # snap clipextent to output grid (in case of odd input coords the output coords are moved INSIDE the input array)
         xmin, ymin, xmax, ymax = self.clipextent
         xmin = find_nearest(self.out_grid[0], xmin, roundAlg='on' , extrapolate=True)
         ymin = find_nearest(self.out_grid[1], ymin, roundAlg='on' , extrapolate=True)
         xmax = find_nearest(self.out_grid[0], xmax, roundAlg='off', extrapolate=True)
-        ymax = find_nearest(self.out_grid[0], ymax, roundAlg='off', extrapolate=True)
+        ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True)
         return xmin, ymin, xmax, ymax
 
 
@@ -199,7 +213,8 @@ class DESHIFTER(object):
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.align_grids and not self.GCPList:
+        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.align_grids and \
+                not self.GCPList and not self.init_kwargs.get('target_xyGrid',None):
             # FIXME buggy condition:
             # reconstructable with correct_spatial_shifts from GMS
             #DS = DESHIFTER(geoArr, self.coreg_info,
@@ -216,11 +231,12 @@ class DESHIFTER(object):
 
                 # clip with target extent
                 self.arr_shifted, self.updated_gt, self.updated_projection = \
-                        shifted_geoArr.get_mapPos((xmin,ymin,xmax,ymax), self.shift_prj, fillVal=self.nodata)
+                        shifted_geoArr.get_mapPos((xmin,ymin,xmax,ymax), self.shift_prj, fillVal=self.nodata,
+                                                  band2get=self.band2process)
                 self.updated_map_info = geotransform2mapinfo(self.updated_gt, self.updated_projection)
             else:
                 # array keeps the same; updated gt and prj are taken from coreg_info
-                self.arr_shifted = self.im2shift[:]
+                self.arr_shifted = self.im2shift[:,:,self.band2process]
             self.GeoArray_shifted = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
 
             if self.path_out:
@@ -269,7 +285,9 @@ class DESHIFTER(object):
             #
             #     # TO DO implement output writer
 
-            in_arr = self.im2shift[self.band2process] if self.band2process else self.im2shift[:]
+            # FIXME avoid reading the whole band if clip_extent is passed
+            in_arr = self.im2shift[:,:,self.band2process] if self.band2process is not None and self.im2shift.ndim==3\
+                        else self.im2shift[:]
 
             if not self.GCPList:
                 # apply XY-shifts to shift_gt
@@ -289,7 +307,7 @@ class DESHIFTER(object):
                              #warpOptions= ['-refine_gcps 500 1.9'],
                              #options      = '-wm 10000',# -order 3',
                              #options      = ['-order 3'],
-#                                 options = ['GDAL_CACHEMAX 800 '],
+                             #options = ['GDAL_CACHEMAX 800 '],
                              #warpMemoryLimit=125829120, # 120MB
                              CPUs       = self.CPUs,
                              progress   = self.progress,
