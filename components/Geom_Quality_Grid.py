@@ -28,13 +28,14 @@ from py_tools_ds.ptds.processing.progress_mon import ProgressBar
 
 global_shared_imref    = None
 global_shared_im2shift = None
+overlap_poly =None
 
 
 class Geom_Quality_Grid(object):
     """See help(Geom_Quality_Grid) for documentation!"""
 
-    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, resamp_alg_calc='cubic', dir_out=None, CPUs=None,
-                 progress=True, v=False, q=False):
+    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, resamp_alg_calc='cubic', tieP_filter_level=1,
+                 dir_out=None, CPUs=None, progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -50,6 +51,11 @@ class Geom_Quality_Grid(object):
                                         (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
                                         default: cubic (highly recommended)
+        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels:
+                                            - Level 0: no tie point filtering
+                                            - Level 1: SSIM filtering - filters all tie points out where shift
+                                                correction does not increase image similarity within matching window
+                                                (measured by mean structural similarity index)
         :param dir_out(str):            output directory to be used for all outputs if nothing else is given
                                         to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
@@ -61,18 +67,19 @@ class Geom_Quality_Grid(object):
 
         if not isinstance(COREG_obj, COREG): raise ValueError("'COREG_obj' must be an instance of COREG class.")
 
-        self.COREG_obj   = COREG_obj
-        self.grid_res    = grid_res
-        self.outFillVal  = outFillVal
-        self.rspAlg_calc = resamp_alg_calc
-        self.dir_out     = dir_out
-        self.CPUs        = CPUs
-        self.v           = v
-        self.q           = q        if not v else False # overridden by v
-        self.progress    = progress if not q else False # overridden by q
+        self.COREG_obj         = COREG_obj
+        self.grid_res          = grid_res
+        self.outFillVal        = outFillVal
+        self.rspAlg_calc       = resamp_alg_calc
+        self.tieP_filter_level = tieP_filter_level
+        self.dir_out           = dir_out
+        self.CPUs              = CPUs
+        self.v                 = v
+        self.q                 = q        if not v else False # overridden by v
+        self.progress          = progress if not q else False # overridden by q
 
-        self.ref         = self.COREG_obj.ref  .GeoArray
-        self.shift       = self.COREG_obj.shift.GeoArray
+        self.ref               = self.COREG_obj.ref  .GeoArray
+        self.shift             = self.COREG_obj.shift.GeoArray
 
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table           = None # set by self.CoRegPoints_table
@@ -150,12 +157,17 @@ class Geom_Quality_Grid(object):
         assert global_shared_im2shift is not None
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
-
-        CR_res = [int(CR.matchWin.imDimsYX[1]), int(CR.matchWin.imDimsYX[0]),
-                  CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
-                  CR.vec_length_map, CR.vec_angle_deg]
+        last_err           = CR.tracked_errors[-1] if CR.tracked_errors else None
+        win_sz_y, win_sz_x = CR.matchWin.imDimsYX if CR.matchWin else (None, None)
+        CR_res   = [win_sz_x, win_sz_y,
+                    CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
+                    CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved, last_err]
 
         return [pointID]+CR_res
+
+    @staticmethod
+    def is_within(point):
+        return point.within(overlap_poly)
 
 
     def get_CoRegPoints_table(self, exclude_outliers=1):
@@ -173,7 +185,7 @@ class Geom_Quality_Grid(object):
         #    self.path_im2shift = tgt_pathTmp
         #ref_ds=tgt_ds=None
 
-        XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point])
+        XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point]) # FIXME replace that with coord image reprojection
         geomPoints      = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
 
         if isProjectedOrGeographic(self.COREG_obj.shift.prj)=='geographic':
@@ -181,7 +193,7 @@ class Geom_Quality_Grid(object):
         elif isProjectedOrGeographic(self.COREG_obj.shift.prj)=='projected':
             UTMzone = abs(get_UTMzone(prj=self.COREG_obj.shift.prj))
             south   = get_UTMzone(prj=self.COREG_obj.shift.prj)<0
-            crs     = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone,south=south,units='m', no_defs=True)
+            crs     = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone, south=south, units='m', no_defs=True)
             if not south: del crs['south']
         else:
             crs = None
@@ -194,7 +206,7 @@ class Geom_Quality_Grid(object):
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
 
         if exclude_outliers:
-            GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly)]
+            GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))]
 
         assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check yout input data!' # FIXME track that
 
@@ -240,7 +252,6 @@ class Geom_Quality_Grid(object):
                 cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
                 print("Calculating geometric quality grid (%s points) using %s CPU cores..." %(len(GDF), cpus))
 
-            t0 = time.time()
             with multiprocessing.Pool(self.CPUs) as pool:
                 if self.q or not self.progress:
                     results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
@@ -258,7 +269,7 @@ class Geom_Quality_Grid(object):
         else:
             if not self.q:
                 print("Calculating geometric quality grid (%s points) 1 CPU core..." %len(GDF))
-            results = np.empty((len(geomPoints),9))
+            results = np.empty((len(geomPoints),13), np.object)
             bar     = ProgressBar(prefix='\tprogress:')
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
                 if self.progress:
@@ -267,9 +278,10 @@ class Geom_Quality_Grid(object):
             # FIXME in some cases the code hangs here ==> x
 
          # merge results with GDF
-        records = GeoDataFrame(np.array(results, np.object), columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE',
-                                                                      'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M',
-                                                                      'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE'])
+        records = GeoDataFrame(np.array(results, np.object),
+                               columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M',
+                                        'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
+                                        'SSIM_IMPROVED', 'LAST_ERR'])
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
@@ -293,6 +305,13 @@ class Geom_Quality_Grid(object):
         if getattr(GDF,'empty'): # GDF.empty returns AttributeError
             return []
         else:
+            orig_len_GDF = len(GDF)
+            if self.tieP_filter_level>0:
+                # SSIM filtering
+                GDF = GDF[GDF.SSIM_IMPROVED==True].copy()
+                if not self.q:
+                    print('SSIM filtering removed %s tie points.' %(orig_len_GDF-len(GDF)))
+
             # calculate GCPs
             GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
             GDF['Y_UTM_new'] = GDF.Y_UTM + GDF.Y_SHIFT_M

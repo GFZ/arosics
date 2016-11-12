@@ -26,10 +26,10 @@ class COREG_LOCAL(object):
 
     def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI',
                  out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
-                 align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic',
-                 resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None,
-                 data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True,
-                 CPUs=None, progress=True, v=False, q=False, ignore_errors=False):
+                 tieP_filter_level=1, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
+                 resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
+                 data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
+                 binary_ws=True, CPUs=None, progress=True, v=False, q=False, ignore_errors=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -53,6 +53,11 @@ class COREG_LOCAL(object):
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
         :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
+        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels:
+                                            - Level 0: no tie point filtering
+                                            - Level 1: SSIM filtering - filters all tie points out where shift
+                                                correction does not increase image similarity within matching window
+                                                (measured by mean structural similarity index)
         :param out_gsd (float):         output pixel size in units of the reference coordinate system (default = pixel
                                         size of the input array), given values are overridden by match_gsd=True
         :param align_grids (bool):      True: align the input coordinate grid to the reference (does not affect the
@@ -120,6 +125,7 @@ class COREG_LOCAL(object):
         self.window_size       = window_size
         self.max_shift         = max_shift
         self.max_iter          = max_iter
+        self.tieP_filter_level = tieP_filter_level
         self.align_grids       = align_grids
         self.match_gsd         = match_gsd
         self.out_gsd           = out_gsd
@@ -191,9 +197,15 @@ class COREG_LOCAL(object):
         if self._quality_grid:
             return self._quality_grid
         else:
-            self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res, outFillVal=self.outFillVal,
-                                                   resamp_alg_calc=self.rspAlg_calc, dir_out=self.projectDir,
-                                                   CPUs=self.CPUs, progress=self.progress, v=self.v, q=self.q)
+            self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res,
+                                                   outFillVal        = self.outFillVal,
+                                                   resamp_alg_calc   = self.rspAlg_calc,
+                                                   tieP_filter_level = self.tieP_filter_level,
+                                                   dir_out           = self.projectDir,
+                                                   CPUs              = self.CPUs,
+                                                   progress          = self.progress,
+                                                   v                 = self.v,
+                                                   q                 = self.q)
             if self.v:
                 self.view_CoRegPoints(figsize=(10,10))
             return self._quality_grid
@@ -223,7 +235,7 @@ class COREG_LOCAL(object):
 
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
-                         figsize=None, savefigPath='', savefigDPI=96):
+                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96):
         """Shows a map of the calculated quality grid with the target image as background.
 
         :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
@@ -232,6 +244,7 @@ class COREG_LOCAL(object):
         :param exclude_fillVals:    <bool> whether to exclude those points of the grid where spatial shift detection failed
         :param backgroundIm:        <str> whether to use the target or the reference image as map background. Possible
                                           options are 'ref' and 'tgt' (default: 'tgt')
+        :param hide_filtered:       <bool> hide all points that have been filtered out according to tie point filter level
         :param figsize:             <tuple> size of the figure to be viewed, e.g. (10,10)
         :param savefigPath:
         :param savefigDPI:
@@ -248,8 +261,8 @@ class COREG_LOCAL(object):
 
         # transform all points of quality grid to LonLat
         GDF = self.CoRegPoints_table.loc\
-                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot]].copy() \
-                if exclude_fillVals else self.CoRegPoints_table.loc[:, ['geometry', attribute2plot]]
+                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot, 'SSIM_IMPROVED']].copy() \
+                if exclude_fillVals else self.CoRegPoints_table.loc[:, ['geometry', attribute2plot, 'SSIM_IMPROVED']]
 
         # get LonLat coordinates for all points
         get_LonLat    = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
@@ -268,6 +281,16 @@ class COREG_LOCAL(object):
         GDF['plt_XY'] = list(GDF['LonLat'].map(lambda ll: map2show(*ll)))
         GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
         GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
+
+        if not hide_filtered and self.tieP_filter_level>0:
+            # flag SSIM filtered points
+            GDF_filt = GDF[GDF.SSIM_IMPROVED==False].copy()
+            plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker='o' if len(GDF) < 10000 else '.', s=150, alpha=1.0)
+
+        if hide_filtered:
+            GDF = GDF[GDF.SSIM_IMPROVED==True].copy()
+
+        # plot all points on top
         vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
                              cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0,
