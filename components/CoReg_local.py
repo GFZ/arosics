@@ -261,8 +261,8 @@ class COREG_LOCAL(object):
 
         # transform all points of quality grid to LonLat
         GDF = self.CoRegPoints_table.loc\
-                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot, 'SSIM_IMPROVED']].copy() \
-                if exclude_fillVals else self.CoRegPoints_table.loc[:, ['geometry', attribute2plot, 'SSIM_IMPROVED']]
+                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot, 'SSIM_IMPROVED', 'OUTLIER']].copy() \
+                if exclude_fillVals else self.CoRegPoints_table.loc[:, ['geometry', attribute2plot, 'SSIM_IMPROVED', 'OUTLIER']]
 
         # get LonLat coordinates for all points
         get_LonLat    = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
@@ -282,13 +282,23 @@ class COREG_LOCAL(object):
         GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
         GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
 
+        if not hide_filtered and self.tieP_filter_level>1:
+            # flag RANSAC outliers
+            GDF_filt = GDF[GDF.OUTLIER==True].copy()
+            plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker='o' if len(GDF) < 10000 else '.', s=250, alpha=1.0)
+
         if not hide_filtered and self.tieP_filter_level>0:
             # flag SSIM filtered points
             GDF_filt = GDF[GDF.SSIM_IMPROVED==False].copy()
             plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker='o' if len(GDF) < 10000 else '.', s=150, alpha=1.0)
 
-        if hide_filtered:
-            GDF = GDF[GDF.SSIM_IMPROVED==True].copy()
+
+        if hide_filtered and self.tieP_filter_level>0:
+            GDF = GDF[GDF.SSIM_IMPROVED == True].copy()
+
+        if hide_filtered and self.tieP_filter_level>1:
+            GDF = GDF[GDF.OUTLIER == False].copy()
+
 
         # plot all points on top
         vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)

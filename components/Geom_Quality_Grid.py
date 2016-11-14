@@ -16,6 +16,7 @@ import numpy as np
 from geopandas         import GeoDataFrame
 from pykrige.ok        import OrdinaryKriging
 from shapely.geometry  import Point
+from skimage.measure   import points_in_poly
 
 # internal modules
 from .CoReg  import COREG
@@ -28,7 +29,6 @@ from py_tools_ds.ptds.processing.progress_mon import ProgressBar
 
 global_shared_imref    = None
 global_shared_im2shift = None
-overlap_poly =None
 
 
 class Geom_Quality_Grid(object):
@@ -56,6 +56,7 @@ class Geom_Quality_Grid(object):
                                             - Level 1: SSIM filtering - filters all tie points out where shift
                                                 correction does not increase image similarity within matching window
                                                 (measured by mean structural similarity index)
+                                            - Level 2: SSIM filtering and RANSAC outlier detection
         :param dir_out(str):            output directory to be used for all outputs if nothing else is given
                                         to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
@@ -165,10 +166,6 @@ class Geom_Quality_Grid(object):
 
         return [pointID]+CR_res
 
-    @staticmethod
-    def is_within(point):
-        return point.within(overlap_poly)
-
 
     def get_CoRegPoints_table(self, exclude_outliers=1):
         assert self.XY_points is not None and self.XY_mapPoints is not None
@@ -206,7 +203,10 @@ class Geom_Quality_Grid(object):
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
 
         if exclude_outliers:
-            GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))]
+            inliers = points_in_poly(self.XY_mapPoints,
+                                     np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
+            GDF = GDF[inliers]
+            #GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # slow
 
         assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check yout input data!' # FIXME track that
 
@@ -286,7 +286,41 @@ class Geom_Quality_Grid(object):
         GDF = GDF.fillna(int(self.outFillVal))
 
         self.CoRegPoints_table = GDF
-        return GDF
+
+        if self.tieP_filter_level>1:
+            self._flag_outliers(algorithm = 'RANSAC')
+
+        return self.CoRegPoints_table
+
+
+    def _flag_outliers(self, algorithm='RANSAC'):
+        if not algorithm in ['RANSAC']: raise ValueError
+
+        GDF     = self.CoRegPoints_table
+        GDF     = GDF[GDF.ABS_SHIFT!=self.outFillVal]
+        #GDF     = GDF[(GDF.ABS_SHIFT!=self.outFillVal) &(GDF.SSIM_IMPROVED==True)]
+        src     = np.array(GDF[['X_UTM', 'Y_UTM']])
+        xyShift = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
+        dst     = src + xyShift
+
+        if algorithm=='RANSAC':
+            from skimage.measure import ransac
+            from skimage.transform import AffineTransform, PolynomialTransform
+
+            # robustly estimate affine transform model with RANSAC
+            #model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
+            model_robust, inliers = ransac((src, dst), AffineTransform,
+                                           min_samples=3,
+                                           residual_threshold=10,
+                                           max_trials=1000,
+                                           #stop_sample_num=int(0.9*len(GDF))
+                                           )
+            outliers = inliers == False
+
+            records            = GDF[['POINT_ID']].copy()
+            records['OUTLIER'] = outliers
+
+            self.CoRegPoints_table = self.CoRegPoints_table.merge(records, on='POINT_ID', how="inner")
 
 
     def dump_CoRegPoints_table(self, path_out=None):
@@ -300,17 +334,24 @@ class Geom_Quality_Grid(object):
 
     def to_GCPList(self):
         # get copy of quality grid without no data
-        GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, :].copy()
+        GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.ABS_SHIFT != self.outFillVal, :].copy()
 
         if getattr(GDF,'empty'): # GDF.empty returns AttributeError
             return []
         else:
             orig_len_GDF = len(GDF)
-            if self.tieP_filter_level>0:
-                # SSIM filtering
+
+            if self.tieP_filter_level > 0:
+                # level 1 filtering
                 GDF = GDF[GDF.SSIM_IMPROVED==True].copy()
                 if not self.q:
                     print('SSIM filtering removed %s tie points.' %(orig_len_GDF-len(GDF)))
+
+            if self.tieP_filter_level > 1:
+                # level 2 filtering
+                GDF = GDF[GDF.OUTLIER == False].copy()
+                if not self.q:
+                    print('RANSAC filtering removed %s tie points.' % (orig_len_GDF - len(GDF))) # FIXME hardcoded algorithm; count corresponds to original length of GDF
 
             # calculate GCPs
             GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
