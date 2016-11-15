@@ -33,7 +33,7 @@ from py_tools_ds.ptds.geo.vector.topology  import get_overlap_polygon, get_small
 from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
 from py_tools_ds.ptds.geo.vector.geometry  import boxObj, round_shapelyPoly_coords
 from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid
-from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, reproject_shapelyGeometry
+from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY
 from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.ptds.geo.map_info         import geotransform2mapinfo
 from py_tools_ds.ptds.numeric.vector       import find_nearest
@@ -112,6 +112,33 @@ class imParamObj(object):
         if not CoReg_params['q']:
             print('Bounding box of calculated footprint for %s:\n\t%s' % (self.imName, self.poly.bounds))
 
+        # add bad data mask
+        given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
+        self.mask_baddata = None
+        if given_mask:
+            self.add_mask_bad_data(given_mask)
+
+
+    def add_mask_bad_data(self, path_or_geoArr):
+        """Adds a bad data mask. This method is separated from __init__() in order to allow explicit adding of the mask.
+
+        :param path_or_geoArr:
+        """
+        geoArr_mask = path_or_geoArr if isinstance(path_or_geoArr, GeoArray) else GeoArray(path_or_geoArr)
+
+        assert geoArr_mask.bands == 1, \
+            'Expected one single band as bad data mask for %s. Got %s bands.' % (self.imName, geoArr_mask.bands)
+        pixelVals_in_mask = sorted(list(np.unique(geoArr_mask[:])))
+        assert len(pixelVals_in_mask) <= 2, 'Bad data mask must have only two pixel values (boolean) - 0 and 1 or ' \
+                                            'False and True! The given mask for %s contains the values %s.' % (
+                                            self.imName, pixelVals_in_mask)
+        assert pixelVals_in_mask in [[0, 1], [False, True]], 'Found unsupported pixel values in the given bad data ' \
+                                                             'mask for %s: %s Only the values True, False, 0 and 1 ' \
+                                                             'are supported. ' % (self.imName, pixelVals_in_mask)
+
+        self.mask_baddata = GeoArray(geoArr_mask[:].astype(np.bool), geoArr_mask.gt, geoArr_mask.prj)
+
+
 
 
 class COREG(object):
@@ -121,8 +148,9 @@ class COREG(object):
                  wp=(None,None), ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
                  out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
                  footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
-                 nodata=(None,None), calc_corners=True, multiproc=True, binary_ws=True, force_quadratic_win=True,
-                 progress=True, v=False, path_verbose_out=None, q=False, ignore_errors=False):
+                 nodata=(None,None), calc_corners=True, binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None,
+                 multiproc=True, force_quadratic_win=True, progress=True, v=False, path_verbose_out=None, q=False,
+                 ignore_errors=False):
 
         """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
         at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
@@ -174,8 +202,20 @@ class COREG(object):
         :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
                                         matching window position within the actual image overlap
                                         (default: 1; deactivated if '-cor0' and '-cor1' are given
-        :param multiproc(bool):         enable multiprocessing (default: 1)
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
+        :param mask_baddata_ref(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
+                                                reference image where all bad data pixels (e.g. clouds) are marked with
+                                                True and the remaining pixels with False. Must have the same geographic
+                                                extent and projection like 'im_ref'. The mask is used to check if the
+                                                chosen matching window position is valid in the sense of useful data.
+                                                Otherwise this window position is rejected.
+        :param mask_baddata_tgt(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
+                                                image to be shifted where all bad data pixels (e.g. clouds) are marked
+                                                with True and the remaining pixels with False. Must have the same
+                                                geographic extent and projection like 'im_ref'. The mask is used to
+                                                check if the chosen matching window position is valid in the sense of
+                                                useful data. Otherwise this window position is rejected.
+        :param multiproc(bool):         enable multiprocessing (default: 1)
         :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
         :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: False)
@@ -405,16 +445,20 @@ class COREG(object):
                                                   'area of the two input images. Check the coordinates.' %wp))
             if not self.ignErr:
                 raise self.tracked_errors[-1]
-#        assert self.overlap_poly.contains(Point(wp)), 'The provided window position %s/%s is outside of the overlap ' \
-#                                                      'area of the two input images. Check the coordinates.' %wp
-        #for im in [self.ref, self.shift]:
-        #    imX, imY = mapXY2imXY(wp, im.gt)
-            #if self.ignErr:
-            #    if  im.GeoArray[int(imY), int(imX), im.band4match]!=im.nodata:
-            #        self.success = False
-            #else:
-        #    assert im.GeoArray[int(imY), int(imX), im.band4match]!=im.nodata,\
-        #        'The provided window position is within the nodata area of the %s. Check the coordinates.' %im.imName
+
+        # check if window position is within bad data area if a respective mask has been provided
+        for im in [self.ref, self.shift]:
+            if im.mask_baddata is not None:
+                imX, imY = mapXY2imXY(wp, im.mask_baddata.gt)
+
+                if not im.mask_baddata[imY, imX]:
+                    self.tracked_errors.append(
+                        RuntimeError('According to the provided bad data mask for the %s the chosen window position '
+                            '%s / %s is within a bad data area. Using this window position for coregistration '
+                            'is not reasonable. Please provide a better window position!' %(im.imName, wp[0], wp[1])))
+                    self.success = False
+                    if not self.ignErr:
+                        raise self.tracked_errors[-1]
 
         self.win_pos_XY  = wp
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512,512)

@@ -29,7 +29,8 @@ class COREG_LOCAL(object):
                  tieP_filter_level=1, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
                  data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
-                 binary_ws=True, CPUs=None, progress=True, v=False, q=False, ignore_errors=False):
+                 binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True,
+                 v=False, q=False, ignore_errors=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -93,6 +94,18 @@ class COREG_LOCAL(object):
                                         matching window position within the actual image overlap
                                         (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are given
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: True)
+        :param mask_baddata_ref(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
+                                                reference image where all bad data pixels (e.g. clouds) are marked with
+                                                True and the remaining pixels with False. Must have the same geographic
+                                                extent and projection like 'im_ref'. The mask is used to check if the
+                                                chosen matching window position is valid in the sense of useful data.
+                                                Otherwise this window position is rejected.
+        :param mask_baddata_tgt(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
+                                                image to be shifted where all bad data pixels (e.g. clouds) are marked
+                                                with True and the remaining pixels with False. Must have the same
+                                                geographic extent and projection like 'im_ref'. The mask is used to
+                                                check if the chosen matching window position is valid in the sense of
+                                                useful data. Otherwise this window position is rejected.
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
         :param progress(bool):          show progress bars (default: True)
@@ -168,6 +181,11 @@ class COREG_LOCAL(object):
                                v                  = v,
                                q                  = q,
                                ignore_errors      = self.ignErr)
+
+        # add bad data mask
+        # (mask is not added during initialization of COREG object in order to avoid bad data area errors there)
+        if mask_baddata_ref: self.COREG_obj.ref.add_mask_bad_data(mask_baddata_ref)
+        if mask_baddata_tgt: self.COREG_obj.shift.add_mask_bad_data(mask_baddata_tgt)
 
         self._quality_grid      = None # set by self.quality_grid
         self._CoRegPoints_table = None # set by self.CoRegPoints_table

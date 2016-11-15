@@ -39,8 +39,8 @@ except ImportError:
 
 #sub-command functions
 def run_global_coreg(args):
-    COREG_obj = COREG(args.path_im0,
-                      args.path_im1,
+    COREG_obj = COREG(args.path_ref,
+                      args.path_tgt,
                       path_out         = args.path_out,
                       fmt_out          = args.fmt_out,
                       r_b4match        = args.br,
@@ -58,6 +58,8 @@ def run_global_coreg(args):
                       calc_corners     = args.calc_cor,
                       multiproc        = args.mp,
                       binary_ws        = args.bin_ws,
+                      mask_baddata_ref = args.mask_ref,
+                      mask_baddata_tgt = args.mask_tgt,
                       v                = args.v,
                       path_verbose_out = args.vo,
                       q                = args.q,
@@ -67,8 +69,8 @@ def run_global_coreg(args):
 
 #sub-command functions
 def run_local_coreg(args):
-    CRL = COREG_LOCAL(args.path_im0,
-                      args.path_im1,
+    CRL = COREG_LOCAL(args.path_ref,
+                      args.path_tgt,
                       path_out         = args.path_out,
                       fmt_out          = args.fmt_out,
                       grid_res         = args.grid_res,
@@ -84,6 +86,8 @@ def run_local_coreg(args):
                       data_corners_tgt = args.cor1,
                       nodata           = args.nodata,
                       calc_corners     = args.calc_cor,
+                      mask_baddata_ref = args.mask_ref,
+                      mask_baddata_tgt = args.mask_tgt,
                       CPUs             = None if args.mp else 1,
                       binary_ws        = args.bin_ws,
                       progress         = args.progress,
@@ -150,9 +154,9 @@ if __name__ == '__main__':
              "use '>>> python /path/to/CoReg_Sat/coreg_cmd.py global -h' for documentation and usage hints")
 
     gloArg = parse_coreg_global.add_argument
-    gloArg('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
+    gloArg('path_ref', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
 
-    gloArg('path_im1', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
+    gloArg('path_tgt', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
 
     gloArg('-o', nargs='?', dest='path_out', type=str, default='auto',
            help="target path of the coregistered image (default: /dir/of/im1/<im1>__shifted_to__<im0>.bsq)")
@@ -204,13 +208,25 @@ if __name__ == '__main__':
            help="calculate true positions of the dataset corners in order to get a useful matching window position "
                 "within the actual image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given")
 
-    gloArg('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0, 1])
-
     gloArg('-bin_ws', nargs='?', type=int,
            help='use binary X/Y dimensions for the matching window (default: 1)', default=1, choices=[0, 1])
 
     gloArg('-quadratic_win', nargs='?', type=int,
            help='force a quadratic matching window (default: 1)', default=1, choices=[0, 1])
+
+    gloArg('-mask_ref', nargs='?', type=str, default=None, metavar='file path',
+           help="path to a 2D boolean mask file for the reference image where all bad data pixels (e.g. clouds) are "
+                "marked with True or 1 and the remaining pixels with False or 0. Must have the same geographic extent "
+                "and projection like the refernce image. The mask is used to check if the chosen matching window "
+                "position is valid in the sense of useful data. Otherwise this window position is rejected.")
+
+    gloArg('-mask_tgt', nargs='?', type=str, default=None, metavar='file path',
+           help="path to a 2D boolean mask file for the image to be shifted where all bad data pixels (e.g. clouds) are "
+                "marked with True or 1 and the remaining pixels with False or 0. Must have the same geographic extent "
+                "and projection like the the image to be shifted. The mask is used to check if the chosen matching "
+                "window position is valid in the sense of useful data. Otherwise this window position is rejected.")
+
+    gloArg('-mp', nargs='?', type=int, help='enable multiprocessing (default: 1)', default=1, choices=[0, 1])
 
     gloArg('-v', nargs='?', type=int, help='verbose mode (default: 0)', default=0, choices=[0, 1])
 
@@ -237,9 +253,9 @@ if __name__ == '__main__':
              "use '>>> python /path/to/CoReg_Sat/coreg_cmd.py local -h' for documentation and usage hints")
 
     locArg = parse_coreg_local.add_argument
-    locArg('path_im0', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
+    locArg('path_ref', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
 
-    locArg('path_im1', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
+    locArg('path_tgt', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
 
     locArg('grid_res', type=int, help='quality grid resolution in pixels of the target image')
 
@@ -286,6 +302,18 @@ if __name__ == '__main__':
 
     locArg('-quadratic_win', nargs='?', type=int,
            help='force a quadratic matching window (default: 1)', default=1, choices=[0, 1])
+
+    locArg('-mask_ref', nargs='?', type=str, default=None, metavar='file path',
+           help="path to a 2D boolean mask file for the reference image where all bad data pixels (e.g. clouds) are "
+                "marked with True or 1 and the remaining pixels with False or 0. Must have the same geographic extent "
+                "and projection like the refernce image. The mask is used to check if the chosen matching window "
+                "position is valid in the sense of useful data. Otherwise this window position is rejected.")
+
+    locArg('-mask_tgt', nargs='?', type=str, default=None, metavar='file path',
+           help="path to a 2D boolean mask file for the image to be shifted where all bad data pixels (e.g. clouds) are "
+                "marked with True or 1 and the remaining pixels with False or 0. Must have the same geographic extent "
+                "and projection like the the image to be shifted. The mask is used to check if the chosen matching "
+                "window position is valid in the sense of useful data. Otherwise this window position is rejected.")
 
     locArg('-progress', nargs='?', type=int, help='show progress bars (default: 1)', default=1, choices=[0, 1])
 

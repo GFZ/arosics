@@ -16,7 +16,8 @@ import numpy as np
 from geopandas         import GeoDataFrame
 from pykrige.ok        import OrdinaryKriging
 from shapely.geometry  import Point
-from skimage.measure   import points_in_poly
+from skimage.measure   import points_in_poly, ransac
+from skimage.transform import AffineTransform, PolynomialTransform
 
 # internal modules
 from .CoReg  import COREG
@@ -167,7 +168,7 @@ class Geom_Quality_Grid(object):
         return [pointID]+CR_res
 
 
-    def get_CoRegPoints_table(self, exclude_outliers=1):
+    def get_CoRegPoints_table(self, exclude_outliers=True):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
         #ref_ds,tgt_ds = gdal.Open(self.path_imref),gdal.Open(self.path_im2shift)
@@ -182,7 +183,7 @@ class Geom_Quality_Grid(object):
         #    self.path_im2shift = tgt_pathTmp
         #ref_ds=tgt_ds=None
 
-        XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point]) # FIXME replace that with coord image reprojection
+        XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point])
         geomPoints      = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
 
         if isProjectedOrGeographic(self.COREG_obj.shift.prj)=='geographic':
@@ -206,9 +207,20 @@ class Geom_Quality_Grid(object):
             inliers = points_in_poly(self.XY_mapPoints,
                                      np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
             GDF = GDF[inliers]
-            #GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # slow
+            #GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # works but much slower
 
-        assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check yout input data!' # FIXME track that
+        assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check your input data!' # FIXME track that
+
+        # exclude all point where bad data mask is True (e.g. points on clouds etc.)
+        orig_len_GDF = len(GDF)
+        mapXY              = np.array(GDF.loc[:,['X_UTM','Y_UTM']])
+        GDF['REF_BADDATA'] = self.COREG_obj.ref  .mask_baddata.read_pointData(mapXY) \
+                                if self.COREG_obj.ref  .mask_baddata is not None else False
+        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY)\
+                                if self.COREG_obj.shift.mask_baddata is not None else False
+        GDF                = GDF[(GDF['REF_BADDATA']==False) & (GDF['TGT_BADDATA']==False)]
+        print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
+              %(orig_len_GDF-len(GDF), orig_len_GDF))
 
         #not_within_nodata = \
         #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
@@ -288,25 +300,30 @@ class Geom_Quality_Grid(object):
         self.CoRegPoints_table = GDF
 
         if self.tieP_filter_level>1:
-            self._flag_outliers(algorithm = 'RANSAC')
+            self._flag_outliers(algorithm = 'RANSAC', inplace=True)
 
         return self.CoRegPoints_table
 
 
-    def _flag_outliers(self, algorithm='RANSAC'):
+    def _flag_outliers(self, algorithm='RANSAC', inplace=False):
+        """Detects geometric outliers within CoRegPoints_table GeoDataFrame and adds a new boolean column 'OUTLIER'.
+
+        :param algorithm:   <str> the algorithm to be used for outlier detection. available choices: 'RANSAC'
+        :param inplace:     <bool> whether to overwrite CoRegPoints_table directly (True) or not (False). If False, the
+                            resulting GeoDataFrame is returned.
+        """
         if not algorithm in ['RANSAC']: raise ValueError
 
-        GDF     = self.CoRegPoints_table
-        GDF     = GDF[GDF.ABS_SHIFT!=self.outFillVal]
-        #GDF     = GDF[(GDF.ABS_SHIFT!=self.outFillVal) &(GDF.SSIM_IMPROVED==True)]
+        GDF     = self.CoRegPoints_table.copy()
+
+        # exclude all records where SSIM decreased or no match has been found
+        GDF     = GDF[(GDF.ABS_SHIFT!=self.outFillVal) &(GDF.SSIM_IMPROVED==True)]
+
         src     = np.array(GDF[['X_UTM', 'Y_UTM']])
         xyShift = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
         dst     = src + xyShift
 
         if algorithm=='RANSAC':
-            from skimage.measure import ransac
-            from skimage.transform import AffineTransform, PolynomialTransform
-
             # robustly estimate affine transform model with RANSAC
             #model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
             model_robust, inliers = ransac((src, dst), AffineTransform,
@@ -320,7 +337,13 @@ class Geom_Quality_Grid(object):
             records            = GDF[['POINT_ID']].copy()
             records['OUTLIER'] = outliers
 
-            self.CoRegPoints_table = self.CoRegPoints_table.merge(records, on='POINT_ID', how="inner")
+            GDF = self.CoRegPoints_table.merge(records, on='POINT_ID', how="outer")
+            GDF['OUTLIER'].fillna(int(self.outFillVal), inplace=True)
+
+        if inplace:
+            self.CoRegPoints_table = GDF
+
+        return GDF
 
 
     def dump_CoRegPoints_table(self, path_out=None):
