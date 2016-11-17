@@ -312,7 +312,10 @@ class Geom_Quality_Grid(object):
         :param inplace:     <bool> whether to overwrite CoRegPoints_table directly (True) or not (False). If False, the
                             resulting GeoDataFrame is returned.
         """
+
         if not algorithm in ['RANSAC']: raise ValueError
+        warnings.warn("The currently implemented RANSAC outlier detection is still very experimental. You enabled it "
+                      "by passing 'tieP_filter_level=2' to COREG_LOCAL. Use it on your own risk!")
 
         GDF     = self.CoRegPoints_table.copy()
 
@@ -324,15 +327,8 @@ class Geom_Quality_Grid(object):
         dst     = src + xyShift
 
         if algorithm=='RANSAC':
-            # robustly estimate affine transform model with RANSAC
-            #model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
-            model_robust, inliers = ransac((src, dst), AffineTransform,
-                                           min_samples=3,
-                                           residual_threshold=10,
-                                           max_trials=1000,
-                                           #stop_sample_num=int(0.9*len(GDF))
-                                           )
-            outliers = inliers == False
+            model_roust, outliers = self._ransac_outlier_detection(src, dst)
+            #print(np.count_nonzero(outliers), 'marked as outliers')
 
             records            = GDF[['POINT_ID']].copy()
             records['OUTLIER'] = outliers
@@ -344,6 +340,71 @@ class Geom_Quality_Grid(object):
             self.CoRegPoints_table = GDF
 
         return GDF
+
+
+    @staticmethod
+    def _ransac_outlier_detection(src_coords, est_coords, max_outlier_percentage=10, tolerance=2.5, max_iter=15, timeout=20):
+        """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm.
+
+        :param src_coords:              <np.ndarray> source coordinate point cloud as array with shape [Nx2]
+        :param est_coords:              <np.ndarray> estimated coordinate point cloud as array with shape [Nx2]
+        :param max_outlier_percentage:  <float, int> maximum percentage of outliers to be detected
+        :param tolerance:               <float, int> percentage tolerance for max_outlier_percentage
+        :param max_iter:                <int> maximum iterations for finding the best RANSAC threshold
+        :param timeout:                 <float, int> timeout for iteration loop in seconds
+        :return:
+        """
+        for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
+            assert co.ndim==2 and co.shape[1]==2, "'%s' must have shape [Nx2]. Got shape %s."%(n, co.shape)
+
+        if max_outlier_percentage >100: raise ValueError
+        min_inlier_percentage = 100-max_outlier_percentage
+
+        class PolyTF_1(PolynomialTransform):
+            def estimate(*data):
+                return PolynomialTransform.estimate(*data, order=1)
+
+        # robustly estimate affine transform model with RANSAC
+        # exliminates not more than the given maximum outlier percentage of the tie points
+
+        model_robust, inliers = None, None
+        count_inliers         = None
+        th                    = 5  # start value
+        th_checked            = {} # dict of thresholds that already have been tried + calculated inlier percentage
+        th_substract          = 2
+        count_iter            = 0
+        time_start            = time.time()
+
+        while True:
+            if count_iter > max_iter or time.time()-time_start > timeout:
+                break # keep last values and break while loop
+            if th_checked:
+                if min_inlier_percentage-tolerance <= th_checked[th] <= min_inlier_percentage+tolerance:
+                    th_substract /= 2
+                    if abs(th_checked[th] - min_inlier_percentage) <= tolerance:
+                        break # keep last values and break while loop
+
+                # check if more or less outliers have been detected than given percentage
+                if count_inliers >= min_inlier_percentage * src_coords.shape[0] / 100:
+                    th -= th_substract  # too less outliers found -> decrease threshold
+                else:
+                    th += th_substract  # too much outliers found -> increase threshold
+
+            # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
+            model_robust, inliers = ransac((src_coords, est_coords), AffineTransform,
+                                           min_samples        = 6,
+                                           residual_threshold = th,
+                                           max_trials         = 3000,
+                                           stop_sample_num    = int((min_inlier_percentage-tolerance)/100*src_coords.shape[0]),
+                                           stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
+                                           )
+            count_inliers  = np.count_nonzero(inliers)
+            th_checked[th] = count_inliers / src_coords.shape[0] * 100
+            print(th_checked)
+            count_iter+=1
+
+        outliers = inliers == False
+        return model_robust, outliers
 
 
     def dump_CoRegPoints_table(self, path_out=None):

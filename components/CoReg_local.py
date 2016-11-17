@@ -156,6 +156,11 @@ class COREG_LOCAL(object):
         self.progress          = progress if not q else False # overridden by v
         self.ignErr            = ignore_errors
 
+        assert isinstance(self.imref, GeoArray) and isinstance(self.im2shift, GeoArray), \
+            'Something went wrong with the creation of GeoArray instances for reference or target image. The created ' \
+            'instances do not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset the ' \
+            'kernel and try again.'
+
         COREG.__dict__['_set_outpathes'](self, self.imref, self.im2shift)
         # make sure that the output directory of coregistered image is the project directory if a project directory is given
         if path_out and projectDir and os.path.basename(self.path_out):

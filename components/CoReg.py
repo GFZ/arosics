@@ -20,6 +20,7 @@ try:
 except ImportError:
     pyfftw = None
 from shapely.geometry import Point, Polygon
+from skimage.exposure import rescale_intensity
 
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
@@ -58,6 +59,11 @@ class imParamObj(object):
         self.GeoArray.nodata   = init_nodata if init_nodata is not None else self.GeoArray.nodata
         self.GeoArray.progress = CoReg_params['progress']
         self.GeoArray.q        = CoReg_params['q']
+
+        assert isinstance(self.GeoArray, GeoArray), \
+            'Something went wrong with the creation of GeoArray instance for the %s. The created ' \
+            'instance does not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset the ' \
+            'kernel and try again.' %self.imName
 
         # set title to be used in plots
         self.title = os.path.basename(self.GeoArray.filePath) if self.GeoArray.filePath else self.imName
@@ -325,6 +331,10 @@ class COREG(object):
 
 
     def _set_outpathes(self, im_ref, im_tgt):
+        assert isinstance(im_ref, (GeoArray, str)) and isinstance(im_tgt, (GeoArray, str)),\
+            'COREG._set_outpathes() expects two file pathes (string) or two instances of the ' \
+            'GeoArray class. Received %s and %s.' %(type(im_ref), type(im_tgt))
+
         get_baseN = lambda path: os.path.splitext(os.path.basename(path))[0]
 
         # get input pathes
@@ -420,6 +430,72 @@ class COREG(object):
             gjs = geojson.Feature(geometry=poly, properties={})
             folium.GeoJson(gjs).add_to(m)
         return m
+
+
+    def show_matchWin(self, interactive=True, deshifted=False):
+
+        if interactive:
+            warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
+            # use Holoviews
+            try:
+                import holoviews as hv
+            except ImportError:
+                hv =None
+            if not hv:
+                raise ImportError(
+                    "This method requires the library 'holoviews'. It can be installed for Anaconda with "
+                    "the shell command 'conda install -c ioam holoviews bokeh'.")
+            warnings.filterwarnings('ignore')
+            hv.notebook_extension('matplotlib')
+            hv.Store.add_style_opts(hv.Image, ['vmin','vmax'])
+
+            #hv.Store.option_setters.options().Image = hv.Options('style', cmap='gnuplot2')
+            #hv.Store.add_style_opts(hv.Image, ['cmap'])
+            #renderer = hv.Store.renderers['matplotlib'].instance(fig='svg', holomap='gif')
+            #RasterPlot = renderer.plotting_class(hv.Image)
+            #RasterPlot.cmap = 'gray'
+            matchWin_orig = self.matchWin.data
+            otherWin_orig = self.otherWin.data
+            otherWin_corr = self._get_deshifted_otherWin()[:]
+            xmin,xmax,ymin,ymax = self.matchWin.boundsMap
+
+
+            get_vmin     = lambda arr: np.percentile(arr, 2)
+            get_vmax     = lambda arr: np.percentile(arr, 98)
+            get_arr      = lambda arr: rescale_intensity(arr, in_range=(get_vmin(arr), get_vmax(arr)))
+            get_hv_image = lambda arr: hv.Image(get_arr(arr), bounds=(xmin,ymin,xmax,ymax))(
+                style={'cmap':'gray',
+                       'vmin':get_vmin(arr), 'vmax':get_vmax(arr), # does not work
+                       'interpolation':'none'},
+                plot={'fig_inches':(15,15), 'show_grid':True})
+                #plot={'fig_size':100, 'show_grid':True})
+
+
+            imgs_orig = {1 : get_hv_image(matchWin_orig),
+                         2 : get_hv_image(otherWin_orig)
+                        }
+            imgs_corr = {1: get_hv_image(matchWin_orig),
+                         2: get_hv_image(otherWin_corr)
+                         }
+            #layout = get_hv_image(matchWin_orig) + get_hv_image(matchWin_orig)
+
+            imgs = {1 : get_hv_image(matchWin_orig) + get_hv_image(matchWin_orig),
+                    2 : get_hv_image(otherWin_orig) + get_hv_image(otherWin_corr)
+                        }
+
+            # Construct a HoloMap by evaluating the function over all the keys
+            hmap_orig = hv.HoloMap(imgs_orig, kdims=['image'])
+            hmap_corr = hv.HoloMap(imgs_corr, kdims=['image'])
+
+            hmap      = hv.HoloMap(imgs, kdims=['image']).collate().cols(1) # displaying this results in a too small figure
+            #hmap = hv.HoloMap(imgs_corr, kdims=['image']) +  hv.HoloMap(imgs_corr, kdims=['image'])
+
+            ## Construct a HoloMap by defining the sampling on the Dimension
+            #dmap = hv.DynamicMap(image_slice, kdims=[hv.Dimension('z_axis', values=keys)])
+            warnings.filterwarnings('default')
+            #return hmap
+
+            return hmap_orig if not deshifted else hmap_corr
 
 
     def _get_opt_winpos_winsize(self):
