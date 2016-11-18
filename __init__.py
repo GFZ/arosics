@@ -9,7 +9,7 @@ from .components import utilities
 from .components import geometry
 
 __author__ = 'Daniel Scheffler'
-__version__= '2016-11-17_01'
+__version__= '2016-11-18_01'
 
 __all__=['COREG',
          'COREG_LOCAL',

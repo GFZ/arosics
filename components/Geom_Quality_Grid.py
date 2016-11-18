@@ -80,8 +80,8 @@ class Geom_Quality_Grid(object):
         self.q                 = q        if not v else False # overridden by v
         self.progress          = progress if not q else False # overridden by q
 
-        self.ref               = self.COREG_obj.ref  .GeoArray
-        self.shift             = self.COREG_obj.shift.GeoArray
+        self.ref               = self.COREG_obj.ref
+        self.shift             = self.COREG_obj.shift
 
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table           = None # set by self.CoRegPoints_table
@@ -153,17 +153,17 @@ class Geom_Quality_Grid(object):
 
         #for im in [global_shared_imref, global_shared_im2shift]:
         #    imX, imY = mapXY2imXY(coreg_kwargs['wp'], im.gt)
-        #    if im.GeoArray[int(imY), int(imX), im.band4match]==im.nodata,\
+        #    if im[int(imY), int(imX), im.band4match]==im.nodata,\
         #        return
         assert global_shared_imref    is not None
         assert global_shared_im2shift is not None
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
         CR.calculate_spatial_shifts()
         last_err           = CR.tracked_errors[-1] if CR.tracked_errors else None
-        win_sz_y, win_sz_x = CR.matchWin.imDimsYX if CR.matchWin else (None, None)
-        CR_res   = [win_sz_x, win_sz_y,
-                    CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
-                    CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved, last_err]
+        win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
+        CR_res   = [win_sz_x, win_sz_y, CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
+                    CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
+                    CR.confidence_shifts, last_err]
 
         return [pointID]+CR_res
 
@@ -281,7 +281,7 @@ class Geom_Quality_Grid(object):
         else:
             if not self.q:
                 print("Calculating geometric quality grid (%s points) 1 CPU core..." %len(GDF))
-            results = np.empty((len(geomPoints),13), np.object)
+            results = np.empty((len(geomPoints),14), np.object)
             bar     = ProgressBar(prefix='\tprogress:')
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
                 if self.progress:
@@ -293,7 +293,7 @@ class Geom_Quality_Grid(object):
         records = GeoDataFrame(np.array(results, np.object),
                                columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M',
                                         'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
-                                        'SSIM_IMPROVED', 'LAST_ERR'])
+                                        'SSIM_IMPROVED', 'CONFIDENCE', 'LAST_ERR'])
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
@@ -322,24 +322,29 @@ class Geom_Quality_Grid(object):
         # exclude all records where SSIM decreased or no match has been found
         GDF     = GDF[(GDF.ABS_SHIFT!=self.outFillVal) &(GDF.SSIM_IMPROVED==True)]
 
-        src     = np.array(GDF[['X_UTM', 'Y_UTM']])
-        xyShift = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
-        dst     = src + xyShift
+        if not GDF.empty:
+            src     = np.array(GDF[['X_UTM', 'Y_UTM']])
+            xyShift = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
+            dst     = src + xyShift
 
-        if algorithm=='RANSAC':
-            model_roust, outliers = self._ransac_outlier_detection(src, dst)
-            #print(np.count_nonzero(outliers), 'marked as outliers')
+            if algorithm=='RANSAC':
+                model_roust, outliers = self._ransac_outlier_detection(src, dst)
+                #print(np.count_nonzero(outliers), 'marked as outliers')
 
-            records            = GDF[['POINT_ID']].copy()
-            records['OUTLIER'] = outliers
+                records            = GDF[['POINT_ID']].copy()
+                records['OUTLIER'] = outliers
 
-            GDF = self.CoRegPoints_table.merge(records, on='POINT_ID', how="outer")
-            GDF['OUTLIER'].fillna(int(self.outFillVal), inplace=True)
+                GDF = self.CoRegPoints_table.merge(records, on='POINT_ID', how="outer")
+                GDF['OUTLIER'].fillna(int(self.outFillVal), inplace=True)
 
-        if inplace:
-            self.CoRegPoints_table = GDF
+            if inplace:
+                self.CoRegPoints_table = GDF
 
-        return GDF
+            return GDF
+
+        else:
+            if not inplace:
+                return GeoDataFrame(columns=['OUTLIER'])
 
 
     @staticmethod
@@ -451,6 +456,8 @@ class Geom_Quality_Grid(object):
 
 
     def test_if_singleprocessing_equals_multiprocessing_result(self):
+        self.tieP_filter_level=1 # RANSAC filtering always produces different results because it includes random sampling
+
         self.CPUs = None
         dataframe = self.get_CoRegPoints_table()
         mp_out    = np.empty_like(dataframe.values)

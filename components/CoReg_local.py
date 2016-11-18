@@ -44,7 +44,7 @@ class COREG_LOCAL(object):
         :param path_out(str):           target path of the coregistered image
                                             - if None (default), no output is written to disk
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
-        :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
+        :param fmt_out(str):            raster file format for output file. ignored if path_out is None. Can be any GDAL
                                         compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
         :param out_crea_options(list):  GDAL creation options for the output image,
                                         e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
@@ -59,6 +59,7 @@ class COREG_LOCAL(object):
                                             - Level 1: SSIM filtering - filters all tie points out where shift
                                                 correction does not increase image similarity within matching window
                                                 (measured by mean structural similarity index)
+                                            - Level 2: SSIM filtering and RANSAC outlier detection
         :param out_gsd (float):         output pixel size in units of the reference coordinate system (default = pixel
                                         size of the input array), given values are overridden by match_gsd=True
         :param align_grids (bool):      True: align the input coordinate grid to the reference (does not affect the
@@ -121,14 +122,17 @@ class COREG_LOCAL(object):
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
-        if isinstance(im_ref, GeoArray) and nodata is not None: im_ref.nodata = nodata[0]
-        if isinstance(im_tgt, GeoArray) and nodata is not None: im_tgt.nodata = nodata[1]
-        self.imref             = im_ref if isinstance(im_tgt, GeoArray) else GeoArray(im_ref, nodata=nodata[0])
-        self.im2shift          = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt, nodata=nodata[1])
-        self.imref.progress    = progress
-        self.im2shift.progress = progress
-        self.imref.q           = q
-        self.im2shift.q        = q
+        self.imref             = GeoArray(im_ref, nodata=nodata[0], progress=progress, q=q)
+        self.im2shift          = GeoArray(im_tgt, nodata=nodata[1], progress=progress, q=q)
+
+        # if isinstance(im_ref, GeoArray) and nodata is not None: im_ref.nodata = nodata[0]
+        # if isinstance(im_tgt, GeoArray) and nodata is not None: im_tgt.nodata = nodata[1]
+        # self.imref             = im_ref if isinstance(im_ref, GeoArray) else GeoArray(im_ref, nodata=nodata[0])
+        # self.im2shift          = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt, nodata=nodata[1])
+        # self.imref.progress    = progress
+        # self.im2shift.progress = progress
+        # self.imref.q           = q
+        # self.im2shift.q        = q
 
         self.path_out          = path_out  # updated by self.set_outpathes
         self.fmt_out           = fmt_out
@@ -156,6 +160,7 @@ class COREG_LOCAL(object):
         self.progress          = progress if not q else False # overridden by v
         self.ignErr            = ignore_errors
 
+        assert self.tieP_filter_level in [0,1,2], 'Invalid tie point filter level.'
         assert isinstance(self.imref, GeoArray) and isinstance(self.im2shift, GeoArray), \
             'Something went wrong with the creation of GeoArray instances for reference or target image. The created ' \
             'instances do not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset the ' \
