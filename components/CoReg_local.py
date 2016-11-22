@@ -24,9 +24,9 @@ from py_tools_ds.ptds                 import GeoArray
 class COREG_LOCAL(object):
     """See help(COREG_LOCAL) for documentation!"""
 
-    def __init__(self, im_ref, im_tgt, grid_res, window_size=(256,256), path_out=None, fmt_out='ENVI',
+    def __init__(self, im_ref, im_tgt, grid_res, max_points=None, window_size=(256,256), path_out=None, fmt_out='ENVI',
                  out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
-                 tieP_filter_level=1, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
+                 tieP_filter_level=2, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
                  data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
                  binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True,
@@ -40,6 +40,7 @@ class COREG_LOCAL(object):
         :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
         :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is supported)
         :param grid_res:                quality grid resolution in pixels of the target image
+        :param max_points(int):         maximum number of points used to find coregistration tie points
         :param window_size(tuple):      custom matching window size [pixels] (default: (256,256))
         :param path_out(str):           target path of the coregistered image
                                             - if None (default), no output is written to disk
@@ -54,12 +55,15 @@ class COREG_LOCAL(object):
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
         :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels:
+        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 2).
+                                        NOTE: lower levels are also included if a higher level is chosen
                                             - Level 0: no tie point filtering
-                                            - Level 1: SSIM filtering - filters all tie points out where shift
+                                            - Level 1: Reliablity filtering - filter all tie points out that have a low
+                                                reliability according to internal tests
+                                            - Level 2: SSIM filtering - filters all tie points out where shift
                                                 correction does not increase image similarity within matching window
                                                 (measured by mean structural similarity index)
-                                            - Level 2: SSIM filtering and RANSAC outlier detection
+                                            - Level 3: RANSAC outlier detection
         :param out_gsd (float):         output pixel size in units of the reference coordinate system (default = pixel
                                         size of the input array), given values are overridden by match_gsd=True
         :param align_grids (bool):      True: align the input coordinate grid to the reference (does not affect the
@@ -129,6 +133,7 @@ class COREG_LOCAL(object):
         self.out_creaOpt       = out_crea_options
         self._projectDir       = projectDir
         self.grid_res          = grid_res
+        self.max_points        = max_points
         self.window_size       = window_size
         self.max_shift         = max_shift
         self.max_iter          = max_iter
@@ -216,6 +221,7 @@ class COREG_LOCAL(object):
             return self._quality_grid
         else:
             self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res,
+                                                   max_points        = self.max_points,
                                                    outFillVal        = self.outFillVal,
                                                    resamp_alg_calc   = self.rspAlg_calc,
                                                    tieP_filter_level = self.tieP_filter_level,
@@ -302,13 +308,10 @@ class COREG_LOCAL(object):
         GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
         GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
 
-
         if hide_filtered:
-            if self.tieP_filter_level == 3: GDF = GDF[GDF.OUTLIER == False].copy() # FIXME dirty hack
-            else:
-                if self.tieP_filter_level > 0:  GDF = GDF[GDF.L1_OUTLIER == False].copy()
-                if self.tieP_filter_level > 1:  GDF = GDF[GDF.L2_OUTLIER == False].copy()
-                if self.tieP_filter_level > 2:  GDF = GDF[GDF.L3_OUTLIER == False].copy()
+            if self.tieP_filter_level > 0:  GDF = GDF[GDF.L1_OUTLIER == False].copy()
+            if self.tieP_filter_level > 1:  GDF = GDF[GDF.L2_OUTLIER == False].copy()
+            if self.tieP_filter_level > 2:  GDF = GDF[GDF.L3_OUTLIER == False].copy()
         else:
             marker = 'o' if len(GDF) < 10000 else '.'
             if self.tieP_filter_level > 0:

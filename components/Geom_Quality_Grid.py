@@ -35,8 +35,8 @@ global_shared_im2shift = None
 class Geom_Quality_Grid(object):
     """See help(Geom_Quality_Grid) for documentation!"""
 
-    def __init__(self, COREG_obj, grid_res, outFillVal=-9999, resamp_alg_calc='cubic', tieP_filter_level=1,
-                 dir_out=None, CPUs=None, progress=True, v=False, q=False):
+    def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
+                 tieP_filter_level=2, dir_out=None, CPUs=None, progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -45,6 +45,7 @@ class Geom_Quality_Grid(object):
 
         :param COREG_obj(object):       an instance of COREG class
         :param grid_res:                grid resolution in pixels of the target image
+        :param max_points(int):         maximum number of points used to find coregistration tie points
         :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
         :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
@@ -52,12 +53,15 @@ class Geom_Quality_Grid(object):
                                         (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
                                         default: cubic (highly recommended)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels:
+        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 2).
+                                        NOTE: lower levels are also included if a higher level is chosen
                                             - Level 0: no tie point filtering
-                                            - Level 1: SSIM filtering - filters all tie points out where shift
+                                            - Level 1: Reliablity filtering - filter all tie points out that have a low
+                                                reliability according to internal tests
+                                            - Level 2: SSIM filtering - filters all tie points out where shift
                                                 correction does not increase image similarity within matching window
                                                 (measured by mean structural similarity index)
-                                            - Level 2: SSIM filtering and RANSAC outlier detection
+                                            - Level 3: RANSAC outlier detection
         :param dir_out(str):            output directory to be used for all outputs if nothing else is given
                                         to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
@@ -71,6 +75,7 @@ class Geom_Quality_Grid(object):
 
         self.COREG_obj         = COREG_obj
         self.grid_res          = grid_res
+        self.max_points        = max_points
         self.outFillVal        = outFillVal
         self.rspAlg_calc       = resamp_alg_calc
         self.tieP_filter_level = tieP_filter_level
@@ -124,6 +129,12 @@ class Geom_Quality_Grid(object):
 
 
     def _get_imXY__mapXY_points(self, grid_res):
+        """Returns a numpy array containing possible positions for coregistration tie points according to the given
+        grid resolution.
+
+        :param grid_res:
+        :return:
+        """
         if not self.q:
             print('Initializing geometric quality grid...')
 
@@ -144,6 +155,37 @@ class Geom_Quality_Grid(object):
         XY_mapPoints[:,1] = mapYarr.flat
 
         return XY_points,XY_mapPoints
+
+
+    def _exclude_bad_XYpos(self, GDF):
+        """Excludes all points outside of the image overlap area and all points where the bad data mask is True (if given).
+
+        :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_UTM' and 'Y_UTM'
+        :return:
+        """
+
+        # exclude all points outside of overlap area
+        inliers = points_in_poly(self.XY_mapPoints,
+                                 np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
+        GDF = GDF[inliers].copy()
+        #GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # works but much slower
+
+        assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check your input data!' # FIXME track that
+
+
+        # exclude all point where bad data mask is True (e.g. points on clouds etc.)
+        orig_len_GDF       = len(GDF)
+        mapXY              = np.array(GDF.loc[:,['X_UTM','Y_UTM']])
+        GDF['REF_BADDATA'] = self.COREG_obj.ref  .mask_baddata.read_pointData(mapXY) \
+                                if self.COREG_obj.ref  .mask_baddata is not None else False
+        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY)\
+                                if self.COREG_obj.shift.mask_baddata is not None else False
+        GDF                = GDF[(GDF['REF_BADDATA']==False) & (GDF['TGT_BADDATA']==False)]
+        if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
+            print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
+                  %(orig_len_GDF-len(GDF), orig_len_GDF))
+
+        return GDF
 
 
     @staticmethod
@@ -168,7 +210,7 @@ class Geom_Quality_Grid(object):
         return [pointID]+CR_res
 
 
-    def get_CoRegPoints_table(self, exclude_outliers=True):
+    def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
         #ref_ds,tgt_ds = gdal.Open(self.path_imref),gdal.Open(self.path_im2shift)
@@ -200,36 +242,15 @@ class Geom_Quality_Grid(object):
                                   columns=['geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM'])
         GDF       ['geometry']       = geomPoints
         GDF       ['POINT_ID']       = range(len(geomPoints))
-        GDF.loc[:,['X_IM','Y_IM']]   = self.XY_points
+        GDF.loc[:,['X_IM' ,'Y_IM' ]] = self.XY_points
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
 
-        if exclude_outliers:
-            inliers = points_in_poly(self.XY_mapPoints,
-                                     np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
-            GDF = GDF[inliers]
-            #GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # works but much slower
+        # exclude offsite points and points on bad data mask
+        GDF = self._exclude_bad_XYpos(GDF)
 
-        assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check your input data!' # FIXME track that
-
-        # exclude all point where bad data mask is True (e.g. points on clouds etc.)
-        orig_len_GDF       = len(GDF)
-        mapXY              = np.array(GDF.loc[:,['X_UTM','Y_UTM']])
-        GDF['REF_BADDATA'] = self.COREG_obj.ref  .mask_baddata.read_pointData(mapXY) \
-                                if self.COREG_obj.ref  .mask_baddata is not None else False
-        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY)\
-                                if self.COREG_obj.shift.mask_baddata is not None else False
-        GDF                = GDF[(GDF['REF_BADDATA']==False) & (GDF['TGT_BADDATA']==False)]
-        print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
-              %(orig_len_GDF-len(GDF), orig_len_GDF))
-        self.ref.mask_baddata   = None
-        self.shift.mask_baddata = None
-
-        #not_within_nodata = \
-        #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
-        #              self.shift[r.Y_IM,r.X_IM, self.COREG_obj.shift.band4match] != self.COREG_obj.shift.nodata)[0,0]
-
-        #GDF['not_within_nodata'] = GDF.apply(lambda GDF_row: not_within_nodata(GDF_row),axis=1)
-        #GDF = GDF[GDF.not_within_nodata]
+        # choose a random subset of points if a maximum number has been given
+        if self.max_points:
+            GDF = GDF.sample(self.max_points).copy()
 
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift
@@ -329,7 +350,8 @@ class Geom_Quality_Grid(object):
             return []
         else:
             # exclude all points flagged as outliers
-            GDF = GDF[GDF.OUTLIER == False].copy()
+            if 'OUTLIER' in GDF.columns:
+                GDF = GDF[GDF.OUTLIER == False].copy()
 
             # calculate GCPs
             GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
@@ -593,7 +615,7 @@ class Tie_Point_Refiner(object):
         :return:
         """
 
-        GDF = self.GDF[self.GDF[self.new_cols].any(axis=1)==False] if exclude_previous_outliers else self.GDF
+        GDF = self.GDF[self.GDF[self.new_cols].any(axis=1)==False].copy() if exclude_previous_outliers else self.GDF
 
         src_coords = np.array(GDF[['X_UTM', 'Y_UTM']])
         xyShift    = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
@@ -614,42 +636,63 @@ class Tie_Point_Refiner(object):
 
         model_robust, inliers = None, None
         count_inliers         = None
-        th                    = 5  # start value
+        th                    = 5  # start RANSAC threshold
         th_checked            = {} # dict of thresholds that already have been tried + calculated inlier percentage
         th_substract          = 2
         count_iter            = 0
         time_start            = time.time()
+        ideal_count           = min_inlier_percentage * src_coords.shape[0] / 100
 
         while True:
-            if count_iter > max_iter or time.time()-time_start > timeout:
-                break # keep last values and break while loop
             if th_checked:
-                if min_inlier_percentage-tolerance <= th_checked[th] <= min_inlier_percentage+tolerance:
-                    th_substract /= 2
-                    if abs(th_checked[th] - min_inlier_percentage) <= tolerance:
-                        break # keep last values and break while loop
+                th_too_strict = count_inliers < ideal_count # True if too less inliers remaining
 
-                # check if more or less outliers have been detected than given percentage
-                if count_inliers >= min_inlier_percentage * src_coords.shape[0] / 100:
-                    th -= th_substract  # too less outliers found -> decrease threshold
-                else:
-                    th += th_substract  # too much outliers found -> increase threshold
+                # calculate new theshold using old increment
+                th_new        = th+th_substract if th_too_strict else th-th_substract
+
+                # check if calculated new threshold has been used before
+                th_already_checked = th_new in th_checked.keys()
+
+                # if yes, decrease increment and recalculate new threshold
+                th_substract       = th_substract if not th_already_checked else th_substract / 2
+                th                 = th_new if not th_already_checked else \
+                                        (th+th_substract if th_too_strict else th-th_substract)
 
             # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
-            model_robust, inliers = ransac((src_coords, est_coords), AffineTransform,
-                                           min_samples        = 6,
-                                           residual_threshold = th,
-                                           max_trials         = 3000,
-                                           stop_sample_num    = int((min_inlier_percentage-tolerance)/100*src_coords.shape[0]),
-                                           stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
-                                           )
+            model_robust, inliers = \
+                ransac((src_coords, est_coords), AffineTransform,
+                       min_samples        = 6,
+                       residual_threshold = th,
+                       max_trials         = 2000,
+                       stop_sample_num    = int((min_inlier_percentage-tolerance) /100*src_coords.shape[0]),
+                       stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
+                       )
             count_inliers  = np.count_nonzero(inliers)
+
             th_checked[th] = count_inliers / src_coords.shape[0] * 100
-            #print(th_checked)
+            #print(th,'\t', th_checked[th], )
+            if min_inlier_percentage-tolerance < th_checked[th] < min_inlier_percentage+tolerance:
+                #print('in tolerance')
+                break
+            if count_iter > max_iter or time.time()-time_start > timeout:
+                break # keep last values and break while loop
+
             count_iter+=1
+
 
         outliers = inliers == False
 
+        if len(GDF) < len(self.GDF):
+            GDF['outliers'] = outliers
+            fullGDF         = GeoDataFrame(self.GDF['POINT_ID'].copy())
+            fullGDF         = fullGDF.merge(GDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
+            gs              = fullGDF['outliers']
+        else:
+            gs              = GeoSeries(outliers)
+
+        assert len(gs)==len(self.GDF), 'RANSAC output validation failed.'
+
         self.ransac_model_robust = model_robust
-        return GeoSeries(outliers)
+
+        return gs
 
