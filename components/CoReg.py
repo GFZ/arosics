@@ -108,35 +108,8 @@ class GeoArray_CoReg(GeoArray):
 
         # add bad data mask
         given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
-        self.mask_baddata = None
         if given_mask:
-            self.add_mask_bad_data(given_mask)
-
-
-    def add_mask_bad_data(self, path_or_geoArr):
-        """Adds a bad data mask. This method is separated from __init__() in order to allow explicit adding of the mask.
-
-        :param path_or_geoArr:
-        """
-        geoArr_mask = GeoArray(path_or_geoArr)
-
-        assert geoArr_mask.bands == 1, \
-            'Expected one single band as bad data mask for %s. Got %s bands.' % (self.imName, geoArr_mask.bands)
-        assert geoArr_mask.shape[:2] == self.shape[:2]
-
-        pixelVals_in_mask = sorted(list(np.unique(geoArr_mask[:])))
-        assert len(pixelVals_in_mask) <= 2, 'Bad data mask must have only two pixel values (boolean) - 0 and 1 or ' \
-                                            'False and True! The given mask for %s contains the values %s.' % (
-                                            self.imName, pixelVals_in_mask)
-        assert pixelVals_in_mask in [[0, 1], [False, True]], 'Found unsupported pixel values in the given bad data ' \
-                                                             'mask for %s: %s Only the values True, False, 0 and 1 ' \
-                                                             'are supported. ' % (self.imName, pixelVals_in_mask)
-        assert geoArr_mask.gt in [None, self.gt], 'The geotransform of the given bad data mask for %s must match the ' \
-                                                  'geotransform of the %s.' %(self.imName, self.imName)
-        assert geoArr_mask.prj is None or prj_equal(geoArr_mask.prj, self.prj) in [None, self.prj], 'The projection ' \
-            'of the given bad data mask for %s must match the projection of the %s.' %(self.imName, self.imName)
-
-        self.mask_baddata = geoArr_mask[:].astype(np.bool)
+            self.mask_baddata = given_mask
 
 
 
@@ -288,7 +261,7 @@ class COREG(object):
         self.ssim_orig           = None                # set by self._validate_ssim_improvement()
         self.ssim_deshifted      = None                # set by self._validate_ssim_improvement()
         self._ssim_improved      = None                # private attribute to be filled by self.ssim_improved
-        self.confidence_shifts   = None                # set by self.calculate_spatial_shifts()
+        self.shift_reliability   = None                # set by self.calculate_spatial_shifts()
 
         self.tracked_errors      = []                  # expanded each time an error occurs
         self.success             = None                # default
@@ -568,7 +541,7 @@ class COREG(object):
             if im.mask_baddata is not None:
                 imX, imY = mapXY2imXY(wp, im.mask_baddata.gt)
 
-                if not im.mask_baddata[imY, imX]:
+                if im.mask_baddata[int(imY), int(imX)] is True:
                     self.tracked_errors.append(
                         RuntimeError('According to the provided bad data mask for the %s the chosen window position '
                             '%s / %s is within a bad data area. Using this window position for coregistration '
@@ -919,7 +892,7 @@ class COREG(object):
         return x_intshift, y_intshift
 
 
-    def _calc_shift_confidence(self, scps):
+    def _calc_shift_reliability(self, scps):
         """Calculates a confidence percentage that can be used as an assessment for reliability of the calculated shifts.
 
         :param scps:    <np.ndarray> shifted cross power spectrum
@@ -934,17 +907,16 @@ class COREG(object):
         scps_masked        = scps
         scps_masked[peakR-1:peakR+2, peakC-1:peakC+2] = -9999
         scps_masked        = np.ma.masked_equal(scps_masked, -9999)
-        power_without_peak = np.mean(scps_masked) + 3* np.std(scps_masked)
+        power_without_peak = np.mean(scps_masked) + 2* np.std(scps_masked)
 
         # calculate confidence
         confid = 100-((power_without_peak/power_at_peak)*100)
         confid = 100 if confid > 100 else 0 if confid < 0 else confid
 
         if not self.q:
-            print('Confidence of the calculated shifts:  %.1f' %confid, '%')
+            print('Estimated reliability of the calculated shifts:  %.1f' %confid, '%')
 
         return confid
-
 
 
     def _validate_integer_shifts(self, im0, im1, x_intshift, y_intshift):
@@ -1202,7 +1174,7 @@ class COREG(object):
 
             # set self.ssim_before and ssim_after
             self._validate_ssim_improvement()
-            self.confidence_shifts = self._calc_shift_confidence(scps)
+            self.shift_reliability = self._calc_shift_reliability(scps)
 
         warnings.simplefilter('default')
 

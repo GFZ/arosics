@@ -36,6 +36,7 @@ def angle_to_north(XY):
 
 
 def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, q=0):
+    # FIXME this function is not used anymore
     """
 
     :param fPath_or_geoarray:

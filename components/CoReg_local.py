@@ -120,20 +120,10 @@ class COREG_LOCAL(object):
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
 
-        self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
+        self.params            = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
         self.imref             = GeoArray(im_ref, nodata=nodata[0], progress=progress, q=q)
         self.im2shift          = GeoArray(im_tgt, nodata=nodata[1], progress=progress, q=q)
-
-        # if isinstance(im_ref, GeoArray) and nodata is not None: im_ref.nodata = nodata[0]
-        # if isinstance(im_tgt, GeoArray) and nodata is not None: im_tgt.nodata = nodata[1]
-        # self.imref             = im_ref if isinstance(im_ref, GeoArray) else GeoArray(im_ref, nodata=nodata[0])
-        # self.im2shift          = im_tgt if isinstance(im_tgt, GeoArray) else GeoArray(im_tgt, nodata=nodata[1])
-        # self.imref.progress    = progress
-        # self.im2shift.progress = progress
-        # self.imref.q           = q
-        # self.im2shift.q        = q
-
         self.path_out          = path_out  # updated by self.set_outpathes
         self.fmt_out           = fmt_out
         self.out_creaOpt       = out_crea_options
@@ -160,10 +150,10 @@ class COREG_LOCAL(object):
         self.progress          = progress if not q else False # overridden by v
         self.ignErr            = ignore_errors
 
-        assert self.tieP_filter_level in [0,1,2], 'Invalid tie point filter level.'
+        assert self.tieP_filter_level in range(4), 'Invalid tie point filter level.'
         assert isinstance(self.imref, GeoArray) and isinstance(self.im2shift, GeoArray), \
             'Something went wrong with the creation of GeoArray instances for reference or target image. The created ' \
-            'instances do not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset the ' \
+            'instances do not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset the '\
             'kernel and try again.'
 
         COREG.__dict__['_set_outpathes'](self, self.imref, self.im2shift)
@@ -194,8 +184,8 @@ class COREG_LOCAL(object):
 
         # add bad data mask
         # (mask is not added during initialization of COREG object in order to avoid bad data area errors there)
-        if mask_baddata_ref: self.COREG_obj.ref.add_mask_bad_data(mask_baddata_ref)
-        if mask_baddata_tgt: self.COREG_obj.shift.add_mask_bad_data(mask_baddata_tgt)
+        if mask_baddata_ref is not None: self.COREG_obj.ref  .mask_baddata = mask_baddata_ref
+        if mask_baddata_tgt is not None: self.COREG_obj.shift.mask_baddata = mask_baddata_tgt
 
         self._quality_grid      = None # set by self.quality_grid
         self._CoRegPoints_table = None # set by self.CoRegPoints_table
@@ -288,9 +278,11 @@ class COREG_LOCAL(object):
         plt.title(attribute2plot)
 
         # transform all points of quality grid to LonLat
+        outlierCols  = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
+        attr2include = ['geometry', attribute2plot] + outlierCols
         GDF = self.CoRegPoints_table.loc\
-                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, ['geometry', attribute2plot, 'SSIM_IMPROVED', 'OUTLIER']].copy() \
-                if exclude_fillVals else self.CoRegPoints_table.loc[:, ['geometry', attribute2plot, 'SSIM_IMPROVED', 'OUTLIER']]
+                [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, attr2include].copy() \
+                if exclude_fillVals else self.CoRegPoints_table.loc[:, attr2include]
 
         # get LonLat coordinates for all points
         get_LonLat    = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
@@ -310,24 +302,31 @@ class COREG_LOCAL(object):
         GDF['plt_X']  = list(GDF['plt_XY'].map(lambda XY: XY[0]))
         GDF['plt_Y']  = list(GDF['plt_XY'].map(lambda XY: XY[1]))
 
-        if not hide_filtered and self.tieP_filter_level>1:
-            # flag RANSAC outliers
-            GDF_filt = GDF[GDF.OUTLIER==True].copy()
-            plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker='o' if len(GDF) < 10000 else '.', s=250, alpha=1.0)
 
-        if not hide_filtered and self.tieP_filter_level>0:
-            # flag SSIM filtered points
-            GDF_filt = GDF[GDF.SSIM_IMPROVED==False].copy()
-            plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker='o' if len(GDF) < 10000 else '.', s=150, alpha=1.0)
+        if hide_filtered:
+            if self.tieP_filter_level == 3: GDF = GDF[GDF.OUTLIER == False].copy() # FIXME dirty hack
+            else:
+                if self.tieP_filter_level > 0:  GDF = GDF[GDF.L1_OUTLIER == False].copy()
+                if self.tieP_filter_level > 1:  GDF = GDF[GDF.L2_OUTLIER == False].copy()
+                if self.tieP_filter_level > 2:  GDF = GDF[GDF.L3_OUTLIER == False].copy()
+        else:
+            marker = 'o' if len(GDF) < 10000 else '.'
+            if self.tieP_filter_level > 0:
+                # flag level 1 outliers
+                GDF_filt = GDF[GDF.L1_OUTLIER == True].copy()
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0)
+            if self.tieP_filter_level > 1:
+                # flag level 2 outliers
+                GDF_filt = GDF[GDF.L2_OUTLIER == True].copy()
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0)
+            if self.tieP_filter_level > 2:
+                # flag level 3 outliers
+                GDF_filt = GDF[GDF.L2_OUTLIER == True].copy()
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0)
 
 
-        if hide_filtered and self.tieP_filter_level>0:
-            GDF = GDF[GDF.SSIM_IMPROVED == True].copy()
 
-        if hide_filtered and self.tieP_filter_level>1:
-            GDF = GDF[GDF.OUTLIER == False].copy()
-
-
+        #print(GDF)
         # plot all points on top
         vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],

@@ -13,7 +13,7 @@ try:
 except ImportError:
     from osgeo import gdal
 import numpy as np
-from geopandas         import GeoDataFrame
+from geopandas         import GeoDataFrame, GeoSeries
 from pykrige.ok        import OrdinaryKriging
 from shapely.geometry  import Point
 from skimage.measure   import points_in_poly, ransac
@@ -163,7 +163,7 @@ class Geom_Quality_Grid(object):
         win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
         CR_res   = [win_sz_x, win_sz_y, CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
                     CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
-                    CR.confidence_shifts, last_err]
+                    CR.shift_reliability, last_err]
 
         return [pointID]+CR_res
 
@@ -212,7 +212,7 @@ class Geom_Quality_Grid(object):
         assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check your input data!' # FIXME track that
 
         # exclude all point where bad data mask is True (e.g. points on clouds etc.)
-        orig_len_GDF = len(GDF)
+        orig_len_GDF       = len(GDF)
         mapXY              = np.array(GDF.loc[:,['X_UTM','Y_UTM']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref  .mask_baddata.read_pointData(mapXY) \
                                 if self.COREG_obj.ref  .mask_baddata is not None else False
@@ -221,6 +221,8 @@ class Geom_Quality_Grid(object):
         GDF                = GDF[(GDF['REF_BADDATA']==False) & (GDF['TGT_BADDATA']==False)]
         print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
               %(orig_len_GDF-len(GDF), orig_len_GDF))
+        self.ref.mask_baddata   = None
+        self.shift.mask_baddata = None
 
         #not_within_nodata = \
         #    lambda r: np.array(self.ref[r.Y_IM,r.X_IM,self.COREG_obj.ref.band4match]!=self.COREG_obj.ref.nodata and \
@@ -276,7 +278,7 @@ class Geom_Quality_Grid(object):
                         if self.progress:
                             bar.print_progress(percent=numberDone/len(GDF)*100)
                         if results.ready():
-                            results = results.get() # FIXME in some cases the code hangs here ==> x
+                            results = results.get() # FIXME in some cases the code hangs here ==> x ==> seems to be fixed
                             break
         else:
             if not self.q:
@@ -287,129 +289,27 @@ class Geom_Quality_Grid(object):
                 if self.progress:
                     bar.print_progress((i+1)/len(GDF)*100)
                 results[i,:] = self._get_spatial_shifts(coreg_kwargs)
-            # FIXME in some cases the code hangs here ==> x
+            # FIXME in some cases the code hangs here ==> x ==> seems to be fixed
 
          # merge results with GDF
         records = GeoDataFrame(np.array(results, np.object),
                                columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M',
                                         'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
-                                        'SSIM_IMPROVED', 'CONFIDENCE', 'LAST_ERR'])
+                                        'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
+
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
+        # filter tie points according to given filter level
+        if self.tieP_filter_level>0:
+            TPR                   = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal])
+            GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
+            GDF                   = GDF.merge(GDF_filt[ ['POINT_ID']+new_columns], on='POINT_ID', how="outer")
+
+        GDF = GDF.fillna(int(self.outFillVal))
         self.CoRegPoints_table = GDF
 
-        if self.tieP_filter_level>1:
-            self._flag_outliers(algorithm = 'RANSAC', inplace=True)
-
         return self.CoRegPoints_table
-
-
-    def _flag_outliers(self, algorithm='RANSAC', inplace=False):
-        """Detects geometric outliers within CoRegPoints_table GeoDataFrame and adds a new boolean column 'OUTLIER'.
-
-        :param algorithm:   <str> the algorithm to be used for outlier detection. available choices: 'RANSAC'
-        :param inplace:     <bool> whether to overwrite CoRegPoints_table directly (True) or not (False). If False, the
-                            resulting GeoDataFrame is returned.
-        """
-
-        if not algorithm in ['RANSAC']: raise ValueError
-        warnings.warn("The currently implemented RANSAC outlier detection is still very experimental. You enabled it "
-                      "by passing 'tieP_filter_level=2' to COREG_LOCAL. Use it on your own risk!")
-
-        GDF     = self.CoRegPoints_table.copy()
-
-        # exclude all records where SSIM decreased or no match has been found
-        GDF     = GDF[(GDF.ABS_SHIFT!=self.outFillVal) &(GDF.SSIM_IMPROVED==True)]
-
-        if not GDF.empty:
-            src     = np.array(GDF[['X_UTM', 'Y_UTM']])
-            xyShift = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
-            dst     = src + xyShift
-
-            if algorithm=='RANSAC':
-                model_roust, outliers = self._ransac_outlier_detection(src, dst)
-                #print(np.count_nonzero(outliers), 'marked as outliers')
-
-                records            = GDF[['POINT_ID']].copy()
-                records['OUTLIER'] = outliers
-
-                GDF = self.CoRegPoints_table.merge(records, on='POINT_ID', how="outer")
-                GDF['OUTLIER'].fillna(int(self.outFillVal), inplace=True)
-
-            if inplace:
-                self.CoRegPoints_table = GDF
-
-            return GDF
-
-        else:
-            if not inplace:
-                return GeoDataFrame(columns=['OUTLIER'])
-
-
-    @staticmethod
-    def _ransac_outlier_detection(src_coords, est_coords, max_outlier_percentage=10, tolerance=2.5, max_iter=15, timeout=20):
-        """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm.
-
-        :param src_coords:              <np.ndarray> source coordinate point cloud as array with shape [Nx2]
-        :param est_coords:              <np.ndarray> estimated coordinate point cloud as array with shape [Nx2]
-        :param max_outlier_percentage:  <float, int> maximum percentage of outliers to be detected
-        :param tolerance:               <float, int> percentage tolerance for max_outlier_percentage
-        :param max_iter:                <int> maximum iterations for finding the best RANSAC threshold
-        :param timeout:                 <float, int> timeout for iteration loop in seconds
-        :return:
-        """
-        for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
-            assert co.ndim==2 and co.shape[1]==2, "'%s' must have shape [Nx2]. Got shape %s."%(n, co.shape)
-
-        if max_outlier_percentage >100: raise ValueError
-        min_inlier_percentage = 100-max_outlier_percentage
-
-        class PolyTF_1(PolynomialTransform):
-            def estimate(*data):
-                return PolynomialTransform.estimate(*data, order=1)
-
-        # robustly estimate affine transform model with RANSAC
-        # exliminates not more than the given maximum outlier percentage of the tie points
-
-        model_robust, inliers = None, None
-        count_inliers         = None
-        th                    = 5  # start value
-        th_checked            = {} # dict of thresholds that already have been tried + calculated inlier percentage
-        th_substract          = 2
-        count_iter            = 0
-        time_start            = time.time()
-
-        while True:
-            if count_iter > max_iter or time.time()-time_start > timeout:
-                break # keep last values and break while loop
-            if th_checked:
-                if min_inlier_percentage-tolerance <= th_checked[th] <= min_inlier_percentage+tolerance:
-                    th_substract /= 2
-                    if abs(th_checked[th] - min_inlier_percentage) <= tolerance:
-                        break # keep last values and break while loop
-
-                # check if more or less outliers have been detected than given percentage
-                if count_inliers >= min_inlier_percentage * src_coords.shape[0] / 100:
-                    th -= th_substract  # too less outliers found -> decrease threshold
-                else:
-                    th += th_substract  # too much outliers found -> increase threshold
-
-            # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
-            model_robust, inliers = ransac((src_coords, est_coords), AffineTransform,
-                                           min_samples        = 6,
-                                           residual_threshold = th,
-                                           max_trials         = 3000,
-                                           stop_sample_num    = int((min_inlier_percentage-tolerance)/100*src_coords.shape[0]),
-                                           stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
-                                           )
-            count_inliers  = np.count_nonzero(inliers)
-            th_checked[th] = count_inliers / src_coords.shape[0] * 100
-            print(th_checked)
-            count_iter+=1
-
-        outliers = inliers == False
-        return model_robust, outliers
 
 
     def dump_CoRegPoints_table(self, path_out=None):
@@ -428,19 +328,8 @@ class Geom_Quality_Grid(object):
         if getattr(GDF,'empty'): # GDF.empty returns AttributeError
             return []
         else:
-            orig_len_GDF = len(GDF)
-
-            if self.tieP_filter_level > 0:
-                # level 1 filtering
-                GDF = GDF[GDF.SSIM_IMPROVED==True].copy()
-                if not self.q:
-                    print('SSIM filtering removed %s tie points.' %(orig_len_GDF-len(GDF)))
-
-            if self.tieP_filter_level > 1:
-                # level 2 filtering
-                GDF = GDF[GDF.OUTLIER == False].copy()
-                if not self.q:
-                    print('RANSAC filtering removed %s tie points.' % (orig_len_GDF - len(GDF))) # FIXME hardcoded algorithm; count corresponds to original length of GDF
+            # exclude all points flagged as outliers
+            GDF = GDF[GDF.OUTLIER == False].copy()
 
             # calculate GCPs
             GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
@@ -628,3 +517,139 @@ class Geom_Quality_Grid(object):
         kwargs = args_kwargs_dict.get('kwargs',[])
 
         return self._Kriging_sp(*args, **kwargs)
+
+
+
+class Tie_Point_Refiner(object):
+    def __init__(self, GDF, q=False):
+        self.GDF        = GDF.copy()
+        self.q          = q
+
+        self.new_cols            = []
+        self.ransac_model_robust = None
+
+
+    def run_filtering(self, level=2):
+        # TODO catch empty GDF
+
+        if level>0:
+            marked_recs            = GeoSeries(self._reliability_thresholding())
+            self.GDF['L1_OUTLIER'] = marked_recs
+            self.new_cols.append('L1_OUTLIER')
+            if not self.q:
+                print('%s tie points flagged by level 1 filtering (reliability).' % (len(marked_recs[marked_recs==True])))
+
+        if level>1:
+            marked_recs            = GeoSeries(self._SSIM_filtering())
+            self.GDF['L2_OUTLIER'] = marked_recs
+            self.new_cols.append('L2_OUTLIER')
+            if not self.q:
+                print('%s tie points flagged by level 2 filtering (SSIM).' % (len(marked_recs[marked_recs==True])))
+
+        if level>2:
+            warnings.warn(
+                "The currently implemented RANSAC outlier detection is still very experimental. You enabled it "
+                "by passing 'tieP_filter_level=2' to COREG_LOCAL. Use it on your own risk!")
+
+            marked_recs            = GeoSeries(self._RANSAC_outlier_detection())
+            self.GDF['L3_OUTLIER'] = marked_recs
+            self.new_cols.append('L3_OUTLIER')
+            if not self.q:
+                print('%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs==True])))
+
+        self.GDF['OUTLIER'] = self.GDF[self.new_cols].any(axis=1)
+        self.new_cols.append('OUTLIER')
+
+        return self.GDF, self.new_cols
+
+
+    def _reliability_thresholding(self, min_reliability=30):
+        """Exclude all records where estimated reliability of the calculated shifts is below the given threshold.
+
+        :param min_reliability:
+        :return:
+        """
+        return self.GDF.RELIABILITY < min_reliability
+
+
+    def _SSIM_filtering(self):
+        """Exclude all records where SSIM decreased.
+
+        :return:
+        """
+        return self.GDF.SSIM_IMPROVED == False
+
+
+    def _RANSAC_outlier_detection(self, max_outlier_percentage=10, tolerance=2.5, max_iter=15,
+                                  exclude_previous_outliers=True, timeout=20):
+        """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm.
+
+        :param max_outlier_percentage:      <float, int> maximum percentage of outliers to be detected
+        :param tolerance:                   <float, int> percentage tolerance for max_outlier_percentage
+        :param max_iter:                    <int> maximum iterations for finding the best RANSAC threshold
+        :param exclude_previous_outliers:   <bool> whether to exclude points that have been flagged as outlier by
+                                            earlier filtering
+        :param timeout:                     <float, int> timeout for iteration loop in seconds
+        :return:
+        """
+
+        GDF = self.GDF[self.GDF[self.new_cols].any(axis=1)==False] if exclude_previous_outliers else self.GDF
+
+        src_coords = np.array(GDF[['X_UTM', 'Y_UTM']])
+        xyShift    = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
+        est_coords = src_coords + xyShift
+
+        for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
+            assert co.ndim==2 and co.shape[1]==2, "'%s' must have shape [Nx2]. Got shape %s."%(n, co.shape)
+
+        if max_outlier_percentage >100: raise ValueError
+        min_inlier_percentage = 100-max_outlier_percentage
+
+        class PolyTF_1(PolynomialTransform):
+            def estimate(*data):
+                return PolynomialTransform.estimate(*data, order=1)
+
+        # robustly estimate affine transform model with RANSAC
+        # exliminates not more than the given maximum outlier percentage of the tie points
+
+        model_robust, inliers = None, None
+        count_inliers         = None
+        th                    = 5  # start value
+        th_checked            = {} # dict of thresholds that already have been tried + calculated inlier percentage
+        th_substract          = 2
+        count_iter            = 0
+        time_start            = time.time()
+
+        while True:
+            if count_iter > max_iter or time.time()-time_start > timeout:
+                break # keep last values and break while loop
+            if th_checked:
+                if min_inlier_percentage-tolerance <= th_checked[th] <= min_inlier_percentage+tolerance:
+                    th_substract /= 2
+                    if abs(th_checked[th] - min_inlier_percentage) <= tolerance:
+                        break # keep last values and break while loop
+
+                # check if more or less outliers have been detected than given percentage
+                if count_inliers >= min_inlier_percentage * src_coords.shape[0] / 100:
+                    th -= th_substract  # too less outliers found -> decrease threshold
+                else:
+                    th += th_substract  # too much outliers found -> increase threshold
+
+            # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
+            model_robust, inliers = ransac((src_coords, est_coords), AffineTransform,
+                                           min_samples        = 6,
+                                           residual_threshold = th,
+                                           max_trials         = 3000,
+                                           stop_sample_num    = int((min_inlier_percentage-tolerance)/100*src_coords.shape[0]),
+                                           stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
+                                           )
+            count_inliers  = np.count_nonzero(inliers)
+            th_checked[th] = count_inliers / src_coords.shape[0] * 100
+            #print(th_checked)
+            count_iter+=1
+
+        outliers = inliers == False
+
+        self.ransac_model_robust = model_robust
+        return GeoSeries(outliers)
+
