@@ -53,13 +53,7 @@ class GeoArray_CoReg(GeoArray):
         progress       = CoReg_params['progress']
         q              = CoReg_params['q'] if not CoReg_params['v'] else False
 
-        if isinstance(path_or_geoArr, GeoArray):
-            self.__dict__ = path_or_geoArr.__dict__
-            self.nodata   = nodata   if nodata   is not None else self._nodata
-            self.progress = progress if progress is not None else self.progress
-            self.q        = q        if q        is not None else self.q
-        else:
-            super(GeoArray_CoReg, self).__init__(path_or_geoArr, nodata=nodata, progress=progress, q=q)
+        super(GeoArray_CoReg, self).__init__(path_or_geoArr, nodata=nodata, progress=progress, q=q)
 
         self.imID   = imID
         self.imName = 'reference image' if imID == 'ref' else 'image to be shifted'

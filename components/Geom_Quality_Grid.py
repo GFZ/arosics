@@ -46,6 +46,9 @@ class Geom_Quality_Grid(object):
         :param COREG_obj(object):       an instance of COREG class
         :param grid_res:                grid resolution in pixels of the target image
         :param max_points(int):         maximum number of points used to find coregistration tie points
+                                        NOTE: Points are selected randomly from the given point grid (specified by
+                                        'grid_res'). If the point does not provide enough points, all available points
+                                        are chosen.
         :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
         :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation

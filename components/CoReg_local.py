@@ -41,6 +41,9 @@ class COREG_LOCAL(object):
         :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is supported)
         :param grid_res:                quality grid resolution in pixels of the target image
         :param max_points(int):         maximum number of points used to find coregistration tie points
+                                        NOTE: Points are selected randomly from the given point grid (specified by
+                                        'grid_res'). If the point does not provide enough points, all available points
+                                        are chosen.
         :param window_size(tuple):      custom matching window size [pixels] (default: (256,256))
         :param path_out(str):           target path of the coregistered image
                                             - if None (default), no output is written to disk

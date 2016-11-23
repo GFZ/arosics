@@ -74,6 +74,7 @@ def run_local_coreg(args):
                       path_out         = args.path_out,
                       fmt_out          = args.fmt_out,
                       grid_res         = args.grid_res,
+                      max_points       = args.max_points,
                       r_b4match        = args.br,
                       s_b4match        = args.bs,
                       window_size      = args.ws,
@@ -258,6 +259,11 @@ if __name__ == '__main__':
     locArg('path_tgt', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
 
     locArg('grid_res', type=int, help='quality grid resolution in pixels of the target image')
+
+    locArg('-max_points', nargs='?', type=int,
+           help="maximum number of points used to find coregistration tie points. NOTE: Points are selected randomly "
+                "from the given point grid (specified by 'grid_res'). If the point does not provide enough points, all "
+                "available points are chosen.")
 
     locArg('-o', nargs='?', type=str, dest='path_out', default='auto',
            help="target path of the coregistered image. If 'auto' (default): /dir/of/im1/<im1>__shifted_to__<im0>.bsq")
