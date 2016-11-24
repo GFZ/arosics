@@ -327,12 +327,10 @@ class COREG_LOCAL(object):
                 plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0)
             if self.tieP_filter_level > 2:
                 # flag level 3 outliers
-                GDF_filt = GDF[GDF.L2_OUTLIER == True].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0)
+                GDF_filt = GDF[GDF.L3_OUTLIER == True].copy()
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0)
 
 
-
-        #print(GDF)
         # plot all points on top
         vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
         points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
@@ -425,7 +423,7 @@ class COREG_LOCAL(object):
 
         if self.quality_grid.GCPList:
             if max_GCP_count:
-                coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count] # TODO should be a random sample
+                coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count]
 
             DS = DESHIFTER(self.im2shift, coreg_info,
                            path_out         = self.path_out,

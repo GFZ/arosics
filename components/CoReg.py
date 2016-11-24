@@ -309,7 +309,7 @@ class COREG(object):
             if self.path_out == 'auto':
                 dir_out, fName_out = os.path.dirname(path_im_tgt), ''
             else:
-                dir_out, fName_out = os.path.split(path_im_tgt)
+                dir_out, fName_out = os.path.split(self.path_out)
 
             if dir_out and fName_out:
                 # a valid output path is given => do nothing
@@ -1059,7 +1059,7 @@ class COREG(object):
         if self.q:  warnings.simplefilter('ignore')
 
         # set self.matchWin and self.otherWin (GeoArray instances)
-        self._get_image_windows_to_match()
+        self._get_image_windows_to_match() # 45-90ms
 
         im0 = self.matchWin[:] if self.matchWin.imID=='ref'   else self.otherWin[:]
         im1 = self.otherWin[:] if self.otherWin.imID=='shift' else self.matchWin[:]
@@ -1074,7 +1074,7 @@ class COREG(object):
         if self.v: print('imfft_gsd_mapvalues',self.imfft_gsd)
 
         # calculate cross power spectrum without any de-shifting applied
-        scps = self._calc_shifted_cross_power_spectrum()
+        scps = self._calc_shifted_cross_power_spectrum() # 8-18ms
 
         if scps is None:
             self.success = False

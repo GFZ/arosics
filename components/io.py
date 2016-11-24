@@ -207,6 +207,27 @@ def fill_arr_on_disk(argDict):
 
 
 def convert_gdal_to_bsq__mp(in_path,out_path,band=1):
+    """
+    Usage:
+        ref_ds,tgt_ds = gdal.Open(self.path_imref),gdal.Open(self.path_im2shift)
+        ref_pathTmp, tgt_pathTmp = None,None
+        if ref_ds.GetDriver().ShortName!='ENVI':
+            ref_pathTmp = IO.get_tempfile(ext='.bsq')
+            IO.convert_gdal_to_bsq__mp(self.path_imref,ref_pathTmp)
+            self.path_imref = ref_pathTmp
+        if tgt_ds.GetDriver().ShortName!='ENVI':
+            tgt_pathTmp = IO.get_tempfile(ext='.bsq')
+            IO.convert_gdal_to_bsq__mp(self.path_im2shift,tgt_pathTmp)
+            self.path_im2shift = tgt_pathTmp
+        ref_ds=tgt_ds=None
+
+    :param in_path:
+    :param out_path:
+    :param band:
+    :return:
+    """
+
+
     ds   = gdal.Open(in_path)
     dims = (ds.RasterYSize,ds.RasterXSize)
     gt,prj = ds.GetGeoTransform(), ds.GetProjection()

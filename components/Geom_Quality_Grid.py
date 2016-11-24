@@ -196,10 +196,6 @@ class Geom_Quality_Grid(object):
         pointID = coreg_kwargs['pointID']
         del coreg_kwargs['pointID']
 
-        #for im in [global_shared_imref, global_shared_im2shift]:
-        #    imX, imY = mapXY2imXY(coreg_kwargs['wp'], im.gt)
-        #    if im[int(imY), int(imX), im.band4match]==im.nodata,\
-        #        return
         assert global_shared_imref    is not None
         assert global_shared_im2shift is not None
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
@@ -215,18 +211,6 @@ class Geom_Quality_Grid(object):
 
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
-
-        #ref_ds,tgt_ds = gdal.Open(self.path_imref),gdal.Open(self.path_im2shift)
-        #ref_pathTmp, tgt_pathTmp = None,None
-        #if ref_ds.GetDriver().ShortName!='ENVI':
-        #    ref_pathTmp = IO.get_tempfile(ext='.bsq')
-        #    IO.convert_gdal_to_bsq__mp(self.path_imref,ref_pathTmp)
-        #    self.path_imref = ref_pathTmp
-        #if tgt_ds.GetDriver().ShortName!='ENVI':
-        #    tgt_pathTmp = IO.get_tempfile(ext='.bsq')
-        #    IO.convert_gdal_to_bsq__mp(self.path_im2shift,tgt_pathTmp)
-        #    self.path_im2shift = tgt_pathTmp
-        #ref_ds=tgt_ds=None
 
         XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point])
         geomPoints      = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
@@ -265,23 +249,23 @@ class Geom_Quality_Grid(object):
         global_shared_im2shift = self.shift
 
         # get all variations of kwargs for coregistration
-        get_coreg_kwargs = lambda pID, wp: {
-            'pointID'            : pID,
-            'wp'                 : wp,
-            'ws'                 : self.COREG_obj.win_size_XY,
-            'resamp_alg_calc'    : self.rspAlg_calc,
-            'footprint_poly_ref' : self.COREG_obj.ref.poly,
-            'footprint_poly_tgt' : self.COREG_obj.shift.poly,
-            'r_b4match'          : self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
-            's_b4match'          : self.COREG_obj.shift.band4match+1, # band4match is internally saved as index, starting from 0
-            'max_iter'           : self.COREG_obj.max_iter,
-            'max_shift'          : self.COREG_obj.max_shift,
-            'nodata'             : (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-            'binary_ws'          : self.COREG_obj.bin_ws,
-            'v'                  : False, # otherwise this would lead to massive console output
-            'q'                  : True,  # otherwise this would lead to massive console output
-            'ignore_errors'      : True
-        }
+        get_coreg_kwargs = lambda pID, wp: dict(
+            pointID            = pID,
+            wp                 = wp,
+            ws                 = self.COREG_obj.win_size_XY,
+            resamp_alg_calc    = self.rspAlg_calc,
+            footprint_poly_ref = self.COREG_obj.ref.poly,
+            footprint_poly_tgt = self.COREG_obj.shift.poly,
+            r_b4match          = self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
+            s_b4match          = self.COREG_obj.shift.band4match+1, # band4match is internally saved as index, starting from 0
+            max_iter           = self.COREG_obj.max_iter,
+            max_shift          = self.COREG_obj.max_shift,
+            nodata             = (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+            binary_ws          = self.COREG_obj.bin_ws,
+            v                  = False, # otherwise this would lead to massive console output
+            q                  = True,  # otherwise this would lead to massive console output
+            ignore_errors      = True
+        )
         list_coreg_kwargs = (get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index) # generator
 
         # run co-registration for whole grid
@@ -302,7 +286,7 @@ class Geom_Quality_Grid(object):
                         if self.progress:
                             bar.print_progress(percent=numberDone/len(GDF)*100)
                         if results.ready():
-                            results = results.get() # FIXME in some cases the code hangs here ==> x ==> seems to be fixed
+                            results = results.get() # <= this is the line where multiprocessing can freeze if an exception appears within COREG ans is not raised
                             break
         else:
             if not self.q:
@@ -313,7 +297,6 @@ class Geom_Quality_Grid(object):
                 if self.progress:
                     bar.print_progress((i+1)/len(GDF)*100)
                 results[i,:] = self._get_spatial_shifts(coreg_kwargs)
-            # FIXME in some cases the code hangs here ==> x ==> seems to be fixed
 
          # merge results with GDF
         records = GeoDataFrame(np.array(results, np.object),
@@ -326,11 +309,11 @@ class Geom_Quality_Grid(object):
 
         # filter tie points according to given filter level
         if self.tieP_filter_level>0:
-            TPR                   = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal])
+            TPR                   = TiePoint_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], q=self.q)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF                   = GDF.merge(GDF_filt[ ['POINT_ID']+new_columns], on='POINT_ID', how="outer")
-
         GDF = GDF.fillna(int(self.outFillVal))
+
         self.CoRegPoints_table = GDF
 
         return self.CoRegPoints_table
@@ -355,6 +338,13 @@ class Geom_Quality_Grid(object):
             # exclude all points flagged as outliers
             if 'OUTLIER' in GDF.columns:
                 GDF = GDF[GDF.OUTLIER == False].copy()
+            avail_TP = len(GDF)
+
+            if avail_TP>7000:
+                GDF = GDF.sample(7000)
+                warnings.warn('By far not more than 7000 tie points can be used for warping within a limited '
+                              'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
+                              'out of the %s available tie points.' %avail_TP)
 
             # calculate GCPs
             GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
@@ -538,18 +528,17 @@ class Geom_Quality_Grid(object):
 
 
     def _Kriging_mp(self, args_kwargs_dict):
-        args   = args_kwargs_dict.get('args',[])
+        args   = args_kwargs_dict.get('args'  ,[])
         kwargs = args_kwargs_dict.get('kwargs',[])
 
         return self._Kriging_sp(*args, **kwargs)
 
 
 
-class Tie_Point_Refiner(object):
+class TiePoint_Refiner(object):
     def __init__(self, GDF, q=False):
-        self.GDF        = GDF.copy()
-        self.q          = q
-
+        self.GDF                 = GDF.copy()
+        self.q                   = q
         self.new_cols            = []
         self.ransac_model_robust = None
 
@@ -557,6 +546,7 @@ class Tie_Point_Refiner(object):
     def run_filtering(self, level=2):
         # TODO catch empty GDF
 
+        # RELIABILITY filtering
         if level>0:
             marked_recs            = GeoSeries(self._reliability_thresholding())
             self.GDF['L1_OUTLIER'] = marked_recs
@@ -564,6 +554,7 @@ class Tie_Point_Refiner(object):
             if not self.q:
                 print('%s tie points flagged by level 1 filtering (reliability).' % (len(marked_recs[marked_recs==True])))
 
+        # SSIM filtering
         if level>1:
             marked_recs            = GeoSeries(self._SSIM_filtering())
             self.GDF['L2_OUTLIER'] = marked_recs
@@ -571,13 +562,10 @@ class Tie_Point_Refiner(object):
             if not self.q:
                 print('%s tie points flagged by level 2 filtering (SSIM).' % (len(marked_recs[marked_recs==True])))
 
+        # RANSAC filtering
         if level>2:
-            warnings.warn(
-                "The currently implemented RANSAC outlier detection is still very experimental. You enabled it "
-                "by passing 'tieP_filter_level=2' to COREG_LOCAL. Use it on your own risk!")
-
             marked_recs            = GeoSeries(self._RANSAC_outlier_detection())
-            self.GDF['L3_OUTLIER'] = marked_recs
+            self.GDF['L3_OUTLIER'] = marked_recs.tolist() # we need to join a list here because otherwise it's merged by the 'index' column
             self.new_cols.append('L3_OUTLIER')
             if not self.q:
                 print('%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs==True])))
@@ -646,6 +634,7 @@ class Tie_Point_Refiner(object):
         time_start            = time.time()
         ideal_count           = min_inlier_percentage * src_coords.shape[0] / 100
 
+        # optimize RANSAC threshold so that it marks not much more or less than the given outlier percentage
         while True:
             if th_checked:
                 th_too_strict = count_inliers < ideal_count # True if too less inliers remaining
@@ -661,6 +650,7 @@ class Tie_Point_Refiner(object):
                 th                 = th_new if not th_already_checked else \
                                         (th+th_substract if th_too_strict else th-th_substract)
 
+            # RANSAC call
             # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
             model_robust, inliers = \
                 ransac((src_coords, est_coords), AffineTransform,
@@ -682,13 +672,14 @@ class Tie_Point_Refiner(object):
 
             count_iter+=1
 
-
         outliers = inliers == False
 
         if len(GDF) < len(self.GDF):
             GDF['outliers'] = outliers
-            fullGDF         = GeoDataFrame(self.GDF['POINT_ID'].copy())
+            fullGDF         = GeoDataFrame(self.GDF['POINT_ID'])
             fullGDF         = fullGDF.merge(GDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
+            #fullGDF.outliers.copy()[~fullGDF.POINT_ID.isin(GDF.POINT_ID)] = False
+            fullGDF         = fullGDF.fillna(False) # NaNs are due to exclude_previous_outliers
             gs              = fullGDF['outliers']
         else:
             gs              = GeoSeries(outliers)

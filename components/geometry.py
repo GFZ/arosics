@@ -32,7 +32,7 @@ def angle_to_north(XY):
      """
     XY    = np.array(XY)
     XYarr = XY if len(XY.shape)==2 else XY.reshape((1,2))
-    return np.abs(np.degrees(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2)%360)
+    return np.abs(np.degrees(np.array(np.arctan2(XYarr[:,1],XYarr[:,0])-np.pi/2))%360)
 
 
 def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, q=0):
