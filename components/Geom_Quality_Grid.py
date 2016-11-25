@@ -44,7 +44,7 @@ class Geom_Quality_Grid(object):
         Thus 'Geom_Quality_Grid' can be used to correct for locally varying geometric distortions of the target image.
 
         :param COREG_obj(object):       an instance of COREG class
-        :param grid_res:                grid resolution in pixels of the target image
+        :param grid_res:                grid resolution in pixels of the target image (x-direction)
         :param max_points(int):         maximum number of points used to find coregistration tie points
                                         NOTE: Points are selected randomly from the given point grid (specified by
                                         'grid_res'). If the point does not provide enough points, all available points
@@ -238,6 +238,10 @@ class Geom_Quality_Grid(object):
         # choose a random subset of points if a maximum number has been given
         if self.max_points:
             GDF = GDF.sample(self.max_points).copy()
+
+        # equalize pixel grids in order to save warping time
+        if len(GDF)>100:
+            self.COREG_obj.equalize_pixGrids() # NOTE: actually grid res should be also changed here because self.shift.xgsd changes and grid res is connected to that
 
         # declare global variables needed for self._get_spatial_shifts()
         global global_shared_imref,global_shared_im2shift

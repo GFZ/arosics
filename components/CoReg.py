@@ -369,6 +369,15 @@ class COREG(object):
             %(get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj))
 
 
+    def equalize_pixGrids(self):
+        """
+        Equalize image grids and projections of reference and target image (align target to reference).
+        """
+        if not (prj_equal(self.ref.prj, self.shift.prj) and self.ref.xygrid_specs==self.shift.xygrid_specs):
+            self.shift.arr = self.shift[self.shift.band4match]
+            self.shift.reproject_to_new_grid(prototype=self.ref)
+
+
     def show_image_footprints(self):
         """This method is intended to be called from Jupyter Notebook and shows a web map containing the calculated
         footprints of the input images as well as the corresponding overlap area."""
@@ -676,16 +685,20 @@ class COREG(object):
         # (in order to make each image show the same window with the same coordinates)
         # TODO replace cubic resampling by PSF resampling - average resampling leads to sinus like distortions in the fft image that make a precise coregistration impossible. Thats why there is currently no way around cubic resampling.
         tgt_xmin,tgt_xmax,tgt_ymin,tgt_ymax = self.matchBox.boundsMap
-        self.otherWin.arr, self.otherWin.gt = warp_ndarray(self.otherWin.arr,
-                                                           self.otherWin.gt,
-                                                           self.otherWin.prj,
-                                                           self.matchWin.prj,
-                                                           out_gsd    = (self.imfft_gsd, self.imfft_gsd),
-                                                           out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
-                                                           rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg_calc],
-                                                           in_nodata  = self.otherWin.nodata,
-                                                           CPUs       = None if self.mp else 1,
-                                                           progress   = False) [:2]
+
+        # equalize pixel grids and projection of matchWin and otherWin (ONLY if grids are really different)
+        if not(self.matchWin.xygrid_specs==self.otherWin.xygrid_specs and
+            prj_equal(self.matchWin.prj, self.otherWin.prj)):
+            self.otherWin.arr, self.otherWin.gt = warp_ndarray(self.otherWin.arr,
+                                                               self.otherWin.gt,
+                                                               self.otherWin.prj,
+                                                               self.matchWin.prj,
+                                                               out_gsd    = (self.imfft_gsd, self.imfft_gsd),
+                                                               out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
+                                                               rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg_calc],
+                                                               in_nodata  = self.otherWin.nodata,
+                                                               CPUs       = None if self.mp else 1,
+                                                               progress   = False) [:2]
 
         if self.matchWin.shape != self.otherWin.shape:
             self.tracked_errors.append(
