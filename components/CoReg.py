@@ -374,7 +374,7 @@ class COREG(object):
         Equalize image grids and projections of reference and target image (align target to reference).
         """
         if not (prj_equal(self.ref.prj, self.shift.prj) and self.ref.xygrid_specs==self.shift.xygrid_specs):
-            self.shift.arr = self.shift[self.shift.band4match]
+            self.shift.arr = self.shift[:,:,self.shift.band4match]
             self.shift.reproject_to_new_grid(prototype=self.ref)
 
 
