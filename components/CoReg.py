@@ -243,6 +243,7 @@ class COREG(object):
         self.matchWin            = None                # set by self._get_image_windows_to_match() => GeoArray
         self.otherWin            = None                # set by self._get_image_windows_to_match() => GeoArray
         self.imfft_gsd           = None                # set by self.get_clip_window_properties()
+        self.fftw_works          = None                # set by self._calc_shifted_cross_power_spectrum()
         self.fftw_win_size_YX    = None                # set by calc_shifted_cross_power_spectrum()
 
         self.x_shift_px          = None                # always in shift image units (image coords) # set by calculate_spatial_shifts()
@@ -766,9 +767,18 @@ class COREG(object):
                 PLT.subplot_imshow([in_arr0.astype(np.float32), in_arr1.astype(np.float32)],
                                ['FFTin '+self.ref.title,'FFTin '+self.shift.title], grid=True)
 
-            if pyfftw: # if module is installed
+            if pyfftw and self.fftw_works is not False: # if module is installed and working
                 fft_arr0 = pyfftw.FFTW(in_arr0,np.empty_like(in_arr0), axes=(0,1))()
                 fft_arr1 = pyfftw.FFTW(in_arr1,np.empty_like(in_arr1), axes=(0,1))()
+
+                # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
+                if self.fftw_works is None and (np.std(fft_arr0)==0 or np.std(fft_arr1)==0):
+                    self.fftw_works = False
+                    # recreate input arrays and use numpy fft as fallback
+                    in_arr0 = im0[ymin:ymax, xmin:xmax].astype(precision)
+                    in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
+                    fft_arr0 = np.fft.fft2(in_arr0)
+                    fft_arr1 = np.fft.fft2(in_arr1)
             else:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)

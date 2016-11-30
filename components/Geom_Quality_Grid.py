@@ -193,12 +193,14 @@ class Geom_Quality_Grid(object):
 
     @staticmethod
     def _get_spatial_shifts(coreg_kwargs):
-        pointID = coreg_kwargs['pointID']
-        del coreg_kwargs['pointID']
+        pointID    = coreg_kwargs['pointID']
+        fftw_works = coreg_kwargs['fftw_works']
+        del coreg_kwargs['pointID'], coreg_kwargs['fftw_works']
 
         assert global_shared_imref    is not None
         assert global_shared_im2shift is not None
         CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
+        CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
         last_err           = CR.tracked_errors[-1] if CR.tracked_errors else None
         win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
@@ -255,6 +257,7 @@ class Geom_Quality_Grid(object):
         # get all variations of kwargs for coregistration
         get_coreg_kwargs = lambda pID, wp: dict(
             pointID            = pID,
+            fftw_works         = self.COREG_obj.fftw_works,
             wp                 = wp,
             ws                 = self.COREG_obj.win_size_XY,
             resamp_alg_calc    = self.rspAlg_calc,

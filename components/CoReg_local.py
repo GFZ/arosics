@@ -9,6 +9,10 @@ try:
     import gdal
 except ImportError:
     from osgeo import gdal
+try:
+    import pyfftw
+except ImportError:
+    pyfftw = None
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -189,6 +193,8 @@ class COREG_LOCAL(object):
                                v                  = v,
                                q                  = q,
                                ignore_errors      = self.ignErr)
+        if pyfftw:
+            self.check_if_fftw_works()
 
         # add bad data mask
         # (mask is not added during initialization of COREG object in order to avoid bad data area errors there)
@@ -200,6 +206,17 @@ class COREG_LOCAL(object):
         self._coreg_info        = None # set by self.coreg_info
         self.deshift_results    = None # set by self.correct_shifts()
         self._success           = None # set by self.success property
+
+
+    def check_if_fftw_works(self):
+        """Assigns the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output.
+        """
+        # calculate global shift once in order to check is fftw works
+        self.COREG_obj.q = True
+        self.COREG_obj.v = False
+        self.COREG_obj.calculate_spatial_shifts()
+        self.COREG_obj.q = self.q
+        self.COREG_obj.v = self.v
 
 
     @property
