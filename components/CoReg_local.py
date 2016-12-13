@@ -216,13 +216,14 @@ class COREG_LOCAL(object):
             self.COREG_obj.q = True
             self.COREG_obj.v = False
             self.COREG_obj.calculate_spatial_shifts()
-            self.COREG_obj.q = self.q
-            self.COREG_obj.v = self.v
         except RuntimeError:
             if self.COREG_obj.fftw_works is not None:
                 pass
             else:
                 raise
+
+        self.COREG_obj.q = self.q
+        self.COREG_obj.v = self.v
 
 
     @property
