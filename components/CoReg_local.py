@@ -212,11 +212,17 @@ class COREG_LOCAL(object):
         """Assigns the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output.
         """
         # calculate global shift once in order to check is fftw works
-        self.COREG_obj.q = True
-        self.COREG_obj.v = False
-        self.COREG_obj.calculate_spatial_shifts()
-        self.COREG_obj.q = self.q
-        self.COREG_obj.v = self.v
+        try:
+            self.COREG_obj.q = True
+            self.COREG_obj.v = False
+            self.COREG_obj.calculate_spatial_shifts()
+            self.COREG_obj.q = self.q
+            self.COREG_obj.v = self.v
+        except RuntimeError:
+            if self.COREG_obj.fftw_works is not None:
+                pass
+            else:
+                raise
 
 
     @property

@@ -213,13 +213,7 @@ class DESHIFTER(object):
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.align_grids and \
-                not self.GCPList and not self.init_kwargs.get('target_xyGrid',None):
-            # FIXME buggy condition:
-            # reconstructable with correct_spatial_shifts from GMS
-            #DS = DESHIFTER(geoArr, self.coreg_info,
-            #               target_xyGrid=[usecase.spatial_ref_gridx, usecase.spatial_ref_gridy],
-            #               cliptoextent=True, clipextent=mapBounds, align_grids=False) => align grids False
+        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.GCPList:
             """NO RESAMPLING NEEDED"""
             self.is_shifted     = True
             self.is_resampled   = False
@@ -236,7 +230,8 @@ class DESHIFTER(object):
                 self.updated_map_info = geotransform2mapinfo(self.updated_gt, self.updated_projection)
             else:
                 # array keeps the same; updated gt and prj are taken from coreg_info
-                self.arr_shifted = self.im2shift[:,:,self.band2process]
+                self.arr_shifted = self.im2shift[:,:,self.band2process] \
+                                    if self.band2process is not None else self.im2shift[:]
             self.GeoArray_shifted = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
 
             if self.path_out:
