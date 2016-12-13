@@ -779,6 +779,8 @@ class COREG(object):
                     in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
                     fft_arr0 = np.fft.fft2(in_arr0)
                     fft_arr1 = np.fft.fft2(in_arr1)
+                else:
+                    self.fftw_works = True
             else:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)
