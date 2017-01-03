@@ -35,7 +35,7 @@ class DESHIFTER(object):
         :Keyword Arguments:
             - path_out(str):        /output/directory/filename for coregistered results
             - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+                                    compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
             - out_crea_options(list): GDAL creation options for the output image,
                                     e.g. ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
             - band2process (int):   The index of the band to be processed within the given array (starts with 1),
@@ -63,7 +63,7 @@ class DESHIFTER(object):
             - q(bool):              quiet mode (default: False)
 
         """
-        # TODO validate kwargs for typos
+
         self.init_args   = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
         self.init_kwargs = self.init_args['kwargs']
 
@@ -213,17 +213,18 @@ class DESHIFTER(object):
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and is_coord_grid_equal(self.shift_gt, *self.out_grid) and not self.GCPList:
+        if equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid):
             """NO RESAMPLING NEEDED"""
+            #print('not_warping')
             self.is_shifted     = True
             self.is_resampled   = False
             xmin,ymin,xmax,ymax = self._get_out_extent()
 
-            if self.cliptoextent: # TODO validate results!
+            if self.cliptoextent: # TODO validate results -> output extent does not seem to be the requested one!
                 # get shifted array
                 shifted_geoArr = GeoArray(self.im2shift[:],tuple(self.updated_gt), self.shift_prj)
 
-                # clip with target extent
+                # clip with target extent # FIXME does get_mapPos perform a resampling?
                 self.arr_shifted, self.updated_gt, self.updated_projection = \
                         shifted_geoArr.get_mapPos((xmin,ymin,xmax,ymax), self.shift_prj, fillVal=self.nodata,
                                                   band2get=self.band2process)
@@ -281,6 +282,7 @@ class DESHIFTER(object):
             #     # TO DO implement output writer
 
             # FIXME avoid reading the whole band if clip_extent is passed
+            #print('warping')
             in_arr = self.im2shift[:,:,self.band2process] if self.band2process is not None and self.im2shift.ndim==3\
                         else self.im2shift[:]
 

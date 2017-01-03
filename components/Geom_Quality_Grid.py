@@ -227,8 +227,8 @@ class Geom_Quality_Grid(object):
         else:
             crs = None
 
-        GDF        = GeoDataFrame(index=range(len(geomPoints)),crs=crs,
-                                  columns=['geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM'])
+        GDF                          = GeoDataFrame(index=range(len(geomPoints)),crs=crs,
+                                                    columns=['geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM'])
         GDF       ['geometry']       = geomPoints
         GDF       ['POINT_ID']       = range(len(geomPoints))
         GDF.loc[:,['X_IM' ,'Y_IM' ]] = self.XY_points
@@ -238,7 +238,7 @@ class Geom_Quality_Grid(object):
         GDF = self._exclude_bad_XYpos(GDF)
 
         # choose a random subset of points if a maximum number has been given
-        if self.max_points:
+        if self.max_points and len(GDF) > self.max_points:
             GDF = GDF.sample(self.max_points).copy()
 
         # equalize pixel grids in order to save warping time
@@ -314,8 +314,13 @@ class Geom_Quality_Grid(object):
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
+        if not self.q:
+            print("Found %s matches." % len(GDF[GDF.LAST_ERR == int(self.outFillVal)]))
+
         # filter tie points according to given filter level
         if self.tieP_filter_level>0:
+            if not self.q:
+                print('Performing validity checks...')
             TPR                   = TiePoint_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], q=self.q)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF                   = GDF.merge(GDF_filt[ ['POINT_ID']+new_columns], on='POINT_ID', how="outer")
@@ -346,6 +351,10 @@ class Geom_Quality_Grid(object):
             if 'OUTLIER' in GDF.columns:
                 GDF = GDF[GDF.OUTLIER == False].copy()
             avail_TP = len(GDF)
+
+            if not avail_TP:
+                # no point passed all validity checks
+                return []
 
             if avail_TP>7000:
                 GDF = GDF.sample(7000)
@@ -646,8 +655,12 @@ class TiePoint_Refiner(object):
             if th_checked:
                 th_too_strict = count_inliers < ideal_count # True if too less inliers remaining
 
-                # calculate new theshold using old increment
-                th_new        = th+th_substract if th_too_strict else th-th_substract
+                # calculate new theshold using old increment (but ensure th_new>0 by adjusting increment if needed)
+                th_new = 0
+                while th_new <= 0:
+                    th_new = th+th_substract if th_too_strict else th-th_substract
+                    if th_new <= 0:
+                        th_substract /=2
 
                 # check if calculated new threshold has been used before
                 th_already_checked = th_new in th_checked.keys()
@@ -659,14 +672,19 @@ class TiePoint_Refiner(object):
 
             # RANSAC call
             # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
-            model_robust, inliers = \
-                ransac((src_coords, est_coords), AffineTransform,
-                       min_samples        = 6,
-                       residual_threshold = th,
-                       max_trials         = 2000,
-                       stop_sample_num    = int((min_inlier_percentage-tolerance) /100*src_coords.shape[0]),
-                       stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
-                       )
+            if src_coords.size and est_coords.size:
+                model_robust, inliers = \
+                    ransac((src_coords, est_coords), AffineTransform,
+                           min_samples        = 6,
+                           residual_threshold = th,
+                           max_trials         = 2000,
+                           stop_sample_num    = int((min_inlier_percentage-tolerance) /100*src_coords.shape[0]),
+                           stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
+                           )
+            else:
+                inliers = np.array([])
+                break
+
             count_inliers  = np.count_nonzero(inliers)
 
             th_checked[th] = count_inliers / src_coords.shape[0] * 100
@@ -679,9 +697,11 @@ class TiePoint_Refiner(object):
 
             count_iter+=1
 
-        outliers = inliers == False
+        outliers = inliers == False if inliers.size else np.array([])
 
-        if len(GDF) < len(self.GDF):
+        if GDF.empty:
+            gs              = GeoSeries([False]*len(self.GDF))
+        elif len(GDF) < len(self.GDF):
             GDF['outliers'] = outliers
             fullGDF         = GeoDataFrame(self.GDF['POINT_ID'])
             fullGDF         = fullGDF.merge(GDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")

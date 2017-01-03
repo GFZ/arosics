@@ -53,7 +53,8 @@ class COREG_LOCAL(object):
                                             - if None (default), no output is written to disk
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
         :param fmt_out(str):            raster file format for output file. ignored if path_out is None. Can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI). Refer to
+                                        http://www.gdal.org/formats_list.html to get a full list of supported formats.
         :param out_crea_options(list):  GDAL creation options for the output image,
                                         e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
         :param projectDir(str):         name of a project directory where to store all the output results. If given,
@@ -127,7 +128,7 @@ class COREG_LOCAL(object):
         """
 
         # assertions
-        assert fmt_out, "'%s' is not a valid GDAL driver code." %fmt_out
+        assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
 
@@ -286,7 +287,7 @@ class COREG_LOCAL(object):
 
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
-                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96):
+                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True):
         """Shows a map of the calculated quality grid with the target image as background.
 
         :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
@@ -299,6 +300,7 @@ class COREG_LOCAL(object):
         :param figsize:             <tuple> size of the figure to be viewed, e.g. (10,10)
         :param savefigPath:
         :param savefigDPI:
+        :param showFig:             <bool> whether to show or to hide the figure
         :return:
         """
 
@@ -366,10 +368,13 @@ class COREG_LOCAL(object):
         cax = divider.append_axes("right", size="2%", pad=0.1) # create axis on the right; size =2% of ax; padding = 0.1 inch
         plt.colorbar(points, cax=cax)
 
-        plt.show(block=True)
-
         if savefigPath:
             fig.savefig(savefigPath, dpi=savefigDPI)
+
+        if showFig and not self.q:
+            plt.show(block=True)
+        else:
+            plt.close(fig)
 
 
     def view_CoRegPoints_folium(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True):

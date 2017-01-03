@@ -129,7 +129,8 @@ class COREG(object):
                                             - if None (default), the method correct_shifts() does not write to disk
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
         :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI). Refer to
+                                        http://www.gdal.org/formats_list.html to get a full list of supported formats.
         :param out_crea_options(list):  GDAL creation options for the output image,
                                         e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
         :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
@@ -196,7 +197,7 @@ class COREG(object):
         self.params              = dict([x for x in locals().items() if x[0] != "self"])
 
         # assertions
-        assert fmt_out, "'%s' is not a valid GDAL driver code." %fmt_out
+        assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
         if match_gsd and out_gsd: warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:  assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
         if data_corners_ref and not isinstance(data_corners_ref[0], list): # group if not [[x,y],[x,y]..] but [x,y,x,y,]
@@ -737,10 +738,10 @@ class COREG(object):
     def _calc_shifted_cross_power_spectrum(self, im0=None, im1=None, precision=np.complex64):
         """Calculates shifted cross power spectrum for quantifying x/y-shifts.
 
-            :param im0:         reference image
-            :param im1:         subject image to shift
-            :param precision:   to be quantified as a datatype
-            :return:            2D-numpy-array of the shifted cross power spectrum
+        :param im0:         reference image
+        :param im1:         subject image to shift
+        :param precision:   to be quantified as a datatype
+        :return:            2D-numpy-array of the shifted cross power spectrum
         """
 
         im0 = im0 if im0 is not None else self.matchWin[:] if self.matchWin.imID=='ref'   else self.otherWin[:]
@@ -784,6 +785,9 @@ class COREG(object):
             else:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)
+
+            #GeoArray(fft_arr0.astype(np.float32)).show(figsize=(15,15))
+            #GeoArray(fft_arr1.astype(np.float32)).show(figsize=(15,15))
 
             if self.v: print('forward FFTW: %.2fs' %(time.time() -time0))
 
@@ -987,8 +991,8 @@ class COREG(object):
         # -> so the shift vectors have to be inverted if shifts are applied to reference image
         coreg_info = self._get_inverted_coreg_info() if self.otherWin.imID=='ref' else self.coreg_info
 
-        matchFull = self.ref if self.matchWin.imID=='ref' else self.shift
-        otherFull = self.ref if self.otherWin.imID=='ref' else self.shift
+        matchFull  = self.ref if self.matchWin.imID=='ref' else self.shift
+        otherFull  = self.ref if self.otherWin.imID=='ref' else self.shift
         ds_results = DESHIFTER(otherFull, coreg_info,
                                band2process  = otherFull.band4match+1,
                                clipextent    = list(np.array(self.matchBox.boundsMap)[[0,2,1,3]]),
@@ -1030,14 +1034,22 @@ class COREG(object):
 
         ## check if shapes of two images are equal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         ## the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
-        if not self.matchWin.shape == otherWin_deshift_geoArr.shape:
+        if not self.matchWin.shape == otherWin_deshift_geoArr.shape: # FIXME this seems to be already fixed
+            warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
             matchFull = self.ref if self.matchWin.imID=='ref' else self.shift
             matchWinData, matchWinGt, matchWinPrj = matchFull.get_mapPos(
                     list(np.array(self.matchBox.boundsMap)[[0, 2, 1, 3]]), self.matchWin.prj, rspAlg='cubic',
                     band2get=matchFull.band4match)
 
-        self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr)
+            # at the image edges it is possible that the size of the matchBox must be reduced in order to make array shapes match
+            if not matchWinData.shape == otherWin_deshift_geoArr.shape: # FIXME this seems to be already fixed
+                self.matchBox.buffer_imXY(-np.ceil(abs(self.x_shift_px)), -np.ceil(abs(self.y_shift_px)))
+                otherWin_deshift_geoArr               = self._get_deshifted_otherWin()
+                matchWinData, matchWinGt, matchWinPrj = matchFull.get_mapPos(
+                    list(np.array(self.matchBox.boundsMap)[[0, 2, 1, 3]]), self.matchWin.prj, rspAlg='cubic',
+                    band2get=matchFull.band4match)
 
+        self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr)
 
         if v:
             GeoArray(matchWinData).show()
@@ -1048,7 +1060,7 @@ class COREG(object):
             print('Image similarity within the matching window (SSIM before/after correction): %.4f => %.4f'
                   % (self.ssim_orig, self.ssim_deshifted))
 
-        self.ssim_improved = self.ssim_orig < self.ssim_deshifted
+        self.ssim_improved = self.ssim_orig <= self.ssim_deshifted
 
         # write win data to disk
         #outDir = '/home/gfz-fe/scheffler/temp/ssim_debugging/'
