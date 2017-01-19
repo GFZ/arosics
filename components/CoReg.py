@@ -28,7 +28,7 @@ from .          import geometry  as GEO
 from .          import io        as IO
 from .          import plotting  as PLT
 
-from py_tools_ds.ptds                      import GeoArray
+from py_tools_ds.ptds.io.raster.GeoArray   import GeoArray, BadDataMask
 from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
 from py_tools_ds.ptds.geo.vector.topology  import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
 from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
@@ -45,6 +45,8 @@ from py_tools_ds.ptds.similarity.raster    import calc_ssim
 
 class GeoArray_CoReg(GeoArray):
     def __init__(self, CoReg_params, imID):
+        # type: (dict, str) -> None
+
         assert imID in ['ref', 'shift']
 
         # run GeoArray init
@@ -103,7 +105,7 @@ class GeoArray_CoReg(GeoArray):
         # add bad data mask
         given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
         if given_mask:
-            self.mask_baddata = given_mask
+            self.mask_baddata = BadDataMask(given_mask)
 
 
 
@@ -653,26 +655,26 @@ class COREG(object):
 
         match_fullGeoArr = self.ref   if self.grid2use=='ref' else self.shift
         other_fullGeoArr = self.shift if self.grid2use=='ref' else self.ref
-        self.matchWin = GeoArray(np.array([]), copy(match_fullGeoArr.gt), copy(match_fullGeoArr.prj),
-                                 nodata=copy(match_fullGeoArr.nodata)) # array data is overwritten later
-        self.otherWin = GeoArray(np.array([]), copy(other_fullGeoArr.gt), copy(other_fullGeoArr.prj),
-                                 nodata=copy(other_fullGeoArr.nodata)) # array data is overwritten later
-        self.matchWin.imID = match_fullGeoArr.imID
-        self.otherWin.imID = other_fullGeoArr.imID
 
         # matchWin per subset-read einlesen -> self.matchWin.data
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.matchBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])), \
             'Got negative values in gdalReadInputs for %s.' %match_fullGeoArr.imName
-        self.matchWin.arr = match_fullGeoArr[rS:rE,cS:cE, match_fullGeoArr.band4match]
-        self.matchWin.gt  = GEO.get_subset_GeoTransform(match_fullGeoArr.gt, self.matchBox.boxImYX)
+        self.matchWin = GeoArray(match_fullGeoArr[rS:rE,cS:cE, match_fullGeoArr.band4match],
+                                 geotransform = GEO.get_subset_GeoTransform(match_fullGeoArr.gt, self.matchBox.boxImYX),
+                                 projection   = copy(match_fullGeoArr.prj),
+                                 nodata       = copy(match_fullGeoArr.nodata))
+        self.matchWin.imID = match_fullGeoArr.imID
 
         # otherWin per subset-read einlesen
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])), \
             'Got negative values in gdalReadInputs for %s.' %other_fullGeoArr.imName
-        self.otherWin.arr = other_fullGeoArr[rS:rE, cS:cE, other_fullGeoArr.band4match]
-        self.otherWin.gt  = GEO.get_subset_GeoTransform(other_fullGeoArr.gt, self.otherBox.boxImYX)
+        self.otherWin = GeoArray(other_fullGeoArr[rS:rE, cS:cE, other_fullGeoArr.band4match],
+                                 geotransform = GEO.get_subset_GeoTransform(other_fullGeoArr.gt, self.otherBox.boxImYX),
+                                 projection   = copy(other_fullGeoArr.prj),
+                                 nodata       = copy(other_fullGeoArr.nodata))
+        self.otherWin.imID = other_fullGeoArr.imID
 
         #self.matchWin.deepcopy_array()
         #self.otherWin.deepcopy_array()

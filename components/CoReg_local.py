@@ -107,18 +107,20 @@ class COREG_LOCAL(object):
                                         matching window position within the actual image overlap
                                         (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are given
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: True)
-        :param mask_baddata_ref(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
-                                                reference image where all bad data pixels (e.g. clouds) are marked with
-                                                True and the remaining pixels with False. Must have the same geographic
-                                                extent and projection like 'im_ref'. The mask is used to check if the
-                                                chosen matching window position is valid in the sense of useful data.
-                                                Otherwise this window position is rejected.
-        :param mask_baddata_tgt(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
-                                                image to be shifted where all bad data pixels (e.g. clouds) are marked
-                                                with True and the remaining pixels with False. Must have the same
-                                                geographic extent and projection like 'im_ref'. The mask is used to
-                                                check if the chosen matching window position is valid in the sense of
-                                                useful data. Otherwise this window position is rejected.
+        :param mask_baddata_ref(str, BadDataMask):
+                                        path to a 2D boolean mask file (or an instance of BadDataMask) for the
+                                        reference image where all bad data pixels (e.g. clouds) are marked with
+                                        True and the remaining pixels with False. Must have the same geographic
+                                        extent and projection like 'im_ref'. The mask is used to check if the
+                                        chosen matching window position is valid in the sense of useful data.
+                                        Otherwise this window position is rejected.
+        :param mask_baddata_tgt(str, BadDataMask):
+                                        path to a 2D boolean mask file (or an instance of BadDataMask) for the
+                                        image to be shifted where all bad data pixels (e.g. clouds) are marked
+                                        with True and the remaining pixels with False. Must have the same
+                                        geographic extent and projection like 'im_ref'. The mask is used to
+                                        check if the chosen matching window position is valid in the sense of
+                                        useful data. Otherwise this window position is rejected.
         :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
                                         (default: None, which means 'all CPUs available')
         :param progress(bool):          show progress bars (default: True)

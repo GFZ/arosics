@@ -101,7 +101,7 @@ class DESHIFTER(object):
             mapI                   = coreg_results['updated map info']
             self.updated_map_info  = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
             self.updated_gt        = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
-        self.original_map_info     = coreg_results['original map info']
+            self.original_map_info = coreg_results['original map info'] # only exists in global de-shifting # FIXME WHY?
         self.updated_projection    = self.ref_prj
 
         self.out_grid = self._get_out_grid() # needs self.ref_grid, self.im2shift
@@ -207,7 +207,7 @@ class DESHIFTER(object):
 
 
     def correct_shifts(self):
-        # type: () -> collections.OrderedDict
+        #type: () -> collections.OrderedDict
 
         if not self.q:
             print('Correcting geometric shifts...')
@@ -215,7 +215,7 @@ class DESHIFTER(object):
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and not self.GCPList and is_coord_grid_equal(self.shift_gt, *self.out_grid):
+        if equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid):
             """NO RESAMPLING NEEDED"""
 
             self.is_shifted     = True
@@ -229,8 +229,11 @@ class DESHIFTER(object):
                 # clip with target extent
                 #  NOTE: get_mapPos() does not perform any resampling as long as source and target projection are equal
                 self.arr_shifted, self.updated_gt, self.updated_projection = \
-                        shifted_geoArr.get_mapPos((xmin,ymin,xmax,ymax), self.shift_prj, fillVal=self.nodata,
-                                                  band2get=self.band2process)
+                        shifted_geoArr.get_mapPos((xmin,ymin,xmax,ymax),
+                                                  self.shift_prj,
+                                                  fillVal  = self.nodata,
+                                                  band2get = self.band2process)
+
                 self.updated_map_info = geotransform2mapinfo(self.updated_gt, self.updated_projection)
 
             else:
@@ -287,7 +290,7 @@ class DESHIFTER(object):
             #     # TO DO implement output writer
 
             # FIXME avoid reading the whole band if clip_extent is passed
-            #print('warping')
+
             in_arr = self.im2shift[:,:,self.band2process] if self.band2process is not None and self.im2shift.ndim==3\
                         else self.im2shift[:]
 
@@ -302,7 +305,7 @@ class DESHIFTER(object):
                              in_nodata  = self.nodata,
                              out_nodata = self.nodata,
                              out_gsd    = self.out_gsd,
-                             out_bounds = self._get_out_extent(),
+                             out_bounds = self._get_out_extent(), # always returns an extent snapped to the target grid
                              gcpList    = self.GCPList,
                              #polynomialOrder = str(3),
                              #options    = '-refine_gcps 500 1.9',
@@ -329,7 +332,7 @@ class DESHIFTER(object):
                 out_geoArr.save(self.path_out,fmt=self.fmt_out, creationOptions=self.out_creaOpt)
 
         # validation
-        if not is_coord_grid_equal(self.updated_gt, *self.out_grid):
+        if not is_coord_grid_equal(self.updated_gt, *self.out_grid, tolerance=1.e8):
             raise RuntimeError('DESHIFTER output dataset has not the desired target pixel grid. Target grid '
                                'was %s. Output geotransform is %s.' % (str(self.out_grid), str(self.updated_gt)))
         # TODO to be continued (extent, map info, ...)
