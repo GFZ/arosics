@@ -96,10 +96,12 @@ class DESHIFTER(object):
         self.shift_gt           = list(self.im2shift.geotransform)
 
         if not self.GCPList:
+            # in case of global de-shifting -> the updated map info from coreg_results already has the final map info
+            # BUT: this can will updated in correct_shifts() if clipextent is given or warping is needed
             mapI                   = coreg_results['updated map info']
             self.updated_map_info  = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
-            self.original_map_info = coreg_results['original map info']
             self.updated_gt        = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
+        self.original_map_info     = coreg_results['original map info']
         self.updated_projection    = self.ref_prj
 
         self.out_grid = self._get_out_grid() # needs self.ref_grid, self.im2shift
@@ -205,7 +207,7 @@ class DESHIFTER(object):
 
 
     def correct_shifts(self):
-        # type: (DESHIFTER) -> collections.OrderedDict
+        # type: () -> collections.OrderedDict
 
         if not self.q:
             print('Correcting geometric shifts...')
@@ -213,27 +215,30 @@ class DESHIFTER(object):
         t_start   = time.time()
         equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid):
+        if equal_prj and not self.GCPList and is_coord_grid_equal(self.shift_gt, *self.out_grid):
             """NO RESAMPLING NEEDED"""
-            #print('not_warping')
+
             self.is_shifted     = True
             self.is_resampled   = False
             xmin,ymin,xmax,ymax = self._get_out_extent()
 
-            if self.cliptoextent: # TODO validate results -> output extent does not seem to be the requested one!
+            if self.cliptoextent: # TODO validate results -> output extent does not seem to be the requested one! (can relevant if align_grids=False)
                 # get shifted array
                 shifted_geoArr = GeoArray(self.im2shift[:],tuple(self.updated_gt), self.shift_prj)
 
-                # clip with target extent # FIXME does get_mapPos perform a resampling?
+                # clip with target extent
+                #  NOTE: get_mapPos() does not perform any resampling as long as source and target projection are equal
                 self.arr_shifted, self.updated_gt, self.updated_projection = \
                         shifted_geoArr.get_mapPos((xmin,ymin,xmax,ymax), self.shift_prj, fillVal=self.nodata,
                                                   band2get=self.band2process)
                 self.updated_map_info = geotransform2mapinfo(self.updated_gt, self.updated_projection)
+
             else:
                 # array keeps the same; updated gt and prj are taken from coreg_info
                 self.arr_shifted = self.im2shift[:,:,self.band2process] \
                                     if self.band2process is not None else self.im2shift[:]
-            self.GeoArray_shifted = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
+
+            self.GeoArray_shifted = GeoArray(self.arr_shifted, self.updated_gt, self.updated_projection)
 
             if self.path_out:
                 GeoArray(self.arr_shifted,self.updated_gt,self.updated_projection).save(self.path_out,fmt=self.fmt_out)
@@ -287,7 +292,7 @@ class DESHIFTER(object):
                         else self.im2shift[:]
 
             if not self.GCPList:
-                # apply XY-shifts to shift_gt
+                # apply XY-shifts to input image gt 'shift_gt' in order to correct the shifts before warping
                 self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
 
             # get resampled array
@@ -310,11 +315,11 @@ class DESHIFTER(object):
                              progress   = self.progress,
                              q          = self.q)
 
-            self.updated_projection = out_prj
             self.arr_shifted        = out_arr
+            self.updated_gt         = out_gt
+            self.updated_projection = out_prj
             self.updated_map_info   = geotransform2mapinfo(out_gt,out_prj)
-            self.shift_gt           = mapinfo2geotransform(self.updated_map_info)
-            self.GeoArray_shifted   = GeoArray(self.arr_shifted, tuple(self.shift_gt), self.updated_projection)
+            self.GeoArray_shifted   = GeoArray(self.arr_shifted, self.updated_gt, self.updated_projection)
             self.is_shifted         = True
             self.is_resampled       = True
 
@@ -322,6 +327,13 @@ class DESHIFTER(object):
                 out_geoArr        = GeoArray(out_arr, out_gt, out_prj, q=self.q)
                 out_geoArr.nodata = self.nodata # equals self.im2shift.nodata after __init__()
                 out_geoArr.save(self.path_out,fmt=self.fmt_out, creationOptions=self.out_creaOpt)
+
+        # validation
+        if not is_coord_grid_equal(self.updated_gt, *self.out_grid):
+            raise RuntimeError('DESHIFTER output dataset has not the desired target pixel grid. Target grid '
+                               'was %s. Output geotransform is %s.' % (str(self.out_grid), str(self.updated_gt)))
+        # TODO to be continued (extent, map info, ...)
+
 
         if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results

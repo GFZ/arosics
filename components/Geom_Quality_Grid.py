@@ -403,7 +403,7 @@ class Geom_Quality_Grid(object):
 
 
     def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col ='ABS_SHIFT'):
-        # type: (str, bool, str)
+        # type: (str, bool, str) -> None
         """Writes the calculated geometric quality grid to a point shapefile containing
         Geom_Quality_Grid.CoRegPoints_table as attribute table. This shapefile can easily be displayed using GIS software.
 

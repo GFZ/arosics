@@ -516,7 +516,7 @@ class COREG(object):
 
 
     def _get_opt_winpos_winsize(self):
-        # type: (tuple,tuple) -> tuple,tuple
+        # type: (tuple,tuple) -> None
         """
         Calculates optimal window position and size in reference image units according to DGM, cloud_mask and
         trueCornerLonLat.
