@@ -381,8 +381,15 @@ class COREG(object):
         if not (prj_equal(self.ref.prj, self.shift.prj) and self.ref.xygrid_specs==self.shift.xygrid_specs):
             if not self.q: print("Equalizing pixel grids and projections of reference and target image...")
 
-            self.shift.arr = self.shift[:,:,self.shift.band4match]
-            self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
+            if self.grid2use=='ref':
+                # resample target image to refernce image
+                self.shift.arr = self.shift[:,:,self.shift.band4match]
+                self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
+            else:
+                # resample reference image to target image
+                # FIXME in case of different projections this will change the projection of the reference image!
+                self.ref.arr = self.ref[:,:,self.ref.band4match]
+                self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
 
 
     def show_image_footprints(self):

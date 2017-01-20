@@ -251,8 +251,11 @@ class Geom_Quality_Grid(object):
         global global_shared_imref,global_shared_im2shift
         assert self.ref  .footprint_poly # this also checks for mask_nodata and nodata value
         assert self.shift.footprint_poly
-        if not self.ref  .is_inmem: self.ref.cache_array_subset(self.ref  [self.COREG_obj.ref  .band4match])
-        if not self.shift.is_inmem: self.ref.cache_array_subset(self.shift[self.COREG_obj.shift.band4match])
+
+        # ensure the input arrays for CoReg are in memory -> otherwise the code will get stuck in multiprocessing if
+        # neighboured matching windows overlap during reading from disk!!
+        self.ref.cache_array_subset([self.COREG_obj.ref  .band4match])
+        self.ref.cache_array_subset([self.COREG_obj.shift.band4match])
         global_shared_imref    = self.ref
         global_shared_im2shift = self.shift
 
