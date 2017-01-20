@@ -261,6 +261,7 @@ class COREG_LOCAL(object):
                                                    v                 = self.v,
                                                    q                 = self.q)
             if self.v:
+                print('Visualizing CoReg points grid...')
                 self.view_CoRegPoints(figsize=(10,10))
             return self._quality_grid
 

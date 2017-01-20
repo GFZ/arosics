@@ -615,21 +615,26 @@ class COREG(object):
             otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchBox.boxMapYX,otherBox.gt)
 
         # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird
+        t_start = time.time()
         while not otherBox.mapPoly.within(overlapWin.mapPoly):
-            # -> match Fenster verkleinern und neues anderes Fenster berechnen
+            # -> match Fenster verkleinern und neues otherBox berechnen
             xLarger, yLarger = otherBox.is_larger_DimXY(overlapWin.boundsIm)
             matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
             previous_area    = otherBox.mapPoly.area
             otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchBox.boxMapYX,otherBox.gt)
 
-            if previous_area == otherBox.mapPoly.area:
+            if previous_area == otherBox.mapPoly.area or time.time()-t_start > 1.5:
+                # happens e.g in case of a triangular footprint
+                # NOTE: first condition is not always fulfilled -> therefore added timeout of 1.5 sec
                 self.tracked_errors.append(
                     RuntimeError('Matching window in target image is larger than overlap area but further shrinking '
                                  'the matching window is not possible. Check if the footprints of the input data have '
-                                 'been computed correctly. '))
+                                 'been computed correctly.'+
+                                 (' Matching window shrinking timed out.' if time.time()-t_start>5 else '')))
                 if not self.ignErr:
                     raise self.tracked_errors[-1]
                 break # break out of while loop in order to avoid that code gets stuck here
+
 
         if self.tracked_errors:
             self.success = False

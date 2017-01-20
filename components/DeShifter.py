@@ -123,6 +123,16 @@ class DESHIFTER(object):
         self.arr_shifted      = None  # set by self.correct_shifts
         self.GeoArray_shifted = None  # set by self.correct_shifts
 
+        # warn if grids are not alignable
+        if not self.warping_needed and not self.q:
+            warnings.warn("\nThe coordinate grid of the image to be shifted cannot be aligned to the reference "
+                          "grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
+                          "%s/%s; output [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
+                          "output image. If you don´t like that you can use the '-out_gsd' parameter to set an "
+                          "appropriate output pixel size.\n"
+                          % (self.im2shift.xgsd, self.im2shift.ygsd, abs(self.out_gsd[0][1]-self.out_gsd[0][0]),
+                             abs(self.out_gsd[1][1] - self.out_gsd[1][0])))
+
 
     def _get_out_grid(self):
         # parse given params
@@ -172,18 +182,27 @@ class DESHIFTER(object):
                 return get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
 
 
-    def _grids_alignable(self,in_xgsd, in_ygsd, out_xgsd, out_ygsd):
+    @property
+    def warping_needed(self):
+        """Returns True if image warping is needed in consideration of the input parameters of DESHIFTER."""
+
+        assert self.out_grid, 'Output grid must be calculated before.'
+        equal_prj = prj_equal(self.ref_prj, self.shift_prj)
+        return False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
+
+
+    @staticmethod
+    def _grids_alignable(in_xgsd, in_ygsd, out_xgsd, out_ygsd):
+        """Checks if the input image pixel grid is alignable to the output grid.
+
+        :param in_xgsd:
+        :param in_ygsd:
+        :param out_xgsd:
+        :param out_ygsd:
+        :return:
+        """
         is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
-        if not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd):
-            if not self.q:
-                warnings.warn("\nThe coordinate grid of the image to be shifted cannot be aligned to the reference "
-                              "grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
-                              "%s/%s; output [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
-                              "output image. If you don´t like that you can use the '-out_gsd' parameter to set an "
-                              "appropriate output pixel size.\n" % (in_xgsd, in_ygsd, out_xgsd, out_ygsd))
-            return False
-        else:
-            return True
+        return False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
 
 
     def _get_out_extent(self):
@@ -207,22 +226,21 @@ class DESHIFTER(object):
 
 
     def correct_shifts(self):
-        #type: () -> collections.OrderedDict
+        # type: () -> collections.OrderedDict
 
         if not self.q:
             print('Correcting geometric shifts...')
 
         t_start   = time.time()
-        equal_prj = prj_equal(self.ref_prj,self.shift_prj)
 
-        if equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid):
+        if not self.warping_needed:
             """NO RESAMPLING NEEDED"""
 
             self.is_shifted     = True
             self.is_resampled   = False
             xmin,ymin,xmax,ymax = self._get_out_extent()
 
-            if self.cliptoextent: # TODO validate results -> output extent does not seem to be the requested one! (can relevant if align_grids=False)
+            if self.cliptoextent: # TODO validate results -> output extent does not seem to be the requested one! (only relevant if align_grids=False)
                 # get shifted array
                 shifted_geoArr = GeoArray(self.im2shift[:],tuple(self.updated_gt), self.shift_prj)
 
