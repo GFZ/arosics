@@ -190,7 +190,7 @@ class COREG_LOCAL(object):
                                max_iter           = max_iter,
                                max_shift          = max_shift,
                                nodata             = nodata,
-                               multiproc          = self.CPUs is None or self.CPUs > 1,
+                               CPUs               = self.CPUs,
                                binary_ws          = self.bin_ws,
                                progress           = self.progress,
                                v                  = v,

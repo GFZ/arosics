@@ -117,7 +117,7 @@ class COREG(object):
                  out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
                  footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
                  nodata=(None,None), calc_corners=True, binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None,
-                 multiproc=True, force_quadratic_win=True, progress=True, v=False, path_verbose_out=None, q=False,
+                 CPUs=None, force_quadratic_win=True, progress=True, v=False, path_verbose_out=None, q=False,
                  ignore_errors=False):
 
         """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
@@ -184,7 +184,8 @@ class COREG(object):
                                                 geographic extent and projection like 'im_ref'. The mask is used to
                                                 check if the chosen matching window position is valid in the sense of
                                                 useful data. Otherwise this window position is rejected.
-        :param multiproc(bool):         enable multiprocessing (default: 1)
+        :param CPUs(int):               number of CPUs to use during pixel grid equalization
+                                        (default: None, which means 'all CPUs available')
         :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
         :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: False)
@@ -229,7 +230,7 @@ class COREG(object):
         self.rspAlg_DS           = resamp_alg_deshift
         self.rspAlg_calc         = resamp_alg_calc
         self.calc_corners        = calc_corners
-        self.mp                  = multiproc
+        self.CPUs                = CPUs
         self.bin_ws              = binary_ws
         self.force_quadratic_win = force_quadratic_win
         self.v                   = v
@@ -378,8 +379,10 @@ class COREG(object):
         Equalize image grids and projections of reference and target image (align target to reference).
         """
         if not (prj_equal(self.ref.prj, self.shift.prj) and self.ref.xygrid_specs==self.shift.xygrid_specs):
+            if not self.q: print("Equalizing pixel grids and projections of reference and target image...")
+
             self.shift.arr = self.shift[:,:,self.shift.band4match]
-            self.shift.reproject_to_new_grid(prototype=self.ref)
+            self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
 
 
     def show_image_footprints(self):
@@ -701,7 +704,7 @@ class COREG(object):
                                                                out_bounds = ([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
                                                                rspAlg     = _dict_rspAlg_rsp_Int[self.rspAlg_calc],
                                                                in_nodata  = self.otherWin.nodata,
-                                                               CPUs       = None if self.mp else 1,
+                                                               CPUs       = self.CPUs,
                                                                progress   = False) [:2]
 
         if self.matchWin.shape != self.otherWin.shape:
@@ -1277,7 +1280,7 @@ class COREG(object):
                        match_gsd        = self.match_gsd,
                        target_xyGrid    = self.target_xyGrid,
                        nodata           = self.shift.nodata,
-                       CPUs             = None if self.mp else 1,
+                       CPUs             = self.CPUs,
                        progress         = self.progress,
                        v                = self.v,
                        q                = self.q)
@@ -1305,7 +1308,7 @@ class COREG(object):
         if not self.q: print('\nWriting output...')
         ds_im2shift = gdal.Open(self.shift.path)
         if not ds_im2shift.GetDriver().ShortName == 'ENVI': # FIXME laaangsam
-            if self.mp:
+            if self.CPUs is not None and self.CPUs>1:
                 IO.convert_gdal_to_bsq__mp(self.shift.path, self.path_out)
             else:
                 os.system('gdal_translate -of ENVI %s %s' %(self.shift.path, self.path_out))

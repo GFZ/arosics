@@ -214,6 +214,7 @@ class Geom_Quality_Grid(object):
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
+        # create a dataframe containing 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM' (convert imCoords to mapCoords
         XYarr2PointGeom = np.vectorize(lambda X,Y: Point(X,Y), otypes=[Point])
         geomPoints      = np.array(XYarr2PointGeom(self.XY_mapPoints[:,0],self.XY_mapPoints[:,1]))
 
@@ -233,6 +234,7 @@ class Geom_Quality_Grid(object):
         GDF       ['POINT_ID']       = range(len(geomPoints))
         GDF.loc[:,['X_IM' ,'Y_IM' ]] = self.XY_points
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
+
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)

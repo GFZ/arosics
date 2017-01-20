@@ -56,7 +56,7 @@ def run_global_coreg(args):
                       data_corners_tgt = args.cor1,
                       nodata           = args.nodata,
                       calc_corners     = args.calc_cor,
-                      multiproc        = args.mp,
+                      CPUs             = None if args.mp else 1,
                       binary_ws        = args.bin_ws,
                       mask_baddata_ref = args.mask_ref,
                       mask_baddata_tgt = args.mask_tgt,
