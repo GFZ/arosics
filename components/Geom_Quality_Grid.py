@@ -199,7 +199,7 @@ class Geom_Quality_Grid(object):
 
         assert global_shared_imref    is not None
         assert global_shared_im2shift is not None
-        CR = COREG(global_shared_imref, global_shared_im2shift, multiproc=False, **coreg_kwargs)
+        CR = COREG(global_shared_imref, global_shared_im2shift, CPUs=1, **coreg_kwargs)
         CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
         last_err           = CR.tracked_errors[-1] if CR.tracked_errors else None
