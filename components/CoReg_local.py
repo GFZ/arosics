@@ -361,15 +361,21 @@ class COREG_LOCAL(object):
 
 
         # plot all points on top
-        vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
-        points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
-                             cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0,
-                             vmin=vmin, vmax=vmax)
+        if not GDF.empty:
+            vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
+            points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
+                                 cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0,
+                                 vmin=vmin, vmax=vmax)
 
-        # add colorbar
-        divider = make_axes_locatable(plt.gca())
-        cax = divider.append_axes("right", size="2%", pad=0.1) # create axis on the right; size =2% of ax; padding = 0.1 inch
-        plt.colorbar(points, cax=cax)
+            # add colorbar
+            divider = make_axes_locatable(plt.gca())
+            cax = divider.append_axes("right", size="2%",
+                                      pad=0.1)  # create axis on the right; size =2% of ax; padding = 0.1 inch
+            plt.colorbar(points, cax=cax)
+        else:
+            if not self.q:
+                warnings.warn('Cannot plot any tie point because none is left after tie point validation.')
+
 
         if savefigPath:
             fig.savefig(savefigPath, dpi=savefigDPI)

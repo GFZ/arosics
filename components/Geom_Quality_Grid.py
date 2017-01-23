@@ -177,7 +177,7 @@ class Geom_Quality_Grid(object):
 
 
         # exclude all point where bad data mask is True (e.g. points on clouds etc.)
-        orig_len_GDF       = len(GDF)
+        orig_len_GDF       = len(GDF) # length of GDF after dropping all points outside the overlap polygon
         mapXY              = np.array(GDF.loc[:,['X_UTM','Y_UTM']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref  .mask_baddata.read_pointData(mapXY) \
                                 if self.COREG_obj.ref  .mask_baddata is not None else False
@@ -185,8 +185,9 @@ class Geom_Quality_Grid(object):
                                 if self.COREG_obj.shift.mask_baddata is not None else False
         GDF                = GDF[(GDF['REF_BADDATA']==False) & (GDF['TGT_BADDATA']==False)]
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
-            print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
-                  %(orig_len_GDF-len(GDF), orig_len_GDF))
+            if not self.q:
+                print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
+                      %(orig_len_GDF-len(GDF), orig_len_GDF))
 
         return GDF
 
@@ -234,7 +235,6 @@ class Geom_Quality_Grid(object):
         GDF       ['POINT_ID']       = range(len(geomPoints))
         GDF.loc[:,['X_IM' ,'Y_IM' ]] = self.XY_points
         GDF.loc[:,['X_UTM','Y_UTM']] = self.XY_mapPoints
-
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
@@ -300,6 +300,7 @@ class Geom_Quality_Grid(object):
                         if results.ready():
                             results = results.get() # <= this is the line where multiprocessing can freeze if an exception appears within COREG ans is not raised
                             break
+
         else:
             if not self.q:
                 print("Calculating geometric quality grid (%s points) 1 CPU core..." %len(GDF))
@@ -702,9 +703,9 @@ class TiePoint_Refiner(object):
 
             count_iter+=1
 
-        outliers = inliers == False if inliers.size else np.array([])
+        outliers = inliers == False if inliers is not None and inliers.size else np.array([])
 
-        if GDF.empty:
+        if GDF.empty or outliers is None:
             gs              = GeoSeries([False]*len(self.GDF))
         elif len(GDF) < len(self.GDF):
             GDF['outliers'] = outliers
