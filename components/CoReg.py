@@ -383,13 +383,15 @@ class COREG(object):
 
             if self.grid2use=='ref':
                 # resample target image to refernce image
-                self.shift.arr = self.shift[:,:,self.shift.band4match]
+                self.shift.arr = self.shift[:,:,self.shift.band4match] # resample the needed band only
                 self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
+                self.shift.band4match = 0 # after resampling there is only one band in the GeoArray
             else:
                 # resample reference image to target image
                 # FIXME in case of different projections this will change the projection of the reference image!
-                self.ref.arr = self.ref[:,:,self.ref.band4match]
+                self.ref.arr = self.ref[:,:,self.ref.band4match] # resample the needed band only
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
+                self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
 
     def show_image_footprints(self):

@@ -194,15 +194,21 @@ class Geom_Quality_Grid(object):
 
     @staticmethod
     def _get_spatial_shifts(coreg_kwargs):
+        # unpack
         pointID    = coreg_kwargs['pointID']
         fftw_works = coreg_kwargs['fftw_works']
         del coreg_kwargs['pointID'], coreg_kwargs['fftw_works']
 
+        # assertions
         assert global_shared_imref    is not None
         assert global_shared_im2shift is not None
+
+        # run CoReg
         CR = COREG(global_shared_imref, global_shared_im2shift, CPUs=1, **coreg_kwargs)
         CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
+
+        # fetch results
         last_err           = CR.tracked_errors[-1] if CR.tracked_errors else None
         win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
         CR_res   = [win_sz_x, win_sz_y, CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
@@ -254,8 +260,9 @@ class Geom_Quality_Grid(object):
 
         # ensure the input arrays for CoReg are in memory -> otherwise the code will get stuck in multiprocessing if
         # neighboured matching windows overlap during reading from disk!!
-        self.ref.cache_array_subset([self.COREG_obj.ref  .band4match])
-        self.ref.cache_array_subset([self.COREG_obj.shift.band4match])
+        self.ref.cache_array_subset([self.COREG_obj.ref.band4match]) # only sets geoArr._arr_cache; does not change number of bands
+        self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
+
         global_shared_imref    = self.ref
         global_shared_im2shift = self.shift
 
@@ -268,8 +275,8 @@ class Geom_Quality_Grid(object):
             resamp_alg_calc    = self.rspAlg_calc,
             footprint_poly_ref = self.COREG_obj.ref.poly,
             footprint_poly_tgt = self.COREG_obj.shift.poly,
-            r_b4match          = self.COREG_obj.ref.band4match+1,   # band4match is internally saved as index, starting from 0
-            s_b4match          = self.COREG_obj.shift.band4match+1, # band4match is internally saved as index, starting from 0
+            r_b4match          = self.ref.band4match+1,   # band4match is internally saved as index, starting from 0
+            s_b4match          = self.shift.band4match+1, # band4match is internally saved as index, starting from 0
             max_iter           = self.COREG_obj.max_iter,
             max_shift          = self.COREG_obj.max_shift,
             nodata             = (self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
@@ -705,7 +712,7 @@ class TiePoint_Refiner(object):
 
         outliers = inliers == False if inliers is not None and inliers.size else np.array([])
 
-        if GDF.empty or outliers is None:
+        if GDF.empty or outliers is None or not outliers:
             gs              = GeoSeries([False]*len(self.GDF))
         elif len(GDF) < len(self.GDF):
             GDF['outliers'] = outliers
