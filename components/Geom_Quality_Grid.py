@@ -712,7 +712,7 @@ class TiePoint_Refiner(object):
 
         outliers = inliers == False if inliers is not None and inliers.size else np.array([])
 
-        if GDF.empty or outliers is None or not outliers:
+        if GDF.empty or outliers is None or (isinstance(outliers, list) and not outliers):
             gs              = GeoSeries([False]*len(self.GDF))
         elif len(GDF) < len(self.GDF):
             GDF['outliers'] = outliers
