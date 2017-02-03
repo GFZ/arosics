@@ -246,6 +246,9 @@ class COREG(object):
         self.otherBox            = None                # set by self.get_clip_window_properties()  => boxObj
         self.matchWin            = None                # set by self._get_image_windows_to_match() => GeoArray
         self.otherWin            = None                # set by self._get_image_windows_to_match() => GeoArray
+        self.overlap_poly        = None                # set by self._get_overlap_properties()
+        self.overlap_percentage  = None                # set by self._get_overlap_properties()
+        self.overlap_area        = None                # set by self._get_overlap_properties()
         self.imfft_gsd           = None                # set by self.get_clip_window_properties()
         self.fftw_works          = None                # set by self._calc_shifted_cross_power_spectrum()
         self.fftw_win_size_YX    = None                # set by calc_shifted_cross_power_spectrum()
@@ -269,14 +272,10 @@ class COREG(object):
         gdal.AllRegister()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
-        self.grid2use                 = 'ref' if self.shift.xgsd <= self.ref.xgsd else 'shift'
+        self.grid2use = 'ref' if self.shift.xgsd <= self.ref.xgsd else 'shift'
         if self.v: print('resolutions: ', self.ref.xgsd, self.shift.xgsd)
 
-        overlap_tmp                   = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
-        self.overlap_poly             = overlap_tmp['overlap poly'] # has to be in reference projection
-        assert self.overlap_poly, 'The input images have no spatial overlap.'
-        self.overlap_percentage       = overlap_tmp['overlap percentage']
-        self.overlap_area             = overlap_tmp['overlap area']
+        self._get_overlap_properties()
 
         if self.v and self.path_verbose_out:
             IO.write_shp(os.path.join(self.path_verbose_out, 'poly_imref.shp'),    self.ref.poly,     self.ref.prj)
@@ -372,6 +371,20 @@ class COREG(object):
         assert prj_equal(self.ref.prj, self.shift.prj), \
             'Input projections are not equal. Different projections are currently not supported. Got %s / %s.'\
             %(get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj))
+
+
+    def _get_overlap_properties(self):
+        overlap_tmp                   = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
+        self.overlap_poly             = overlap_tmp['overlap poly'] # has to be in reference projection
+        self.overlap_percentage       = overlap_tmp['overlap percentage']
+        self.overlap_area             = overlap_tmp['overlap area']
+
+        assert self.overlap_poly, 'The input images have no spatial overlap.'
+
+        # overlap are must at least cover 16*16 pixels
+        px_area = self.ref.xgsd * self.ref.ygsd if self.grid2use=='ref' else self.shift.xgsd * self.shift.ygsd
+        px_covered = self.overlap_area/px_area
+        assert  px_covered > 16*16, 'Overlap are covers only %s pixels. At least 16*16 pixels are needed.' %px_covered
 
 
     def equalize_pixGrids(self):
@@ -658,9 +671,21 @@ class COREG(object):
             self.ref.  win.size_YX      = tuple([int(i) for i in self.ref.  win.imDimsYX])
             self.shift.win.size_YX      = tuple([int(i) for i in self.shift.win.imDimsYX])
             match_win_size_XY           = tuple(reversed([int(i) for i in matchBox.imDimsYX]))
+
             if not self.q and match_win_size_XY != self.win_size_XY:
                 print('Target window size %s not possible due to too small overlap area or window position too close '
                       'to an image edge. New matching window size: %s.' %(self.win_size_XY,match_win_size_XY))
+
+            for ref_shift in [self.ref, self.shift]:
+                if ref_shift.win.imDimsYX[0] < 16 or ref_shift.win.imDimsYX[1] < 16:
+                    self.tracked_errors.append(
+                        RuntimeError("One of the input images does not have sufficient gray value information "
+                                     "(non-no-data values) for placing a matching window at the position %s. "
+                                     "Matching failed." %str((wpX, wpY)) ))
+                    self.success = False
+                    if not self.ignErr:
+                        raise self.tracked_errors[-1]
+
             #IO.write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
             #IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
 
@@ -734,7 +759,7 @@ class COREG(object):
 
     @staticmethod
     def _shrink_winsize_to_binarySize(win_shape_YX, target_size=None):
-        # type: (tuple, tuple, int , int) -> tuple
+        # type: (tuple, tuple, int , int) -> any
         """Shrinks a given window size to the closest binary window size (a power of 2) -
         separately for X- and Y-dimension.
 
@@ -823,7 +848,7 @@ class COREG(object):
             if self.v: print('backward FFTW: %.2fs' %(time.time() -time0))
 
             cps = np.abs(ifft_arr)
-            # scps = shifted cps
+            # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
             scps = np.fft.fftshift(cps)
             if self.v:
                 PLT.subplot_imshow([in_arr0.astype(np.uint16), in_arr1.astype(np.uint16), fft_arr0.astype(np.uint8),

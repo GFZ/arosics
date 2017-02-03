@@ -177,27 +177,34 @@ class COREG_LOCAL(object):
             self.path_out = os.path.join(self.projectDir, os.path.basename(self.path_out))
 
         gdal.AllRegister()
-        self.COREG_obj = COREG(self.imref, self.im2shift,
-                               ws                 = window_size,
-                               footprint_poly_ref = footprint_poly_ref,
-                               footprint_poly_tgt = footprint_poly_tgt,
-                               data_corners_ref   = data_corners_ref,
-                               data_corners_tgt   = data_corners_tgt,
-                               resamp_alg_calc    = self.rspAlg_calc,
-                               calc_corners       = calc_corners,
-                               r_b4match          = r_b4match,
-                               s_b4match          = s_b4match,
-                               max_iter           = max_iter,
-                               max_shift          = max_shift,
-                               nodata             = nodata,
-                               CPUs               = self.CPUs,
-                               binary_ws          = self.bin_ws,
-                               progress           = self.progress,
-                               v                  = v,
-                               q                  = q,
-                               ignore_errors      = self.ignErr)
+
+        try:
+            self.COREG_obj = COREG(self.imref, self.im2shift,
+                                   ws                 = window_size,
+                                   footprint_poly_ref = footprint_poly_ref,
+                                   footprint_poly_tgt = footprint_poly_tgt,
+                                   data_corners_ref   = data_corners_ref,
+                                   data_corners_tgt   = data_corners_tgt,
+                                   resamp_alg_calc    = self.rspAlg_calc,
+                                   calc_corners       = calc_corners,
+                                   r_b4match          = r_b4match,
+                                   s_b4match          = s_b4match,
+                                   max_iter           = max_iter,
+                                   max_shift          = max_shift,
+                                   nodata             = nodata,
+                                   CPUs               = self.CPUs,
+                                   binary_ws          = self.bin_ws,
+                                   progress           = self.progress,
+                                   v                  = v,
+                                   q                  = q,
+                                   ignore_errors      = self.ignErr)
+        except Exception as err:
+            raise RuntimeError('First attempt to check if functionality of co-registration failed. Check your '
+                               'input data and parameters. The following error occurred: ', repr(err))
+
         if pyfftw:
             self.check_if_fftw_works()
+
 
         # add bad data mask
         # (mask is not added during initialization of COREG object in order to avoid bad data area errors there)
@@ -219,11 +226,12 @@ class COREG_LOCAL(object):
             self.COREG_obj.q = True
             self.COREG_obj.v = False
             self.COREG_obj.calculate_spatial_shifts()
-        except RuntimeError:
+        except RuntimeError as err:
             if self.COREG_obj.fftw_works is not None:
                 pass
             else:
-                raise
+                raise RuntimeError('First attempt to check if functionality of co-registration failed. Check your '
+                                   'input data and parameters. The following error occurred: ', repr(err))
 
         self.COREG_obj.q = self.q
         self.COREG_obj.v = self.v
