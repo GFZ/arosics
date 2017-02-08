@@ -635,6 +635,7 @@ class TiePoint_Refiner(object):
         :return:
         """
 
+        # exclude previous outliers
         GDF = self.GDF[self.GDF[self.new_cols].any(axis=1)==False].copy() if exclude_previous_outliers else self.GDF
 
         src_coords = np.array(GDF[['X_UTM', 'Y_UTM']])
@@ -644,7 +645,7 @@ class TiePoint_Refiner(object):
         for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
             assert co.ndim==2 and co.shape[1]==2, "'%s' must have shape [Nx2]. Got shape %s."%(n, co.shape)
 
-        if max_outlier_percentage >100: raise ValueError
+        if not 0 < max_outlier_percentage < 100: raise ValueError
         min_inlier_percentage = 100-max_outlier_percentage
 
         class PolyTF_1(PolynomialTransform):
@@ -652,7 +653,7 @@ class TiePoint_Refiner(object):
                 return PolynomialTransform.estimate(*data, order=1)
 
         # robustly estimate affine transform model with RANSAC
-        # exliminates not more than the given maximum outlier percentage of the tie points
+        # eliminates not more than the given maximum outlier percentage of the tie points
 
         model_robust, inliers = None, None
         count_inliers         = None

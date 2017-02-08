@@ -34,7 +34,7 @@ class COREG_LOCAL(object):
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
                  data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
                  binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True,
-                 v=False, q=False, ignore_errors=False):
+                 v=False, q=False, ignore_errors=True):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -163,7 +163,7 @@ class COREG_LOCAL(object):
         self.v                 = v
         self.q                 = q if not v else False        # overridden by v
         self.progress          = progress if not q else False # overridden by v
-        self.ignErr            = ignore_errors
+        self.ignErr            = ignore_errors # FIXME this is not yet implemented for COREG_LOCAL
 
         assert self.tieP_filter_level in range(4), 'Invalid tie point filter level.'
         assert isinstance(self.imref, GeoArray) and isinstance(self.im2shift, GeoArray), \
@@ -197,7 +197,7 @@ class COREG_LOCAL(object):
                                    progress           = self.progress,
                                    v                  = v,
                                    q                  = q,
-                                   ignore_errors      = self.ignErr)
+                                   ignore_errors      = False) # must be False because COREG init fails, coregistration for the whole scene fails
         except Exception as err:
             raise RuntimeError('First attempt to check if functionality of co-registration failed. Check your '
                                'input data and parameters. The following error occurred: ', repr(err))
