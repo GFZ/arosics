@@ -200,7 +200,7 @@ class COREG_LOCAL(object):
                                    ignore_errors      = False) # must be False because COREG init fails, coregistration for the whole scene fails
         except Exception as err:
             raise RuntimeError('First attempt to check if functionality of co-registration failed. Check your '
-                               'input data and parameters. The following error occurred: ', repr(err))
+                               'input data and parameters. The following error occurred: \n%s' %repr(err))
 
         if pyfftw:
             self.check_if_fftw_works()

@@ -594,10 +594,17 @@ class TiePoint_Refiner(object):
         # RANSAC filtering
         if level>2:
             marked_recs            = GeoSeries(self._RANSAC_outlier_detection())
-            self.GDF['L3_OUTLIER'] = marked_recs.tolist() # we need to join a list here because otherwise it's merged by the 'index' column
-            self.new_cols.append('L3_OUTLIER')
-            if not self.q:
-                print('%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs==True])))
+            if len(self.GDF)>4:
+                # running RANSAC with less than four tie points makes no sense
+                self.GDF['L3_OUTLIER'] = marked_recs.tolist() # we need to join a list here because otherwise it's merged by the 'index' column
+                self.new_cols.append('L3_OUTLIER')
+                if not self.q:
+                    print(
+                        '%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs == True])))
+            else:
+                print('RANSAC skipped because too less valid tie points have been found.')
+                self.GDF['L3_OUTLIER'] = False
+
 
         self.GDF['OUTLIER'] = self.GDF[self.new_cols].any(axis=1)
         self.new_cols.append('OUTLIER')
@@ -713,7 +720,8 @@ class TiePoint_Refiner(object):
 
         outliers = inliers == False if inliers is not None and inliers.size else np.array([])
 
-        if GDF.empty or outliers is None or (isinstance(outliers, list) and not outliers):
+        if GDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
+                (isinstance(outliers, np.ndarray) and not outliers.size):
             gs              = GeoSeries([False]*len(self.GDF))
         elif len(GDF) < len(self.GDF):
             GDF['outliers'] = outliers

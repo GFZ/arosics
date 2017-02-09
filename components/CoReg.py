@@ -63,8 +63,8 @@ class GeoArray_CoReg(GeoArray):
 
         assert isinstance(self, GeoArray), \
             'Something went wrong with the creation of GeoArray instance for the %s. The created ' \
-            'instance does not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset the ' \
-            'kernel and try again.' %self.imName
+            'instance does not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset ' \
+            'the kernel and try again.' %self.imName
 
         # set title to be used in plots
         self.title = os.path.basename(self.filePath) if self.filePath else self.imName
@@ -297,6 +297,29 @@ class COREG(object):
         self._coreg_info = None # private attribute to be filled by self.coreg_info property
 
 
+    def _handle_error(self, error, warn=False, warnMsg=None):
+        """Appends the given error to self.tracked_errors, sets self.success to False and raises the error in case
+        self.ignore_errors = True.
+
+        :param error:   instance of an error
+        :param warn:    whether to give a warning in case error would be ignored otherwise
+        :param warnMsg: a custom message for the warning
+        :return:
+        """
+
+        warn = warn or warnMsg is not None or self.v
+
+        self.tracked_errors.append(error)
+        self.success = False
+
+        if self.ignErr and warn:
+            warnMsg = repr(error) if not warnMsg else warnMsg
+            print('\nWARNING: '+warnMsg)
+
+        if not self.ignErr:
+            raise error
+
+
     def _set_outpathes(self, im_ref, im_tgt):
         assert isinstance(im_ref, (GeoArray, str)) and isinstance(im_tgt, (GeoArray, str)),\
             'COREG._set_outpathes() expects two file pathes (string) or two instances of the ' \
@@ -384,7 +407,7 @@ class COREG(object):
         # overlap are must at least cover 16*16 pixels
         px_area = self.ref.xgsd * self.ref.ygsd if self.grid2use=='ref' else self.shift.xgsd * self.shift.ygsd
         px_covered = self.overlap_area/px_area
-        assert  px_covered > 16*16, 'Overlap are covers only %s pixels. At least 16*16 pixels are needed.' %px_covered
+        assert px_covered > 16*16, 'Overlap area covers only %s pixels. At least 16*16 pixels are needed.' %px_covered
 
 
     def equalize_pixGrids(self):
@@ -562,11 +585,8 @@ class COREG(object):
 
         # validate window position
         if not self.overlap_poly.contains(Point(wp)):
-            self.success=False
-            self.tracked_errors.append(ValueError('The provided window position %s/%s is outside of the overlap ' \
-                                                  'area of the two input images. Check the coordinates.' %wp))
-            if not self.ignErr:
-                raise self.tracked_errors[-1]
+            self._handle_error(ValueError('The provided window position %s/%s is outside of the overlap ' \
+                                          'area of the two input images. Check the coordinates.' %wp))
 
         # check if window position is within bad data area if a respective mask has been provided
         for im in [self.ref, self.shift]:
@@ -574,13 +594,10 @@ class COREG(object):
                 imX, imY = mapXY2imXY(wp, im.mask_baddata.gt)
 
                 if im.mask_baddata[int(imY), int(imX)] is True:
-                    self.tracked_errors.append(
+                    self._handle_error(
                         RuntimeError('According to the provided bad data mask for the %s the chosen window position '
                             '%s / %s is within a bad data area. Using this window position for coregistration '
                             'is not reasonable. Please provide a better window position!' %(im.imName, wp[0], wp[1])))
-                    self.success = False
-                    if not self.ignErr:
-                        raise self.tracked_errors[-1]
 
         self.win_pos_XY  = wp
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512,512)
@@ -648,19 +665,15 @@ class COREG(object):
             if previous_area == otherBox.mapPoly.area or time.time()-t_start > 1.5:
                 # happens e.g in case of a triangular footprint
                 # NOTE: first condition is not always fulfilled -> therefore added timeout of 1.5 sec
-                self.tracked_errors.append(
+                self._handle_error(
                     RuntimeError('Matching window in target image is larger than overlap area but further shrinking '
                                  'the matching window is not possible. Check if the footprints of the input data have '
-                                 'been computed correctly.'+
-                                 (' Matching window shrinking timed out.' if time.time()-t_start>5 else '')))
-                if not self.ignErr:
-                    raise self.tracked_errors[-1]
+                                 'been computed correctly.' +
+                                 (' Matching window shrinking timed out.' if time.time() - t_start > 5 else ''))  )
                 break # break out of while loop in order to avoid that code gets stuck here
 
 
-        if self.tracked_errors:
-            self.success = False
-        else:
+        if self.success is not False:
             # check results
             assert matchBox.mapPoly.within(otherBox.mapPoly)
             assert otherBox.mapPoly.within(overlapWin.mapPoly)
@@ -678,13 +691,10 @@ class COREG(object):
 
             for ref_shift in [self.ref, self.shift]:
                 if ref_shift.win.imDimsYX[0] < 16 or ref_shift.win.imDimsYX[1] < 16:
-                    self.tracked_errors.append(
+                    self._handle_error(
                         RuntimeError("One of the input images does not have sufficient gray value information "
                                      "(non-no-data values) for placing a matching window at the position %s. "
                                      "Matching failed." %str((wpX, wpY)) ))
-                    self.success = False
-                    if not self.ignErr:
-                        raise self.tracked_errors[-1]
 
             #IO.write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
             #IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
@@ -747,10 +757,12 @@ class COREG(object):
                                                                progress   = False) [:2]
 
         if self.matchWin.shape != self.otherWin.shape:
-            self.tracked_errors.append(
-                RuntimeError('Bad output of get_image_windows_to_match. Reference image shape is %s whereas shift '
-                             'image shape is %s.' % (self.matchWin.shape, self.otherWin.shape)))
-            raise self.tracked_errors[-1]
+            self._handle_error(
+                RuntimeError('Catched a possible ProgrammingError at window position %s: Bad output of '
+                             'get_image_windows_to_match. Reference image shape is %s whereas shift '
+                             'image shape is %s.' % (str(self.matchBox.wp),self.matchWin.shape, self.otherWin.shape)),
+                warn=True)
+
         rows, cols = [i if i % 2 == 0 else i - 1 for i in self.matchWin.shape]
         self.matchWin.arr, self.otherWin.arr = self.matchWin.arr[:rows, :cols], self.otherWin.arr[:rows, :cols]
 
@@ -856,13 +868,9 @@ class COREG(object):
                                 "fft result im0", "fft result im1", "cross power spectrum"], grid=True)
                 PLT.subplot_3dsurface(scps.astype(np.float32))
         else:
-            self.success = False
-            self.tracked_errors.append(
+            scps = None
+            self._handle_error(
                 RuntimeError('The matching window became too small for calculating a reliable match. Matching failed.'))
-            if self.ignErr:
-                scps = None
-            else:
-                raise self.tracked_errors[-1]
 
         self.fftw_win_size_YX = wsYX
         return scps
@@ -1178,12 +1186,8 @@ class COREG(object):
                 count_iter += 1
 
                 if count_iter > self.max_iter:
-                    self.success = False
-                    self.tracked_errors.append(RuntimeError('No match found in the given window.'))
-                    if not self.ignErr:
-                        raise self.tracked_errors[-1]
-                    else:
-                        warnings.warn('No match found in the given window.'); break
+                    self._handle_error(RuntimeError('No match found in the given window.'))
+                    break
 
                 if valid_invalid=='invalid' and (x_val_shift, y_val_shift)==(None, None):
                     # this happens if matching window became too small
@@ -1207,16 +1211,13 @@ class COREG(object):
             x_totalshift, y_totalshift       = self._get_total_shifts(x_intshift, y_intshift, x_subshift, y_subshift)
 
             if max([abs(x_totalshift),abs(y_totalshift)]) > self.max_shift:
-                self.success = False
-                self.tracked_errors.append(
+                self._handle_error(
                     RuntimeError("The calculated shift (X: %s px / Y: %s px) is recognized as too large to "
                                  "be valid. If you know that it is valid, just set the '-max_shift' "
                                  "parameter to an appropriate value. Otherwise try to use a different window "
                                  "size for matching via the '-ws' parameter or define the spectral bands "
                                  "to be used for matching manually ('-br' and '-bs')."
                                  % (x_totalshift, y_totalshift)))
-                if not self.ignErr:
-                    raise self.tracked_errors[-1]
             else:
                 self.success = True
                 self.x_shift_px, self.y_shift_px = x_totalshift*gsd_factor, y_totalshift*gsd_factor
@@ -1430,8 +1431,7 @@ class COREG(object):
             if not self.q: print('Coregistered and resampled image written to %s.' %self.path_out)
         else:
             print(output)
-            self.tracked_errors.append(RuntimeError('Resampling failed.'))
-            raise self.tracked_errors[-1]
+            self._handle_error(RuntimeError('Resampling failed.'))
 
 
     def _resample_without_grid_aligning(self):
@@ -1459,5 +1459,4 @@ class COREG(object):
             if not self.q: print('Coregistered and resampled image written to %s.' %self.path_out)
         else:
             print(output)
-            self.tracked_errors.append(RuntimeError('Resampling failed.'))
-            raise self.tracked_errors[-1]
+            self._handle_error(RuntimeError('Resampling failed.'))
