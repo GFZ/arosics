@@ -192,6 +192,8 @@ class COREG_LOCAL(object):
                                    max_iter           = max_iter,
                                    max_shift          = max_shift,
                                    nodata             = nodata,
+                                   mask_baddata_ref   = None, # see below
+                                   mask_baddata_tgt   = None,
                                    CPUs               = self.CPUs,
                                    binary_ws          = self.bin_ws,
                                    progress           = self.progress,

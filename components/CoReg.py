@@ -28,7 +28,7 @@ from .          import geometry  as GEO
 from .          import io        as IO
 from .          import plotting  as PLT
 
-from py_tools_ds.ptds.io.raster.GeoArray   import GeoArray, BadDataMask
+from py_tools_ds.ptds.io.raster.GeoArray   import GeoArray
 from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
 from py_tools_ds.ptds.geo.vector.topology  import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
 from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
@@ -105,8 +105,7 @@ class GeoArray_CoReg(GeoArray):
         # add bad data mask
         given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
         if given_mask:
-            self.mask_baddata = BadDataMask(given_mask)
-
+            self.mask_baddata = given_mask # runs GeoArray.mask_baddata.setter -> sets it to BadDataMask()
 
 
 class COREG(object):
@@ -672,11 +671,19 @@ class COREG(object):
                                  (' Matching window shrinking timed out.' if time.time() - t_start > 5 else ''))  )
                 break # break out of while loop in order to avoid that code gets stuck here
 
+        # output validation
+        for winBox in [matchBox, otherBox]:
+            if winBox.imDimsYX[0] < 16 or winBox.imDimsYX[1] < 16:
+                self._handle_error(
+                    RuntimeError("One of the input images does not have sufficient gray value information "
+                                 "(non-no-data values) for placing a matching window at the position %s. "
+                                 "Matching failed." % str((wpX, wpY))))
 
         if self.success is not False:
-            # check results
-            assert matchBox.mapPoly.within(otherBox.mapPoly)
-            assert otherBox.mapPoly.within(overlapWin.mapPoly)
+            # check result -> ProgrammingError if not fulfilled
+            within_equal = lambda inner, outer: inner.within(outer) or inner.equals(outer)
+            assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
+            assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
 
             self.imfft_gsd              = self.ref.xgsd       if self.grid2use =='ref' else self.shift.xgsd
             self.ref.win,self.shift.win = (matchBox,otherBox) if self.grid2use =='ref' else (otherBox,matchBox)
@@ -689,15 +696,10 @@ class COREG(object):
                 print('Target window size %s not possible due to too small overlap area or window position too close '
                       'to an image edge. New matching window size: %s.' %(self.win_size_XY,match_win_size_XY))
 
-            for ref_shift in [self.ref, self.shift]:
-                if ref_shift.win.imDimsYX[0] < 16 or ref_shift.win.imDimsYX[1] < 16:
-                    self._handle_error(
-                        RuntimeError("One of the input images does not have sufficient gray value information "
-                                     "(non-no-data values) for placing a matching window at the position %s. "
-                                     "Matching failed." %str((wpX, wpY)) ))
-
             #IO.write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
             #IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
+
+
 
 
     def _get_image_windows_to_match(self):
