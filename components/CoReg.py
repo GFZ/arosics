@@ -579,13 +579,30 @@ class COREG(object):
         wp = tuple(wp)
 
         if None in wp:
+            # use centroid point if possible
             overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.centroid.coords.xy
             wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
-        # validate window position
-        if not self.overlap_poly.contains(Point(wp)):
-            self._handle_error(ValueError('The provided window position %s/%s is outside of the overlap ' \
-                                          'area of the two input images. Check the coordinates.' %wp))
+            # validate window position
+            if not self.overlap_poly.contains(Point(wp)):
+                # in case the centroid point is not within overlap area
+                if not self.q:
+                    warnings.warn("The centroid point of the two input images could not be used as matching window "
+                                  "position since it is outside of the overlap area. Instead the so called "
+                                  "'representative point' is used. Alternatively you can provide your own window "
+                                  "position as input parameter.")
+
+                # -> use representative point: a point that is garanteed to be within overlap polygon
+                overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.representative_point().coords.xy
+                wp = overlap_center_pos_x[0], overlap_center_pos_y[0]
+
+            assert self.overlap_poly.contains(Point(wp))
+
+        else:
+            # validate window position
+            if not self.overlap_poly.contains(Point(wp)):
+                self._handle_error(ValueError('The provided window position %s/%s is outside of the overlap ' \
+                                              'area of the two input images. Check the coordinates.' % wp))
 
         # check if window position is within bad data area if a respective mask has been provided
         for im in [self.ref, self.shift]:
