@@ -358,7 +358,11 @@ class Tie_Point_Grid(object):
 
     def to_GCPList(self):
         # get copy of quality grid without no data
-        GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.ABS_SHIFT != self.outFillVal, :].copy()
+        try:
+            GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.ABS_SHIFT != self.outFillVal, :].copy()
+        except AttributeError:
+            # self.CoRegPoints_table has no attribute 'ABS_SHIFT' because all points have been excluded
+            return []
 
         if getattr(GDF,'empty'): # GDF.empty returns AttributeError
             return []
