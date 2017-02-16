@@ -1,7 +1,7 @@
 from .components.CoReg             import COREG
 from .components.CoReg_local       import COREG_LOCAL
 from .components.DeShifter         import DESHIFTER
-from .components.Geom_Quality_Grid import Geom_Quality_Grid
+from .components.Tie_Point_Grid import Tie_Point_Grid
 
 from .components import io
 from .components import plotting
@@ -9,12 +9,12 @@ from .components import utilities
 from .components import geometry
 
 __author__ = 'Daniel Scheffler'
-__version__= '2017-02-13_01'
+__version__= '2017-02-16_01'
 
 __all__=['COREG',
          'COREG_LOCAL',
          'DESHIFTER',
-         'Geom_Quality_Grid',
+         'Tie_Point_Grid',
          'io',
          'utilities',
          'geometry',

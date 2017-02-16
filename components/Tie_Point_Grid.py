@@ -32,8 +32,8 @@ global_shared_imref    = None
 global_shared_im2shift = None
 
 
-class Geom_Quality_Grid(object):
-    """See help(Geom_Quality_Grid) for documentation!"""
+class Tie_Point_Grid(object):
+    """See help(Tie_Point_Grid) for documentation!"""
 
     def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
                  tieP_filter_level=2, dir_out=None, CPUs=None, progress=True, v=False, q=False):
@@ -41,7 +41,7 @@ class Geom_Quality_Grid(object):
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
         correction performs a polynomial transformation using te calculated shifts of each point in the grid as GCPs.
-        Thus 'Geom_Quality_Grid' can be used to correct for locally varying geometric distortions of the target image.
+        Thus 'Tie_Point_Grid' can be used to correct for locally varying geometric distortions of the target image.
 
         :param COREG_obj(object):       an instance of COREG class
         :param grid_res:                grid resolution in pixels of the target image (x-direction)
@@ -244,6 +244,9 @@ class Geom_Quality_Grid(object):
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
+        if GDF.empty:
+            self.CoRegPoints_table = GDF
+            return self.CoRegPoints_table
 
         # choose a random subset of points if a maximum number has been given
         if self.max_points and len(GDF) > self.max_points:
@@ -334,7 +337,7 @@ class Geom_Quality_Grid(object):
         if self.tieP_filter_level>0:
             if not self.q:
                 print('Performing validity checks...')
-            TPR                   = TiePoint_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], q=self.q)
+            TPR                   = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], q=self.q)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF                   = GDF.merge(GDF_filt[ ['POINT_ID']+new_columns], on='POINT_ID', how="outer")
         GDF = GDF.fillna(int(self.outFillVal))
@@ -418,11 +421,11 @@ class Geom_Quality_Grid(object):
     def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col ='ABS_SHIFT'):
         # type: (str, bool, str) -> None
         """Writes the calculated geometric quality grid to a point shapefile containing
-        Geom_Quality_Grid.CoRegPoints_table as attribute table. This shapefile can easily be displayed using GIS software.
+        Tie_Point_Grid.CoRegPoints_table as attribute table. This shapefile can easily be displayed using GIS software.
 
         :param path_out:        <str> the output path. If not given, it is automatically defined.
         :param skip_nodata:     <bool> whether to skip all points where no valid match could be found
-        :param skip_nodata_col: <str> determines which column of Geom_Quality_Grid.CoRegPoints_table is used to
+        :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
                                 identify points where no valid match could be found
         """
         GDF            = self.CoRegPoints_table
@@ -564,7 +567,7 @@ class Geom_Quality_Grid(object):
 
 
 
-class TiePoint_Refiner(object):
+class Tie_Point_Refiner(object):
     def __init__(self, GDF, q=False):
         self.GDF                 = GDF.copy()
         self.q                   = q

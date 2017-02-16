@@ -17,9 +17,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .Geom_Quality_Grid import Geom_Quality_Grid
-from .CoReg             import COREG
-from .DeShifter         import DESHIFTER
+from .Tie_Point_Grid import Tie_Point_Grid
+from .CoReg          import COREG
+from .DeShifter      import DESHIFTER
 from py_tools_ds.ptds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
 from py_tools_ds.ptds                 import GeoArray
 
@@ -260,16 +260,16 @@ class COREG_LOCAL(object):
         if self._quality_grid:
             return self._quality_grid
         else:
-            self._quality_grid = Geom_Quality_Grid(self.COREG_obj, self.grid_res,
-                                                   max_points        = self.max_points,
-                                                   outFillVal        = self.outFillVal,
-                                                   resamp_alg_calc   = self.rspAlg_calc,
-                                                   tieP_filter_level = self.tieP_filter_level,
-                                                   dir_out           = self.projectDir,
-                                                   CPUs              = self.CPUs,
-                                                   progress          = self.progress,
-                                                   v                 = self.v,
-                                                   q                 = self.q)
+            self._quality_grid = Tie_Point_Grid(self.COREG_obj, self.grid_res,
+                                                max_points        = self.max_points,
+                                                outFillVal        = self.outFillVal,
+                                                resamp_alg_calc   = self.rspAlg_calc,
+                                                tieP_filter_level = self.tieP_filter_level,
+                                                dir_out           = self.projectDir,
+                                                CPUs              = self.CPUs,
+                                                progress          = self.progress,
+                                                v                 = self.v,
+                                                q                 = self.q)
             if self.v:
                 print('Visualizing CoReg points grid...')
                 self.view_CoRegPoints(figsize=(10,10))
