@@ -115,4 +115,4 @@ def get_GeoArrayPosition_from_boxImYX(boxImYX):
     """Returns row_start,row_end,col_start,col_end and assumes boxImYX as [UL_YX,UR_YX,LR_YX,LL_YX)"""
     rS, cS = boxImYX[0] # UL
     rE, cE = boxImYX[2] # LR
-    return rS, rE, cS, cE
+    return rS, rE-1, cS, cE-1 # -1 because boxImYX represents outer box and includes the LR corner of LR pixel

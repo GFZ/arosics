@@ -28,7 +28,7 @@ from .          import geometry  as GEO
 from .          import io        as IO
 from .          import plotting  as PLT
 
-from py_tools_ds.ptds.io.raster.GeoArray   import GeoArray
+from py_tools_ds.ptds.io.raster.GeoArray   import GeoArray, alias_property
 from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
 from py_tools_ds.ptds.geo.vector.topology  import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
 from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
@@ -97,15 +97,17 @@ class GeoArray_CoReg(GeoArray):
                 print('Calculating actual data corner coordinates for %s...' % self.imName)
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
-        self.poly = self.footprint_poly  # returns a shapely geometry
-
         if not self.q:
-            print('Bounding box of calculated footprint for %s:\n\t%s' % (self.imName, self.poly.bounds))
+            print('Bounding box of calculated footprint for %s:\n\t%s' % (self.imName, self.footprint_poly.bounds))
 
         # add bad data mask
         given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
         if given_mask:
             self.mask_baddata = given_mask # runs GeoArray.mask_baddata.setter -> sets it to BadDataMask()
+
+
+    poly = alias_property('footprint_poly') # ensures that self.poly is updated if self.footprint_poly is updated
+
 
 
 class COREG(object):
@@ -717,8 +719,6 @@ class COREG(object):
             #IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
 
 
-
-
     def _get_image_windows_to_match(self):
         """Reads the matching window and the other window using subset read, and resamples the other window to the
         resolution and the pixel grid of the matching window. The result consists of two images with the same
@@ -729,9 +729,10 @@ class COREG(object):
 
         # matchWin per subset-read einlesen -> self.matchWin.data
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.matchBox.boxImYX)
-        assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])), \
-            'Got negative values in gdalReadInputs for %s.' %match_fullGeoArr.imName
-        self.matchWin = GeoArray(match_fullGeoArr[rS:rE,cS:cE, match_fullGeoArr.band4match],
+        assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])) and \
+            rE <= match_fullGeoArr.rows and cE <= match_fullGeoArr.cols, \
+            'Requested area is not completely within the input array for %s.' %match_fullGeoArr.imName
+        self.matchWin = GeoArray(match_fullGeoArr[rS:rE+1,cS:cE+1, match_fullGeoArr.band4match],
                                  geotransform = GEO.get_subset_GeoTransform(match_fullGeoArr.gt, self.matchBox.boxImYX),
                                  projection   = copy(match_fullGeoArr.prj),
                                  nodata       = copy(match_fullGeoArr.nodata))
@@ -739,9 +740,10 @@ class COREG(object):
 
         # otherWin per subset-read einlesen
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherBox.boxImYX)
-        assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])), \
-            'Got negative values in gdalReadInputs for %s.' %other_fullGeoArr.imName
-        self.otherWin = GeoArray(other_fullGeoArr[rS:rE, cS:cE, other_fullGeoArr.band4match],
+        assert np.array_equal(np.abs(np.array([rS,rE,cS,cE])), np.array([rS,rE,cS,cE])) and \
+            rE <= other_fullGeoArr.rows and cE <= other_fullGeoArr.cols, \
+            'Requested area is not completely within the input array for %s.' %other_fullGeoArr.imName
+        self.otherWin = GeoArray(other_fullGeoArr[rS:rE+1, cS:cE+1, other_fullGeoArr.band4match],
                                  geotransform = GEO.get_subset_GeoTransform(other_fullGeoArr.gt, self.otherBox.boxImYX),
                                  projection   = copy(other_fullGeoArr.prj),
                                  nodata       = copy(other_fullGeoArr.nodata))
@@ -782,8 +784,12 @@ class COREG(object):
                              'image shape is %s.' % (str(self.matchBox.wp),self.matchWin.shape, self.otherWin.shape)),
                 warn=True)
 
+        # check of odd dimensions of output images
         rows, cols = [i if i % 2 == 0 else i - 1 for i in self.matchWin.shape]
         self.matchWin.arr, self.otherWin.arr = self.matchWin.arr[:rows, :cols], self.otherWin.arr[:rows, :cols]
+        if self.matchWin.box.imDimsYX != self.matchBox.imDimsYX:
+            self.matchBox = self.matchWin.box # update matchBox
+            self.otherBox = self.otherWin.box # update otherBox
 
         assert self.matchWin.arr is not None and self.otherWin.arr is not None, 'Creation of matching windows failed.'
 
