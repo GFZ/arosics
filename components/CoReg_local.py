@@ -30,7 +30,7 @@ class COREG_LOCAL(object):
 
     def __init__(self, im_ref, im_tgt, grid_res, max_points=None, window_size=(256,256), path_out=None, fmt_out='ENVI',
                  out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
-                 tieP_filter_level=2, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
+                 tieP_filter_level=3, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
                  data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
                  binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True,

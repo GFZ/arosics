@@ -259,10 +259,15 @@ class DESHIFTER(object):
                 self.arr_shifted = self.im2shift[:,:,self.band2process] \
                                     if self.band2process is not None else self.im2shift[:]
 
-            self.GeoArray_shifted = GeoArray(self.arr_shifted, self.updated_gt, self.updated_projection)
+            out_geoArr = GeoArray(self.arr_shifted, self.updated_gt, self.updated_projection, q=self.q)
+            out_geoArr.nodata = self.nodata  # equals self.im2shift.nodata after __init__()
+            out_geoArr.metadata = self.im2shift.metadata[[self.band2process]] \
+                if self.band2process is not None else self.im2shift.metadata
+
+            self.GeoArray_shifted = out_geoArr
 
             if self.path_out:
-                GeoArray(self.arr_shifted,self.updated_gt,self.updated_projection).save(self.path_out,fmt=self.fmt_out)
+                out_geoArr.save(self.path_out,fmt=self.fmt_out)
 
         else: # FIXME equal_prj==False ist noch NICHT implementiert
             """RESAMPLING NEEDED"""
@@ -336,17 +341,20 @@ class DESHIFTER(object):
                              progress   = self.progress,
                              q          = self.q)
 
+            out_geoArr = GeoArray(out_arr, out_gt, out_prj, q=self.q)
+            out_geoArr.nodata = self.nodata  # equals self.im2shift.nodata after __init__()
+            out_geoArr.metadata = self.im2shift.metadata[[self.band2process]] \
+                if self.band2process is not None else self.im2shift.metadata
+
             self.arr_shifted        = out_arr
             self.updated_gt         = out_gt
             self.updated_projection = out_prj
             self.updated_map_info   = geotransform2mapinfo(out_gt,out_prj)
-            self.GeoArray_shifted   = GeoArray(self.arr_shifted, self.updated_gt, self.updated_projection)
+            self.GeoArray_shifted   = out_geoArr
             self.is_shifted         = True
             self.is_resampled       = True
 
             if self.path_out:
-                out_geoArr        = GeoArray(out_arr, out_gt, out_prj, q=self.q)
-                out_geoArr.nodata = self.nodata # equals self.im2shift.nodata after __init__()
                 out_geoArr.save(self.path_out,fmt=self.fmt_out, creationOptions=self.out_creaOpt)
 
         # validation
