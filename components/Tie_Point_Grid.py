@@ -144,10 +144,8 @@ class Tie_Point_Grid(object):
         Xarr,Yarr       = np.meshgrid(np.arange(0,self.shift.shape[1],grid_res),
                                       np.arange(0,self.shift.shape[0],grid_res))
 
-        ULmapYX, URmapYX, LRmapYX, LLmapYX = self.shift.box.boxMapYX
-
-        mapXarr,mapYarr = np.meshgrid(np.arange(ULmapYX[1],LRmapYX[1],     self.grid_res*self.COREG_obj.shift.xgsd),
-                                      np.arange(ULmapYX[0],LRmapYX[0],-abs(self.grid_res*self.COREG_obj.shift.ygsd)))
+        mapXarr = np.full_like(Xarr, self.shift.gt[0], dtype=np.float64) + Xarr*self.shift.gt[1]
+        mapYarr = np.full_like(Yarr, self.shift.gt[3], dtype=np.float64) - Yarr*abs(self.shift.gt[5])
 
         XY_points      = np.empty((Xarr.size,2),Xarr.dtype)
         XY_points[:,0] = Xarr.flat
@@ -156,6 +154,8 @@ class Tie_Point_Grid(object):
         XY_mapPoints      = np.empty((mapXarr.size,2),mapXarr.dtype)
         XY_mapPoints[:,0] = mapXarr.flat
         XY_mapPoints[:,1] = mapYarr.flat
+
+        assert XY_points.shape == XY_mapPoints.shape
 
         return XY_points,XY_mapPoints
 
@@ -604,13 +604,14 @@ class Tie_Point_Refiner(object):
             if len(self.GDF)>4:
                 # running RANSAC with less than four tie points makes no sense
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist() # we need to join a list here because otherwise it's merged by the 'index' column
-                self.new_cols.append('L3_OUTLIER')
                 if not self.q:
                     print(
                         '%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs == True])))
             else:
                 print('RANSAC skipped because too less valid tie points have been found.')
                 self.GDF['L3_OUTLIER'] = False
+
+        self.new_cols.append('L3_OUTLIER')
 
 
         self.GDF['OUTLIER'] = self.GDF[self.new_cols].any(axis=1)

@@ -213,7 +213,7 @@ class COREG_LOCAL(object):
         if mask_baddata_ref is not None: self.COREG_obj.ref  .mask_baddata = mask_baddata_ref
         if mask_baddata_tgt is not None: self.COREG_obj.shift.mask_baddata = mask_baddata_tgt
 
-        self._quality_grid      = None # set by self.quality_grid
+        self._tiepoint_grid      = None # set by self.quality_grid
         self._CoRegPoints_table = None # set by self.CoRegPoints_table
         self._coreg_info        = None # set by self.coreg_info
         self.deshift_results    = None # set by self.correct_shifts()
@@ -256,24 +256,24 @@ class COREG_LOCAL(object):
 
 
     @property
-    def quality_grid(self):
-        if self._quality_grid:
-            return self._quality_grid
+    def tiepoint_grid(self):
+        if self._tiepoint_grid:
+            return self._tiepoint_grid
         else:
-            self._quality_grid = Tie_Point_Grid(self.COREG_obj, self.grid_res,
-                                                max_points        = self.max_points,
-                                                outFillVal        = self.outFillVal,
-                                                resamp_alg_calc   = self.rspAlg_calc,
-                                                tieP_filter_level = self.tieP_filter_level,
-                                                dir_out           = self.projectDir,
-                                                CPUs              = self.CPUs,
-                                                progress          = self.progress,
-                                                v                 = self.v,
-                                                q                 = self.q)
+            self._tiepoint_grid = Tie_Point_Grid(self.COREG_obj, self.grid_res,
+                                                 max_points        = self.max_points,
+                                                 outFillVal        = self.outFillVal,
+                                                 resamp_alg_calc   = self.rspAlg_calc,
+                                                 tieP_filter_level = self.tieP_filter_level,
+                                                 dir_out           = self.projectDir,
+                                                 CPUs              = self.CPUs,
+                                                 progress          = self.progress,
+                                                 v                 = self.v,
+                                                 q                 = self.q)
             if self.v:
                 print('Visualizing CoReg points grid...')
                 self.view_CoRegPoints(figsize=(10,10))
-            return self._quality_grid
+            return self._tiepoint_grid
 
 
     @property
@@ -282,12 +282,12 @@ class COREG_LOCAL(object):
         'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
         information containing all the results frm coregistration for all points in the geometric quality grid.
         """
-        return self.quality_grid.CoRegPoints_table
+        return self.tiepoint_grid.CoRegPoints_table
 
 
     @property
     def success(self):
-        self._success = self.quality_grid.GCPList != []
+        self._success = self.tiepoint_grid.GCPList != []
         if not self._success and not self.q:
             warnings.warn('No valid GCPs could by identified.')
         return self._success
@@ -447,9 +447,9 @@ class COREG_LOCAL(object):
             return self._coreg_info
         else:
             self._coreg_info = {
-                'GCPList'               : self.quality_grid.GCPList,
+                'GCPList'               : self.tiepoint_grid.GCPList,
                 'reference projection'  : self.imref.prj,
-                'reference geotransform': self.im2shift.gt,
+                'reference geotransform': self.imref.gt,
                 'reference grid'        : [ [self.imref.gt[0], self.imref.gt[0]+self.imref.gt[1]],
                                             [self.imref.gt[3], self.imref.gt[3]+self.imref.gt[5]] ],
                 'reference extent'      : {'cols':self.imref.xgsd, 'rows':self.imref.ygsd}, # FIXME not needed anymore
@@ -469,7 +469,7 @@ class COREG_LOCAL(object):
 
         coreg_info = self.coreg_info
 
-        if self.quality_grid.GCPList:
+        if self.tiepoint_grid.GCPList:
             if max_GCP_count:
                 coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count]
 
