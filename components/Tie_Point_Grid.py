@@ -49,7 +49,7 @@ class Tie_Point_Grid(object):
                                         NOTE: Points are selected randomly from the given point grid (specified by
                                         'grid_res'). If the point does not provide enough points, all available points
                                         are chosen.
-        :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
+        :param outFillVal(int):         if given the generated tie points grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
         :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
                                         of spatial shifts
@@ -67,7 +67,7 @@ class Tie_Point_Grid(object):
                                             - Level 3: RANSAC outlier detection
         :param dir_out(str):            output directory to be used for all outputs if nothing else is given
                                         to the individual methods
-        :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
+        :param CPUs(int):               number of CPUs to use during calculation of tie points grid
                                         (default: None, which means 'all CPUs available')
         :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: False)
@@ -101,7 +101,7 @@ class Tie_Point_Grid(object):
     def CoRegPoints_table(self):
         """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
         'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
-        information containing all the results frm coregistration for all points in the geometric quality grid.
+        information containing all the results frm coregistration for all points in the tie points grid.
         """
         if self._CoRegPoints_table is not None:
             return self._CoRegPoints_table
@@ -139,7 +139,7 @@ class Tie_Point_Grid(object):
         :return:
         """
         if not self.q:
-            print('Initializing geometric quality grid...')
+            print('Initializing tie points grid...')
 
         Xarr,Yarr       = np.meshgrid(np.arange(0,self.shift.shape[1],grid_res),
                                       np.arange(0,self.shift.shape[0],grid_res))
@@ -294,7 +294,7 @@ class Tie_Point_Grid(object):
         if self.CPUs is None or self.CPUs>1:
             if not self.q:
                 cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
-                print("Calculating geometric quality grid (%s points) using %s CPU cores..." %(len(GDF), cpus))
+                print("Calculating tie points grid (%s points) using %s CPU cores..." %(len(GDF), cpus))
 
             with multiprocessing.Pool(self.CPUs) as pool:
                 if self.q or not self.progress:
@@ -313,7 +313,7 @@ class Tie_Point_Grid(object):
 
         else:
             if not self.q:
-                print("Calculating geometric quality grid (%s points) 1 CPU core..." %len(GDF))
+                print("Calculating tie points grid (%s points) 1 CPU core..." %len(GDF))
             results = np.empty((len(geomPoints),14), np.object)
             bar     = ProgressBar(prefix='\tprogress:')
             for i,coreg_kwargs in enumerate(list_coreg_kwargs):
@@ -357,7 +357,7 @@ class Tie_Point_Grid(object):
 
 
     def to_GCPList(self):
-        # get copy of quality grid without no data
+        # get copy of tie points grid without no data
         try:
             GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.ABS_SHIFT != self.outFillVal, :].copy()
         except AttributeError:
@@ -424,7 +424,7 @@ class Tie_Point_Grid(object):
 
     def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col ='ABS_SHIFT'):
         # type: (str, bool, str) -> None
-        """Writes the calculated geometric quality grid to a point shapefile containing
+        """Writes the calculated tie points grid to a point shapefile containing
         Tie_Point_Grid.CoRegPoints_table as attribute table. This shapefile can easily be displayed using GIS software.
 
         :param path_out:        <str> the output path. If not given, it is automatically defined.
@@ -444,8 +444,8 @@ class Tie_Point_Grid(object):
 
 
     def _to_PointShapefile(self, skip_nodata=True, skip_nodata_col ='ABS_SHIFT'):
-        warnings.warn(DeprecationWarning("'_quality_grid_to_PointShapefile' is deprecated." # TODO delete if other method validated
-                                         " 'quality_grid_to_PointShapefile' is much faster."))
+        warnings.warn(DeprecationWarning("'_tiepoints_grid_to_PointShapefile' is deprecated." # TODO delete if other method validated
+                                         " 'tiepoints_grid_to_PointShapefile' is much faster."))
         GDF            = self.CoRegPoints_table
         GDF2pass       = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
         shapely_points = GDF2pass['geometry'].values.tolist()
