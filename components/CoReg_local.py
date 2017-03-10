@@ -248,7 +248,8 @@ class COREG_LOCAL(object):
                 return os.path.abspath(self._projectDir)
         else:
             # return a project name that not already has a corresponding folder on disk
-            projectDir = os.path.join(os.path.dirname(self.im2shift.filePath), 'UntitledProject_1')
+            root_dir = os.path.dirname(self.im2shift.filePath) if self.im2shift.filePath else os.path.curdir
+            projectDir = os.path.join(root_dir, 'UntitledProject_1')
             while os.path.isdir(projectDir):
                 projectDir = '%s_%s' % (projectDir.split('_')[0], int(projectDir.split('_')[-1]) + 1)
             self._projectDir = projectDir

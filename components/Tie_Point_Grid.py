@@ -432,8 +432,15 @@ class Tie_Point_Grid(object):
         :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
                                 identify points where no valid match could be found
         """
-        GDF            = self.CoRegPoints_table
-        GDF2pass       = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
+        GDF      = self.CoRegPoints_table
+        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
+
+        # replace boolean values (cannot be written)
+        for col in GDF2pass.columns:
+            if GDF2pass[col].dtype == np.bool:
+                GDF2pass[col] = GDF2pass[col].astype(int)
+        GDF2pass = GDF2pass.replace(False, 0) # replace all remaining booleans where dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(True,  1)
 
         path_out = path_out if path_out else get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
             fName_out="CoRegPoints_grid%s_ws(%s_%s)__T_%s__R_%s.shp" % (self.grid_res, self.COREG_obj.win_size_XY[0],
