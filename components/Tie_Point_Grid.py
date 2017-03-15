@@ -22,9 +22,11 @@ from skimage.transform import AffineTransform, PolynomialTransform
 # internal modules
 from .CoReg  import COREG
 from .       import io    as IO
-from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, get_UTMzone
+from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, get_UTMzone, dict_to_proj4
 from py_tools_ds.ptds.io.pathgen              import get_generic_outpath
 from py_tools_ds.ptds.processing.progress_mon import ProgressBar
+from py_tools_ds.ptds.geo.vector.conversion   import points_to_raster
+from py_tools_ds.ptds                         import GeoArray
 
 
 
@@ -462,6 +464,43 @@ class Tie_Point_Grid(object):
         fName_out = "CoRegPoints_grid%s_ws%s.shp" %(self.grid_res, self.COREG_obj.win_size_XY)
         path_out = os.path.join(self.dir_out, fName_out)
         IO.write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
+
+
+    def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
+        # type: (str) -> None
+        """Saves the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield
+        (e.g. using ArcGIS)
+
+        :param path_out:    <str> the output path. If not given, it is automatically defined.
+        :param fmt:         <str> output raster format string
+        :param mode:        <str>   'uv': outputs X-/Y shifts
+                                    'md': outputs magnitude and direction
+        """
+
+        assert mode in ['uv','md'], \
+            "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' (outputs magnitude and direction)'. Got %s." %mode
+        attr_b1 = 'X_SHIFT_M' if mode=='uv' else 'ABS_SHIFT'
+        attr_b2 = 'Y_SHIFT_M' if mode=='uv' else 'ANGLE'
+
+        xshift_arr, gt, prj = points_to_raster(points = self.CoRegPoints_table['geometry'],
+                                               values = self.CoRegPoints_table[attr_b1],
+                                               tgt_res = self.shift.xgsd * self.grid_res,
+                                               prj = dict_to_proj4(self.CoRegPoints_table.crs))
+
+        yshift_arr, gt, prj = points_to_raster(points = self.CoRegPoints_table['geometry'],
+                                               values = self.CoRegPoints_table[attr_b2],
+                                               tgt_res = self.shift.xgsd * self.grid_res,
+                                               prj = dict_to_proj4(self.CoRegPoints_table.crs))
+
+        out_GA = GeoArray(np.dstack([xshift_arr, yshift_arr]), gt, prj, nodata=self.outFillVal)
+
+        path_out = path_out if path_out else get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
+            fName_out="CoRegVectorfield%s_ws(%s_%s)__T_%s__R_%s.tif" % (self.grid_res, self.COREG_obj.win_size_XY[0],
+                        self.COREG_obj.win_size_XY[1], self.shift.basename, self.ref.basename))
+
+        out_GA.save(path_out, fmt=fmt if fmt else 'Gtiff')
+
+        return out_GA
 
 
     def to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,

@@ -1,14 +1,5 @@
 import numpy as np
-import datetime
 
-
-def get_dtypeStr(val):
-    is_numpy = 'numpy' in str(type(val))
-    DType = str(np.dtype(val)) if is_numpy else 'int' if isinstance(val,int) else 'float' if isinstance(val,float) else \
-                'str' if isinstance(val,str) else 'complex' if isinstance(val,complex) else \
-                'date' if isinstance(val,datetime.datetime) else None
-    assert DType, 'data type not understood'
-    return DType
 
 def get_image_tileborders(target_tileSize,shape_fullArr):
     rows,cols     = shape_fullArr[:2]

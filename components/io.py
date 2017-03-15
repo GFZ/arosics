@@ -13,8 +13,9 @@ except ImportError:
 from spectral.io import envi
 
 # internal modules
-from .utilities import get_dtypeStr, get_image_tileborders, convertGdalNumpyDataType
+from .utilities import get_image_tileborders, convertGdalNumpyDataType
 from py_tools_ds.ptds.geo.map_info import geotransform2mapinfo
+from py_tools_ds.ptds.dtypes.conversion import get_dtypeStr
 
 
 
