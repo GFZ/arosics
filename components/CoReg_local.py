@@ -301,7 +301,7 @@ class COREG_LOCAL(object):
 
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
-                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True):
+                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True, zoomable=False):
         """Shows a map of the calculated quality grid with the target image as background.
 
         :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
@@ -315,6 +315,7 @@ class COREG_LOCAL(object):
         :param savefigPath:
         :param savefigDPI:
         :param showFig:             <bool> whether to show or to hide the figure
+        :param zoomable:            <bool> enable or disable zooming via mpld3
         :return:
         """
 
@@ -322,7 +323,7 @@ class COREG_LOCAL(object):
         if backgroundIm not in ['tgt','ref']: raise ValueError('backgroundIm')
         backgroundIm      = self.im2shift if backgroundIm=='tgt' else self.imref
         fig, ax, map2show = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True,
-                                                  band=self.COREG_obj.shift.band4match)
+                                                  band=self.COREG_obj.shift.band4match, zoomable=zoomable)
         # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
         plt.title(attribute2plot)
 
