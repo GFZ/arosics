@@ -54,7 +54,7 @@ class DESHIFTER(object):
                                     (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
             - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
-                                    areas outside of the actual bounds, default = True
+                                    areas outside of the actual bounds, default = False
             - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
                                     The given coordinates are automatically snapped to the output grid.
             - CPUs(int):            number of CPUs to use (default: None, which means 'all CPUs available')
@@ -83,7 +83,7 @@ class DESHIFTER(object):
         self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids'     , False)
         self.rspAlg       = kwargs.get('resamp_alg'      , 'cubic')
-        self.cliptoextent = kwargs.get('cliptoextent'    , True)
+        self.cliptoextent = kwargs.get('cliptoextent'    , False)
         self.clipextent   = kwargs.get('clipextent'      , None)
         self.CPUs         = kwargs.get('CPUs'            , None)
         self.v            = kwargs.get('v'               , False)
@@ -193,8 +193,7 @@ class DESHIFTER(object):
         return False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
 
 
-    @staticmethod
-    def _grids_alignable(in_xgsd, in_ygsd, out_xgsd, out_ygsd):
+    def _grids_alignable(self, in_xgsd, in_ygsd, out_xgsd, out_ygsd):
         """Checks if the input image pixel grid is alignable to the output grid.
 
         :param in_xgsd:
@@ -204,7 +203,13 @@ class DESHIFTER(object):
         :return:
         """
         is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
-        return False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
+        result = False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
+
+        if result==False and not self.q:
+            warnings.warn('Coordinate grid cannot be aligned without changing the pixel resolution of the image to be '
+                          'corrected because desired output pixel size is %s and current pixel size of the image to be '
+                          'corrected is %s. The output grid will be the same like the input grid.' %(out_xgsd, in_xgsd))
+        return result
 
 
     def _get_out_extent(self):
