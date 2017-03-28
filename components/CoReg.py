@@ -837,7 +837,11 @@ class COREG(object):
 
         if wsYX:
             time0 = time.time()
-            if self.v: print('final window size: %s/%s (X/Y)' % (wsYX[1], wsYX[0]))
+            if self.v:
+                print('final window size: %s/%s (X/Y)' % (wsYX[1], wsYX[0]))
+                # FIXME size of self.matchWin is not updated
+                # FIXME CoRegPoints_grid.WIN_SZ is taken from self.matchBox.imDimsYX but this is not updated
+
             center_YX = np.array(im0.shape)/2
             xmin,xmax,ymin,ymax = int(center_YX[1]-wsYX[1]/2), int(center_YX[1]+wsYX[1]/2),\
                                   int(center_YX[0]-wsYX[0]/2), int(center_YX[0]+wsYX[0]/2)
@@ -1027,6 +1031,7 @@ class COREG(object):
 
             # check if integer shifts are now gone (0/0)
             scps = self._calc_shifted_cross_power_spectrum(gdsh_im0, crsp_im1)
+
             if scps is not None:
                 peakpos = self._get_peakpos(scps)
                 x_shift, y_shift = self._get_shifts_from_peakpos(peakpos, scps.shape)
@@ -1252,7 +1257,7 @@ class COREG(object):
                                                 geotransform=self.shift.gt, projection=self.shift.prj)[0]
                 self.x_shift_map, self.y_shift_map = new_originX - self.shift.gt[0], new_originY - self.shift.gt[3]
 
-                # get length of shift vecor in map units
+                # get length of shift vector in map units
                 self.vec_length_map = float(np.sqrt(self.x_shift_map ** 2 + self.y_shift_map ** 2))
 
                 # get angle of shift vector
@@ -1274,7 +1279,7 @@ class COREG(object):
             self._get_updated_map_info()
 
             # set self.ssim_before and ssim_after
-            self._validate_ssim_improvement()
+            self._validate_ssim_improvement() # FIXME uses the not updated matchWin size
             self.shift_reliability = self._calc_shift_reliability(scps)
 
         warnings.simplefilter('default')

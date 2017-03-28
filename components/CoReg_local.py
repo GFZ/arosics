@@ -248,11 +248,13 @@ class COREG_LOCAL(object):
                 return os.path.abspath(self._projectDir)
         else:
             # return a project name that not already has a corresponding folder on disk
-            root_dir = os.path.dirname(self.im2shift.filePath) if self.im2shift.filePath else os.path.curdir
-            projectDir = os.path.join(root_dir, 'UntitledProject_1')
-            while os.path.isdir(projectDir):
-                projectDir = '%s_%s' % (projectDir.split('_')[0], int(projectDir.split('_')[-1]) + 1)
-            self._projectDir = projectDir
+            root_dir  = os.path.dirname(self.im2shift.filePath) if self.im2shift.filePath else os.path.curdir
+            fold_name = 'UntitledProject_1'
+
+            while os.path.isdir(os.path.join(root_dir, fold_name)):
+                fold_name = '%s_%s' % (fold_name.split('_')[0], int(fold_name.split('_')[-1]) + 1)
+
+            self._projectDir = os.path.join(root_dir, fold_name)
             return self._projectDir
 
 
@@ -301,7 +303,8 @@ class COREG_LOCAL(object):
 
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
-                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True, zoomable=False):
+                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True,
+                         return_map=False, zoomable=False):
         """Shows a map of the calculated quality grid with the target image as background.
 
         :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
@@ -315,6 +318,7 @@ class COREG_LOCAL(object):
         :param savefigPath:
         :param savefigDPI:
         :param showFig:             <bool> whether to show or to hide the figure
+        :param return_map           <bool>
         :param zoomable:            <bool> enable or disable zooming via mpld3
         :return:
         """
@@ -324,12 +328,16 @@ class COREG_LOCAL(object):
         backgroundIm      = self.im2shift if backgroundIm=='tgt' else self.imref
         fig, ax, map2show = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True,
                                                   band=self.COREG_obj.shift.band4match, zoomable=zoomable)
+
+        plt.tick_params(axis='both', which='major', labelsize=40)
+        #ax.tick_params(axis='both', which='minor', labelsize=8)
+
         # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
         plt.title(attribute2plot)
 
         # transform all points of quality grid to LonLat
         outlierCols  = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
-        attr2include = ['geometry', attribute2plot] + outlierCols
+        attr2include = ['geometry', attribute2plot] + outlierCols + ['X_SHIFT_M', 'Y_SHIFT_M']
         GDF = self.CoRegPoints_table.loc\
                 [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, attr2include].copy() \
                 if exclude_fillVals else self.CoRegPoints_table.loc[:, attr2include]
@@ -342,7 +350,19 @@ class COREG_LOCAL(object):
         #vmin = min(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
         #vmax = max(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
         #norm = mpl_normalize(vmin=vmin, vmax=vmax)
-        palette = cmap if cmap else plt.cm.RdYlGn_r
+        palette = cmap if cmap is not None else plt.cm.RdYlGn_r
+        if cmap is None and attribute2plot == 'ANGLE':
+            #import matplotlib.colors as mcolors
+            #colors1 = plt.cm.RdYlGn_r(np.linspace(0., 1, 128))
+            #colors2 = plt.cm.RdYlGn(np.linspace(0., 1, 128))
+
+            ## combine them and build a new colormap
+            #colors  = np.vstack((colors1, colors2))
+            #palette = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
+            #palette = plt.cm.hsv
+
+            import cmocean
+            palette = cmocean.cm.delta
         #GDF['color'] = [*GDF[attribute2plot].map(lambda val: palette(norm(val)))]
 
         # add quality grid to map
@@ -361,23 +381,32 @@ class COREG_LOCAL(object):
             if self.tieP_filter_level > 0:
                 # flag level 1 outliers
                 GDF_filt = GDF[GDF.L1_OUTLIER == True].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0)
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0, label='reliability')
             if self.tieP_filter_level > 1:
                 # flag level 2 outliers
                 GDF_filt = GDF[GDF.L2_OUTLIER == True].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0)
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='MSSIM')
             if self.tieP_filter_level > 2:
                 # flag level 3 outliers
                 GDF_filt = GDF[GDF.L3_OUTLIER == True].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0)
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0, label='RANSAC')
+
+            if self.tieP_filter_level > 0:
+                plt.legend(loc=0, scatterpoints = 1)
 
 
         # plot all points on top
         if not GDF.empty:
-            vmin, vmax = np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)
-            points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot],
+            vmin, vmax = (np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)) \
+                            if attribute2plot!='ANGLE' else (0, 360)
+            #vmin=None # TODO make this adjustable
+            #vmax=None
+            points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot], lw = 0,
                                  cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0,
                                  vmin=vmin, vmax=vmax)
+
+            # plot shift vectors
+            #map2show.quiver(GDF['plt_X'], GDF['plt_Y'], GDF['X_SHIFT_M'], GDF['Y_SHIFT_M'])#, scale=700)
 
             # add colorbar
             divider = make_axes_locatable(plt.gca())
@@ -391,6 +420,9 @@ class COREG_LOCAL(object):
 
         if savefigPath:
             fig.savefig(savefigPath, dpi=savefigDPI)
+
+        if return_map:
+            return fig, ax, map2show
 
         if showFig and not self.q:
             plt.show(block=True)
@@ -416,7 +448,7 @@ class COREG_LOCAL(object):
         center_lon, center_lat = (lon_min+lon_max)/2, (lat_min+lat_max)/2
 
         # get image to plot
-        image2plot = self.im2shift[0] # FIXME hardcoded band
+        image2plot = self.im2shift[:,:,0] # FIXME hardcoded band
 
         from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
         image2plot, gt, prj = warp_ndarray(image2plot, self.im2shift.geotransform, self.im2shift.projection,

@@ -13,6 +13,7 @@ try:
 except ImportError:
     from osgeo import gdal
 import numpy as np
+from matplotlib import pyplot as plt
 from geopandas         import GeoDataFrame, GeoSeries
 from pykrige.ok        import OrdinaryKriging
 from shapely.geometry  import Point
@@ -22,7 +23,7 @@ from skimage.transform import AffineTransform, PolynomialTransform
 # internal modules
 from .CoReg  import COREG
 from .       import io    as IO
-from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, get_UTMzone, dict_to_proj4
+from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, get_UTMzone, dict_to_proj4, proj4_to_WKT
 from py_tools_ds.ptds.io.pathgen              import get_generic_outpath
 from py_tools_ds.ptds.processing.progress_mon import ProgressBar
 from py_tools_ds.ptds.geo.vector.conversion   import points_to_raster
@@ -349,6 +350,128 @@ class Tie_Point_Grid(object):
         return self.CoRegPoints_table
 
 
+    def calc_rmse(self, include_outliers=False):
+        # type: (bool) -> float
+        """Calculates root mean square error of absolute shifts from the tie point grid.
+
+        :param include_outliers:    whether to include tie points that have been marked as false-positives
+        """
+
+        tbl = self.CoRegPoints_table
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == False].copy()
+
+        shifts = np.array(tbl['ABS_SHIFT'])
+        shifts_sq = [i * i for i in shifts if i != self.outFillVal]
+
+        return np.sqrt(sum(shifts_sq) / len(shifts_sq))
+
+
+    def calc_overall_mssim(self, include_outliers=False):
+        # type: (bool) -> float
+        """Calculates the median value of all MSSIM values contained in tie point grid.
+
+        :param include_outliers:    whether to include tie points that have been marked as false-positives
+        """
+
+        tbl = self.CoRegPoints_table
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == False].copy()
+
+        mssim_col = np.array(tbl['MSSIM'])
+        mssim_col = [i * i for i in mssim_col if i != self.outFillVal]
+
+        return float(np.median(mssim_col))
+
+
+    def plot_shift_distribution(self, include_outliers=True, unit='m', interactive=False, figsize=None, xlim=None,
+                                ylim=None, fontsize=12, title='shift distribution'):
+        # type: (bool, str, bool, tuple, list, list, int) -> tuple
+        """Creates a 2D scatterplot containing the distribution of calculated X/Y-shifts.
+
+        :param include_outliers:    whether to include tie points that have been marked as false-positives
+        :param unit:                'm' for meters or 'px' for pixels (default: 'm')
+        :param interactive:         interactive mode uses plotly for visualization
+        :param figsize:             (xdim, ydim)
+        :param xlim:                [xmin, xmax]
+        :param ylim:                [ymin, ymax]
+        :param fontsize:            size of all used fonts
+        :param title:               the title to be plotted above the figure
+        """
+
+        if not unit in ['m', 'px']:
+            raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." %unit)
+
+        tbl = self.CoRegPoints_table
+        tbl_il = tbl[tbl['OUTLIER'] == False].copy()
+        tbl_ol = tbl[tbl['OUTLIER'] == True].copy()
+        x_attr = 'X_SHIFT_M' if unit == 'm' else 'X_SHIFT_PX'
+        y_attr = 'Y_SHIFT_M' if unit == 'm' else 'Y_SHIFT_PX'
+        rmse   = self.calc_rmse(include_outliers=False) # always exclude outliers when calculating RMSE
+        figsize = figsize if figsize else (10,10)
+
+        if interactive:
+            from plotly.offline import iplot, init_notebook_mode
+            import plotly.graph_objs as go
+
+            init_notebook_mode(connected=True)
+
+            # Create a trace
+            trace = go.Scatter(
+                x=tbl_il[x_attr],
+                y=tbl_il[y_attr],
+                mode='markers'
+            )
+
+            data = [trace]
+
+            # Plot and embed in ipython notebook!
+            iplot(data, filename='basic-scatter')
+
+            return None, None
+
+        else:
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(111)
+
+            if include_outliers:
+                ax.scatter(tbl_ol[x_attr], tbl_ol[y_attr], marker='+', c='r', label='false positives')
+            ax.scatter(tbl_il[x_attr], tbl_il[y_attr], marker='+', c='g', label='valid tie points')
+
+            # set axis limits
+            if not xlim:
+                xmax = np.abs(tbl_il[x_attr]).max()
+                xlim = [-xmax, xmax]
+            if not ylim:
+                ymax = np.abs(tbl_il[y_attr]).max()
+                ylim = [-ymax, ymax]
+            ax.set_xlim(xlim)
+            ax.set_ylim(ylim)
+
+            plt.text(xlim[1]-(xlim[1]/20),-ylim[1]+(ylim[1]/20), 'RMSE:  %s m' % np.round(rmse, 2), ha='right',
+                     va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
+
+            # add grid
+            plt.grid()
+            xgl = ax.get_xgridlines()
+            middle_xgl = xgl[int(np.median(np.array(range(len(xgl)))))]
+            middle_xgl.set_linewidth(1)
+            middle_xgl.set_linestyle('-')
+            ygl = ax.get_ygridlines()
+            middle_ygl = ygl[int(np.median(np.array(range(len(ygl)))))]
+            middle_ygl.set_linewidth(1)
+            middle_ygl.set_linestyle('-')
+
+            [tick.label.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
+            [tick.label.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
+
+            plt.legend(fontsize=fontsize)
+            ax.set_title(title, fontsize=fontsize)
+            plt.xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
+            plt.ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
+            plt.show()
+
+            return fig, ax
+
+
     def dump_CoRegPoints_table(self, path_out=None):
         path_out = path_out if path_out else get_generic_outpath(dir_out=self.dir_out,
             fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl" % (self.grid_res, self.COREG_obj.win_size_XY[0],
@@ -467,7 +590,7 @@ class Tie_Point_Grid(object):
 
 
     def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
-        # type: (str) -> None
+        # type: (str) -> GeoArray
         """Saves the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield
         (e.g. using ArcGIS)
 
@@ -485,12 +608,14 @@ class Tie_Point_Grid(object):
         xshift_arr, gt, prj = points_to_raster(points = self.CoRegPoints_table['geometry'],
                                                values = self.CoRegPoints_table[attr_b1],
                                                tgt_res = self.shift.xgsd * self.grid_res,
-                                               prj = dict_to_proj4(self.CoRegPoints_table.crs))
+                                               prj = proj4_to_WKT(dict_to_proj4(self.CoRegPoints_table.crs)),
+                                               fillVal = self.outFillVal)
 
         yshift_arr, gt, prj = points_to_raster(points = self.CoRegPoints_table['geometry'],
                                                values = self.CoRegPoints_table[attr_b2],
                                                tgt_res = self.shift.xgsd * self.grid_res,
-                                               prj = dict_to_proj4(self.CoRegPoints_table.crs))
+                                               prj = proj4_to_WKT(dict_to_proj4(self.CoRegPoints_table.crs)),
+                                               fillVal = self.outFillVal)
 
         out_GA = GeoArray(np.dstack([xshift_arr, yshift_arr]), gt, prj, nodata=self.outFillVal)
 
@@ -657,7 +782,7 @@ class Tie_Point_Refiner(object):
                 print('RANSAC skipped because too less valid tie points have been found.')
                 self.GDF['L3_OUTLIER'] = False
 
-        self.new_cols.append('L3_OUTLIER')
+            self.new_cols.append('L3_OUTLIER')
 
 
         self.GDF['OUTLIER'] = self.GDF[self.new_cols].any(axis=1)
@@ -680,6 +805,11 @@ class Tie_Point_Refiner(object):
 
         :return:
         """
+
+        #ssim_diff  = np.median(self.GDF['SSIM_AFTER']) - np.median(self.GDF['SSIM_BEFORE'])
+
+        #self.GDF.SSIM_IMPROVED = self.GDF.apply(lambda GDF_row: GDF_row['SSIM_AFTER']>GDF_row['SSIM_BEFORE'] + ssim_diff, axis=1)
+
         return self.GDF.SSIM_IMPROVED == False
 
 
