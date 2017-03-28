@@ -201,12 +201,12 @@ class DESHIFTER(object):
             self._grids_alignable = \
                 False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
 
-            if self._grids_alignable==False and not self.q:
+            if self._grids_alignable is False and not self.q:
                 warnings.warn("\nThe coordinate grid of %s cannot be aligned to the desired "
                               "grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
                               "%s/%s; desired [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
-                              "output image. If you don´t like that you can use the 'out_gsd' or 'match_gsd' parameter "
-                              "to  set an appropriate output pixel size or to allow changing the pixel size.\n"
+                              "output image. If you don´t like that you can use the 'out_gsd' or 'match_gsd' parameters "
+                              "to set an appropriate output pixel size or to allow changing the pixel size.\n"
                               %(self.im2shift.basename, in_xgsd, in_ygsd, out_xgsd , out_ygsd))
 
         return self._grids_alignable
