@@ -64,6 +64,10 @@ class DESHIFTER(object):
 
         """
 
+        # private attributes
+        self._grids_alignable = None
+
+        # store args / kwargs
         self.init_args   = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
         self.init_kwargs = self.init_args['kwargs']
 
@@ -123,16 +127,6 @@ class DESHIFTER(object):
         self.arr_shifted      = None  # set by self.correct_shifts
         self.GeoArray_shifted = None  # set by self.correct_shifts
 
-        # warn if grids are not alignable
-        if not self.warping_needed and not self.q:
-            warnings.warn("\nThe coordinate grid of the image to be shifted cannot be aligned to the reference "
-                          "grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
-                          "%s/%s; output [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
-                          "output image. If you don´t like that you can use the '-out_gsd' parameter to set an "
-                          "appropriate output pixel size.\n"
-                          % (self.im2shift.xgsd, self.im2shift.ygsd, abs(self.out_gsd[0][1]-self.out_gsd[0][0]),
-                             abs(self.out_gsd[1][1] - self.out_gsd[1][0])))
-
 
     def _get_out_grid(self):
         # parse given params
@@ -158,7 +152,7 @@ class DESHIFTER(object):
             if match_gsd and (out_xgsd, out_ygsd)!=(ref_xgsd, ref_ygsd):
                 warnings.warn("\nThe parameter 'match_gsd is ignored because another output ground sampling distance "
                               "was explicitly given.")
-            if self.align_grids and self._grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, out_xgsd, out_ygsd):
+            if self.align_grids and self._are_grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, out_xgsd, out_ygsd):
                 # use grid of reference image with the given output gsd
                 out_grid = get_grid(self.ref_gt, out_xgsd, out_ygsd)
             else: # no grid alignment
@@ -174,7 +168,7 @@ class DESHIFTER(object):
                 out_grid = get_grid(self.im2shift.geotransform, ref_xgsd, ref_ygsd)
 
         else:
-            if self.align_grids and self._grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, ref_xgsd, ref_ygsd):
+            if self.align_grids and self._are_grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, ref_xgsd, ref_ygsd):
                 # use origin of reference image and gsd of input image
                 out_grid = get_grid(self.ref_gt, self.im2shift.xgsd, self.im2shift.ygsd)
             else:
@@ -193,7 +187,7 @@ class DESHIFTER(object):
         return False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
 
 
-    def _grids_alignable(self, in_xgsd, in_ygsd, out_xgsd, out_ygsd):
+    def _are_grids_alignable(self, in_xgsd, in_ygsd, out_xgsd, out_ygsd):
         """Checks if the input image pixel grid is alignable to the output grid.
 
         :param in_xgsd:
@@ -202,14 +196,21 @@ class DESHIFTER(object):
         :param out_ygsd:
         :return:
         """
-        is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
-        result = False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
+        if self._grids_alignable is None:
+            is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
+            self._grids_alignable = \
+                False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
 
-        if result==False and not self.q:
-            warnings.warn('Coordinate grid cannot be aligned without changing the pixel resolution of the image to be '
-                          'corrected because desired output pixel size is %s and current pixel size of the image to be '
-                          'corrected is %s. The output grid will be the same like the input grid.' %(out_xgsd, in_xgsd))
-        return result
+            if self._grids_alignable==False and not self.q:
+                warnings.warn("\nThe coordinate grid of %s cannot be aligned to the desired "
+                              "grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
+                              "%s/%s; desired [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
+                              "output image. If you don´t like that you can use the 'out_gsd' or 'match_gsd' parameter "
+                              "to  set an appropriate output pixel size or to allow changing the pixel size.\n"
+                              %(self.im2shift.basename, self.im2shift.xgsd, self.im2shift.ygsd,
+                                abs(self.out_gsd[0][1]-self.out_gsd[0][0]), abs(self.out_gsd[1][1]-self.out_gsd[1][0])))
+
+        return self._grids_alignable
 
 
     def _get_out_extent(self):
