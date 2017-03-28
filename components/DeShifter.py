@@ -207,8 +207,7 @@ class DESHIFTER(object):
                               "%s/%s; desired [X/Y]: %s/%s). Therefore the original grid is chosen for the resampled "
                               "output image. If you don´t like that you can use the 'out_gsd' or 'match_gsd' parameter "
                               "to  set an appropriate output pixel size or to allow changing the pixel size.\n"
-                              %(self.im2shift.basename, self.im2shift.xgsd, self.im2shift.ygsd,
-                                abs(self.out_gsd[0][1]-self.out_gsd[0][0]), abs(self.out_gsd[1][1]-self.out_gsd[1][0])))
+                              %(self.im2shift.basename, in_xgsd, in_ygsd, out_xgsd , out_ygsd))
 
         return self._grids_alignable
 
