@@ -97,7 +97,7 @@ class DESHIFTER(object):
 
         if not self.GCPList:
             # in case of global de-shifting -> the updated map info from coreg_results already has the final map info
-            # BUT: this can will updated in correct_shifts() if clipextent is given or warping is needed
+            # BUT: this will updated in correct_shifts() if clipextent is given or warping is needed
             mapI                   = coreg_results['updated map info']
             self.updated_map_info  = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
             self.updated_gt        = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
@@ -150,7 +150,7 @@ class DESHIFTER(object):
         # get out_grid
         if out_grid:
             # output grid is given
-            return out_grid
+            pass
 
         elif out_gsd:
             out_xgsd, out_ygsd = [out_gsd, out_gsd] if isinstance(out_gsd, int) else out_gsd
@@ -160,26 +160,28 @@ class DESHIFTER(object):
                               "was explicitly given.")
             if self.align_grids and self._grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, out_xgsd, out_ygsd):
                 # use grid of reference image with the given output gsd
-                return get_grid(self.ref_gt, out_xgsd, out_ygsd)
+                out_grid = get_grid(self.ref_gt, out_xgsd, out_ygsd)
             else: # no grid alignment
                 # use grid of input image with the given output gsd
-                return get_grid(self.im2shift.geotransform, out_xgsd, out_ygsd)
+                out_grid = get_grid(self.im2shift.geotransform, out_xgsd, out_ygsd)
 
         elif match_gsd:
             if self.align_grids:
                 # use reference grid
-                return self.ref_grid
+                out_grid = self.ref_grid
             else:
                 # use grid of input image and reference gsd
-                return get_grid(self.im2shift.geotransform, ref_xgsd, ref_ygsd)
+                out_grid = get_grid(self.im2shift.geotransform, ref_xgsd, ref_ygsd)
 
         else:
             if self.align_grids and self._grids_alignable(self.im2shift.xgsd, self.im2shift.ygsd, ref_xgsd, ref_ygsd):
                 # use origin of reference image and gsd of input image
-                return get_grid(self.ref_gt, self.im2shift.xgsd, self.im2shift.ygsd)
+                out_grid = get_grid(self.ref_gt, self.im2shift.xgsd, self.im2shift.ygsd)
             else:
                 # use input image grid
-                return get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
+                out_grid = get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
+
+        return out_grid
 
 
     @property
@@ -375,7 +377,7 @@ class DESHIFTER(object):
         deshift_results.update({'is shifted'          : self.is_shifted})
         deshift_results.update({'is resampled'        : self.is_resampled})
         deshift_results.update({'updated map info'    : self.updated_map_info})
-        deshift_results.update({'updated geotransform': self.shift_gt})
+        deshift_results.update({'updated geotransform': self.updated_gt})
         deshift_results.update({'updated projection'  : self.updated_projection})
         deshift_results.update({'arr_shifted'         : self.arr_shifted})
         deshift_results.update({'GeoArray_shifted'    : self.GeoArray_shifted})
