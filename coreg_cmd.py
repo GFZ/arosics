@@ -23,23 +23,13 @@ except ImportError:
     from osgeo import ogr
 
 # internal modules
-try:
-    import geoarray
-except ImportError:
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../geoarray'))) # append geoarray root directory
-    import geoarray
+sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append CoReg_Sat root directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../geoarray')))
 
-try:
-    from CoReg_Sat import COREG, COREG_LOCAL, __version__
-except ImportError:
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-    from CoReg_Sat import COREG, COREG_LOCAL, __version__
-
-try:
-    import py_tools_ds
-except ImportError:
-    sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append CoReg_Sat root directory
-    import py_tools_ds
+import geoarray
+from CoReg_Sat import COREG, COREG_LOCAL, __version__
+import py_tools_ds
 
 
 
