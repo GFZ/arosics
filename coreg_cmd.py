@@ -24,6 +24,12 @@ except ImportError:
 
 # internal modules
 try:
+    import geoarray
+except ImportError:
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../geoarray'))) # append geoarray root directory
+    import geoarray
+
+try:
     from CoReg_Sat import COREG, COREG_LOCAL, __version__
 except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
@@ -34,11 +40,6 @@ try:
 except ImportError:
     sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append CoReg_Sat root directory
     import py_tools_ds
-try:
-    import geoarray
-except ImportError:
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../geoarray'))) # append geoarray root directory
-    import geoarray
 
 
 
