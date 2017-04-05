@@ -283,7 +283,7 @@ if __name__ == '__main__':
     locArg('-max_shift', nargs='?', type=int,
            help="maximum shift distance in reference image pixel units (default: 5 px)", default=5)
 
-    gloArg('-tieP_filter_level', nargs='?', type=int,
+    locArg('-tieP_filter_level', nargs='?', type=int,
            help="filter tie points used for shift correction in different levels (default: 3). NOTE: lower levels are "
                 "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliablity "
                 "filtering - filter all tie points out that have a low reliability according to internal tests; "
