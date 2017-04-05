@@ -12,7 +12,7 @@ except ImportError:
     from osgeo import gdal
 
 # internal modules
-from py_tools_ds.ptds                      import GeoArray
+from geoarray import GeoArray
 from py_tools_ds.ptds.geo.map_info         import mapinfo2geotransform, geotransform2mapinfo
 from py_tools_ds.ptds.geo.coord_grid       import is_coord_grid_equal
 from py_tools_ds.ptds.geo.projection       import prj_equal

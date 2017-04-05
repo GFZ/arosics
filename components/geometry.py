@@ -18,9 +18,9 @@ except ImportError:
     from osgeo import ogr
 
 # internal modules
-from py_tools_ds.ptds.geo.coord_calc       import calc_FullDataset_corner_positions
-from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, imYX2mapYX
-from py_tools_ds.ptds                      import GeoArray
+from py_tools_ds.ptds.geo.coord_calc import calc_FullDataset_corner_positions
+from py_tools_ds.ptds.geo.coord_trafo import pixelToMapYX, imYX2mapYX
+from geoarray import GeoArray
 
 
 

@@ -18,10 +18,10 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from .Tie_Point_Grid import Tie_Point_Grid
-from .CoReg          import COREG
-from .DeShifter      import DESHIFTER
+from .CoReg import COREG
+from .DeShifter import DESHIFTER
 from py_tools_ds.ptds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
-from py_tools_ds.ptds                 import GeoArray
+from geoarray import GeoArray
 
 
 
@@ -304,7 +304,7 @@ class COREG_LOCAL(object):
 
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
                          hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True,
-                         return_map=False, zoomable=False):
+                         vmin=None, vmax=None, return_map=False, zoomable=False):
         """Shows a map of the calculated quality grid with the target image as background.
 
         :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
@@ -318,6 +318,8 @@ class COREG_LOCAL(object):
         :param savefigPath:
         :param savefigDPI:
         :param showFig:             <bool> whether to show or to hide the figure
+        :param vmin:
+        :param vmax:
         :param return_map           <bool>
         :param zoomable:            <bool> enable or disable zooming via mpld3
         :return:
@@ -397,10 +399,11 @@ class COREG_LOCAL(object):
 
         # plot all points on top
         if not GDF.empty:
-            vmin, vmax = (np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)) \
-                            if attribute2plot!='ANGLE' else (0, 360)
-            #vmin=None # TODO make this adjustable
-            #vmax=None
+            vmin_auto, vmax_auto = (np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)) \
+                                    if attribute2plot!='ANGLE' else (0, 360)
+            vmin = vmin if vmin is not None else vmin_auto
+            vmax = vmax if vmax is not None else vmax_auto
+
             points = plt.scatter(GDF['plt_X'],GDF['plt_Y'], c=GDF[attribute2plot], lw = 0,
                                  cmap=palette, marker='o' if len(GDF)<10000 else '.', s=50, alpha=1.0,
                                  vmin=vmin, vmax=vmax)

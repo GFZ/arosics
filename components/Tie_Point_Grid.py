@@ -27,7 +27,7 @@ from py_tools_ds.ptds.geo.projection          import isProjectedOrGeographic, ge
 from py_tools_ds.ptds.io.pathgen              import get_generic_outpath
 from py_tools_ds.ptds.processing.progress_mon import ProgressBar
 from py_tools_ds.ptds.geo.vector.conversion   import points_to_raster
-from py_tools_ds.ptds                         import GeoArray
+from geoarray import GeoArray
 
 
 

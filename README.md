@@ -232,14 +232,15 @@ The help instructions of the console interface can be accessed like this:
 
 ```python
 cd /path/to/CoReg_Sat/
-python ./dsc__CoReg_Sat_FourierShiftTheorem.py -h
+python ./coreg_cmd.py -h
 ```
 
-Follow these instructions to run CoReg_Sat from a shell console. For example, the most simple call would be like this:
+Follow these instructions to run CoReg_Sat from a shell console. For example, the most simple call for a global 
+co-registration would be like this:
 
 
 ```python
-python ./dsc__CoReg_Sat_FourierShiftTheorem.py /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+python ./coreg_cmd.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
 ```
 
  

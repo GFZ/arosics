@@ -22,23 +22,31 @@ except ImportError:
 from shapely.geometry import Point, Polygon
 from skimage.exposure import rescale_intensity
 
+try:
+    import geoarray
+except ImportError:
+    raise ImportError("Since 2017/03/31 CoReg_Sat depends on the package 'geoarray'. "
+                      "You need an invitation to the respective GitLab repository from Daniel Scheffler. "
+                      "Then follow the install instructions there.")
+
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
 from .          import geometry  as GEO
 from .          import io        as IO
 from .          import plotting  as PLT
 
-from py_tools_ds.ptds.io.raster.GeoArray   import GeoArray, alias_property
-from py_tools_ds.ptds.geo.coord_calc       import corner_coord_to_minmax, get_corner_coordinates
-from py_tools_ds.ptds.geo.vector.topology  import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
-from py_tools_ds.ptds.geo.projection       import prj_equal, get_proj4info
-from py_tools_ds.ptds.geo.vector.geometry  import boxObj, round_shapelyPoly_coords
-from py_tools_ds.ptds.geo.coord_grid       import move_shapelyPoly_to_image_grid
-from py_tools_ds.ptds.geo.coord_trafo      import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY
+from geoarray import GeoArray
+from py_tools_ds.ptds.convenience.object_oriented import alias_property
+from py_tools_ds.ptds.geo.coord_calc import corner_coord_to_minmax, get_corner_coordinates
+from py_tools_ds.ptds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
+from py_tools_ds.ptds.geo.projection import prj_equal, get_proj4info
+from py_tools_ds.ptds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
+from py_tools_ds.ptds.geo.coord_grid import move_shapelyPoly_to_image_grid
+from py_tools_ds.ptds.geo.coord_trafo import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY
 from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
-from py_tools_ds.ptds.geo.map_info         import geotransform2mapinfo
-from py_tools_ds.ptds.numeric.vector       import find_nearest
-from py_tools_ds.ptds.similarity.raster    import calc_ssim
+from py_tools_ds.ptds.geo.map_info import geotransform2mapinfo
+from py_tools_ds.ptds.numeric.vector import find_nearest
+from py_tools_ds.ptds.similarity.raster import calc_ssim
 
 
 
