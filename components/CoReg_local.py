@@ -33,8 +33,8 @@ class COREG_LOCAL(object):
                  tieP_filter_level=3, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
                  resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
                  data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
-                 binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True,
-                 v=False, q=False, ignore_errors=True):
+                 binary_ws=True, force_quadratic_win=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None,
+                 progress=True, v=False, q=False, ignore_errors=True):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -63,7 +63,7 @@ class COREG_LOCAL(object):
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
         :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 2).
+        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 3).
                                         NOTE: lower levels are also included if a higher level is chosen
                                             - Level 0: no tie point filtering
                                             - Level 1: Reliablity filtering - filter all tie points out that have a low
@@ -107,6 +107,7 @@ class COREG_LOCAL(object):
                                         matching window position within the actual image overlap
                                         (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are given
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: True)
+        :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
         :param mask_baddata_ref(str, BadDataMask):
                                         path to a 2D boolean mask file (or an instance of BadDataMask) for the
                                         reference image where all bad data pixels (e.g. clouds) are marked with
@@ -158,6 +159,7 @@ class COREG_LOCAL(object):
         self.nodata            = nodata
         self.outFillVal        = outFillVal
         self.bin_ws            = binary_ws
+        self.force_quadratic_win = force_quadratic_win
         self.CPUs              = CPUs
         self.path_verbose_out  = '' # TODO
         self.v                 = v
@@ -195,6 +197,7 @@ class COREG_LOCAL(object):
                                    mask_baddata_ref   = None, # see below
                                    mask_baddata_tgt   = None,
                                    CPUs               = self.CPUs,
+                                   force_quadratic_win = self.force_quadratic_win,
                                    binary_ws          = self.bin_ws,
                                    progress           = self.progress,
                                    v                  = v,

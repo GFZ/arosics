@@ -57,6 +57,7 @@ def run_global_coreg(args):
                       nodata           = args.nodata,
                       calc_corners     = args.calc_cor,
                       CPUs             = None if args.mp else 1,
+                      force_quadratic_win = args.quadratic_win,
                       binary_ws        = args.bin_ws,
                       mask_baddata_ref = args.mask_ref,
                       mask_baddata_tgt = args.mask_tgt,
@@ -80,6 +81,7 @@ def run_local_coreg(args):
                       window_size      = args.ws,
                       max_iter         = args.max_iter,
                       max_shift        = args.max_shift,
+                      tieP_filter_level = args.tieP_filter_level,
                       #align_grids      = args.align_grids,
                       #match_gsd        = args.match_gsd,
                       #out_gsd          = args.out_gsd,
@@ -90,6 +92,7 @@ def run_local_coreg(args):
                       mask_baddata_ref = args.mask_ref,
                       mask_baddata_tgt = args.mask_tgt,
                       CPUs             = None if args.mp else 1,
+                      force_quadratic_win=args.quadratic_win,
                       binary_ws        = args.bin_ws,
                       progress         = args.progress,
                       v                = args.v,
@@ -164,8 +167,6 @@ if __name__ == '__main__':
 
     gloArg('-fmt_out', nargs='?', type=str, help="raster file format for output file. ignored if path_out is None. can "
            "be any GDAL compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)", default='ENVI')
-
-
 
     gloArg('-br', nargs='?', type=int,
            help='band of reference image to be used for matching (starts with 1; default: 1)', default=1)
@@ -285,6 +286,14 @@ if __name__ == '__main__':
 
     locArg('-max_shift', nargs='?', type=int,
            help="maximum shift distance in reference image pixel units (default: 5 px)", default=5)
+
+    gloArg('-tieP_filter_level', nargs='?', type=int,
+           help="filter tie points used for shift correction in different levels (default: 3). NOTE: lower levels are "
+                "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliablity "
+                "filtering - filter all tie points out that have a low reliability according to internal tests; "
+                "Level 2: SSIM filtering - filters all tie points out where shift correction does not increase image "
+                "similarity within matching window (measured by mean structural similarity index) "
+                "Level 3: RANSAC outlier detection", default=3, choices=[0, 1, 2, 3])
 
     # TODO implement footprint_poly_ref, footprint_poly_tgt
 
