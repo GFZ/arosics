@@ -434,7 +434,7 @@ class Tie_Point_Grid(object):
             ax = fig.add_subplot(111)
 
             if include_outliers:
-                ax.scatter(tbl_ol[x_attr], tbl_ol[y_attr], marker='+', c='r', label='false positives')
+                ax.scatter(tbl_ol[x_attr], tbl_ol[y_attr], marker='+', c='r', label='false-positives')
             ax.scatter(tbl_il[x_attr], tbl_il[y_attr], marker='+', c='g', label='valid tie points')
 
             # set axis limits
@@ -450,15 +450,15 @@ class Tie_Point_Grid(object):
             plt.text(xlim[1]-(xlim[1]/20),-ylim[1]+(ylim[1]/20), 'RMSE:  %s m' % np.round(rmse, 2), ha='right',
                      va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
 
-            # add grid
+            # add grid and increase linewidth of middle line
             plt.grid()
             xgl = ax.get_xgridlines()
             middle_xgl = xgl[int(np.median(np.array(range(len(xgl)))))]
-            middle_xgl.set_linewidth(1)
+            middle_xgl.set_linewidth(2)
             middle_xgl.set_linestyle('-')
             ygl = ax.get_ygridlines()
             middle_ygl = ygl[int(np.median(np.array(range(len(ygl)))))]
-            middle_ygl.set_linewidth(1)
+            middle_ygl.set_linewidth(2)
             middle_ygl.set_linestyle('-')
 
             [tick.label.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
@@ -792,7 +792,7 @@ class Tie_Point_Refiner(object):
         return self.GDF, self.new_cols
 
 
-    def _reliability_thresholding(self, min_reliability=30):
+    def _reliability_thresholding(self, min_reliability=60):
         """Exclude all records where estimated reliability of the calculated shifts is below the given threshold.
 
         :param min_reliability:

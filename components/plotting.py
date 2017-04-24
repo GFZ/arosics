@@ -17,6 +17,8 @@ def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
     plt.tight_layout()
     plt.show(block=True)
 
+    return fig
+
 
 def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
     ims        = [ims] if not isinstance(ims,list) else ims
@@ -30,6 +32,8 @@ def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
     if grid: [axes[i].grid(which='major', axis='both', linestyle='-') for i in range(len(ims))]
     plt.tight_layout()
     plt.show(block=True)
+
+    return fig
 
 
 def subplot_3dsurface(ims,shapetuple=None):
@@ -49,3 +53,5 @@ def subplot_3dsurface(ims,shapetuple=None):
         ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
     plt.tight_layout()
     plt.show(block=True)
+
+    return fig

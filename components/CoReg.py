@@ -122,7 +122,7 @@ class COREG(object):
     """See help(COREG) for documentation!"""
 
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', out_crea_options=None, r_b4match=1, s_b4match=1,
-                 wp=(None,None), ws=(512, 512), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
+                 wp=(None,None), ws=(256, 256), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
                  out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
                  footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
                  nodata=(None,None), calc_corners=True, binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None,
@@ -148,7 +148,7 @@ class COREG(object):
         :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
         :param wp(tuple):               custom matching window position as map values in the same projection like the
                                         reference image (default: central position of image overlap)
-        :param ws(tuple):               custom matching window size [pixels] (default: (512,512))
+        :param ws(tuple):               custom matching window size [pixels] (default: (256,256))
         :param max_iter(int):           maximum number of iterations for matching (default: 5)
         :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
         :param align_grids(bool):       align the coordinate grids of the image to be and the reference image (default: 0)

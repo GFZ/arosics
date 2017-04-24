@@ -175,7 +175,7 @@ if __name__ == '__main__':
                 "(default: central position of image overlap)", default=(None,None))
 
     gloArg('-ws', nargs=2, metavar=('X size', 'Y size'), type=float,
-           help="custom matching window size [pixels] (default: (512,512))", default=(512,512))
+           help="custom matching window size [pixels] (default: (256,256))", default=(256,256))
 
     gloArg('-max_iter', nargs='?', type=int, help="maximum number of iterations for matching (default: 5)", default=5)
 
