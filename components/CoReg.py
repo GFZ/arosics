@@ -858,8 +858,8 @@ class COREG(object):
             in_arr1  = im1[ymin:ymax,xmin:xmax].astype(precision)
 
             if self.v:
-                PLT.subplot_imshow([in_arr0.astype(np.float32), in_arr1.astype(np.float32)],
-                               ['FFTin '+self.ref.title,'FFTin '+self.shift.title], grid=True)
+                PLT.subplot_imshow([np.real(in_arr0).astype(np.float32), np.real(in_arr1).astype(np.float32)],
+                                   ['FFTin '+self.ref.title,'FFTin '+self.shift.title], grid=True)
 
             if pyfftw and self.fftw_works is not False: # if module is installed and working
                 fft_arr0 = pyfftw.FFTW(in_arr0,np.empty_like(in_arr0), axes=(0,1))()
@@ -900,10 +900,11 @@ class COREG(object):
             # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
             scps = np.fft.fftshift(cps)
             if self.v:
-                PLT.subplot_imshow([in_arr0.astype(np.uint16), in_arr1.astype(np.uint16), fft_arr0.astype(np.uint8),
-                                fft_arr1.astype(np.uint8), scps], titles=['matching window im0', 'matching window im1',
-                                "fft result im0", "fft result im1", "cross power spectrum"], grid=True)
-                PLT.subplot_3dsurface(scps.astype(np.float32))
+                PLT.subplot_imshow([np.real(in_arr0).astype(np.uint16), np.real(in_arr1).astype(np.uint16),
+                                    np.real(fft_arr0).astype(np.uint8), np.real(fft_arr1).astype(np.uint8), scps],
+                                   titles=['matching window im0', 'matching window im1',
+                                           "fft result im0", "fft result im1", "cross power spectrum"], grid=True)
+                PLT.subplot_3dsurface(np.real(scps).astype(np.float32))
         else:
             scps = None
             self._handle_error(
@@ -940,6 +941,7 @@ class COREG(object):
 
 
     def _get_grossly_deshifted_images(self, im0, im1, x_intshift, y_intshift): # TODO this is also implemented in GeoArray # this should update ref.win.data and shift.win.data
+        # FIXME avoid that matching window gets smaller although shifting it  with the previous win_size would not move it into nodata-area
         # get_grossly_deshifted_im0
         old_center_YX = np.array(im0.shape)/2
         new_center_YX = [old_center_YX[0]+y_intshift, old_center_YX[1]+x_intshift]
@@ -948,9 +950,12 @@ class COREG(object):
         x_right = im0.shape[1]-new_center_YX[1]
         y_above = new_center_YX[0]
         y_below = im0.shape[0]-new_center_YX[0]
-        maxposs_winsz = 2*min(x_left,x_right,y_above,y_below)
+        maxposs_winsz_x = 2 * min(x_left, x_right)
+        maxposs_winsz_y = 2 * min(y_above, y_below)
+        if self.force_quadratic_win:
+            maxposs_winsz_x = maxposs_winsz_y = min([maxposs_winsz_x, maxposs_winsz_y])
 
-        gdsh_im0 = self._clip_image(im0, new_center_YX, [maxposs_winsz, maxposs_winsz])
+        gdsh_im0 = self._clip_image(im0, new_center_YX, [maxposs_winsz_y, maxposs_winsz_x])
 
         # get_corresponding_im1_clip
         crsp_im1  = self._clip_image(im1, np.array(im1.shape) / 2, gdsh_im0.shape)
@@ -1210,11 +1215,14 @@ class COREG(object):
             return 'fail'
 
 
-        # calculate spatial shifts
+        ## calculate spatial shifts
+
+        # calculate integer shifts
         count_iter = 1
         x_intshift, y_intshift = self._calc_integer_shifts(scps)
 
         if (x_intshift, y_intshift) == (0, 0):
+            # in case integer shifts are zero
             self.success = True
         else:
             valid_invalid, x_val_shift, y_val_shift, scps = \
@@ -1243,6 +1251,7 @@ class COREG(object):
                     self.success = True
                     x_intshift, y_intshift = x_val_shift, y_val_shift
 
+        # calculate sub-pixel shifts
         if self.success or self.success is None:
             # get total pixel shifts
             x_subshift,   y_subshift         = self._calc_subpixel_shifts(scps)
