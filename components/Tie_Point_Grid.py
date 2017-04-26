@@ -751,12 +751,13 @@ class Tie_Point_Refiner(object):
         self.ransac_model_robust = None
 
 
-    def run_filtering(self, level=2):
+    def run_filtering(self, level=2):#, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
+                      #rs_exclude_previous_outliers=True, rs_timeout=20):
         # TODO catch empty GDF
 
         # RELIABILITY filtering
         if level>0:
-            marked_recs            = GeoSeries(self._reliability_thresholding())
+            marked_recs = GeoSeries(self._reliability_thresholding())
             self.GDF['L1_OUTLIER'] = marked_recs
             self.new_cols.append('L1_OUTLIER')
             if not self.q:
@@ -764,7 +765,7 @@ class Tie_Point_Refiner(object):
 
         # SSIM filtering
         if level>1:
-            marked_recs            = GeoSeries(self._SSIM_filtering())
+            marked_recs = GeoSeries(self._SSIM_filtering())
             self.GDF['L2_OUTLIER'] = marked_recs
             self.new_cols.append('L2_OUTLIER')
             if not self.q:
@@ -772,7 +773,7 @@ class Tie_Point_Refiner(object):
 
         # RANSAC filtering
         if level>2:
-            marked_recs            = GeoSeries(self._RANSAC_outlier_detection())
+            marked_recs = GeoSeries(self._RANSAC_outlier_detection())
             if len(self.GDF)>4:
                 # running RANSAC with less than four tie points makes no sense
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist() # we need to join a list here because otherwise it's merged by the 'index' column
@@ -793,11 +794,8 @@ class Tie_Point_Refiner(object):
 
 
     def _reliability_thresholding(self, min_reliability=60):
-        """Exclude all records where estimated reliability of the calculated shifts is below the given threshold.
+        """Exclude all records where estimated reliability of the calculated shifts is below the given threshold."""
 
-        :param min_reliability:
-        :return:
-        """
         return self.GDF.RELIABILITY < min_reliability
 
 

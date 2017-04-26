@@ -48,6 +48,8 @@ def run_global_coreg(args):
                       align_grids      = args.align_grids,
                       match_gsd        = args.match_gsd,
                       out_gsd          = args.out_gsd,
+                      resamp_alg_calc  = args.rsp_alg_deshift,
+                      resamp_alg_deshift = args.rsp_alg_calc,
                       data_corners_ref = args.cor0,
                       data_corners_tgt = args.cor1,
                       nodata           = args.nodata,
@@ -81,6 +83,8 @@ def run_local_coreg(args):
                       #align_grids      = args.align_grids,
                       #match_gsd        = args.match_gsd,
                       #out_gsd          = args.out_gsd,
+                      resamp_alg_calc  = args.rsp_alg_deshift,
+                      resamp_alg_deshift = args.rsp_alg_calc,
                       data_corners_ref = args.cor0,
                       data_corners_tgt = args.cor1,
                       nodata           = args.nodata,
@@ -191,6 +195,16 @@ if __name__ == '__main__':
     gloArg('-out_gsd', nargs=2, type=float, help='xgsd ygsd: set the output pixel size in map units'\
            '(default: original pixel size of the image to be shifted)', metavar=('xgsd','ygsd'))
 
+    gloArg('-rsp_alg_deshift', nargs='?', type=int, choices=list(range(12)), default=2,
+           help="the resampling algorithm to be used for shift correction (if neccessary) "
+                "(valid algorithms: 0=nearest neighbour, 1=bilinear, 2=cubic, 3=cubic_spline, 4=lanczos, 5=average, "
+                "6=mode, 7=max, 8=min, 9=med, 10=q1, 11=q3), default: 2")
+
+    gloArg('-rsp_alg_calc', nargs='?', type=int, choices=list(range(12)), default=2,
+           help="the resampling algorithm to be used for all warping processes during calculation of spatial shifts "
+                "(valid algorithms: 0=nearest neighbour, 1=bilinear, 2=cubic, 3=cubic_spline, 4=lanczos, 5=average, "
+                "6=mode, 7=max, 8=min, 9=med, 10=q1, 11=q3), default: 2 (highly recommended)")
+
     # TODO implement footprint_poly_ref, footprint_poly_tgt
 
     gloArg('-cor0', nargs=8, type=float, help="map coordinates of data corners within reference image: ",
@@ -292,6 +306,16 @@ if __name__ == '__main__':
                 "Level 3: RANSAC outlier detection", default=3, choices=[0, 1, 2, 3])
 
     # TODO implement footprint_poly_ref, footprint_poly_tgt
+
+    locArg('-rsp_alg_deshift', nargs='?', type=int, choices=list(range(12)), default=2,
+           help="the resampling algorithm to be used for shift correction (if neccessary) "
+                "(valid algorithms: 0=nearest neighbour, 1=bilinear, 2=cubic, 3=cubic_spline, 4=lanczos, 5=average, "
+                "6=mode, 7=max, 8=min, 9=med, 10=q1, 11=q3), default: 2")
+
+    locArg('-rsp_alg_calc', nargs='?', type=int, choices=list(range(12)), default=2,
+           help="the resampling algorithm to be used for all warping processes during calculation of spatial shifts "
+                "(valid algorithms: 0=nearest neighbour, 1=bilinear, 2=cubic, 3=cubic_spline, 4=lanczos, 5=average, "
+                "6=mode, 7=max, 8=min, 9=med, 10=q1, 11=q3), default: 2 (highly recommended)")
 
     locArg('-cor0', nargs=8, type=float, help="map coordinates of data corners within reference image: ",
            metavar=tuple("UL-X UL-Y UR-X UR-Y LR-X LR-Y LL-X LL-Y".split(' ')), default=None)

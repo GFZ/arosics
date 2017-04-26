@@ -20,7 +20,9 @@ from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.ptds.numeric.vector       import find_nearest
 
 _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
-                        'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11}
+                        'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11,
+                        0:'nearest', 1:'bilinear', 2: 'cubic', 3:'cubic_spline', 4:'lanczos', 5:'average',
+                        6:'mode', 7:'max', 8: 'min', 9:'med', 10:'q1', 11:'q2'}
 
 class DESHIFTER(object):
     """See help(DESHIFTER) for documentation!"""

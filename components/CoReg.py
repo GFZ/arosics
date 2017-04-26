@@ -220,7 +220,7 @@ class COREG(object):
                                                                           "Got %s with length %s." %(type(nodata),len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
             assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
-        if resamp_alg_calc=='average' and (v or not q):
+        if resamp_alg_calc in ['average', 5] and (v or not q):
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
                           "affect the precision of the calculated spatial shifts! It is highly recommended to "
                           "choose another resampling algorithm.")
@@ -236,8 +236,10 @@ class COREG(object):
         self.match_gsd           = match_gsd
         self.out_gsd             = out_gsd
         self.target_xyGrid       = target_xyGrid
-        self.rspAlg_DS           = resamp_alg_deshift
-        self.rspAlg_calc         = resamp_alg_calc
+        self.rspAlg_DS           = resamp_alg_deshift \
+            if isinstance(resamp_alg_deshift, str) else _dict_rspAlg_rsp_Int[resamp_alg_deshift]
+        self.rspAlg_calc         = resamp_alg_calc \
+            if isinstance(resamp_alg_calc, str) else _dict_rspAlg_rsp_Int[resamp_alg_calc]
         self.calc_corners        = calc_corners
         self.CPUs                = CPUs
         self.bin_ws              = binary_ws
