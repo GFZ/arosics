@@ -153,7 +153,7 @@ class COREG_LOCAL(object):
         self.match_gsd         = match_gsd
         self.out_gsd           = out_gsd
         self.target_xyGrid     = target_xyGrid
-        self.rspAlg_DS         = resamp_alg_deshift
+        self.rspAlg_DS         = resamp_alg_deshift # TODO convert integers to strings
         self.rspAlg_calc       = resamp_alg_calc
         self.calc_corners      = calc_corners
         self.nodata            = nodata

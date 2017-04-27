@@ -88,7 +88,7 @@ class DESHIFTER(object):
         self.band2process = self.band2process-1 if self.band2process is not None else None # internally handled as band index
         self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids'     , False)
-        self.rspAlg       = kwargs.get('resamp_alg'      , 'cubic')
+        self.rspAlg       = kwargs.get('resamp_alg'      , 'cubic') # TODO accept also integers
         self.cliptoextent = kwargs.get('cliptoextent'    , False)
         self.clipextent   = kwargs.get('clipextent'      , None)
         self.CPUs         = kwargs.get('CPUs'            , None)

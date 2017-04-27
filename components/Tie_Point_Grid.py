@@ -355,11 +355,11 @@ class Tie_Point_Grid(object):
         # type: (bool) -> float
         """Calculates root mean square error of absolute shifts from the tie point grid.
 
-        :param include_outliers:    whether to include tie points that have been marked as false-positives
+        :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
 
         tbl = self.CoRegPoints_table
-        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == False].copy()
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == False].copy() if 'OUTLIER' in tbl.columns else tbl
 
         shifts = np.array(tbl['ABS_SHIFT'])
         shifts_sq = [i * i for i in shifts if i != self.outFillVal]
@@ -402,8 +402,9 @@ class Tie_Point_Grid(object):
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." %unit)
 
         tbl = self.CoRegPoints_table
-        tbl_il = tbl[tbl['OUTLIER'] == False].copy()
-        tbl_ol = tbl[tbl['OUTLIER'] == True].copy()
+        tbl = tbl[tbl['ABS_SHIFT'] != self.outFillVal]
+        tbl_il = tbl[tbl['OUTLIER'] == False].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl_ol = tbl[tbl['OUTLIER'] == True].copy() if 'OUTLIER' in tbl.columns else None
         x_attr = 'X_SHIFT_M' if unit == 'm' else 'X_SHIFT_PX'
         y_attr = 'Y_SHIFT_M' if unit == 'm' else 'Y_SHIFT_PX'
         rmse   = self.calc_rmse(include_outliers=False) # always exclude outliers when calculating RMSE
@@ -412,6 +413,7 @@ class Tie_Point_Grid(object):
         if interactive:
             from plotly.offline import iplot, init_notebook_mode
             import plotly.graph_objs as go
+            # FIXME outliers are not plotted
 
             init_notebook_mode(connected=True)
 
@@ -433,7 +435,7 @@ class Tie_Point_Grid(object):
             fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111)
 
-            if include_outliers:
+            if include_outliers and 'OUTLIER' in tbl.columns:
                 ax.scatter(tbl_ol[x_attr], tbl_ol[y_attr], marker='+', c='r', label='false-positives')
             ax.scatter(tbl_il[x_attr], tbl_il[y_attr], marker='+', c='g', label='valid tie points')
 
