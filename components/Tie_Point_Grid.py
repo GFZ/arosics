@@ -449,8 +449,10 @@ class Tie_Point_Grid(object):
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
 
-            plt.text(xlim[1]-(xlim[1]/20),-ylim[1]+(ylim[1]/20), 'RMSE:  %s m' % np.round(rmse, 2), ha='right',
-                     va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
+            xlim, ylim = ax.get_xlim(), ax.get_ylim()
+            plt.text(xlim[1]-(xlim[1]/20),-ylim[1]+(ylim[1]/20),
+                     'RMSE:  %s m / %s px' %(np.round(rmse, 2), np.round(rmse/self.shift.xgsd, 2)),
+                     ha='right', va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
 
             # add grid and increase linewidth of middle line
             plt.grid()
@@ -466,7 +468,10 @@ class Tie_Point_Grid(object):
             [tick.label.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
             [tick.label.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
 
-            plt.legend(fontsize=fontsize)
+            # add legend with labels in the right order
+            handles, labels = ax.get_legend_handles_labels()
+            plt.legend(reversed(handles), reversed(labels), fontsize=fontsize, loc='upper right')
+
             ax.set_title(title, fontsize=fontsize)
             plt.xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
             plt.ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
