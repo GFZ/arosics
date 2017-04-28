@@ -845,7 +845,7 @@ class COREG(object):
         wsYX = self._shrink_winsize_to_binarySize(im0.shape) if self.bin_ws              else im0.shape
         wsYX = ((min(wsYX),) * 2                             if self.force_quadratic_win else wsYX) if wsYX else None
 
-        if wsYX:
+        if wsYX not in [None, (0,0)]:
             time0 = time.time()
             if self.v:
                 print('final window size: %s/%s (X/Y)' % (wsYX[1], wsYX[0]))
@@ -921,7 +921,7 @@ class COREG(object):
         """Returns the row/column position of the peak within the given cross power spectrum.
 
         :param scps: <np.ndarray> shifted cross power spectrum
-        :return:     <np.ndarray> [row, column>
+        :return:     <np.ndarray> [row, column]
         """
         max_flat_idx = np.argmax(scps)
         return np.array(np.unravel_index(max_flat_idx, scps.shape))
@@ -969,38 +969,28 @@ class COREG(object):
         return gdsh_im0,crsp_im1
 
 
-    @staticmethod
-    def _find_side_maximum(scps, v=0):
-        centerpos     = [scps.shape[0]//2, scps.shape[1]//2]
-        profile_left  = scps[ centerpos [0]  ,:centerpos[1]+1]
-        profile_right = scps[ centerpos [0]  , centerpos[1]:]
-        profile_above = scps[:centerpos [0]+1, centerpos[1]]
-        profile_below = scps[ centerpos [0]: , centerpos[1]]
+    def _find_side_maximum(self, scps):
+        #peakR, peakC = self._get_peakpos(scps)
+        peakR, peakC = scps.shape[0]//2, scps.shape[1]//2
+        profileX = scps[peakR, :].flatten()  # row profile with values from left to right
+        profileY = scps[:, peakC].flatten()  # column profile with values from top to bottom
 
-        if v:
-            max_count_vals = 10
-            PLT.subplot_2dline([[range(len(profile_left)) [-max_count_vals:], profile_left[-max_count_vals:]],
-                                [range(len(profile_right))[:max_count_vals] , profile_right[:max_count_vals]],
-                                [range(len(profile_above))[-max_count_vals:], profile_above[-max_count_vals:]],
-                                [range(len(profile_below))[:max_count_vals:], profile_below[:max_count_vals]]],
-                                titles =['Profile left', 'Profile right', 'Profile above', 'Profile below'],
-                                shapetuple=(2,2))
+        # get scps values of side maxima
+        sm_left, sm_right = profileX[peakC-1], profileX[peakC+1]
+        sm_above, sm_below = profileY[peakR-1], profileY[peakR+1]
 
-        get_sidemaxVal_from_profile = lambda pf: np.array(pf)[::-1][1] if pf[0]<pf[-1] else np.array(pf)[1]
-        sm_dicts_lr  = [{'side':si, 'value': get_sidemaxVal_from_profile(pf)} \
-                        for pf,si in zip([profile_left,profile_right],['left','right'])]
-        sm_dicts_ab  = [{'side':si, 'value': get_sidemaxVal_from_profile(pf)} \
-                        for pf,si in zip([profile_above,profile_below],['above','below'])]
-        sm_maxVal_lr = max([i['value'] for i in sm_dicts_lr])
-        sm_maxVal_ab = max([i['value'] for i in sm_dicts_ab])
-        sidemax_lr   = [sm for sm in sm_dicts_lr if sm['value'] is sm_maxVal_lr][0]
-        sidemax_ab   = [sm for sm in sm_dicts_ab if sm['value'] is sm_maxVal_ab][0]
-        sidemax_lr['direction_factor'] = {'left':-1, 'right':1} [sidemax_lr['side']]
-        sidemax_ab['direction_factor'] = {'above':-1,'below':1} [sidemax_ab['side']]
+        sidemax_lr = {'value' : max([sm_left, sm_right]),
+                      'side' : 'left' if sm_left > sm_right else 'right',
+                      'direction_factor' : -1 if sm_left > sm_right else 1}
+        sidemax_ab = {'value' : max([sm_above, sm_below]),
+                      'side': 'above' if sm_above > sm_below else 'below',
+                      'direction_factor' : -1 if sm_above > sm_below else 1}
 
-        if v:
-            print('Horizontal side maximum found %s. value: %s' %(sidemax_lr['side'],sidemax_lr['value']))
-            print('Vertical side maximum found %s. value: %s'   %(sidemax_ab['side'],sidemax_ab['value']))
+        if self.v:
+            print('Horizontal side maximum found %s. value: %s' % (sidemax_lr['side'], sidemax_lr['value']))
+            print('Vertical side maximum found %s. value: %s' % (sidemax_ab['side'], sidemax_ab['value']))
+            PLT.subplot_2dline([[range(profileX.size), profileX], [range(profileY.size), profileY]],
+                               titles=['X-Profile', 'Y-Profile'], shapetuple=(1, 2), grid=True)
 
         return sidemax_lr, sidemax_ab
 
@@ -1061,7 +1051,7 @@ class COREG(object):
 
 
     def _calc_subpixel_shifts(self, scps):
-        sidemax_lr, sidemax_ab = self._find_side_maximum(scps, self.v)
+        sidemax_lr, sidemax_ab = self._find_side_maximum(scps)
         x_subshift = (sidemax_lr['direction_factor']*sidemax_lr['value'])/(np.max(scps)+sidemax_lr['value'])
         y_subshift = (sidemax_ab['direction_factor']*sidemax_ab['value'])/(np.max(scps)+sidemax_ab['value'])
         return x_subshift, y_subshift
