@@ -23,13 +23,16 @@ def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
 def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
     ims        = [ims] if not isinstance(ims,list) else ims
     assert titles is None or len(titles)==len(ims), 'Error: Got more or less titles than images.'
+
     shapetuple = (1,len(ims)) if shapetuple is None else shapetuple
     norm       = lambda array, normto: [float(i)*(normto/max(array)) for i in array]
     fig,axes   = plt.subplots(shapetuple[0],shapetuple[1], figsize=norm(plt.figaspect(shapetuple[0]/shapetuple[1]*1.), 20))
-    [axes[i].imshow(im,cmap='binary',interpolation='none', vmin=np.percentile(im,2), vmax = np.percentile(im,98)) \
+    [axes[i].imshow(im,cmap='gray',interpolation='none', vmin=np.percentile(im,2), vmax = np.percentile(im,98)) \
         for i,im in enumerate(ims)]
-    if titles is not None: [axes[i].set_title(titles[i]) for i in range(len(ims))]
-    if grid: [axes[i].grid(which='major', axis='both', linestyle='-') for i in range(len(ims))]
+    if titles is not None:
+        [axes[i].set_title(titles[i]) for i in range(len(ims))]
+    if grid:
+        [axes[i].grid(which='major', axis='both', linestyle='-') for i in range(len(ims))]
     plt.tight_layout()
     plt.show(block=True)
 
