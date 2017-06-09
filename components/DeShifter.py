@@ -13,11 +13,11 @@ except ImportError:
 
 # internal modules
 from geoarray import GeoArray
-from py_tools_ds.ptds.geo.map_info         import mapinfo2geotransform, geotransform2mapinfo
-from py_tools_ds.ptds.geo.coord_grid       import is_coord_grid_equal
-from py_tools_ds.ptds.geo.projection       import prj_equal
-from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
-from py_tools_ds.ptds.numeric.vector       import find_nearest
+from py_tools_ds.geo.map_info         import mapinfo2geotransform, geotransform2mapinfo
+from py_tools_ds.geo.coord_grid       import is_coord_grid_equal
+from py_tools_ds.geo.projection       import prj_equal
+from py_tools_ds.geo.raster.reproject import warp_ndarray
+from py_tools_ds.numeric.vector       import find_nearest
 
 _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
                         'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11,

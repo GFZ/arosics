@@ -20,7 +20,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
 from .DeShifter import DESHIFTER
-from py_tools_ds.ptds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
+from py_tools_ds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
 from geoarray import GeoArray
 
 
@@ -456,7 +456,7 @@ class COREG_LOCAL(object):
         # get image to plot
         image2plot = self.im2shift[:,:,0] # FIXME hardcoded band
 
-        from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
+        from py_tools_ds.geo.raster.reproject import warp_ndarray
         image2plot, gt, prj = warp_ndarray(image2plot, self.im2shift.geotransform, self.im2shift.projection,
                                            in_nodata=self.nodata[1], out_nodata=self.nodata[1],
                                            out_XYdims=(1000, 1000), q=True, out_prj='epsg:3857') # image must be transformed into web mercator projection

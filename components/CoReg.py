@@ -36,17 +36,17 @@ from .          import io        as IO
 from .          import plotting  as PLT
 
 from geoarray import GeoArray
-from py_tools_ds.ptds.convenience.object_oriented import alias_property
-from py_tools_ds.ptds.geo.coord_calc import corner_coord_to_minmax, get_corner_coordinates
-from py_tools_ds.ptds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
-from py_tools_ds.ptds.geo.projection import prj_equal, get_proj4info
-from py_tools_ds.ptds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
-from py_tools_ds.ptds.geo.coord_grid import move_shapelyPoly_to_image_grid
-from py_tools_ds.ptds.geo.coord_trafo import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY
-from py_tools_ds.ptds.geo.raster.reproject import warp_ndarray
-from py_tools_ds.ptds.geo.map_info import geotransform2mapinfo
-from py_tools_ds.ptds.numeric.vector import find_nearest
-from py_tools_ds.ptds.similarity.raster import calc_ssim
+from py_tools_ds.convenience.object_oriented import alias_property
+from py_tools_ds.geo.coord_calc import corner_coord_to_minmax, get_corner_coordinates
+from py_tools_ds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
+from py_tools_ds.geo.projection import prj_equal, get_proj4info
+from py_tools_ds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
+from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid
+from py_tools_ds.geo.coord_trafo import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY
+from py_tools_ds.geo.raster.reproject import warp_ndarray
+from py_tools_ds.geo.map_info import geotransform2mapinfo
+from py_tools_ds.numeric.vector import find_nearest
+from py_tools_ds.similarity.raster import calc_ssim
 
 
 

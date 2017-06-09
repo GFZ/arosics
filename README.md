@@ -77,7 +77,7 @@ CR.calculate_spatial_shifts()
 
 
 ```python
-from py_tools_ds.ptds import GeoArray
+from geoarray import GeoArray
 from CoReg_Sat import COREG
 
 im_reference = '/path/to/your/ref_image.bsq'
@@ -169,7 +169,7 @@ CR.correct_shifts()
                          [   0,    0,    0, ...,  760,  763,  749],
                          [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16)),
                  ('GeoArray_shifted',
-                  <py_tools_ds.ptds.io.raster.GeoArray.GeoArray at 0x7f6c5a1cabe0>)])
+                  <py_tools_ds.io.raster.GeoArray.GeoArray at 0x7f6c5a1cabe0>)])
 
 
 
@@ -219,7 +219,7 @@ DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
                          [   0,    0,    0, ...,  760,  763,  749],
                          [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16)),
                  ('GeoArray_shifted',
-                  <py_tools_ds.ptds.io.raster.GeoArray.GeoArray at 0x7f6c5a1caa58>)])
+                  <py_tools_ds.io.raster.GeoArray.GeoArray at 0x7f6c5a1caa58>)])
 
 
 
@@ -318,7 +318,7 @@ CRL.correct_shifts()
                          [   0,    0,    0, ...,  762,  755,  765],
                          [   0,    0,    0, ...,    0,    0,    0]], dtype=uint16)),
                  ('GeoArray_shifted',
-                  <py_tools_ds.ptds.io.raster.GeoArray.GeoArray at 0x7f451ac14a90>)])
+                  <py_tools_ds.io.raster.GeoArray.GeoArray at 0x7f451ac14a90>)])
 
 
 
