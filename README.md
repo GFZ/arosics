@@ -349,7 +349,7 @@ CRL.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
 
 
 
-![png](output_40_1.png)
+![png](docs/images/output_40_1.png)
 
 
 The output figure shows the calculated absolute lenghts of the shift vectors - in this case with shifts up to ~25 meters.
@@ -377,7 +377,7 @@ CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
 
 
 
-![png](output_44_1.png)
+![png](docs/images/output_44_1.png)
 
 
 The output figure shows a significant reduction of geometric shifts.

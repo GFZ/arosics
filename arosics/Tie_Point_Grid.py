@@ -21,8 +21,8 @@ from skimage.measure   import points_in_poly, ransac
 from skimage.transform import AffineTransform, PolynomialTransform
 
 # internal modules
-from .CoReg  import COREG
-from .       import io    as IO
+from .CoReg import COREG
+from . import io as IO
 from py_tools_ds.geo.projection          import isProjectedOrGeographic, get_UTMzone, dict_to_proj4, proj4_to_WKT
 from py_tools_ds.io.pathgen              import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar

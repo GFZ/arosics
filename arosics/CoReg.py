@@ -31,9 +31,9 @@ except ImportError:
 
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
-from .          import geometry  as GEO
-from .          import io        as IO
-from .          import plotting  as PLT
+from . import geometry  as GEO
+from . import io        as IO
+from . import plotting  as PLT
 
 from geoarray import GeoArray
 from py_tools_ds.convenience.object_oriented import alias_property
