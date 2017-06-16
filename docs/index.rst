@@ -1,5 +1,5 @@
-Welcome to arosics's documentation!
-======================================
+Welcome to AROSICS's documentation!
+===================================
 
 Contents:
 

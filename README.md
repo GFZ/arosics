@@ -4,7 +4,7 @@
 
 
 * Free software: Apache Software License 2.0
-* Documentation: https://arosics.readthedocs.io.
+* Documentation: https://gitext.gfz-potsdam.de/danschef/arosics/docs/
 
 
 
@@ -30,7 +30,7 @@ AROSICS depends on the package "py_tools_ds". First install py_tools_ds followin
 Since py_tools_ds is not a public repository right now, contact Daniel Scheffler if you can not access it.
 
 
-* Then the pip-Installer:
+* Then use the pip-Installer:
 
     
     pip install git+https://gitext.gfz-potsdam.de/danschef/arosics.git   # for HTTPS authentification   
@@ -64,7 +64,7 @@ This module calculates spatial shifts and performs a global correction (based on
 
 
 ```python
-from CoReg_Sat import COREG
+from arosics import COREG
 
 #im_reference = '/path/to/your/ref_image.bsq'
 #im_target    = '/path/to/your/tgt_image.bsq'
@@ -95,7 +95,7 @@ CR.calculate_spatial_shifts()
 
 ```python
 from geoarray import GeoArray
-from CoReg_Sat import COREG
+from arosics import COREG
 
 im_reference = '/path/to/your/ref_image.bsq'
 im_target    = '/path/to/your/tgt_image.bsq'
@@ -201,7 +201,7 @@ Take a look at the keyword arguments of the DESHIFTER class when you need furthe
 
 
 ```python
-from CoReg_Sat import DESHIFTER
+from arosics import DESHIFTER
 
 DESHIFTER(im_target1, CR.coreg_info).correct_shifts()
 DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
@@ -247,17 +247,16 @@ DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
 The help instructions of the console interface can be accessed like this:
 
 
-```python
-cd /path/to/CoReg_Sat/
-python ./coreg_cmd.py -h
+```bash
+python coreg_cmd.py -h
 ```
 
-Follow these instructions to run CoReg_Sat from a shell console. For example, the most simple call for a global 
+Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global 
 co-registration would be like this:
 
 
-```python
-python ./coreg_cmd.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+```bash
+python coreg_cmd.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
 ```
 
  
@@ -274,7 +273,7 @@ This module has been designed to detect and correct geometric shifts present loc
 
 
 ```python
-from CoReg_Sat import COREG_LOCAL
+from arosics import COREG_LOCAL
 
 im_reference = '/path/to/your/ref_image.bsq'
 im_target    = '/path/to/your/tgt_image.bsq'
@@ -303,7 +302,7 @@ CRL.correct_shifts()
     Correcting geometric shifts...
     Translating progress |==================================================| 100.0% Complete
     Warping progress     |==================================================| 100.0% Complete
-    Writing GeoArray of size (10979, 10979) to /home/gfz-fe/scheffler/jupyter/CoReg_Sat_jupyter/my_project/S2A_OPER_MSI_L1C_TL_SGS__20160608T153121_A005024_T33UUU_B03__shifted_to__S2A_OPER_MSI_L1C_TL_SGS__20160529T153631_A004881_T33UUU_B03.bsq.
+    Writing GeoArray of size (10979, 10979) to /home/gfz-fe/scheffler/jupyter/arosics_jupyter/my_project/S2A_OPER_MSI_L1C_TL_SGS__20160608T153121_A005024_T33UUU_B03__shifted_to__S2A_OPER_MSI_L1C_TL_SGS__20160529T153631_A004881_T33UUU_B03.bsq.
 
 
 
@@ -353,7 +352,7 @@ CRL.correct_shifts()
 
 Use the function COREG_LOCAL.view_CoRegPoints() to visualize the geometric quality grid with the calculated absolute lenghts of the shift vectors (the unit corresponds to the input projection - UTM in the shown example, thus the unit is 'meters'.).
 
-NOTE: a calculation of reliable shifts above cloud covered areas is not possible. In the current version of CoReg_Sat these areas are not masked. A proper masking is planned.
+NOTE: a calculation of reliable shifts above cloud covered areas is not possible. In the current version of AROSICS these areas are not masked. A proper masking is planned.
 
 
 ```python
@@ -1488,8 +1487,13 @@ CRL.quality_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp'
 
 ### Shell console interface
 
-By far, there is no shell console interface for this module.
+Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a local 
+co-registration would be like this:
 
+
+```bash
+python coreg_cmd.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50
+```
 
 
 # Credits
