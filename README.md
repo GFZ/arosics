@@ -1,4 +1,13 @@
 
+# AROSICS: 
+### An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
+
+
+* Free software: Apache Software License 2.0
+* Documentation: https://arosics.readthedocs.io.
+
+
+
 # Description
 
 Perform subpixel coregistration of two satellite image datasets using Fourier Shift Theorem proposed by Foroosh et al. 2002: Foroosh, H., Zerubia, J. B., & Berthod, M. (2002). Extension of phase correlation to subpixel registration. IEEE Transactions on Image Processing, 11(3), 188-199. doi:10.1109/83.988953); Python implementation by Daniel Scheffler (daniel.scheffler [at] gfz-potsdam [dot] de).
@@ -11,27 +20,35 @@ The input images can have any GDAL compatible image format (http://www.gdal.org/
 
  
 
-# Install
+Installation
+------------
 
-For now, there is no automatic install script. Just clone the repository, install the dependencies and add the root directory of CoReg_Sat to your PATH environment variable.
-
-CoReg_Sat has been tested with Python 3.5 and Python 2.7. It should be fully compatible to all Python versions above 2.7.
-
-The following non-standard Python libraries are required:
-
-    - gdal, osr, ogr
-    - geopandas
-    - pykrige
-    - argparse
-    - shapely
-    - pyfftw is optional but will speed up calculation
-    - folium and geojson for some visualization functions
-    
-In addition clone the repository "py_tools_ds" and add its root directory to your PATH environment variable:
+AROSICS depends on the package "py_tools_ds". First install py_tools_ds following the setup instructions there:
 
     https://gitext.gfz-potsdam.de/danschef/py_tools_ds
     
 Since py_tools_ds is not a public repository right now, contact Daniel Scheffler if you can not access it.
+
+
+* Then the pip-Installer:
+
+    
+    pip install git+https://gitext.gfz-potsdam.de/danschef/arosics.git   # for HTTPS authentification   
+    pip install git+git@gitext.gfz-potsdam.de:danschef/arosics.git   # for SSH-Key authentification
+
+
+* Or clone the repository via GIT and update the PATH environment variable:
+
+    
+    cd /your/installation/folder
+    git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
+    PATH=$PATH:~/path/to/your/installation/folder/arosics
+
+
+
+AROSICS has been tested with Python 3.x and Python 2.7. It should be fully compatible to all Python versions above 2.7.
+    
+
 
  
 
@@ -1472,3 +1489,11 @@ CRL.quality_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp'
 ### Shell console interface
 
 By far, there is no shell console interface for this module.
+
+
+
+# Credits
+
+This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the 
+[audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template.
+
