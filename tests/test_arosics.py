@@ -6,7 +6,8 @@
 
 import unittest
 
-from arosics import arosics
+from arosics import COREG
+from arosics import COREG_LOCAL
 
 
 class TestArosics(unittest.TestCase):

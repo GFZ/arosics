@@ -1,0 +1,31 @@
+before_script:
+  - git lfs pull
+
+test_arosics:
+  script:
+    - source /root/anaconda3/bin/activate
+    - export GDAL_DATA=/root/anaconda3/share/gdal
+    - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
+    - make coverage
+    - make docs
+  artifacts:
+    paths:
+    - htmlcov/
+    - docs/_build/html/
+
+pages:
+  stage: deploy
+  dependencies:
+    - test_arosics
+  script:
+    - mkdir -p public/coverage
+    - cp -r htmlcov/* public/coverage/
+    - mkdir -p public/doc
+    - cp -r docs/_build/html/* public/doc/
+
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master

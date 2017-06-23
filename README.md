@@ -4,7 +4,15 @@
 
 
 * Free software: Apache Software License 2.0
-* Documentation: https://gitext.gfz-potsdam.de/danschef/arosics/docs/
+* Documentation: http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+
+
+### Status
+
+![svg](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg)
+![svg](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)
+
+See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) report.
 
 
 

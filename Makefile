@@ -51,7 +51,7 @@ lint: ## check style with flake8
 	flake8 arosics tests
 
 test: ## run tests quickly with the default Python
-	
+
 		python setup.py test
 
 test-all: ## run tests on every Python version with tox
@@ -85,3 +85,6 @@ dist: clean ## builds source and wheel package
 
 install: clean ## install the package to the active Python's site-packages
 	python setup.py install
+
+gitlab_CI_docker:  ## Build a docker image for CI use within gitlab
+	cd ./tests/CI_docker/; bash ./build_testsuite_image.sh

@@ -19,9 +19,7 @@ setup_requirements = [
     # TODO(danschef): put setup requirements (distutils extensions, etc.) here
 ]
 
-test_requirements = [
-    # TODO: put package test requirements here
-]
+test_requirements = ['coverage']
 
 setup(
     name='arosics',
