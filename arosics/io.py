@@ -42,7 +42,8 @@ def write_envi(arr,outpath,gt=None,prj=None):
     if gt or prj: assert gt and prj, 'gt and prj must be provided together or left out.'
     meta = {'map info':geotransform2mapinfo(gt,prj),'coordinate system string':prj} if gt else None
     shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
-    out    = envi.create_image(outpath,metadata=meta,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq', force=True) # 8bit for muliple masks in one file
+    out    = envi.create_image(outpath,metadata=meta,shape=shape,dtype=arr.dtype,interleave='bsq',ext='.bsq',
+                               force=True) # 8bit for multiple masks in one file
     out_mm = out.open_memmap(writable=True)
     out_mm[:,:,0] = arr
 
@@ -50,7 +51,8 @@ def write_envi(arr,outpath,gt=None,prj=None):
 def wfa(p,c):
     try:
         with open(p,'a') as of: of.write(c)
-    except: pass
+    except:
+        pass
 
 
 shared_array = None
