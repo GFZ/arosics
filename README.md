@@ -9,8 +9,8 @@
 
 ### Status
 
-![svg](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg)
-![svg](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)
+[![build status](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/commits/master)
+[![coverage report](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/commits/master)
 
 See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) report.
 
