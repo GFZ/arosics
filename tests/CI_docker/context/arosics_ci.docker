@@ -11,6 +11,7 @@ RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_
 RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes pyqt coverage ; \
     conda install --yes -c conda-forge gdal ; \
+    conda install --yes -c conda-forge pyfftw=0.10.4 ; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
     conda install --yes -c conda-forge glymur pygrib rasterio pyproj cachetools ; \
     pip install shapely geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse"
