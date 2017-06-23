@@ -22,7 +22,9 @@ import os
 # absolute, like shown here.
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../"))
-
+print(os.path.curdir())
+print()
+print(sys.path)
 # Get the project root dir, which is the parent dir of this
 cwd = os.getcwd()
 project_root = os.path.dirname(cwd)
