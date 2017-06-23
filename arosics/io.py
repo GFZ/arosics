@@ -10,6 +10,7 @@ try:
     import gdal
 except ImportError:
     from osgeo import gdal
+from spectral.io import envi
 
 # internal modules
 from .utilities import get_image_tileborders, convertGdalNumpyDataType
@@ -38,7 +39,6 @@ def wait_if_used(path_file,lockfile, timeout=100, try_kill=0):
 
 
 def write_envi(arr,outpath,gt=None,prj=None):
-    from spectral.io import envi
     if gt or prj: assert gt and prj, 'gt and prj must be provided together or left out.'
     meta = {'map info':geotransform2mapinfo(gt,prj),'coordinate system string':prj} if gt else None
     shape = (arr.shape[0],arr.shape[1],1) if len(arr.shape)==3 else arr.shape
@@ -185,7 +185,6 @@ def write_numpy_to_image(array,path_out,outFmt='GTIFF',gt=None,prj=None):
 
 shared_array_on_disk__memmap = None
 def init_SharedArray_on_disk(out_path,dims,gt=None,prj=None):
-    from spectral.io import envi
     global shared_array_on_disk__memmap
     global shared_array_on_disk__path
     path = out_path if not os.path.splitext(out_path)[1]=='.bsq' else \
