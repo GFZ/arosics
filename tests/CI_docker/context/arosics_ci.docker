@@ -41,5 +41,5 @@ RUN bash -i -c 'source /root/anaconda3/bin/activate; \
 
 
 RUN bash -i -c "source /root/anaconda3/bin/activate; \
-    cd /tmp/py_tools_ds/; python setup.py install;"
+    cd /tmp/py_tools_ds/; python setup.py install;" \
     cd /tmp/geoarray/; python setup.py install;"
