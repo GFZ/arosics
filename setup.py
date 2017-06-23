@@ -30,7 +30,7 @@ setup(
     author="Daniel Scheffler",
     author_email='daniel.scheffler@gfz-potsdam.de',
     url='https://github.com/danschef/arosics',
-    packages=find_packages(include=['arosics']),
+    packages=find_packages(),
     include_package_data=True,
     install_requires=requirements,
     license="Apache Software License 2.0",
