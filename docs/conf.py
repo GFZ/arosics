@@ -20,7 +20,8 @@ import os
 # directory, add these directories to sys.path here. If the directory is
 # relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath("../"))
 
 # Get the project root dir, which is the parent dir of this
 cwd = os.getcwd()
@@ -30,7 +31,6 @@ project_root = os.path.dirname(cwd)
 # This lets us ensure that the source package is imported, and that its
 # version is used.
 sys.path.insert(0, project_root)
-sys.path.insert(0, os.path.abspath("../..")) # For the module search path to be set up properly, you need to go two levels up from conf.py # https://stackoverflow.com/questions/17907609/sphinx-doesnt-find-python-packages-when-using-autodoc
 
 import arosics
 
