@@ -14,7 +14,7 @@ RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes -c conda-forge pyfftw=0.10.4 ; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
     conda install --yes -c conda-forge glymur pygrib rasterio pyproj cachetools ; \
-    pip install shapely geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral pykrige"
+    pip install shapely geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral pykrige"   # must include all the requirements needed to build the docs!
 
 # copy some needed stuff to /root
 #COPY *.pkl /root/ # EXAMPLE
