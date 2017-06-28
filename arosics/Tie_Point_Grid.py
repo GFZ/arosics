@@ -754,15 +754,45 @@ class Tie_Point_Grid(object):
 
 
 class Tie_Point_Refiner(object):
-    def __init__(self, GDF, q=False):
-        self.GDF                 = GDF.copy()
-        self.q                   = q
-        self.new_cols            = []
+    def __init__(self, GDF, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
+                      rs_exclude_previous_outliers=True, rs_timeout=20, q=False):
+        """
+
+        :param GDF:                             GeoDataFrame like TiePointGrid.CoRegPoints_table
+        :param min_reliability:                 <float, int> minimum threshold for previously computed tie X/Y shift
+                                                reliability (default: 60%)
+        :param rs_max_outlier:                  <float, int> RANSAC: maximum percentage of outliers to be detected
+                                                (default: 10%)
+        :param rs_tolerance:                    <float, int> RANSAC: percentage tolerance for max_outlier_percentage
+                                                (default: 2.5%)
+        :param rs_max_iter:                     <int> RANSAC: maximum iterations for finding the best RANSAC threshold
+                                                (default: 15)
+        :param rs_exclude_previous_outliers:    <bool> RANSAC: whether to exclude points that have been flagged as
+                                                outlier by earlier filtering (default:True)
+        :param rs_timeout:                      <float, int> RANSAC: timeout for iteration loop in seconds (default: 20)
+
+        :param q:
+        """
+
+        self.GDF = GDF.copy()
+        self.min_reliability = min_reliability
+        self.rs_max_outlier_percentage = rs_max_outlier
+        self.rs_tolerance = rs_tolerance
+        self.rs_max_iter = rs_max_iter
+        self.rs_exclude_previous_outliers = rs_exclude_previous_outliers
+        self.rs_timeout = rs_timeout
+        self.q = q
+        self.new_cols = []
         self.ransac_model_robust = None
 
 
-    def run_filtering(self, level=2):#, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
-                      #rs_exclude_previous_outliers=True, rs_timeout=20):
+    def run_filtering(self, level=2):
+        """
+        :param level:
+
+        :return:
+        """
+
         # TODO catch empty GDF
 
         # RELIABILITY filtering
@@ -770,26 +800,35 @@ class Tie_Point_Refiner(object):
             marked_recs = GeoSeries(self._reliability_thresholding())
             self.GDF['L1_OUTLIER'] = marked_recs
             self.new_cols.append('L1_OUTLIER')
+
             if not self.q:
                 print('%s tie points flagged by level 1 filtering (reliability).' % (len(marked_recs[marked_recs==True])))
+
 
         # SSIM filtering
         if level>1:
             marked_recs = GeoSeries(self._SSIM_filtering())
             self.GDF['L2_OUTLIER'] = marked_recs
             self.new_cols.append('L2_OUTLIER')
+
             if not self.q:
                 print('%s tie points flagged by level 2 filtering (SSIM).' % (len(marked_recs[marked_recs==True])))
 
+
         # RANSAC filtering
         if level>2:
-            marked_recs = GeoSeries(self._RANSAC_outlier_detection())
-            if len(self.GDF)>4:
+            # exclude previous outliers
+            ransacInGDF = self.GDF[self.GDF[self.new_cols].any(axis=1) == False].copy()\
+                            if self.rs_exclude_previous_outliers else self.GDF
+
+            if len(ransacInGDF)>4:
                 # running RANSAC with less than four tie points makes no sense
+
+                marked_recs = GeoSeries(self._RANSAC_outlier_detection(ransacInGDF))
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist() # we need to join a list here because otherwise it's merged by the 'index' column
+
                 if not self.q:
-                    print(
-                        '%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs == True])))
+                    print('%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs == True])))
             else:
                 print('RANSAC skipped because too less valid tie points have been found.')
                 self.GDF['L3_OUTLIER'] = False
@@ -803,17 +842,14 @@ class Tie_Point_Refiner(object):
         return self.GDF, self.new_cols
 
 
-    def _reliability_thresholding(self, min_reliability=60):
+    def _reliability_thresholding(self):
         """Exclude all records where estimated reliability of the calculated shifts is below the given threshold."""
 
-        return self.GDF.RELIABILITY < min_reliability
+        return self.GDF.RELIABILITY < self.min_reliability
 
 
     def _SSIM_filtering(self):
-        """Exclude all records where SSIM decreased.
-
-        :return:
-        """
+        """Exclude all records where SSIM decreased."""
 
         #ssim_diff  = np.median(self.GDF['SSIM_AFTER']) - np.median(self.GDF['SSIM_BEFORE'])
 
@@ -822,31 +858,18 @@ class Tie_Point_Refiner(object):
         return self.GDF.SSIM_IMPROVED == False
 
 
-    def _RANSAC_outlier_detection(self, max_outlier_percentage=10, tolerance=2.5, max_iter=15,
-                                  exclude_previous_outliers=True, timeout=20):
-        """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm.
+    def _RANSAC_outlier_detection(self, inGDF):
+        """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm."""
 
-        :param max_outlier_percentage:      <float, int> maximum percentage of outliers to be detected
-        :param tolerance:                   <float, int> percentage tolerance for max_outlier_percentage
-        :param max_iter:                    <int> maximum iterations for finding the best RANSAC threshold
-        :param exclude_previous_outliers:   <bool> whether to exclude points that have been flagged as outlier by
-                                            earlier filtering
-        :param timeout:                     <float, int> timeout for iteration loop in seconds
-        :return:
-        """
-
-        # exclude previous outliers
-        GDF = self.GDF[self.GDF[self.new_cols].any(axis=1)==False].copy() if exclude_previous_outliers else self.GDF
-
-        src_coords = np.array(GDF[['X_UTM', 'Y_UTM']])
-        xyShift    = np.array(GDF[['X_SHIFT_M', 'Y_SHIFT_M']])
+        src_coords = np.array(inGDF[['X_UTM', 'Y_UTM']])
+        xyShift    = np.array(inGDF[['X_SHIFT_M', 'Y_SHIFT_M']])
         est_coords = src_coords + xyShift
 
         for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
             assert co.ndim==2 and co.shape[1]==2, "'%s' must have shape [Nx2]. Got shape %s."%(n, co.shape)
 
-        if not 0 < max_outlier_percentage < 100: raise ValueError
-        min_inlier_percentage = 100-max_outlier_percentage
+        if not 0 < self.rs_max_outlier_percentage < 100: raise ValueError
+        min_inlier_percentage = 100-self.rs_max_outlier_percentage
 
         class PolyTF_1(PolynomialTransform):
             def estimate(*data):
@@ -892,8 +915,8 @@ class Tie_Point_Refiner(object):
                            min_samples        = 6,
                            residual_threshold = th,
                            max_trials         = 2000,
-                           stop_sample_num    = int((min_inlier_percentage-tolerance) /100*src_coords.shape[0]),
-                           stop_residuals_sum = int((max_outlier_percentage-tolerance)/100*src_coords.shape[0])
+                           stop_sample_num    = int((min_inlier_percentage-self.rs_tolerance) /100*src_coords.shape[0]),
+                           stop_residuals_sum = int((self.rs_max_outlier_percentage-self.rs_tolerance)/100*src_coords.shape[0])
                            )
             else:
                 inliers = np.array([])
@@ -903,23 +926,23 @@ class Tie_Point_Refiner(object):
 
             th_checked[th] = count_inliers / src_coords.shape[0] * 100
             #print(th,'\t', th_checked[th], )
-            if min_inlier_percentage-tolerance < th_checked[th] < min_inlier_percentage+tolerance:
+            if min_inlier_percentage-self.rs_tolerance < th_checked[th] < min_inlier_percentage+self.rs_tolerance:
                 #print('in tolerance')
                 break
-            if count_iter > max_iter or time.time()-time_start > timeout:
+            if count_iter > self.rs_max_iter or time.time()-time_start > self.rs_timeout:
                 break # keep last values and break while loop
 
             count_iter+=1
 
         outliers = inliers == False if inliers is not None and inliers.size else np.array([])
 
-        if GDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
+        if inGDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
                 (isinstance(outliers, np.ndarray) and not outliers.size):
             gs              = GeoSeries([False]*len(self.GDF))
-        elif len(GDF) < len(self.GDF):
-            GDF['outliers'] = outliers
+        elif len(inGDF) < len(self.GDF):
+            inGDF['outliers'] = outliers
             fullGDF         = GeoDataFrame(self.GDF['POINT_ID'])
-            fullGDF         = fullGDF.merge(GDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
+            fullGDF         = fullGDF.merge(inGDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
             #fullGDF.outliers.copy()[~fullGDF.POINT_ID.isin(GDF.POINT_ID)] = False
             fullGDF         = fullGDF.fillna(False) # NaNs are due to exclude_previous_outliers
             gs              = fullGDF['outliers']
