@@ -284,7 +284,7 @@ class DESHIFTER(object):
             #     warnings.warn('This method has not been tested in its current state!')
             #     # FIX ME nicht multiprocessing-fähig, weil immer kompletter array gewarpt wird und sich ergebnisse gegenseitig überschreiben
             #     # create tempfile
-            #     fd, path_tmp = tempfile.mkstemp(prefix='CoReg_Sat', suffix=self.outFmt, dir=self.tempDir)
+            #     fd, path_tmp = tempfile.mkstemp(prefix='AROSICS', suffix=self.outFmt, dir=self.tempDir)
             #     os.close(fd)
             #
             #     t_extent   = " -te %s %s %s %s" %self._get_out_extent()

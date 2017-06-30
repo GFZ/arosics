@@ -1,6 +1,6 @@
-cmocean
 git+https://gitext.gfz-potsdam.de/danschef/geoarray.git
 git+https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git
+cmocean
 numpy
 gdal
 shapely

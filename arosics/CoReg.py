@@ -22,13 +22,6 @@ except ImportError:
 from shapely.geometry import Point, Polygon
 from skimage.exposure import rescale_intensity
 
-try:
-    import geoarray
-except ImportError:
-    raise ImportError("Since 2017/03/31 CoReg_Sat depends on the package 'geoarray'. "
-                      "You need an invitation to the respective GitLab repository from Daniel Scheffler. "
-                      "Then follow the install instructions there.")
-
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
 from . import geometry  as GEO

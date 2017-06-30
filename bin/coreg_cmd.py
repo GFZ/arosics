@@ -23,12 +23,12 @@ except ImportError:
     from osgeo import ogr
 
 # internal modules
-sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append CoReg_Sat root directory
+sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append AROSICS root directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../geoarray')))
 
 import geoarray
-from CoReg_Sat import COREG, COREG_LOCAL, __version__
+from arosics import COREG, COREG_LOCAL, __version__
 import py_tools_ds
 
 
@@ -80,6 +80,9 @@ def run_local_coreg(args):
                       max_iter         = args.max_iter,
                       max_shift        = args.max_shift,
                       tieP_filter_level = args.tieP_filter_level,
+                      min_reliability  = args.min_reliability,
+                      rs_max_outlier   = args.rs_max_outlier,
+                      rs_tolerance     = args.rs_tolerance,
                       #align_grids      = args.align_grids,
                       #match_gsd        = args.match_gsd,
                       #out_gsd          = args.out_gsd,
@@ -107,7 +110,7 @@ if __name__ == '__main__':
     from socket import gethostname
     from datetime import datetime as dt
     from getpass import getuser
-    from components.io import wfa
+    from arosics.io import wfa
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
     parser = argparse.ArgumentParser(
@@ -155,7 +158,7 @@ if __name__ == '__main__':
                      'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                      'X- or Y direction.',
         help="detect and correct global X/Y shifts (sub argument parser) - "
-             "use '>>> python /path/to/CoReg_Sat/coreg_cmd.py global -h' for documentation and usage hints")
+             "use '>>> python /path/to/arosics/bin/coreg_cmd.py global -h' for documentation and usage hints")
 
     gloArg = parse_coreg_global.add_argument
     gloArg('path_ref', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
@@ -262,7 +265,7 @@ if __name__ == '__main__':
                      'calculated shifts of each point in the grid as GCPs. Thus this class can be used to correct ' \
                      'for locally varying geometric distortions of the target image.',
         help="detect and correct local shifts (sub argument parser)"
-             "use '>>> python /path/to/CoReg_Sat/coreg_cmd.py local -h' for documentation and usage hints")
+             "use '>>> python /path/to/arosics/bin/coreg_cmd.py local -h' for documentation and usage hints")
 
     locArg = parse_coreg_local.add_argument
     locArg('path_ref', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
@@ -297,13 +300,24 @@ if __name__ == '__main__':
     locArg('-max_shift', nargs='?', type=int,
            help="maximum shift distance in reference image pixel units (default: 5 px)", default=5)
 
-    locArg('-tieP_filter_level', nargs='?', type=int,
+    locArg('-tieP_filter_level', nargs='?', type=int, default=3, choices=[0, 1, 2, 3],
            help="filter tie points used for shift correction in different levels (default: 3). NOTE: lower levels are "
                 "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliablity "
                 "filtering - filter all tie points out that have a low reliability according to internal tests; "
                 "Level 2: SSIM filtering - filters all tie points out where shift correction does not increase image "
                 "similarity within matching window (measured by mean structural similarity index) "
-                "Level 3: RANSAC outlier detection", default=3, choices=[0, 1, 2, 3])
+                "Level 3: RANSAC outlier detection")
+
+    locArg('-min_reliability', nargs='?', type=float, default=60,
+           help="Tie point filtering: minimum reliability threshold, below which tie points are marked as "
+                "false-positives (default: 60 percent) - accepts values between 0 (no reliability) and 100 (perfect "
+                "reliability) HINT: decrease this value in case of poor signal-to-noise ratio of your input data")
+
+    locArg('-rs_max_outlier', nargs='?', type=float, default=10,
+           help="RANSAC tie point filtering: proportion of expected outliers (default: 10 percent)")
+
+    locArg('-rs_tolerance', nargs='?', type=float, default=2.5,
+           help="RANSAC tie point filtering: percentage tolerance for max_outlier_percentage (default: 2.5 percent)")
 
     # TODO implement footprint_poly_ref, footprint_poly_tgt
 
@@ -362,17 +376,17 @@ if __name__ == '__main__':
 
     parsed_args = parser.parse_args()
 
-    print('==================================================================\n'
-          '#                     CoReg_Sat v%s                   #'%__version__+'\n'
-          '#          SUBPIXEL COREGISTRATION FOR SATELLITE IMAGERY         #\n'
-          '#          - algorithm proposed by Foroosh et al. 2002           #\n'
-          '#          - python implementation by Daniel Scheffler           #\n'
-          '==================================================================\n')
+    print('======================================================================\n'
+          '#                     AROSICS v%s                         #'%__version__+'\n'
+          '# An Automated and Robust Open-Source Image Co-Registration Software #'
+          '#                for Multi-Sensor Satellite Data                     #\n'
+          '#          - python implementation by Daniel Scheffler               #\n'
+          '======================================================================\n')
 
     t0 = time.time()
     parsed_args.func(parsed_args)
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
 
 else:
-    warnings.warn("The script 'coreg_cmd.py' provides a command line argument parser for CoReg_Sat and is not to be "
+    warnings.warn("The script 'coreg_cmd.py' provides a command line argument parser for AROSICS and is not to be "
                   "used as a normal Python module.")

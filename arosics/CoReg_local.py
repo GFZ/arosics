@@ -30,11 +30,12 @@ class COREG_LOCAL(object):
 
     def __init__(self, im_ref, im_tgt, grid_res, max_points=None, window_size=(256,256), path_out=None, fmt_out='ENVI',
                  out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
-                 tieP_filter_level=3, align_grids=True, match_gsd=False, out_gsd=None, target_xyGrid=None,
-                 resamp_alg_deshift='cubic', resamp_alg_calc='cubic', footprint_poly_ref=None, footprint_poly_tgt=None,
-                 data_corners_ref=None, data_corners_tgt=None, outFillVal=-9999, nodata=(None, None), calc_corners=True,
-                 binary_ws=True, force_quadratic_win=True, mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None,
-                 progress=True, v=False, q=False, ignore_errors=True):
+                 tieP_filter_level=3, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, align_grids=True,
+                 match_gsd=False, out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
+                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
+                 outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True, force_quadratic_win=True,
+                 mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True, v=False, q=False,
+                 ignore_errors=True):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -72,6 +73,13 @@ class COREG_LOCAL(object):
                                                 correction does not increase image similarity within matching window
                                                 (measured by mean structural similarity index)
                                             - Level 3: RANSAC outlier detection
+        :param min_reliability(float):  Tie point filtering: minimum reliability threshold, below which tie points are
+                                        marked as false-positives (default: 60%)
+                                        - accepts values between 0% (no reliability) and 100 % (perfect reliability)
+                                        HINT: decrease this value in case of poor signal-to-noise ratio of your input data
+        :param rs_max_outlier(float):   RANSAC tie point filtering: proportion of expected outliers (default: 10%)
+        :param rs_tolerance(float):     RANSAC tie point filtering: percentage tolerance for max_outlier_percentage
+                                                (default: 2.5%)
         :param out_gsd (float):         output pixel size in units of the reference coordinate system (default = pixel
                                         size of the input array), given values are overridden by match_gsd=True
         :param align_grids (bool):      True: align the input coordinate grid to the reference (does not affect the
@@ -149,6 +157,9 @@ class COREG_LOCAL(object):
         self.max_shift         = max_shift
         self.max_iter          = max_iter
         self.tieP_filter_level = tieP_filter_level
+        self.min_reliability   = min_reliability
+        self.rs_max_outlier    = rs_max_outlier
+        self.rs_tolerance      = rs_tolerance
         self.align_grids       = align_grids
         self.match_gsd         = match_gsd
         self.out_gsd           = out_gsd
@@ -271,6 +282,10 @@ class COREG_LOCAL(object):
                                                  outFillVal        = self.outFillVal,
                                                  resamp_alg_calc   = self.rspAlg_calc,
                                                  tieP_filter_level = self.tieP_filter_level,
+                                                 outlDetect_settings = dict(
+                                                     min_reliability = self.min_reliability,
+                                                     rs_max_outlier  = self.rs_max_outlier,
+                                                     rs_tolerance    = self.rs_tolerance),
                                                  dir_out           = self.projectDir,
                                                  CPUs              = self.CPUs,
                                                  progress          = self.progress,

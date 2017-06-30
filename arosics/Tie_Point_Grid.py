@@ -39,7 +39,7 @@ class Tie_Point_Grid(object):
     """See help(Tie_Point_Grid) for documentation!"""
 
     def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
-                 tieP_filter_level=2, dir_out=None, CPUs=None, progress=True, v=False, q=False):
+                 tieP_filter_level=3, outlDetect_settings=None, dir_out=None, CPUs=None, progress=True, v=False, q=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -59,7 +59,7 @@ class Tie_Point_Grid(object):
                                         (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
                                         default: cubic (highly recommended)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 2).
+        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 3).
                                         NOTE: lower levels are also included if a higher level is chosen
                                             - Level 0: no tie point filtering
                                             - Level 1: Reliablity filtering - filter all tie points out that have a low
@@ -68,6 +68,10 @@ class Tie_Point_Grid(object):
                                                 correction does not increase image similarity within matching window
                                                 (measured by mean structural similarity index)
                                             - Level 3: RANSAC outlier detection
+        :param outlDetect_settings      a dictionary with the settings to be passed to
+                                        arosics.TiePointGrid.Tie_Point_Refiner. Available keys: min_reliability,
+                                        rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
+                                        rs_timeout, q. See documentation there.
         :param dir_out(str):            output directory to be used for all outputs if nothing else is given
                                         to the individual methods
         :param CPUs(int):               number of CPUs to use during calculation of tie points grid
@@ -85,6 +89,7 @@ class Tie_Point_Grid(object):
         self.outFillVal        = outFillVal
         self.rspAlg_calc       = resamp_alg_calc
         self.tieP_filter_level = tieP_filter_level
+        self.outlDetect_settings = outlDetect_settings if outlDetect_settings else dict(q=q)
         self.dir_out           = dir_out
         self.CPUs              = CPUs
         self.v                 = v
@@ -341,7 +346,7 @@ class Tie_Point_Grid(object):
         if self.tieP_filter_level>0:
             if not self.q:
                 print('Performing validity checks...')
-            TPR                   = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], q=self.q)
+            TPR                   = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], **self.outlDetect_settings)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF                   = GDF.merge(GDF_filt[ ['POINT_ID']+new_columns], on='POINT_ID', how="outer")
         GDF = GDF.fillna(int(self.outFillVal))
@@ -790,10 +795,10 @@ class Tie_Point_Refiner(object):
         self.ransac_model_robust = None
 
 
-    def run_filtering(self, level=2):
+    def run_filtering(self, level=3):
         """Filter tie points used for shift correction.
 
-        :param level:   tie point filter level (default: 2).
+        :param level:   tie point filter level (default: 3).
                         NOTE: lower levels are also included if a higher level is chosen
                             - Level 0: no tie point filtering
                             - Level 1: Reliablity filtering - filter all tie points out that have a low
