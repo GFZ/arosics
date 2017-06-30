@@ -641,6 +641,9 @@ class Tie_Point_Grid(object):
 
     def to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
                                    path_out=None, tilepos=None):
+        warnings.warn(DeprecationWarning("'to_Raster_using_KrigingOLD' is deprecated. Use to_Raster_using_Kriging "
+                                         "instead.")) # TODO delete
+
         GDF             = self.CoRegPoints_table
         GDF2pass        = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 
@@ -756,9 +759,10 @@ class Tie_Point_Grid(object):
 class Tie_Point_Refiner(object):
     def __init__(self, GDF, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
                       rs_exclude_previous_outliers=True, rs_timeout=20, q=False):
-        """
+        """A class for performing outlier detection.
 
-        :param GDF:                             GeoDataFrame like TiePointGrid.CoRegPoints_table
+        :param GDF:                             GeoDataFrame like TiePointGrid.CoRegPoints_table containing all tie
+                                                points to be filtered and the corresponding metadata
         :param min_reliability:                 <float, int> minimum threshold for previously computed tie X/Y shift
                                                 reliability (default: 60%)
         :param rs_max_outlier:                  <float, int> RANSAC: maximum percentage of outliers to be detected
@@ -787,8 +791,17 @@ class Tie_Point_Refiner(object):
 
 
     def run_filtering(self, level=2):
-        """
-        :param level:
+        """Filter tie points used for shift correction.
+
+        :param level:   tie point filter level (default: 2).
+                        NOTE: lower levels are also included if a higher level is chosen
+                            - Level 0: no tie point filtering
+                            - Level 1: Reliablity filtering - filter all tie points out that have a low
+                                reliability according to internal tests
+                            - Level 2: SSIM filtering - filters all tie points out where shift
+                                correction does not increase image similarity within matching window
+                                (measured by mean structural similarity index)
+                            - Level 3: RANSAC outlier detection
 
         :return:
         """

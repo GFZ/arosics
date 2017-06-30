@@ -84,7 +84,7 @@ class DESHIFTER(object):
         self.path_out     = kwargs.get('path_out'        , None)
         self.fmt_out      = kwargs.get('fmt_out'         , 'ENVI')
         self.out_creaOpt  = kwargs.get('out_crea_options', [])
-        self.band2process = kwargs.get('band2process'    , None) # starts with 1 # FIXME warum?
+        self.band2process = kwargs.get('band2process'    , None) # starts with 1 # FIXME why?
         self.band2process = self.band2process-1 if self.band2process is not None else None # internally handled as band index
         self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids'     , False)

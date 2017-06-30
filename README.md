@@ -31,31 +31,24 @@ The input images can have any GDAL compatible image format (http://www.gdal.org/
 Installation
 ------------
 
-AROSICS depends on the packages "geoarray" and "py_tools_ds". First install them following the setup instructions there:
+Clone the following repository and install AROSICS to your local python:
 
-    https://gitext.gfz-potsdam.de/danschef/geoarray
-    https://gitext.gfz-potsdam.de/danschef/py_tools_ds
-    
-Since geoarray and py_tools_ds are not yet public repositories, contact Daniel Scheffler if you can not access them.
-
-
-* Then use the pip-Installer to install AROSICS:
-
-    
-    pip install git+https://gitext.gfz-potsdam.de/danschef/arosics.git   # for HTTPS authentification   
-    pip install git+git@gitext.gfz-potsdam.de:danschef/arosics.git   # for SSH-Key authentification
+```bash
+git clone https://gitext.gfz-potsdam.de:danschef/arosics.git
+cd arosics; make install
+```
 
 
 * Or clone the repository via GIT and update the PATH environment variable:
 
-    
-    cd /your/installation/folder
-    git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
-    PATH=$PATH:~/path/to/your/installation/folder/arosics
+```bash
+cd /your/installation/folder
+git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
+PATH=$PATH:~/path/to/your/installation/folder/arosics
+```
 
 
-
-AROSICS has been tested with Python 3.x and Python 2.7. It should be fully compatible to all Python versions above 2.7.
+AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all Python versions above 2.7.
     
 
 
