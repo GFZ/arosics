@@ -32,7 +32,7 @@ setup(
     url='https://github.com/danschef/arosics',
     packages=find_packages(),
     include_package_data=True,
-    scripts=["bin/coreg_cmd.py"],
+    scripts=["bin/arosics.py"],
     install_requires=requirements,
     license="GNU General Public License v3",
     zip_safe=False,

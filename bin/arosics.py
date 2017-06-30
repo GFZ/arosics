@@ -114,7 +114,7 @@ if __name__ == '__main__':
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
     parser = argparse.ArgumentParser(
-        prog='coreg_cmd.py',
+        prog='arosics.py',
 
         description='Perform subpixel coregistration of two satellite image datasets ' \
                     'using Fourier Shift Theorem proposed by Foroosh et al. 2002: ' \
@@ -158,7 +158,7 @@ if __name__ == '__main__':
                      'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                      'X- or Y direction.',
         help="detect and correct global X/Y shifts (sub argument parser) - "
-             "use '>>> python /path/to/arosics/bin/coreg_cmd.py global -h' for documentation and usage hints")
+             "use '>>> python /path/to/arosics/bin/arosics.py global -h' for documentation and usage hints")
 
     gloArg = parse_coreg_global.add_argument
     gloArg('path_ref', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
@@ -265,7 +265,7 @@ if __name__ == '__main__':
                      'calculated shifts of each point in the grid as GCPs. Thus this class can be used to correct ' \
                      'for locally varying geometric distortions of the target image.',
         help="detect and correct local shifts (sub argument parser)"
-             "use '>>> python /path/to/arosics/bin/coreg_cmd.py local -h' for documentation and usage hints")
+             "use '>>> python /path/to/arosics/bin/arosics.py local -h' for documentation and usage hints")
 
     locArg = parse_coreg_local.add_argument
     locArg('path_ref', type=str, help='source path of reference image (any GDAL compatible image format is supported)')
@@ -388,5 +388,5 @@ if __name__ == '__main__':
     print('\ntotal processing time: %.2fs' %(time.time()-t0))
 
 else:
-    warnings.warn("The script 'coreg_cmd.py' provides a command line argument parser for AROSICS and is not to be "
+    warnings.warn("The script 'arosics.py' provides a command line argument parser for AROSICS and is not to be "
                   "used as a normal Python module.")

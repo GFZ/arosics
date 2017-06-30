@@ -250,7 +250,7 @@ The help instructions of the console interface can be accessed like this:
 
 
 ```bash
-python coreg_cmd.py -h
+python arosics.py -h
 ```
 
 Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global 
@@ -258,7 +258,7 @@ co-registration would be like this:
 
 
 ```bash
-python coreg_cmd.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+python arosics.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
 ```
 
  
@@ -1494,7 +1494,7 @@ co-registration would be like this:
 
 
 ```bash
-python coreg_cmd.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50
+python arosics.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50
 ```
 
 
