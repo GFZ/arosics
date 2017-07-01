@@ -41,11 +41,12 @@ Features
 
 Installation
 ------------
-* Use the pip-Installer:
 
-    pip install git+https://gitext.gfz-potsdam.de/danschef/arosics.git   # for HTTPS authentification
+Clone the following repository and install AROSICS to your local python:
 
-    pip install git+git@gitext.gfz-potsdam.de:danschef/arosics.git   # for SSH-Key authentification
+    git clone https://gitext.gfz-potsdam.de:danschef/arosics.git
+
+    cd arosics; make install
 
 
 * Or clone the repository via GIT and update the PATH environment variable:
