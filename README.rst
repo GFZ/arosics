@@ -49,7 +49,7 @@ Clone the following repository and install AROSICS to your local python:
     cd arosics; make install
 
 
-* Or clone the repository via GIT and update the PATH environment variable:
+Or clone the repository via GIT and update the PATH environment variable:
 
     cd /your/installation/folder
 
