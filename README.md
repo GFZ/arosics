@@ -23,7 +23,7 @@ See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/cov
 
 Perform automatic subpixel co-registration of two satellite image datasets based on an image matching approach working in the frequency domain, combined with a multistage workflow for effective detection of false-positives. Python implementation by Daniel Scheffler (daniel.scheffler [at] gfz-potsdam [dot] de).
 
-AROSICS detects and corrects global as well as local misregistrations between two input images in the subpixel scale, that are often present in satellite imagery.
+AROSICS detects and corrects local as well as global misregistrations between two input images in the subpixel scale, that are often present in satellite imagery.
 
 Prerequisites and hints:
 The input images can have any [GDAL compatible image format](http://www.gdal.org/formats_list.html). Both of them must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a 'coordinate system string' as attributes of their header file. The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any spatial resampling of the input images before applying this algorithm. Any needed resampling of the data is done automatically. Thus, the input images may have different spatial resolutions. The current algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order to minimize local shifts in the input images.  
@@ -39,7 +39,7 @@ Only a global X/Y translation is computed within a small subset of the input ima
 
 AROSICS is designed to robustly handle the typical difficulties of multi-sensoral/multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically calculated. Thereby, no-data regions within the images are automatically respected. Providing the map coordinates of the actual data corners lets you save some calculation time, because in this case the automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image corners. The verbose program mode gives some more output about the interim results, shows some figures and writes the used footprint and overlap polygons to disk. Note, that maybe the figures must be manually closed in in order to continue the processing (depending on your Python configuration).  
   
-For further details regarding the implemented algorithm, example use cases, quality assessment and benchmarks refer to the above mentioned paper (Scheffler et al. 2017).
+For further details regarding the implemented algorithm, example use cases, quality assessment and benchmarks refer to the above mentioned paper ([Scheffler et al. 2017](http://www.mdpi.com/2072-4292/9/7/676)).
 
 
  
