@@ -116,37 +116,46 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='arosics.py',
 
-        description='Perform subpixel coregistration of two satellite image datasets ' \
-                    'using Fourier Shift Theorem proposed by Foroosh et al. 2002: ' \
-                    'Foroosh, H., Zerubia, J. B., & Berthod, M. (2002). Extension of phase correlation to subpixel ' \
-                    'registration. IEEE Transactions on Image Processing, 11(3), 188-199. doi:10.1109/83.988953); '\
-                    'Python implementation by Daniel Scheffler (daniel.scheffler@gfz-potsdam.de)',
+        description='Perform automatic subpixel co-registration of two satellite image datasets based on an image '
+                    'matching approach working in the frequency domain, combined with a multistage workflow for '
+                    'effective detection of false-positives. Python implementation by Daniel Scheffler '
+                    '(daniel.scheffler [at] gfz-potsdam [dot] de). The scientific background is described in the paper '
+                    'Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust '
+                    'Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017;'
+                    ' 9(7):676." (http://www.mdpi.com/2072-4292/9/7/676)',
 
-        epilog="DETAILED DESCRIPTION: The program detects and corrects global X/Y-shifts between two input images in "\
-        "the subpixel scale, that are often present in satellite imagery. It does not correct scaling or rotation "\
-        "issues and will not apply any higher grade transformation. Therefore it will also not correct for shifts "\
-        "that are locally present in the input images. "
-        "Prerequisites and hints: The input images can have any GDAL compatible image format "\
-        "(http://www.gdal.org/formats_list.html). Both of them must be georeferenced. In case of ENVI files, this "\
-        "means they must have a 'map info' and a 'coordinate system string' as attributes of their header file. "\
-        "Different projection systems are currently not supported. The input images must have a geographic overlap "\
-        "but clipping them to same geographical extent is NOT neccessary. Please do not perform any spatial "\
-        "resampling of the input images before applying this algorithm. Any needed resampling of the data is done "\
-        "automatically. Thus the input images can have different spatial resolutions. The current algorithm will not "\
-        "perform any ortho-rectification. So please use ortho-rectified input data in order to prevent local shifts "\
-        "in the output image. By default the calculated subpixel-shifts are applied to the header file of the output "\
-        "image. No spatial resampling is done automatically as long as the both input images have the same "\
-        "projection. If you need the output image to be aligned to the reference image coordinate grid (by using an "\
-        "appropriate resampling algorithm), use the '-align_grids' option. The image overlap area is automatically "\
-        "calculated. Thereby no-data regions within the images are standardly respected. Providing the map "\
-        "coordinates of the actual data corners lets you save some calculation time, because in this case the "\
-        "automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image "\
-        "corners. The verbose program mode gives some more output about the interim results, shows some figures and "\
-        "writes the used footprint and overlap polygons to disk. The figures must be manually closed in in order to "\
-        "continue the processing."
-        "The following non-standard Python libraries are required: gdal, osr, ogr, geopandas, rasterio, pykrige, "\
-        "argparse and shapely. pyfftw is optional but will speed up calculation.")
-    # TODO update epilog
+        epilog="DETAILED DESCRIPTION: AROSICS detects and corrects global as well as local misregistrations between "
+               "two input images in the subpixel scale, that are often present in satellite imagery. The input images "
+               "can have any GDAL compatible image format (http://www.gdal.org/formats_list.html). Both of them must "
+               "be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
+               "'coordinate system string' as attributes of their header file. The input images must have a geographic "
+               "overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any "
+               "spatial resampling of the input images before applying this algorithm. Any needed resampling of the "
+               "data is done automatically. Thus, the input images may have different spatial resolutions. The current "
+               "algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order "
+               "to minimize local shifts in the input images. AROSICS supports local and global co-registration. LOCAL "
+               "CO-REGISTRATION: A dense grid of tie points is automatically computed, whereas tie points are "
+               "subsequently validated using a multistage workflow. Only those tie points not marked as "
+               "false-positives are used to compute the parameters of an affine transformation. Warping of the target "
+               "image is done using an appropriate resampling technique (cubic by default). GLOBAL CO-REGISTRATION: "
+               "Only a global X/Y translation is computed within a small subset of the input images (window position "
+               "is adjustable). This allows very fast co-registration but only corrects for translational (global) X/Y "
+               "shifts. The calculated subpixel-shifts are (by default) applied to the geocoding information of the "
+               "output image. No spatial resampling is done automatically as long as both input images have the same "
+               "projection. If you need the output image to be aligned to the reference image coordinate grid (by "
+               "using an appropriate resampling algorithm), use the '-align_grids' option. AROSICS is designed to "
+               "robustly handle the typical difficulties of multi-sensoral/multi-temporal images. Clouds are "
+               "automatically handled by the implemented outlier detection algorithms. The user may provide "
+               "user-defined masks to exclude certain image areas from tie point creation. The image overlap area is "
+               "automatically calculated. Thereby, no-data regions within the images are automatically respected. "
+               "Providing the map coordinates of the actual data corners lets you save some calculation time, because "
+               "in this case the automatic algorithm can be skipped. The no-data value of each image is automatically "
+               "derived from the image corners. The verbose program mode gives some more output about the interim "
+               "results, shows some figures and writes the used footprint and overlap polygons to disk. Note, that "
+               "maybe the figures must be manually closed in in order to continue the processing (depending on your "
+               "Python configuration). For further details regarding the implemented algorithm, example use cases, "
+               "quality assessment and benchmarks refer to the above mentioned paper (Scheffler et al. 2017).")
+
     parser.add_argument('--version', action='version', version=__version__)
 
     subparsers = parser.add_subparsers()
