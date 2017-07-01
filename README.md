@@ -60,7 +60,9 @@ cd arosics; make install
 ```bash
 cd /your/installation/folder
 git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
-PATH=$PATH:~/path/to/your/installation/folder/arosics
+git clone https://gitext.gfz-potsdam.de/danschef/geoarray.git
+git clone https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git
+PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/folder/geoarray:/path/to/your/installation/folder/py_tools_ds
 ```
 
 
