@@ -14,7 +14,7 @@ To install arosics, run this command in your terminal:
 
     $ pip install arosics
 
-This is the preferred method to install arosics, as it will always install the most recent stable release. 
+This is the preferred method to install arosics, as it will always install the most recent stable release.
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
@@ -38,7 +38,7 @@ Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl  -OL https://github.com/danschef/arosics/tarball/master
+    $ curl  -OL https://gitext.gfz-potsdam.de/danschef/arosics/repository/archive.tar.gz?ref=master
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +47,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/danschef/arosics
-.. _tarball: https://github.com/danschef/arosics/tarball/master
+.. _Github repo: https://gitext.gfz-potsdam.de/danschef/arosics
+.. _tarball: https://gitext.gfz-potsdam.de/danschef/arosics/repository/archive.tar.gz?ref=master
