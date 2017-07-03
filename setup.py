@@ -29,7 +29,7 @@ setup(
     long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
     author_email='daniel.scheffler@gfz-potsdam.de',
-    url='https://github.com/danschef/arosics',
+    url='https://gitext.gfz-potsdam.de/danschef/arosics',
     packages=find_packages(),
     include_package_data=True,
     scripts=["bin/arosics.py"],
