@@ -42,11 +42,9 @@ Features
 Installation
 ------------
 
-Clone the following repository and install AROSICS to your local python:
+Use the pip installer:
 
-    git clone https://gitext.gfz-potsdam.de:danschef/arosics.git
-
-    cd arosics; make install
+    pip install arosics
 
 
 Or clone the repository via GIT and update the PATH environment variable:
