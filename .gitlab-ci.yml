@@ -53,10 +53,14 @@ deploy_pypi:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
     - source /root/anaconda3/bin/activate
-    - echo "[server-login]" >> ~/.pypirc
+    - echo "[distutils]" >> ~/.pypirc
+    - echo "index-servers = pypi" >> ~/.pypirc
+    - echo "" > ~/.pypirc
+    - echo "[pypi]" > ~/.pypirc
+    - echo "repository: https://upload.pypi.org/legacy/" > ~/.pypirc
     - echo "username=" ${PYPI_USER} >> ~/.pypirc
     - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
-    - python setup.py check sdist bdist upload   # This will fail if your creds are bad.
+    - python setup.py check sdist bdist upload -r pypi  # This will fail if your creds are bad.
     - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
