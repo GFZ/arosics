@@ -52,7 +52,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
-    - pip -q install setuptools
+    - source /root/anaconda3/bin/activate
     - echo "[server-login]" >> ~/.pypirc
     - echo "username=" ${PYPI_USER} >> ~/.pypirc
     - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
