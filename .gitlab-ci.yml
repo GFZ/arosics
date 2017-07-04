@@ -10,7 +10,8 @@ variables:
 
 stages:
   - test
-  - deploy
+  - deploy_pages
+  - deploy_pypi
   - cleanup
 
 
@@ -29,7 +30,7 @@ test_arosics:
 
 
 pages:
-  stage: deploy
+  stage: deploy_pages
   dependencies:
     - test_arosics
   script:
@@ -45,8 +46,9 @@ pages:
   only:
     - master
 
+
 deploy_pypi:
-  stage: deploy
+  stage: deploy_pypi
   dependencies:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
