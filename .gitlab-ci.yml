@@ -57,7 +57,7 @@ deploy_pypi:
     - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
     - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
     - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
-    - python setup.py check sdist bdist upload -r pypi  # This will fail if your creds are bad.
+    - python setup.py check sdist upload -r pypi  # This will fail if your creds are bad.
     - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)

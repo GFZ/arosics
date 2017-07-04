@@ -4,8 +4,8 @@
 
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.3.8'
-__versionalias__ = '2017-07-04_09'
+__version__ = '0.3.9'
+__versionalias__ = '2017-07-04_10'
 
 
 from .CoReg import COREG
