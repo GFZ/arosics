@@ -11,7 +11,7 @@ variables:
 stages:
   - test
   - deploy_pages
-  - deploy_pypi
+  - deploy_to_pypi
   - cleanup
 
 
@@ -48,10 +48,11 @@ pages:
 
 
 deploy_pypi:
-  stage: deploy_pypi
+  stage: deploy_to_pypi
   dependencies:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
+    - pip -q install setuptools
     - echo "[server-login]" >> ~/.pypirc
     - echo "username=" ${PYPI_USER} >> ~/.pypirc
     - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
