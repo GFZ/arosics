@@ -1,7 +1,21 @@
 before_script:
   - git lfs pull
 
+
+# Advise GitLab that these environment vars should be loaded from the Variables config.
+variables:
+    PYPI_USER: SECURE
+    PYPI_PASSWORD: SECURE
+
+
+stage:
+  - test
+  - deploy
+  - cleanup
+
+
 test_arosics:
+  stage: test
   script:
     - source /root/anaconda3/bin/activate
     - export GDAL_DATA=/root/anaconda3/share/gdal
@@ -12,6 +26,7 @@ test_arosics:
     paths:
     - htmlcov/
     - docs/_build/html/
+
 
 pages:
   stage: deploy
@@ -29,3 +44,24 @@ pages:
     expire_in: 30 days
   only:
     - master
+
+
+ deploy_pypi:
+  stage: deploy
+  script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
+    - echo "[server-login]" >> ~/.pypirc
+    - echo "username=" ${PYPI_USER} >> ~/.pypirc
+    - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
+    - python setup.py check sdist bdist upload   # This will fail if your creds are bad.
+    - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+  except:
+    - dev
+
+
+cleanup_pypirc:
+   stage: cleanup
+   when: always   # this is important; run even if preceding stages failed.
+   script:
+    - rm -vf ~/.pypirc  # we don't want to leave these around, but GitLab may clean up anyway.
