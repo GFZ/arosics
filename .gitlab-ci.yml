@@ -57,7 +57,7 @@ deploy_pypi:
     - echo "index-servers = pypi" >> ~/.pypirc
     - echo "" > ~/.pypirc
     - echo "[pypi]" > ~/.pypirc
-    - echo "repository: https://upload.pypi.org/legacy/" > ~/.pypirc
+    - echo "repository:"+" https://upload.pypi.org/legacy/" > ~/.pypirc
     - echo "username=" ${PYPI_USER} >> ~/.pypirc
     - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
     - python setup.py check sdist bdist upload -r pypi  # This will fail if your creds are bad.
