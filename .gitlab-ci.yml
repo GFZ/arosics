@@ -8,7 +8,7 @@ variables:
     PYPI_PASSWORD: SECURE
 
 
-stage:
+stages:
   - test
   - deploy
   - cleanup
@@ -45,9 +45,10 @@ pages:
   only:
     - master
 
-
- deploy_pypi:
+deploy_pypi:
   stage: deploy
+  dependencies:
+    - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
     - echo "[server-login]" >> ~/.pypirc
     - echo "username=" ${PYPI_USER} >> ~/.pypirc
