@@ -53,13 +53,10 @@ deploy_pypi:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
     - source /root/anaconda3/bin/activate
-    - echo "[distutils]" >> ~/.pypirc
-    - echo "index-servers = pypi" >> ~/.pypirc
-    - echo "" > ~/.pypirc
-    - echo "[pypi]" > ~/.pypirc
-    - echo "repository:"" https://upload.pypi.org/legacy/" > ~/.pypirc
-    - echo "username=" ${PYPI_USER} >> ~/.pypirc
-    - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
+    - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
+    - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
+    - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
+    - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
     - python setup.py check sdist bdist upload -r pypi  # This will fail if your creds are bad.
     - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
   only:
