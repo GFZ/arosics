@@ -13,7 +13,7 @@
 ### Status
 
 [![build status](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/commits/master)
-[![coverage report](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/commits/master)
+[![coverage report](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/)
 [![pypi_status](https://img.shields.io/pypi/v/arosics.svg)](https://pypi.python.org/pypi/arosics)
 
 See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) report.
