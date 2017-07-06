@@ -52,6 +52,9 @@ class DESHIFTER(object):
                                     default = False
             - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]].
                                     This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
+            - min_points_local_corr number of valid tie points, below which a global shift correction is performed
+                                    instead of a local correction (global X/Y shift is then computed as the mean shift
+                                    of the remaining points)(default: 5 tie points)
             - resamp_alg(str)       the resampling algorithm to be used if neccessary
                                     (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
                                                        max, min, med, q1, q3)
@@ -88,6 +91,7 @@ class DESHIFTER(object):
         self.band2process = self.band2process-1 if self.band2process is not None else None # internally handled as band index
         self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids'     , False)
+        self.min_points_local_corr = kwargs.get('min_points_local_corr', 5)
         self.rspAlg       = kwargs.get('resamp_alg'      , 'cubic') # TODO accept also integers
         self.cliptoextent = kwargs.get('cliptoextent'    , False)
         self.clipextent   = kwargs.get('clipextent'      , None)
@@ -101,17 +105,30 @@ class DESHIFTER(object):
         self.shift_prj          = self.im2shift.projection
         self.shift_gt           = list(self.im2shift.geotransform)
 
+
+        # in case of local shift correction and local coreg results contain less points than min_points_local_corr:
+        # force global correction based on mean X/Y shifts
+        if 'GCPList' in coreg_results and len(coreg_results['GCPList']) < self.min_points_local_corr:
+            warnings.warn('Only %s valid tie point(s) could be identified. A local shift correction is therefore not '
+                          'reasonable and could cause artifacts in the output image. The target image is '
+                          'corrected globally with the mean X/Y shift of %.3f/%.3f pixels.' %(len(self.GCPList),
+                          coreg_results['mean_shifts_px']['x'], coreg_results['mean_shifts_px']['y']))
+            self.GCPList = None
+            coreg_results['updated map info'] = coreg_results['updated map info means']
+
+
+        # in case of global shift correction -> the updated map info from coreg_results already has the final map info
+        # BUT: this will updated in correct_shifts() if clipextent is given or warping is needed
         if not self.GCPList:
-            # in case of global de-shifting -> the updated map info from coreg_results already has the final map info
-            # BUT: this will updated in correct_shifts() if clipextent is given or warping is needed
             mapI                   = coreg_results['updated map info']
             self.updated_map_info  = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
             self.updated_gt        = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
-            self.original_map_info = coreg_results['original map info'] # only exists in global de-shifting # FIXME WHY?
+            self.original_map_info = coreg_results['original map info']
         self.updated_projection    = self.ref_prj
 
         self.out_grid = self._get_out_grid() # needs self.ref_grid, self.im2shift
         self.out_gsd  = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
+
 
         # assertions
         assert self.rspAlg  in _dict_rspAlg_rsp_Int.keys(), \
@@ -121,6 +138,7 @@ class DESHIFTER(object):
                 "%s%s. Got %s." % (self.im2shift.__class__.__name__, self.im2shift.basename, self.im2shift.bands,
                 'bands' if self.im2shift.bands > 1 else 'band', 'between 1 and ' if self.im2shift.bands > 1 else '',
                 self.im2shift.bands, self.band2process+1)
+
 
         # set defaults for general class attributes
         self.is_shifted       = False # this is not included in COREG.coreg_info

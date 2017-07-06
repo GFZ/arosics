@@ -99,17 +99,29 @@ class Tie_Point_Grid(object):
         self.ref               = self.COREG_obj.ref
         self.shift             = self.COREG_obj.shift
 
+
+
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table           = None # set by self.CoRegPoints_table
         self._GCPList                     = None # set by self.to_GCPList()
         self.kriged                       = None # set by Raster_using_Kriging()
 
 
+    mean_x_shift_px   = property(lambda self:
+        self.CoRegPoints_table['X_SHIFT_PX'][self.CoRegPoints_table['X_SHIFT_PX']!=self.outFillVal].mean())
+    mean_y_shift_px   = property(lambda self:
+        self.CoRegPoints_table['Y_SHIFT_PX'][self.CoRegPoints_table['Y_SHIFT_PX']!=self.outFillVal].mean())
+    mean_x_shift_map  = property(lambda self:
+        self.CoRegPoints_table['X_SHIFT_M'][self.CoRegPoints_table['X_SHIFT_M']!=self.outFillVal].mean())
+    mean_y_shift_map  = property(lambda self:
+        self.CoRegPoints_table['Y_SHIFT_M'][self.CoRegPoints_table['Y_SHIFT_M']!=self.outFillVal].mean())
+
+
     @property
     def CoRegPoints_table(self):
         """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
         'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
-        information containing all the results frm coregistration for all points in the tie points grid.
+        information containing all the results from coregistration for all points in the tie points grid.
         """
         if self._CoRegPoints_table is not None:
             return self._CoRegPoints_table

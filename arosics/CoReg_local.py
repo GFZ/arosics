@@ -3,6 +3,7 @@ __author__='Daniel Scheffler'
 
 import warnings
 import os
+from copy import copy
 
 # custom
 try:
@@ -21,6 +22,7 @@ from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
 from .DeShifter import DESHIFTER
 from py_tools_ds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
+from py_tools_ds.geo.map_info import geotransform2mapinfo
 from geoarray import GeoArray
 
 
@@ -291,6 +293,8 @@ class COREG_LOCAL(object):
                                                  progress          = self.progress,
                                                  v                 = self.v,
                                                  q                 = self.q)
+            self._tiepoint_grid.get_CoRegPoints_table()
+
             if self.v:
                 print('Visualizing CoReg points grid...')
                 self.view_CoRegPoints(figsize=(10,10))
@@ -496,6 +500,16 @@ class COREG_LOCAL(object):
         return map_osm
 
 
+    def _get_updated_map_info_meanShifts(self):
+        """Returns the updated map info of the target image, shifted on the basis of the mean X/Y shifts."""
+
+        original_map_info   = geotransform2mapinfo(self.im2shift.gt, self.im2shift.prj)
+        updated_map_info    = copy(original_map_info)
+        updated_map_info[3] = str(float(original_map_info[3]) + self.tiepoint_grid.mean_x_shift_map)
+        updated_map_info[4] = str(float(original_map_info[4]) + self.tiepoint_grid.mean_y_shift_map)
+        return updated_map_info
+
+
     @property
     def coreg_info(self):
         if self._coreg_info:
@@ -503,6 +517,12 @@ class COREG_LOCAL(object):
         else:
             self._coreg_info = {
                 'GCPList'               : self.tiepoint_grid.GCPList,
+                'mean_shifts_px'        : {'x':self.tiepoint_grid.mean_x_shift_px,
+                                           'y':self.tiepoint_grid.mean_y_shift_px},
+                'mean_shifts_map'       : {'x':self.tiepoint_grid.mean_x_shift_map,
+                                           'y':self.tiepoint_grid.mean_y_shift_map},
+                'updated map info means': self._get_updated_map_info_meanShifts(),
+                'original map info'     : geotransform2mapinfo(self.imref.gt, self.imref.prj),
                 'reference projection'  : self.imref.prj,
                 'reference geotransform': self.imref.gt,
                 'reference grid'        : [ [self.imref.gt[0], self.imref.gt[0]+self.imref.gt[1]],
@@ -513,12 +533,15 @@ class COREG_LOCAL(object):
             return self.coreg_info
 
 
-    def correct_shifts(self, max_GCP_count=None, cliptoextent=False):
+    def correct_shifts(self, max_GCP_count=None, cliptoextent=False, min_points_local_corr=5):
         """Performs a local shift correction using all points from the previously calculated geometric quality grid
         that contain valid matches as GCP points.
 
         :param max_GCP_count: <int> maximum number of GCPs to use
         :param cliptoextent:  <bool> whether to clip the output image to its real extent
+        :param min_points_local_corr:   <int> number of valid tie points, below which a global shift correction is performed
+                                        instead of a local correction (global X/Y shift is then computed as the mean shift
+                                        of the remaining points)(default: 5 tie points)
         :return:
         """
 
@@ -529,19 +552,20 @@ class COREG_LOCAL(object):
                 coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count]
 
             DS = DESHIFTER(self.im2shift, coreg_info,
-                           path_out         = self.path_out,
-                           fmt_out          = self.fmt_out,
-                           out_crea_options = self.out_creaOpt,
-                           align_grids      = self.align_grids,
-                           match_gsd        = self.match_gsd,
-                           out_gsd          = self.out_gsd,
-                           target_xyGrid    = self.target_xyGrid,
-                           resamp_alg       = self.rspAlg_DS,
-                           cliptoextent     = cliptoextent,
-                           #clipextent      = self.im2shift.box.boxMapYX,
-                           progress         = self.progress,
-                           v                = self.v,
-                           q                = self.q)
+                           path_out              = self.path_out,
+                           fmt_out               = self.fmt_out,
+                           out_crea_options      = self.out_creaOpt,
+                           align_grids           = self.align_grids,
+                           match_gsd             = self.match_gsd,
+                           out_gsd               = self.out_gsd,
+                           target_xyGrid         = self.target_xyGrid,
+                           min_points_local_corr = min_points_local_corr,
+                           resamp_alg            = self.rspAlg_DS,
+                           cliptoextent          = cliptoextent,
+                           #clipextent            = self.im2shift.box.boxMapYX,
+                           progress              = self.progress,
+                           v                     = self.v,
+                           q                     = self.q)
 
             self.deshift_results = DS.correct_shifts()
             return self.deshift_results
