@@ -10,7 +10,8 @@ variables:
 
 stages:
   - test
-  - deploy
+  - deploy_pages
+  - deploy_to_pypi
   - cleanup
 
 
@@ -29,7 +30,7 @@ test_arosics:
 
 
 pages:
-  stage: deploy
+  stage: deploy_pages
   dependencies:
     - test_arosics
   script:
@@ -45,15 +46,18 @@ pages:
   only:
     - master
 
+
 deploy_pypi:
-  stage: deploy
+  stage: deploy_to_pypi
   dependencies:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
-    - echo "[server-login]" >> ~/.pypirc
-    - echo "username=" ${PYPI_USER} >> ~/.pypirc
-    - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
-    - python setup.py check sdist bdist upload   # This will fail if your creds are bad.
+    - source /root/anaconda3/bin/activate
+    - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
+    - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
+    - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
+    - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
+    - python setup.py check sdist upload -r pypi  # This will fail if your creds are bad.
     - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)

@@ -77,11 +77,11 @@ class DESHIFTER(object):
         self.init_kwargs = self.init_args['kwargs']
 
         # unpack args
-        self.im2shift           = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
-        self.GCPList            = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
-        self.ref_gt             = coreg_results['reference geotransform']
-        self.ref_grid           = coreg_results['reference grid']
-        self.ref_prj            = coreg_results['reference projection']
+        self.im2shift = im2shift if isinstance(im2shift, GeoArray) else GeoArray(im2shift)
+        self.GCPList  = coreg_results['GCPList'] if 'GCPList' in coreg_results else None
+        self.ref_gt   = coreg_results['reference geotransform']
+        self.ref_grid = coreg_results['reference grid']
+        self.ref_prj  = coreg_results['reference projection']
 
         # unpack kwargs
         self.path_out     = kwargs.get('path_out'        , None)
@@ -100,10 +100,10 @@ class DESHIFTER(object):
         self.q            = kwargs.get('q'               , False) if not self.v else False # overridden by v
         self.progress     = kwargs.get('progress'        , True)  if not self.q else False # overridden by q
 
-        self.im2shift.nodata    = kwargs.get('nodata', self.im2shift.nodata)
-        self.im2shift.q         = self.q
-        self.shift_prj          = self.im2shift.projection
-        self.shift_gt           = list(self.im2shift.geotransform)
+        self.im2shift.nodata = kwargs.get('nodata', self.im2shift.nodata)
+        self.im2shift.q      = self.q
+        self.shift_prj       = self.im2shift.projection
+        self.shift_gt        = list(self.im2shift.geotransform)
 
 
         # in case of local shift correction and local coreg results contain less points than min_points_local_corr:
@@ -150,9 +150,9 @@ class DESHIFTER(object):
 
     def _get_out_grid(self):
         # parse given params
-        out_gsd     = self.init_kwargs.get('out_gsd'      , None)
-        match_gsd   = self.init_kwargs.get('match_gsd'    , False)
-        out_grid    = self.init_kwargs.get('target_xyGrid', None)
+        out_gsd   = self.init_kwargs.get('out_gsd'      , None)
+        match_gsd = self.init_kwargs.get('match_gsd'    , False)
+        out_grid  = self.init_kwargs.get('target_xyGrid', None)
 
         # assertions
         assert out_grid is None or (isinstance(out_grid,(list, tuple))      and len(out_grid)==2)

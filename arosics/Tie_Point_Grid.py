@@ -139,6 +139,7 @@ class Tie_Point_Grid(object):
     def GCPList(self):
         """Returns a list of GDAL compatible GCP objects.
         """
+
         if self._GCPList:
             return self._GCPList
         else:
@@ -158,6 +159,7 @@ class Tie_Point_Grid(object):
         :param grid_res:
         :return:
         """
+
         if not self.q:
             print('Initializing tie points grid...')
 
@@ -585,6 +587,7 @@ class Tie_Point_Grid(object):
         :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
                                 identify points where no valid match could be found
         """
+
         GDF      = self.CoRegPoints_table
         GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col]!=self.outFillVal]
 

@@ -12,9 +12,6 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
 Status
 ------
 
-.. .. image:: https://img.shields.io/pypi/v/arosics.svg
-        :target: https://pypi.python.org/pypi/arosics
-
 .. .. image:: https://img.shields.io/travis/danschef/arosics.svg
         :target: https://travis-ci.org/danschef/arosics
 
@@ -28,7 +25,11 @@ Status
 
 
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg
+        :target: https://gitext.gfz-potsdam.de/danschef/arosics/commits/master
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
+        :target: http://danschef.gitext.gfz-potsdam.de/arosics/coverage/
+.. image:: https://img.shields.io/pypi/v/arosics.svg
+        :target: https://pypi.python.org/pypi/arosics
 
 See also the latest coverage_ report.
 
