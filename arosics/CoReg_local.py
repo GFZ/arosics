@@ -303,6 +303,7 @@ class COREG_LOCAL(object):
         'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
         information containing all the results frm coregistration for all points in the geometric quality grid.
         """
+
         return self.tiepoint_grid.CoRegPoints_table
 
 
