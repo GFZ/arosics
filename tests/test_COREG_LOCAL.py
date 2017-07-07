@@ -19,7 +19,9 @@ test_cases = dict(
     INTER1=dict(
         ref_path = os.path.join(tests_path, 'data/testcase_inter1_S2A_S2A/ref_S2A_20160608T153121_T33UUU_sub.jp2'),
         tgt_path = os.path.join(tests_path, 'data/testcase_inter1_S2A_S2A/tgt_S2A_20160529T153631_T33UUU_sub.jp2'),
-        kwargs = dict(grid_res=100)
+        kwargs = dict(
+            grid_res = 100,
+            progress = False)
     )
 )
 
@@ -71,7 +73,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         TPG = CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        CRL.view_CoRegPoints()
+        #CRL.view_CoRegPoints() # only works if basemap is installed
 
         # test shift correction and output writer
         CRL.correct_shifts()
