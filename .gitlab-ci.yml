@@ -53,6 +53,8 @@ deploy_pypi:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
     - source /root/anaconda3/bin/activate
+    - mkdir -p public/images/
+    - cp -r docs/images/* public/images/
     - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
     - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
     - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
