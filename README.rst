@@ -1,6 +1,4 @@
-=======
-AROSICS
-=======
+.. figure:: docs/figs/arosics_logo_v1.png
 
 An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
 
