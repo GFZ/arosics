@@ -12,3 +12,14 @@ History
 
 * First release on PyPI.
 
+0.4.0 (2017-07-07)
+------------------
+
+New features:
+* added a logo
+* added auto-deploy to PyPI
+* added test cases for local co-registration
+
+Bugfixes:
+* fixed warping issues in case only very few tie points could be identified
+
