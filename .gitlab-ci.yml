@@ -1,5 +1,7 @@
 before_script:
   - git lfs pull
+  - mkdir -p public/images/
+  - cp -r docs/images/* public/images/
 
 
 # Advise GitLab that these environment vars should be loaded from the Variables config.
