@@ -861,7 +861,9 @@ class COREG(object):
                 fft_arr1 = pyfftw.FFTW(in_arr1,np.empty_like(in_arr1), axes=(0,1))()
 
                 # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
-                if self.fftw_works is None and (np.std(fft_arr0)==0 or np.std(fft_arr1)==0):
+                # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array in_arr0 is
+                #    overwritten with zeros (maybe this is a bug in pyFFTW?)
+                if self.fftw_works in [None, True] and (np.std(fft_arr0)==0 or np.std(fft_arr1)==0):
                     self.fftw_works = False
                     # recreate input arrays and use numpy fft as fallback
                     in_arr0 = im0[ymin:ymax, xmin:xmax].astype(precision)

@@ -1,28 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Tests for the local co-registration module of AROSICS."""
+"""Tests for the global co-registration module of AROSICS."""
 
 
 import unittest
 
 # custom
 from .cases import test_cases
-from arosics import COREG_LOCAL
+from arosics import COREG
 from geoarray import GeoArray
 
 
-
-class COREG_LOCAL_init(unittest.TestCase):
+class COREG_GLOBAL_init(unittest.TestCase):
     """Test case on object initialization of COREG_LOCAL."""
 
     def setUp(self):
         self.ref_path = test_cases['INTER1']['ref_path']
         self.tgt_path = test_cases['INTER1']['tgt_path']
-        self.coreg_kwargs = test_cases['INTER1']['kwargs_local']
+        self.coreg_kwargs = test_cases['INTER1']['kwargs_global']
+        self.coreg_kwargs['wp'] = test_cases['INTER1']['wp_inside']
+
 
     def test_coreg_init_from_disk(self):
-        self.CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
+        self.CRL = COREG(self.ref_path, self.tgt_path, **self.coreg_kwargs)
 
     def test_coreg_init_from_inMem_GeoArray(self):
         # get GeoArray instances
@@ -34,11 +35,12 @@ class COREG_LOCAL_init(unittest.TestCase):
         self.tgt_gA.to_mem()
 
         # get instance of COREG_LOCAL object
-        self.CRL = COREG_LOCAL(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
+        self.CRL = COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
+
 
 
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
-    """Test case for the complete workflow of local co-registration based on two Sentinel-2 datasets, one with
+    """Test case for the complete workflow of global co-registration based on two Sentinel-2 datasets, one with
     ~25% cloud cover, the other one without any clouds. The subsets cover the S2A tiles only partly (nodata areas
     are present).
     """
@@ -46,20 +48,20 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     def setUp(self):
         self.ref_path = test_cases['INTER1']['ref_path']
         self.tgt_path = test_cases['INTER1']['tgt_path']
-        self.coreg_kwargs = test_cases['INTER1']['kwargs_local']
+        self.coreg_kwargs = test_cases['INTER1']['kwargs_global']
+        self.coreg_kwargs['wp'] = test_cases['INTER1']['wp_inside']
 
     def tearDown(self):
         """Tear down test fixtures, if any."""
 
     def test_calculation_of_tie_point_grid(self):
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
+        CR = COREG(self.ref_path, self.tgt_path, **self.coreg_kwargs)
 
-        # use the getter of the CoRegPoints_table to calculate tie point grid
-        TPG = CRL.CoRegPoints_table
-
-        # test tie point grid visualization
-        #CRL.view_CoRegPoints() # only works if basemap is installed
+        # calculate global X/Y shift
+        CR.calculate_spatial_shifts()
 
         # test shift correction and output writer
-        CRL.correct_shifts()
+        CR.correct_shifts()
+
+        # TODO test writer (path_out is by now not passed)
