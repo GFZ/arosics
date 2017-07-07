@@ -1,5 +1,5 @@
 
-![logo](docs/images/arosics_logo_v1.png)
+[![logo](docs/images/arosics_logo.png)](https://gitext.gfz-potsdam.de/danschef/arosics/)
   
 ### An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
 
