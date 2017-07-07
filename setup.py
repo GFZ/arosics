@@ -24,7 +24,7 @@ test_requirements = ['coverage']
 
 setup(
     name='arosics',
-    version='0.4.0',
+    version='0.4.1',
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
