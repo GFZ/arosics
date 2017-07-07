@@ -1,4 +1,4 @@
-.. figure:: docs/figs/arosics_logo.png
+.. figure:: docs/images/arosics_logo.png
         :target: https://gitext.gfz-potsdam.de/danschef/arosics
 
 An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
