@@ -1,6 +1,6 @@
 FROM centos:7
 RUN yum update -y && \
-    yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git # TODO
+    yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git
 
 ENV anaconda_dl 'Anaconda3-4.3.1-Linux-x86_64.sh'
 RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_dl ; \
@@ -8,21 +8,21 @@ RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_
     rm -f /root/$anaconda_dl"
 
 # 'conda install --yes -c conda-forge 'icu=58.*' lxml' fixing a bug for conda-forge gdal build, as of 06/2017
+# holoviews and bokeh is only needed for geoarray because its not installable via pip during geoarray.setup.py
 RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes pyqt coverage ; \
     conda install --yes -c conda-forge gdal ; \
     conda install --yes -c conda-forge pyfftw=0.10.4 ; \
+    conda install --yes -c ioam holoviews=1.8.0 ; \
+    conda install --yes -c ioam bokeh ; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
     conda install --yes -c conda-forge glymur pygrib rasterio pyproj cachetools basemap; \
-    pip install shapely geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral pykrige"   # must include all the requirements needed to build the docs!
+    pip install shapely geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral \
+        pykrige geoarray py_tools_ds"   # must include all the requirements needed to build the docs!
 
 # copy some needed stuff to /root
 #COPY *.pkl /root/ # EXAMPLE
 #COPY *.h5 /root/  # EXAMPLE
-
-# copy py_tools_ds and geoarray code to /tmp
-COPY py_tools_ds /tmp/py_tools_ds
-COPY geoarray /tmp/geoarray
 
 # install git lfs
 RUN /bin/bash -i -c "curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.rpm.sh | bash"
@@ -39,8 +39,3 @@ RUN bash -i -c 'source /root/anaconda3/bin/activate; \
     sed -i "/backend      : tkagg/c\backend      : Agg" $(python -c "import matplotlib; print(matplotlib.matplotlib_fname())"); \
     sed -i "/backend      : Qt4Agg/c\backend      : Agg" $(python -c "import matplotlib; print(matplotlib.matplotlib_fname())"); \
     sed -i "/backend      : qt5agg/c\backend      : Agg" $(python -c "import matplotlib; print(matplotlib.matplotlib_fname())")'
-
-
-RUN bash -i -c "source /root/anaconda3/bin/activate; \
-    cd /tmp/py_tools_ds/; python setup.py install; \
-    cd /tmp/geoarray/; python setup.py install;" # TODO move this to setup.py as soon as package is public
