@@ -1520,5 +1520,6 @@ python arosics.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 
 # Credits
 
 This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the 
-[audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template.
+[audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template. 
+The test data represent modified Copernicus Sentinel data (2016).
 
