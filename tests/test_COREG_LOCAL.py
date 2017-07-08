@@ -5,6 +5,8 @@
 
 
 import unittest
+import shutil
+import os
 
 # custom
 from .cases import test_cases
@@ -49,7 +51,10 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.coreg_kwargs = test_cases['INTER1']['kwargs_local']
 
     def tearDown(self):
-        """Tear down test fixtures, if any."""
+        """Delete output."""
+        dir_out = os.path.dirname(self.coreg_kwargs['path_out'])
+        if os.path.isdir(dir_out):
+            shutil.rmtree(dir_out)
 
     def test_calculation_of_tie_point_grid(self):
         # get instance of COREG_LOCAL object
@@ -59,7 +64,10 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         TPG = CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        #CRL.view_CoRegPoints() # only works if basemap is installed
+        CRL.view_CoRegPoints() # only works if basemap is installed
 
         # test shift correction and output writer
         CRL.correct_shifts()
+
+        self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
+                        'Output of local co-registration has not been written.')

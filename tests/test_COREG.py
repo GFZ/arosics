@@ -5,6 +5,8 @@
 
 
 import unittest
+import shutil
+import os
 
 # custom
 from .cases import test_cases
@@ -49,10 +51,12 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.ref_path = test_cases['INTER1']['ref_path']
         self.tgt_path = test_cases['INTER1']['tgt_path']
         self.coreg_kwargs = test_cases['INTER1']['kwargs_global']
-        self.coreg_kwargs['wp'] = test_cases['INTER1']['wp_inside']
 
     def tearDown(self):
-        """Tear down test fixtures, if any."""
+        """Delete output."""
+        dir_out = os.path.dirname(self.coreg_kwargs['path_out'])
+        if os.path.isdir(dir_out):
+            shutil.rmtree(dir_out)
 
     def test_calculation_of_tie_point_grid(self):
         # get instance of COREG_LOCAL object
@@ -64,4 +68,5 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # test shift correction and output writer
         CR.correct_shifts()
 
-        # TODO test writer (path_out is by now not passed)
+        self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
+                        'Output of global co-registration has not been written.')
