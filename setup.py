@@ -13,7 +13,8 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    'numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'spectral', 'pykrige','geoarray','py_tools_ds'
+    'numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'spectral', 'pykrige','geoarray',
+    'py_tools_ds', 'ploty'
     # 'pyfftw', #  conda install --yes -c conda-forge pyfftw=0.10.4 ; \
     # 'basemap', #  conda install --yes -c conda-forge basemap; \
 ]
