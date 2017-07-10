@@ -86,7 +86,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)
 
-    ##@unittest.skip
+    #@unittest.skip
     def test_shift_calculation_verboseMode(self):
         """Test the verbose mode - runs the functions of the plotting submodule."""
 
@@ -164,7 +164,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         self.skipTest('Not yet implemented.')
 
-    @unittest.skip
+    #@unittest.skip
     def test_plotting_after_shift_calculation(self):
         """"""
 
