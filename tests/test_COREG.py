@@ -52,15 +52,17 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.tgt_path = test_cases['INTER1']['tgt_path']
         self.coreg_kwargs = test_cases['INTER1']['kwargs_global']
 
+
     def tearDown(self):
         """Delete output."""
         dir_out = os.path.dirname(self.coreg_kwargs['path_out'])
         if os.path.isdir(dir_out):
             shutil.rmtree(dir_out)
 
-    def test_calculation_of_tie_point_grid(self):
+
+    def run_shift_detection_correction(self, ref, tgt, **params):
         # get instance of COREG_LOCAL object
-        CR = COREG(self.ref_path, self.tgt_path, **self.coreg_kwargs)
+        CR = COREG(ref, tgt, **params)
 
         # calculate global X/Y shift
         CR.calculate_spatial_shifts()
@@ -68,5 +70,71 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # test shift correction and output writer
         CR.correct_shifts()
 
-        self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
-                        'Output of global co-registration has not been written.')
+        self.assertTrue(
+            os.path.exists(params['path_out']),
+            'Output of global co-registration has not been written.')
+
+        return CR
+
+
+    def test_shift_calculation_with_default_params(self):
+        """Test with default parameters - should compute X/Y shifts properly ad write the de-shifted target image."""
+
+        self.run_shift_detection_correction(self.ref_path, self.tgt_path, **self.coreg_kwargs)
+
+
+    def test_shift_calculation_verboseMode(self):
+        """Test the verbose mode - runs the functions of the plotting submodule."""
+
+        self.run_shift_detection_correction(self.ref_path, self.tgt_path,
+                                            **dict(self.coreg_kwargs,
+                                                   v = True))
+
+
+    def test_shift_calculation_windowCoveringNodata(self):
+        """"""
+
+        self.skipTest('Not yet implemented.')
+
+
+    def test_shift_calculation_windowAtImageEdge(self):
+        """"""
+
+        self.skipTest('Not yet implemented.')
+
+
+    def test_shift_calculation_differentInputGrids(self):
+        """"""
+
+        self.skipTest('Not yet implemented.')
+
+
+    def test_shift_calculation_withoutPyFFTW(self):
+        """"""
+
+        self.skipTest('Not yet implemented.')
+
+
+    def test_shift_calculation_SSIMdecreases(self):
+        """"""
+
+        self.skipTest('Not yet implemented.')
+
+
+    def test_plotting_after_shift_calculation(self):
+        """"""
+
+        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **self.coreg_kwargs)
+        CR.show_cross_power_spectrum()
+        CR.show_cross_power_spectrum(interactive=True)
+        CR.show_matchWin(interactive=False)
+        CR.show_matchWin(interactive=False, deshifted=True)
+        # CR.show_matchWin(interactive=True) # only works if test is started with ipython
+        # CR.show_matchWin(interactive=False, deshifted=True)
+        CR.show_image_footprints()
+
+
+    def test_if_shift_calculation_fails(self):
+        """"""
+
+        self.skipTest('Not yet implemented.')
