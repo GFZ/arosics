@@ -11,8 +11,8 @@ tests_path = os.path.abspath(os.path.join(arosics.__file__,"../../tests"))
 # define test data pathes
 test_cases = dict(
     INTER1=dict(
-        ref_path = os.path.join(tests_path, 'data/testcase_inter1_S2A_S2A/ref_S2A_20160608T153121_T33UUU_sub.jp2'),
-        tgt_path = os.path.join(tests_path, 'data/testcase_inter1_S2A_S2A/tgt_S2A_20160529T153631_T33UUU_sub.jp2'),
+        ref_path = os.path.join(tests_path, 'data/testcase_inter1_S2A_S2A/ref_S2A_20160608T153121_T33UUU_sub.tif'),
+        tgt_path = os.path.join(tests_path, 'data/testcase_inter1_S2A_S2A/tgt_S2A_20160529T153631_T33UUU_sub.tif'),
         kwargs_global = dict(
             path_out = os.path.join(tests_path, 'output/testcase_inter1_S2A_S2A/'
                                                 'tgt_S2A_20160529T153631_T33UUU_sub_CR_global.bsq'),
