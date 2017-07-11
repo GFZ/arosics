@@ -43,6 +43,7 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 clean-test: ## remove test and coverage artifacts
+	coverage erase
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
@@ -59,6 +60,7 @@ test-all: ## run tests on every Python version with tox
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source arosics setup.py test
+	coverage combine 	# must be called in order to make coverage work in multiprocessing
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
