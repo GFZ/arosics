@@ -513,6 +513,9 @@ class COREG_LOCAL(object):
 
     @property
     def coreg_info(self):
+        """A dictionary containing all the information needed to correct the detected local displacements of the target
+        image."""
+
         if self._coreg_info:
             return self._coreg_info
         else:

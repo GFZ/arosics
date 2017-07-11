@@ -659,7 +659,7 @@ class Tie_Point_Grid(object):
         return out_GA
 
 
-    def to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+    def _to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
                                    path_out=None, tilepos=None):
         warnings.warn(DeprecationWarning("'to_Raster_using_KrigingOLD' is deprecated. Use to_Raster_using_Kriging "
                                          "instead.")) # TODO delete
@@ -696,7 +696,7 @@ class Tie_Point_Grid(object):
         return zvalues
 
 
-    def Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+    def to_Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
                              fName_out=None, tilepos=None, tilesize=500, mp=None):
 
         mp = False if self.CPUs==1 else True

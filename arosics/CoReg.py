@@ -1173,9 +1173,18 @@ class COREG(object):
 
 
     def calculate_spatial_shifts(self):
-        if self.success is False: return None,None
+        # type: (COREG) -> str
 
-        if self.q:  warnings.simplefilter('ignore')
+        """Compute the global X/Y shift between reference and the target image within the matching window.
+
+        :return: 'success' or 'fail'
+        """
+
+        if self.success is False:
+            return 'fail'
+
+        if self.q:
+            warnings.simplefilter('ignore')
 
         # set self.matchWin and self.otherWin (GeoArray instances)
         self._get_image_windows_to_match() # 45-90ms
@@ -1302,6 +1311,9 @@ class COREG(object):
 
     @property
     def coreg_info(self):
+        """A dictionary containing all the information needed to correct the detected global X/Y shift of the target
+        image."""
+
         if self._coreg_info:
             return self._coreg_info
         else:
@@ -1318,12 +1330,13 @@ class COREG(object):
                                             [self.ref.gt[3], self.ref.gt[3]+self.ref.gt[5]] ],
                 'reference extent'      : {'cols':self.ref.xgsd, 'rows':self.ref.ygsd}, # FIXME not needed anymore
                 'success'               : self.success}
-            return self.coreg_info
+            return self._coreg_info
 
 
     def _get_inverted_coreg_info(self):
         """Returns an inverted dictionary of coreg_info that can be passed to DESHIFTER in order to fit the REFERENCE
         image onto the TARGET image."""
+
         inv_coreg_info = copy(self.coreg_info)
         inv_coreg_info['corrected_shifts_px']['x']  *= -1
         inv_coreg_info['corrected_shifts_px']['y']  *= -1
@@ -1344,6 +1357,13 @@ class COREG(object):
 
 
     def correct_shifts(self):
+        # type: (COREG) -> dict
+
+        """Correct the already calculated X/Y shift of the target image.
+
+        :return: COREG.deshift_results (dictionary)
+        """
+
         DS = DESHIFTER(self.shift, self.coreg_info,
                        path_out         = self.path_out,
                        fmt_out          = self.fmt_out,
@@ -1362,7 +1382,7 @@ class COREG(object):
         return self.deshift_results
 
 
-    def correct_shifts_OLD(self):
+    def _correct_shifts_OLD(self):
         if self.success:
             if not os.path.exists(os.path.dirname(self.path_out)): os.makedirs(os.path.dirname(self.path_out))
             equal_prj = prj_equal(self.ref.prj, self.shift.prj)
