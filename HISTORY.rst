@@ -24,7 +24,15 @@ New features:
 * added test cases for local co-registration
 
 
-Bugfixes:
+Fixes and improvements:
 
 * fixed warping issues in case only very few tie points could be identified
 
+0.5.0 (coming soon)
+-------------------
+
+Fixes and improvements:
+
+* Coverage now also working in multiprocessing.
+
+* Replaced test data of test case INTER1 with LZW compressed GeoTIFFs to speed up testing.
