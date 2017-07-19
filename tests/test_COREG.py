@@ -175,7 +175,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CR.show_cross_power_spectrum()
         CR.show_cross_power_spectrum(interactive=True)
         CR.show_matchWin(interactive=False)
-        CR.show_matchWin(interactive=False, deshifted=True)
+        CR.show_matchWin(interactive=False, after_correction=True)
         # CR.show_matchWin(interactive=True) # only works if test is started with ipython
         # CR.show_matchWin(interactive=False, deshifted=True)
         CR.show_image_footprints()
