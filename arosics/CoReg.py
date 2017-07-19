@@ -460,12 +460,12 @@ class COREG(object):
         return m
 
 
-    def show_matchWin(self, figsize=(15,15), interactive=True, deshifted=False):
+    def show_matchWin(self, figsize=(15,15), interactive=True, after_correction=False):
         """Show the image content within the matching window.
 
-        :param figsize:      <tuple> figure size
-        :param interactive:  <bool> whether to return an interactive figure based on 'holoviews' library
-        :param deshifted:    <bool> whether to put the image content AFTER shift correction into the figure
+        :param figsize:             <tuple> figure size
+        :param interactive:         <bool> whether to return an interactive figure based on 'holoviews' library
+        :param after_correction:    <bool> whether to put the image content AFTER shift correction into the figure
         :return:
         """
         if interactive:
@@ -522,12 +522,12 @@ class COREG(object):
             warnings.filterwarnings('default')
             #return hmap
 
-            return hmap_orig if not deshifted else hmap_corr
+            return hmap_orig if not after_correction else hmap_corr
 
         else:
             # TODO add titles
             self.matchWin.show(figsize=figsize)
-            if deshifted:
+            if after_correction:
                 self._get_deshifted_otherWin().show(figsize=figsize)
             else:
                 self.otherWin.show(figsize=figsize)

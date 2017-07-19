@@ -5,31 +5,9 @@ __author__ = "Daniel Scheffler"
 
 import time
 import sys
-import os
 import warnings
 
-# custom
-try:
-    import pyfftw
-except ImportError:
-    print('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
-try:
-    import gdal
-    import osr
-    import ogr
-except ImportError:
-    from osgeo import gdal
-    from osgeo import osr
-    from osgeo import ogr
-
-# internal modules
-sys.path.append(os.path.abspath(os.path.dirname(__file__))) # append AROSICS root directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../geoarray')))
-
-import geoarray
 from arosics import COREG, COREG_LOCAL, __version__
-import py_tools_ds
 
 
 

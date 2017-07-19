@@ -627,7 +627,8 @@ class Tie_Point_Grid(object):
 
         :param path_out:    <str> the output path. If not given, it is automatically defined.
         :param fmt:         <str> output raster format string
-        :param mode:        <str>   'uv': outputs X-/Y shifts
+        :param mode:        <str> The mode how the output is written ('uv' or 'md'; default: 'md')
+                                    'uv': outputs X-/Y shifts
                                     'md': outputs magnitude and direction
         """
 
