@@ -36,7 +36,7 @@ See also the latest coverage_ report.
 Features
 --------
 
-* TODO
+* Detection and correction of local or global geometric displacements between two input images.
 
 
 Installation

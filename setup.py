@@ -27,7 +27,7 @@ test_requirements = ['coverage']
 
 setup(
     name='arosics',
-    version='0.4.13',
+    version='0.4.14',
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
@@ -35,7 +35,7 @@ setup(
     url='https://gitext.gfz-potsdam.de/danschef/arosics',
     packages=find_packages(),
     include_package_data=True,
-    scripts=["bin/arosics.py"],
+    scripts=["bin/arosics_cli.py"],
     install_requires=requirements,
     license="GNU General Public License v3",
     zip_safe=False,
