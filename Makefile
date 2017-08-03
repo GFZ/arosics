@@ -63,7 +63,7 @@ coverage: ## check code coverage quickly with the default Python
 	coverage combine 	# must be called in order to make coverage work in multiprocessing
 	coverage report -m
 	coverage html
-	$(BROWSER) htmlcov/index.html
+	#$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -f docs/arosics.rst
