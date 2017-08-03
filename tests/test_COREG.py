@@ -166,9 +166,9 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.skipTest('Not yet implemented.')
 
     #@unittest.SkipTest
-    def test_plotting_after_shift_calculation(self, mock_show):
+    def test_plotting_after_shift_calculation(self):#, mock_show):
         """"""
-        mock_show.return_value = None  # probably not necessary here in your case
+        #mock_show.return_value = None  # probably not necessary here in your case
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **self.coreg_kwargs)
         self.assertTrue(CR.success)
 
