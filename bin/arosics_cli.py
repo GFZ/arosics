@@ -6,6 +6,7 @@ __author__ = "Daniel Scheffler"
 import time
 import sys
 import warnings
+import argparse
 
 from arosics import COREG, COREG_LOCAL, __version__
 
@@ -356,7 +357,6 @@ def get_arosics_argparser():
 
 
 if __name__ == '__main__':
-    import argparse
     from socket import gethostname
     from datetime import datetime as dt
     from getpass import getuser
