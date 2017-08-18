@@ -23,6 +23,7 @@ test_arosics:
     - source /root/anaconda3/bin/activate
     - export GDAL_DATA=/root/anaconda3/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
+    - pip install rednose # remove as soon as it is included in test runner
     - make nosetests
     - make docs
   artifacts:
