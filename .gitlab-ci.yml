@@ -31,6 +31,20 @@ test_arosics:
     - docs/_build/html/
 
 
+test_arosics_install:
+  stage: test
+  script:
+    - source /root/anaconda3/bin/activate
+    - conda create -y -q --name arosics python=3.5
+    - source activate arosics
+    - python setup.py install
+    - cd ..
+    - pwd
+    - ls
+    - python -c "import arosics; print(arosics)"
+    - python -c "from arosics import COREG, COREG_LOCAL"
+
+
 pages:
   stage: deploy_pages
   dependencies:
