@@ -13,7 +13,7 @@ RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_
 # 'conda install --yes -c conda-forge 'icu=58.*' lxml' fixing a bug for conda-forge gdal build, as of 06/2017
 # holoviews and bokeh is only needed for geoarray because its not installable via pip during geoarray.setup.py
 RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
-    conda install --yes pyqt ; \
+    conda install --yes pyqt coverage; \
     conda install --yes -c conda-forge gdal ; \
     conda install --yes -c conda-forge pyfftw=0.10.4 ; \
     conda install --yes -c ioam holoviews=1.8.0 ; \
@@ -21,7 +21,7 @@ RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
     conda install --yes -c conda-forge glymur pygrib rasterio pyproj cachetools basemap; \
     pip install shapely geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral \
-        geoarray py_tools_ds plotly flake8 pycodestyle pylint pydocstyle nose nose2 nose-htmloutput coverage rednose"   # must include all the requirements needed to build the docs!
+        geoarray py_tools_ds plotly flake8 pycodestyle pylint pydocstyle nose nose2 nose-htmloutput rednose"   # must include all the requirements needed to build the docs!
 
 # copy some needed stuff to /root
 #COPY *.pkl /root/ # EXAMPLE
