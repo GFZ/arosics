@@ -17,7 +17,7 @@
 [![coverage report](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/)
 [![pypi_status](https://img.shields.io/pypi/v/arosics.svg)](https://pypi.python.org/pypi/arosics)
 
-See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) report.
+See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) and the [nosetests](http://danschef.gitext.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html) HTML report.
 
 
 
@@ -49,14 +49,26 @@ For further details regarding the implemented algorithm, example use cases, qual
 Installation
 ------------
 
-Use the pip installer:
+AROSICS depends on some open source packages which are usually installed without problems by the automatic install
+routine. However, for some projects, we strongly recommend resolving the dependency before the automatic installer
+is run. This approach avoids problems with conflicting versions of the same software.
+Using [conda](https://conda.io/docs/), the recommended approach is:
+
+```bash
+# create virtual environment for arosics, this is optional 
+conda create -y -q --name arosics python=3
+source activate arosics
+conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib
+```
+
+To install AROSICS, use the pip installer:
 
 ```bash
 pip install arosics
 ```
 
 
-* Or clone the repository via GIT and update the PATH environment variable:
+Or clone the repository via GIT and update the PATH environment variable:
 
 ```bash
 cd /your/installation/folder
