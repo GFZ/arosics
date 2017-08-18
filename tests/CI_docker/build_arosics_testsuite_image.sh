@@ -2,8 +2,8 @@
 
 context_dir="./context"
 dockerfile="arosics_ci.docker"
-tag="arosics_ci:0.1"
-gitlab_runner="arosics_gitlab_CI_runner_v0.1"
+tag="arosics_ci:0.2"
+gitlab_runner="arosics_gitlab_CI_runner_v0.2"
 
 echo "#### Build runner docker image"
 sudo docker rmi ${tag}
