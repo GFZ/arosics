@@ -40,7 +40,7 @@ test_arosics_install:
     - source /root/anaconda3/bin/activate
     - conda create -y -q --name arosics python=3.5
     - source activate arosics
-    - conda install --yes -c conda-forge numpy gdal scikit-image matplotlib # resolve these requirements with conda
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib # resolve these requirements with conda
     - python setup.py install
     - cd ..
     - pwd
