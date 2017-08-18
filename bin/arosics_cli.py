@@ -6,6 +6,7 @@ __author__ = "Daniel Scheffler"
 import time
 import sys
 import warnings
+import argparse
 
 from arosics import COREG, COREG_LOCAL, __version__
 
@@ -82,15 +83,8 @@ def run_local_coreg(args):
     CRL.correct_shifts()
 
 
-
-if __name__ == '__main__':
-    import argparse
-    from socket import gethostname
-    from datetime import datetime as dt
-    from getpass import getuser
-    from arosics.io import wfa
-
-    wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
+def get_arosics_argparser():
+    """Return argument parser for arosics_cli.py program."""
     parser = argparse.ArgumentParser(
         prog='arosics_cli.py',
 
@@ -359,9 +353,18 @@ if __name__ == '__main__':
 
     parse_coreg_local.set_defaults(func=run_local_coreg)
 
+    return parser
 
 
-    parsed_args = parser.parse_args()
+if __name__ == '__main__':
+    from socket import gethostname
+    from datetime import datetime as dt
+    from getpass import getuser
+    from arosics.io import wfa
+
+    wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
+
+    parsed_args = get_arosics_argparser().parse_args()
 
     print('======================================================================\n'
           '#                     AROSICS v%s                         #'%__version__+'\n'

@@ -8,5 +8,4 @@ scikit-image
 matplotlib
 geopandas
 spectral
-pykrige
 plotly

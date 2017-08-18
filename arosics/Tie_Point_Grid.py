@@ -15,7 +15,6 @@ except ImportError:
 import numpy as np
 from matplotlib import pyplot as plt
 from geopandas         import GeoDataFrame, GeoSeries
-from pykrige.ok        import OrdinaryKriging
 from shapely.geometry  import Point
 from skimage.measure   import points_in_poly, ransac
 from skimage.transform import AffineTransform, PolynomialTransform
@@ -683,6 +682,7 @@ class Tie_Point_Grid(object):
 
         # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
+        from pykrige.ok import OrdinaryKriging
         OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical',verbose=False)
         zvalues, sigmasq = OK.execute('grid', grid_x, grid_y)#,backend='C',)
 
@@ -751,6 +751,7 @@ class Tie_Point_Grid(object):
 
         # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
+        from pykrige.ok import OrdinaryKriging
         OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical',verbose=False)
         zvalues, sigmasq = OK.execute('grid', grid_x, grid_y,backend='C',n_closest_points=12)
 

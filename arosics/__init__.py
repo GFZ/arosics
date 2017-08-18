@@ -4,8 +4,8 @@
 
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.4.15'
-__versionalias__ = '2017-07-20_02'
+__version__ = '0.4.17'
+__versionalias__ = '2017-08-18_01'
 
 import warnings
 
@@ -19,6 +19,7 @@ from arosics.Tie_Point_Grid import Tie_Point_Grid
 try:
     import pyfftw
 except ImportError:
+    pyfftw = None
     warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
 
 del warnings, pyfftw
