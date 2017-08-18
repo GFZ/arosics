@@ -23,12 +23,14 @@ test_arosics:
     - source /root/anaconda3/bin/activate
     - export GDAL_DATA=/root/anaconda3/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-    - make coverage
+    - make nosetests
     - make docs
   artifacts:
     paths:
     - htmlcov/
     - docs/_build/html/
+    - nosetests.html
+    - nosetests.xml
 
 
 test_arosics_install:
@@ -37,6 +39,7 @@ test_arosics_install:
     - source /root/anaconda3/bin/activate
     - conda create -y -q --name arosics python=3.5
     - source activate arosics
+    - conda install --yes -c conda-forge numpy gdal scikit-image matplotlib # resolve these requirements with conda
     - python setup.py install
     - cd ..
     - pwd
@@ -52,6 +55,8 @@ pages:
   script:
     - mkdir -p public/coverage
     - cp -r htmlcov/* public/coverage/
+    - mkdir -p public/nosetests_reports
+    - cp nosetests.* public/nosetests_reports/
     - mkdir -p public/doc
     - cp -r docs/_build/html/* public/doc/
 

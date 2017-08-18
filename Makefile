@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-test clean-pyc clean-build docs help nosetests
 .DEFAULT_GOAL := help
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
@@ -43,27 +43,37 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 clean-test: ## remove test and coverage artifacts
-	coverage erase
+	## don't include 'coverage erase' lib here because clean-test is also executed during package setup and coverage is
+	## only a test requirement
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
+	rm -fr nosetests.html
+	rm -fr nosetests.xml
 
 lint: ## check style with flake8
 	flake8 arosics tests
 
 test: ## run tests quickly with the default Python
-
-		python setup.py test
+	python setup.py test
 
 test-all: ## run tests on every Python version with tox
 	tox
 
 coverage: ## check code coverage quickly with the default Python
+	coverage erase
 	coverage run --source arosics setup.py test
 	coverage combine 	# must be called in order to make coverage work in multiprocessing
 	coverage report -m
 	coverage html
 	#$(BROWSER) htmlcov/index.html
+
+nosetests: clean-test ## Runs nosetests with coverage, xUnit and nose-html-output
+	## - puts the coverage results in the folder 'htmlcov'
+	## - generates 'nosetests.html' (--with-html)
+	## - generates 'nosetests.xml' (--with-xunit) which is currently not visualizable by GitLab
+	nosetests -vv --with-coverage --cover-package=arosics --cover-erase --cover-html --cover-html-dir=htmlcov \
+		--with-html --with-xunit --rednose --force-color
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -f docs/arosics.rst
