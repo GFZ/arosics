@@ -1,4 +1,5 @@
 FROM centos:7
+# matplotlib requires freetype, freetype-devel, libpng-devel under centos
 RUN yum update -y && \
     yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git freetype \
         freetype-devel libpng-devel
