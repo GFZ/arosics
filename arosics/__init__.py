@@ -4,8 +4,8 @@
 
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.4.17'
-__versionalias__ = '2017-08-18_01'
+__version__ = '0.4.18'
+__versionalias__ = '2017-08-18_02'
 
 import warnings
 
