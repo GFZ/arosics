@@ -1,6 +1,7 @@
 FROM centos:7
 RUN yum update -y && \
-    yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git
+    yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git freetype \
+    freetype-devel libpng-devel
 
 ENV anaconda_dl 'Anaconda3-4.3.1-Linux-x86_64.sh'
 RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_dl ; \
