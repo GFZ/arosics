@@ -28,4 +28,4 @@ sudo docker exec -it ${gitlab_runner} /bin/bash -c "export RUNNER_EXECUTOR=docke
   --tag-list  arosics_ci_client \
   --description '${runner_name}' \
   --docker-image '${tag}' "
-ls
+

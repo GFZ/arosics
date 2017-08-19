@@ -14,7 +14,8 @@ Using conda_, the recommended approach is:
     # create virtual environment for arosics, this is optional
     conda create -y -q --name arosics python=3
     source activate arosics
-    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib
+    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio
+    conda install -y -q -c conda-forge pyfftw basemap pykrige  # these libraries are optional
 
 
 Stable release
