@@ -367,7 +367,7 @@ if __name__ == '__main__':
     parser = get_arosics_argparser()
     parsed_args = parser.parse_args()
 
-    if sys.argv  == 1:
+    if len(sys.argv) == 1:
         # no arguments provided
         print('======================================================================\n'
               '#                            AROSICS v%s                         #'%__version__+'\n'
