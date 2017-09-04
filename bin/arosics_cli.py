@@ -364,18 +364,22 @@ if __name__ == '__main__':
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
 
-    parsed_args = get_arosics_argparser().parse_args()
+    parser = get_arosics_argparser()
+    parsed_args = parser.parse_args()
 
-    print('======================================================================\n'
-          '#                     AROSICS v%s                         #'%__version__+'\n'
-          '# An Automated and Robust Open-Source Image Co-Registration Software #'
-          '#                for Multi-Sensor Satellite Data                     #\n'
-          '#          - python implementation by Daniel Scheffler               #\n'
-          '======================================================================\n')
-
-    t0 = time.time()
-    parsed_args.func(parsed_args)
-    print('\ntotal processing time: %.2fs' %(time.time()-t0))
+    if sys.argv  == 1:
+        # no arguments provided
+        print('======================================================================\n'
+              '#                            AROSICS v%s                         #'%__version__+'\n'
+              '# An Automated and Robust Open-Source Image Co-Registration Software #\n'
+              '#                for Multi-Sensor Satellite Data                     #\n'
+              '#          - python implementation by Daniel Scheffler               #\n'
+              '======================================================================\n')
+        parser.print_help()
+    else:
+        t0 = time.time()
+        parsed_args.func(parsed_args)
+        print('\ntotal processing time: %.2fs' %(time.time()-t0))
 
 else:
     warnings.warn("The script 'arosics_cli.py' provides a command line argument parser for AROSICS and is not to be "
