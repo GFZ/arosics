@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-__author__='Daniel Scheffler'
 
 import collections
 import time
@@ -19,10 +18,13 @@ from py_tools_ds.geo.projection       import prj_equal
 from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.numeric.vector       import find_nearest
 
+__author__ = 'Daniel Scheffler'
+
 _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline': 3, 'lanczos': 4, 'average': 5,
-                        'mode': 6, 'max': 7, 'min': 8 , 'med': 9, 'q1':10, 'q2':11,
-                        0:'nearest', 1:'bilinear', 2: 'cubic', 3:'cubic_spline', 4:'lanczos', 5:'average',
-                        6:'mode', 7:'max', 8: 'min', 9:'med', 10:'q1', 11:'q2'}
+                        'mode': 6, 'max': 7, 'min': 8, 'med': 9, 'q1': 10, 'q2': 11,
+                        0: 'nearest', 1:'bilinear', 2: 'cubic', 3: 'cubic_spline', 4: 'lanczos', 5: 'average',
+                        6: 'mode', 7: 'max', 8: 'min', 9: 'med', 10: 'q1', 11: 'q2'}
+
 
 class DESHIFTER(object):
     """See help(DESHIFTER) for documentation!"""
@@ -88,7 +90,7 @@ class DESHIFTER(object):
         self.fmt_out      = kwargs.get('fmt_out'         , 'ENVI')
         self.out_creaOpt  = kwargs.get('out_crea_options', [])
         self.band2process = kwargs.get('band2process'    , None) # starts with 1 # FIXME why?
-        self.band2process = self.band2process-1 if self.band2process is not None else None # internally handled as band index
+        self.band2process = self.band2process-1 if self.band2process is not None else None  # internally handled as band index
         self.nodata       = kwargs.get('nodata'          , self.im2shift.nodata)
         self.align_grids  = kwargs.get('align_grids'     , False)
         self.min_points_local_corr = kwargs.get('min_points_local_corr', 5)
@@ -105,7 +107,6 @@ class DESHIFTER(object):
         self.shift_prj       = self.im2shift.projection
         self.shift_gt        = list(self.im2shift.geotransform)
 
-
         # in case of local shift correction and local coreg results contain less points than min_points_local_corr:
         # force global correction based on mean X/Y shifts
         if 'GCPList' in coreg_results and len(coreg_results['GCPList']) < self.min_points_local_corr:
@@ -115,7 +116,6 @@ class DESHIFTER(object):
                           coreg_results['mean_shifts_px']['x'], coreg_results['mean_shifts_px']['y']))
             self.GCPList = None
             coreg_results['updated map info'] = coreg_results['updated map info means']
-
 
         # in case of global shift correction -> the updated map info from coreg_results already has the final map info
         # BUT: this will updated in correct_shifts() if clipextent is given or warping is needed
@@ -129,16 +129,14 @@ class DESHIFTER(object):
         self.out_grid = self._get_out_grid() # needs self.ref_grid, self.im2shift
         self.out_gsd  = [abs(self.out_grid[0][1]-self.out_grid[0][0]), abs(self.out_grid[1][1]-self.out_grid[1][0])]  # xgsd, ygsd
 
-
         # assertions
         assert self.rspAlg  in _dict_rspAlg_rsp_Int.keys(), \
-            "'%s' is not a supported resampling algorithm." %self.rspAlg
+            "'%s' is not a supported resampling algorithm." % self.rspAlg
         if self.band2process is not None:
-            assert self.im2shift.bands-1 >= self.band2process >= 0, "The %s '%s' has %s %s. So 'band2process' must be " \
+            assert self.im2shift.bands-1 >= self.band2process >= 0, "The %s '%s' has %s %s. So 'band2process' must be "\
                 "%s%s. Got %s." % (self.im2shift.__class__.__name__, self.im2shift.basename, self.im2shift.bands,
                 'bands' if self.im2shift.bands > 1 else 'band', 'between 1 and ' if self.im2shift.bands > 1 else '',
                 self.im2shift.bands, self.band2process+1)
-
 
         # set defaults for general class attributes
         self.is_shifted       = False # this is not included in COREG.coreg_info
@@ -146,7 +144,6 @@ class DESHIFTER(object):
         self.tracked_errors   = []
         self.arr_shifted      = None  # set by self.correct_shifts
         self.GeoArray_shifted = None  # set by self.correct_shifts
-
 
     def _get_out_grid(self):
         # parse given params
@@ -197,15 +194,14 @@ class DESHIFTER(object):
 
         return out_grid
 
-
     @property
     def warping_needed(self):
         """Returns True if image warping is needed in consideration of the input parameters of DESHIFTER."""
 
         assert self.out_grid, 'Output grid must be calculated before.'
         equal_prj = prj_equal(self.ref_prj, self.shift_prj)
-        return False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
-
+        return \
+            False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
 
     def _are_grids_alignable(self, in_xgsd, in_ygsd, out_xgsd, out_ygsd):
         """Checks if the input image pixel grid is alignable to the output grid.
@@ -231,7 +227,6 @@ class DESHIFTER(object):
 
         return self._grids_alignable
 
-
     def _get_out_extent(self):
         if self.clipextent is None:
             # no clip extent has been given
@@ -250,7 +245,6 @@ class DESHIFTER(object):
         xmax = find_nearest(self.out_grid[0], xmax, roundAlg='off', extrapolate=True)
         ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True)
         return xmin, ymin, xmax, ymax
-
 
     def correct_shifts(self):
         # type: () -> collections.OrderedDict
@@ -296,7 +290,7 @@ class DESHIFTER(object):
             if self.path_out:
                 out_geoArr.save(self.path_out,fmt=self.fmt_out)
 
-        else: # FIXME equal_prj==False ist noch NICHT implementiert
+        else:  # FIXME equal_prj==False ist noch NICHT implementiert
             """RESAMPLING NEEDED"""
             # if self.warpAlg=='GDAL_cmd':
             #     warnings.warn('This method has not been tested in its current state!')
@@ -390,10 +384,8 @@ class DESHIFTER(object):
                                'was %s. Output geotransform is %s.' % (str(self.out_grid), str(self.updated_gt)))
         # TODO to be continued (extent, map info, ...)
 
-
         if self.v: print('Time for shift correction: %.2fs' %(time.time()-t_start))
         return self.deshift_results
-
 
     @property
     def deshift_results(self):
@@ -407,7 +399,6 @@ class DESHIFTER(object):
         deshift_results.update({'arr_shifted'         : self.arr_shifted})
         deshift_results.update({'GeoArray_shifted'    : self.GeoArray_shifted})
         return deshift_results
-
 
 
 def deshift_image_using_coreg_info(im2shift, coreg_results, path_out=None, fmt_out='ENVI', q=False):

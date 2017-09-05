@@ -14,7 +14,6 @@ from arosics import COREG_LOCAL
 from geoarray import GeoArray
 
 
-
 class COREG_LOCAL_init(unittest.TestCase):
     """Test case on object initialization of COREG_LOCAL."""
 
@@ -56,7 +55,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         if os.path.isdir(dir_out):
             shutil.rmtree(dir_out)
 
-
     def test_calculation_of_tie_point_grid(self):
         # get instance of COREG_LOCAL object
         CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
@@ -65,7 +63,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         TPG = CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        #CRL.view_CoRegPoints() # only works if basemap is installed
+        # CRL.view_CoRegPoints() # only works if basemap is installed
 
         # test shift correction and output writer
         CRL.correct_shifts()
@@ -74,11 +72,11 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                         'Output of local co-registration has not been written.')
 
 
-#if __name__ == '__main__':
-#    unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
+# if __name__ == '__main__':
+#     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
 #
-#     suite = unittest.TestLoader().loadTestsFromTestCase(eval("CompleteWorkflow_INTER1_S2A_S2A"))
+#      suite = unittest.TestLoader().loadTestsFromTestCase(eval("CompleteWorkflow_INTER1_S2A_S2A"))
 #     alltests = unittest.TestSuite(suite)
 #
-#     # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
-#     testResult = unittest.TextTestRunner(verbosity=2).run(alltests)
+#      # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
+#      testResult = unittest.TextTestRunner(verbosity=2).run(alltests)

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import (division, print_function, absolute_import, unicode_literals) #unicode_literals cause GDAL not to work properly
-
-__author__ = "Daniel Scheffler"
+# unicode_literals cause GDAL not to work properly
+from __future__ import (division, print_function, absolute_import, unicode_literals)
 
 import time
 import sys
@@ -10,9 +9,10 @@ import argparse
 
 from arosics import COREG, COREG_LOCAL, __version__
 
+__author__ = "Daniel Scheffler"
 
 
-#sub-command functions
+# sub-command functions
 def run_global_coreg(args):
     COREG_obj = COREG(args.path_ref,
                       args.path_tgt,
@@ -45,7 +45,7 @@ def run_global_coreg(args):
     COREG_obj.correct_shifts()
 
 
-#sub-command functions
+# sub-command functions
 def run_local_coreg(args):
     CRL = COREG_LOCAL(args.path_ref,
                       args.path_tgt,
