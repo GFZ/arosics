@@ -199,7 +199,7 @@ class Tie_Point_Grid(object):
             if self.COREG_obj.ref.mask_baddata is not None else False
         GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY) \
             if self.COREG_obj.shift.mask_baddata is not None else False
-        GDF = GDF[(GDF['REF_BADDATA'] is False) & (GDF['TGT_BADDATA'] is False)]
+        GDF = GDF[(~GDF['REF_BADDATA']) & (~GDF['TGT_BADDATA'])]
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
             if not self.q:
                 print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
@@ -378,7 +378,7 @@ class Tie_Point_Grid(object):
         """
 
         tbl = self.CoRegPoints_table
-        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] is False].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl = tbl if include_outliers else tbl[~tbl['OUTLIER']].copy() if 'OUTLIER' in tbl.columns else tbl
 
         shifts = np.array(tbl['ABS_SHIFT'])
         shifts_sq = [i * i for i in shifts if i != self.outFillVal]
@@ -393,7 +393,7 @@ class Tie_Point_Grid(object):
         """
 
         tbl = self.CoRegPoints_table
-        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] is False].copy()
+        tbl = tbl if include_outliers else tbl[~tbl['OUTLIER']].copy()
 
         mssim_col = np.array(tbl['MSSIM'])
         mssim_col = [i * i for i in mssim_col if i != self.outFillVal]
@@ -420,8 +420,8 @@ class Tie_Point_Grid(object):
 
         tbl = self.CoRegPoints_table
         tbl = tbl[tbl['ABS_SHIFT'] != self.outFillVal]
-        tbl_il = tbl[tbl['OUTLIER'] is False].copy() if 'OUTLIER' in tbl.columns else tbl
-        tbl_ol = tbl[tbl['OUTLIER'] is True].copy() if 'OUTLIER' in tbl.columns else None
+        tbl_il = tbl[~tbl['OUTLIER']].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl_ol = tbl[tbl['OUTLIER']].copy() if 'OUTLIER' in tbl.columns else None
         x_attr = 'X_SHIFT_M' if unit == 'm' else 'X_SHIFT_PX'
         y_attr = 'Y_SHIFT_M' if unit == 'm' else 'Y_SHIFT_PX'
         rmse = self.calc_rmse(include_outliers=False)  # always exclude outliers when calculating RMSE
@@ -522,7 +522,7 @@ class Tie_Point_Grid(object):
         else:
             # exclude all points flagged as outliers
             if 'OUTLIER' in GDF.columns:
-                GDF = GDF[GDF.OUTLIER is False].copy()
+                GDF = GDF[GDF.OUTLIER == False].copy()
             avail_TP = len(GDF)
 
             if not avail_TP:
@@ -833,7 +833,7 @@ class Tie_Point_Refiner(object):
 
             if not self.q:
                 print('%s tie points flagged by level 1 filtering (reliability).'
-                      % (len(marked_recs[marked_recs is True])))
+                      % (len(marked_recs[marked_recs])))
 
         # SSIM filtering
         if level > 1:
@@ -842,12 +842,12 @@ class Tie_Point_Refiner(object):
             self.new_cols.append('L2_OUTLIER')
 
             if not self.q:
-                print('%s tie points flagged by level 2 filtering (SSIM).' % (len(marked_recs[marked_recs is True])))
+                print('%s tie points flagged by level 2 filtering (SSIM).' % (len(marked_recs[marked_recs])))
 
         # RANSAC filtering
         if level > 2:
             # exclude previous outliers
-            ransacInGDF = self.GDF[self.GDF[self.new_cols].any(axis=1) is False].copy() \
+            ransacInGDF = self.GDF[~self.GDF[self.new_cols].any(axis=1)].copy() \
                 if self.rs_exclude_previous_outliers else self.GDF
 
             if len(ransacInGDF) > 4:
@@ -858,8 +858,8 @@ class Tie_Point_Refiner(object):
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist()
 
                 if not self.q:
-                    print(
-                        '%s tie points flagged by level 3 filtering (RANSAC)' % (len(marked_recs[marked_recs is True])))
+                    print('%s tie points flagged by level 3 filtering (RANSAC)'
+                          % (len(marked_recs[marked_recs])))
             else:
                 print('RANSAC skipped because too less valid tie points have been found.')
                 self.GDF['L3_OUTLIER'] = False
