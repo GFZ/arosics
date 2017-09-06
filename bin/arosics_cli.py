@@ -370,7 +370,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         # no arguments provided
         print('======================================================================\n'
-              '#                            AROSICS v%s                         #'%__version__+'\n'
+              '#                            AROSICS v%s                         #' % __version__+'\n'
               '# An Automated and Robust Open-Source Image Co-Registration Software #\n'
               '#                for Multi-Sensor Satellite Data                     #\n'
               '#          - python implementation by Daniel Scheffler               #\n'

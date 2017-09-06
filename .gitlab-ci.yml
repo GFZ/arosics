@@ -32,6 +32,7 @@ test_arosics:
     - docs/_build/html/
     - nosetests.html
     - nosetests.xml
+    when: always
 
 
 test_arosics_install:
