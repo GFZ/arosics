@@ -3,6 +3,10 @@
 """Top-level package for arosics."""
 
 import warnings
+import os
+
+if 'GDAL_DATA' not in os.environ:
+    raise EnvironmentError("Please ensure that the GDAL_DATA environment variable is set and try again!")
 
 from arosics.CoReg import COREG
 from arosics.CoReg_local import COREG_LOCAL
@@ -11,8 +15,8 @@ from arosics.Tie_Point_Grid import Tie_Point_Grid
 
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.4.25'
-__versionalias__ = '2017-09-06_02'
+__version__ = '0.4.26'
+__versionalias__ = '2017-09-07_01'
 
 
 # check optional dependencies

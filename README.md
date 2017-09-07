@@ -1,12 +1,12 @@
 
 [![logo](docs/images/arosics_logo.png)](https://gitext.gfz-potsdam.de/danschef/arosics/)
-  
+
 ### An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
 
 
 * Free software: GNU General Public License v3
 * Documentation: http://danschef.gitext.gfz-potsdam.de/arosics/doc/
-* The (open-access) paper corresponding to this software repository can be found here:  
+* The (open-access) paper corresponding to this software repository can be found here:
 [Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676.](http://www.mdpi.com/2072-4292/9/7/676)
 
 
@@ -28,23 +28,23 @@ Perform automatic subpixel co-registration of two satellite image datasets based
 AROSICS detects and corrects local as well as global misregistrations between two input images in the subpixel scale, that are often present in satellite imagery.
 
 Prerequisites and hints:
-The input images can have any [GDAL compatible image format](http://www.gdal.org/formats_list.html). Both of them must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a 'coordinate system string' as attributes of their header file. The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any spatial resampling of the input images before applying this algorithm. Any needed resampling of the data is done automatically. Thus, the input images may have different spatial resolutions. The current algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order to minimize local shifts in the input images.  
-  
-AROSICS supports local and global co-registration.  
-  
-* Local co-registration:  
-A dense grid of tie points is automatically computed, whereas tie points are subsequently validated using a multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters of an affine transformation. Warping of the target image is done using an appropriate resampling technique (cubic by default).  
+The input images can have any [GDAL compatible image format](http://www.gdal.org/formats_list.html). Both of them must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a 'coordinate system string' as attributes of their header file. The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any spatial resampling of the input images before applying this algorithm. Any needed resampling of the data is done automatically. Thus, the input images may have different spatial resolutions. The current algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order to minimize local shifts in the input images.
 
-* Global co-registration:  
-Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable). This allows very fast co-registration but only corrects for translational (global) X/Y shifts. The calculated subpixel-shifts are (by default) applied to the geocoding information of the output image. No spatial resampling is done automatically as long as both input images have the same projection. If you need the output image to be aligned to the reference image coordinate grid (by using an appropriate resampling algorithm), use the '-align_grids' option.  
+AROSICS supports local and global co-registration.
+
+* Local co-registration:
+A dense grid of tie points is automatically computed, whereas tie points are subsequently validated using a multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters of an affine transformation. Warping of the target image is done using an appropriate resampling technique (cubic by default).
+
+* Global co-registration:
+Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable). This allows very fast co-registration but only corrects for translational (global) X/Y shifts. The calculated subpixel-shifts are (by default) applied to the geocoding information of the output image. No spatial resampling is done automatically as long as both input images have the same projection. If you need the output image to be aligned to the reference image coordinate grid (by using an appropriate resampling algorithm), use the '-align_grids' option.
 
 
-AROSICS is designed to robustly handle the typical difficulties of multi-sensoral/multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically calculated. Thereby, no-data regions within the images are automatically respected. Providing the map coordinates of the actual data corners lets you save some calculation time, because in this case the automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image corners. The verbose program mode gives some more output about the interim results, shows some figures and writes the used footprint and overlap polygons to disk. Note, that maybe the figures must be manually closed in in order to continue the processing (depending on your Python configuration).  
-  
+AROSICS is designed to robustly handle the typical difficulties of multi-sensoral/multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically calculated. Thereby, no-data regions within the images are automatically respected. Providing the map coordinates of the actual data corners lets you save some calculation time, because in this case the automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image corners. The verbose program mode gives some more output about the interim results, shows some figures and writes the used footprint and overlap polygons to disk. Note, that maybe the figures must be manually closed in in order to continue the processing (depending on your Python configuration).
+
 For further details regarding the implemented algorithm, example use cases, quality assessment and benchmarks refer to the above mentioned paper ([Scheffler et al. 2017](http://www.mdpi.com/2072-4292/9/7/676)).
 
 
- 
+
 
 Installation
 ------------
@@ -55,7 +55,7 @@ is run. This approach avoids problems with conflicting versions of the same soft
 Using [conda](https://conda.io/docs/), the recommended approach is:
 
 ```bash
-# create virtual environment for arosics, this is optional 
+# create virtual environment for arosics, this is optional
 conda create -y -q --name arosics python=3
 source activate arosics
 conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio fiona shapely
@@ -81,10 +81,11 @@ PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/
 
 
 AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all Python versions above 2.7.
-    
+Before running AROSICS, make sure your GDAL_DATA environment variable is set!
 
 
- 
+
+
 
 # Modules
 
@@ -215,7 +216,7 @@ CR.correct_shifts()
                  ('arr_shifted', array([[   0,    0,    0, ...,  953,  972, 1044],
                          [   0,    0,    0, ..., 1001,  973, 1019],
                          [   0,    0,    0, ...,  953,  985, 1020],
-                         ..., 
+                         ...,
                          [   0,    0,    0, ...,  755,  763,  773],
                          [   0,    0,    0, ...,  760,  763,  749],
                          [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16)),
@@ -265,7 +266,7 @@ DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
                  ('arr_shifted', array([[   0,    0,    0, ...,  953,  972, 1044],
                          [   0,    0,    0, ..., 1001,  973, 1019],
                          [   0,    0,    0, ...,  953,  985, 1020],
-                         ..., 
+                         ...,
                          [   0,    0,    0, ...,  755,  763,  773],
                          [   0,    0,    0, ...,  760,  763,  749],
                          [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16)),
@@ -274,7 +275,7 @@ DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
 
 
 
- 
+
 
 ### Shell console interface
 
@@ -285,7 +286,7 @@ The help instructions of the console interface can be accessed like this:
 python arosics_cli.py -h
 ```
 
-Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global 
+Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global
 co-registration would be like this:
 
 
@@ -293,9 +294,9 @@ co-registration would be like this:
 python arosics_cli.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
 ```
 
- 
 
- 
+
+
 
 ## CoReg_local
 
@@ -363,7 +364,7 @@ CRL.correct_shifts()
                  ('arr_shifted', array([[   0,    0,    0, ..., 1034,  996, 1001],
                          [   0,    0,    0, ..., 1046, 1114, 1124],
                          [   0,    0,    0, ..., 1021, 1126, 1148],
-                         ..., 
+                         ...,
                          [   0,    0,    0, ...,  760,  769,  805],
                          [   0,    0,    0, ...,  762,  755,  765],
                          [   0,    0,    0, ...,    0,    0,    0]], dtype=uint16)),
@@ -1517,11 +1518,11 @@ CRL.CoRegPoints_table
 CRL.quality_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
 ```
 
- 
+
 
 ### Shell console interface
 
-Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a local 
+Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a local
 co-registration would be like this:
 
 
@@ -1532,7 +1533,7 @@ python arosics_cli.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.
 
 # Credits
 
-This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the 
-[audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template. 
+This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the
+[audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template.
 The test data represent modified Copernicus Sentinel data (2016).
 
