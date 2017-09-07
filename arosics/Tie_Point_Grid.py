@@ -80,7 +80,8 @@ class Tie_Point_Grid(object):
         :param q(bool):                 quiet mode (default: False)
         """
 
-        if not isinstance(COREG_obj, COREG): raise ValueError("'COREG_obj' must be an instance of COREG class.")
+        if not isinstance(COREG_obj, COREG):
+            raise ValueError("'COREG_obj' must be an instance of COREG class.")
 
         self.COREG_obj = COREG_obj
         self.grid_res = grid_res
@@ -627,8 +628,8 @@ class Tie_Point_Grid(object):
                                     'md': outputs magnitude and direction
         """
 
-        assert mode in ['uv', 'md'], "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' (outputs magnitude and " \
-                                     "direction)'. Got %s." % mode
+        assert mode in ['uv', 'md'], "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' " \
+                                     "(outputs magnitude and direction)'. Got %s." % mode
         attr_b1 = 'X_SHIFT_M' if mode == 'uv' else 'ABS_SHIFT'
         attr_b2 = 'Y_SHIFT_M' if mode == 'uv' else 'ANGLE'
 
@@ -896,7 +897,8 @@ class Tie_Point_Refiner(object):
         for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
             assert co.ndim == 2 and co.shape[1] == 2, "'%s' must have shape [Nx2]. Got shape %s." % (n, co.shape)
 
-        if not 0 < self.rs_max_outlier_percentage < 100: raise ValueError
+        if not 0 < self.rs_max_outlier_percentage < 100:
+            raise ValueError
         min_inlier_percentage = 100 - self.rs_max_outlier_percentage
 
         class PolyTF_1(PolynomialTransform):
@@ -966,7 +968,7 @@ class Tie_Point_Refiner(object):
         outliers = inliers == False if inliers is not None and inliers.size else np.array([])
 
         if inGDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
-            (isinstance(outliers, np.ndarray) and not outliers.size):
+           (isinstance(outliers, np.ndarray) and not outliers.size):
             gs = GeoSeries([False] * len(self.GDF))
         elif len(inGDF) < len(self.GDF):
             inGDF['outliers'] = outliers

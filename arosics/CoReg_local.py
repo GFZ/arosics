@@ -371,8 +371,7 @@ class COREG_LOCAL(object):
         # transform all points of quality grid to LonLat
         outlierCols = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
         attr2include = ['geometry', attribute2plot] + outlierCols + ['X_SHIFT_M', 'Y_SHIFT_M']
-        GDF = self.CoRegPoints_table.loc\
-            [self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, attr2include].copy() \
+        GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, attr2include].copy()\
             if exclude_fillVals else self.CoRegPoints_table.loc[:, attr2include]
 
         # get LonLat coordinates for all points
@@ -407,9 +406,12 @@ class COREG_LOCAL(object):
         GDF['plt_Y'] = list(GDF['plt_XY'].map(lambda XY: XY[1]))
 
         if hide_filtered:
-            if self.tieP_filter_level > 0:  GDF = GDF[GDF.L1_OUTLIER == False].copy()
-            if self.tieP_filter_level > 1:  GDF = GDF[GDF.L2_OUTLIER == False].copy()
-            if self.tieP_filter_level > 2:  GDF = GDF[GDF.L3_OUTLIER == False].copy()
+            if self.tieP_filter_level > 0:
+                GDF = GDF[GDF.L1_OUTLIER == False].copy()
+            if self.tieP_filter_level > 1:
+                GDF = GDF[GDF.L2_OUTLIER == False].copy()
+            if self.tieP_filter_level > 2:
+                GDF = GDF[GDF.L3_OUTLIER == False].copy()
         else:
             marker = 'o' if len(GDF) < 10000 else '.'
             if self.tieP_filter_level > 0:
