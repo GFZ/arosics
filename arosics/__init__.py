@@ -11,8 +11,8 @@ from arosics.Tie_Point_Grid import Tie_Point_Grid
 
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.4.28'
-__versionalias__ = '2017-09-09_01'
+__version__ = '0.4.29'
+__versionalias__ = '2017-09-11_01'
 
 
 # check optional dependencies

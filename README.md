@@ -81,7 +81,7 @@ PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/
 
 
 AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all Python versions above 2.7.
-
+Before running AROSICS, make sure your GDAL_DATA environment variable is set!
 
 
 # Modules

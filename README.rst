@@ -73,6 +73,7 @@ Or clone the repository via GIT and update the PATH environment variable:
     git clone https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git
     PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/folder/geoarray:/path/to/your/installation/folder/py_tools_ds
 
+Before running AROSICS, make sure your GDAL_DATA environment variable is set!
 
 Credits
 -------
