@@ -33,6 +33,17 @@ global_shared_imref = None
 global_shared_im2shift = None
 
 
+def mp_initializer(imref, imtgt):
+    """Declare global variables needed for self._get_spatial_shifts()
+
+    :param imref:   reference image
+    :param imtgt:   target image
+    """
+    global global_shared_imref, global_shared_im2shift
+    global_shared_imref = imref
+    global_shared_im2shift = imtgt
+
+
 class Tie_Point_Grid(object):
     """See help(Tie_Point_Grid) for documentation!"""
 
@@ -275,8 +286,7 @@ class Tie_Point_Grid(object):
             # connected to that
             self.COREG_obj.equalize_pixGrids()
 
-        # declare global variables needed for self._get_spatial_shifts()
-        global global_shared_imref, global_shared_im2shift
+        # validate reference and target image inputs
         assert self.ref.footprint_poly  # this also checks for mask_nodata and nodata value
         assert self.shift.footprint_poly
 
@@ -285,9 +295,6 @@ class Tie_Point_Grid(object):
         self.ref.cache_array_subset(
             [self.COREG_obj.ref.band4match])  # only sets geoArr._arr_cache; does not change number of bands
         self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
-
-        global_shared_imref = self.ref
-        global_shared_im2shift = self.shift
 
         # get all variations of kwargs for coregistration
         get_coreg_kwargs = lambda pID, wp: dict(
@@ -317,7 +324,7 @@ class Tie_Point_Grid(object):
                 cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
                 print("Calculating tie points grid (%s points) using %s CPU cores..." % (len(GDF), cpus))
 
-            with multiprocessing.Pool(self.CPUs) as pool:
+            with multiprocessing.Pool(self.CPUs, initializer=mp_initializer, initargs=(self.ref, self.shift)) as pool:
                 if self.q or not self.progress:
                     results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
                 else:
@@ -337,6 +344,11 @@ class Tie_Point_Grid(object):
                             break
 
         else:
+            # declare global variables needed for self._get_spatial_shifts()
+            global global_shared_imref, global_shared_im2shift
+            global_shared_imref = self.ref
+            global_shared_im2shift = self.shift
+
             if not self.q:
                 print("Calculating tie points grid (%s points) 1 CPU core..." % len(GDF))
             results = np.empty((len(geomPoints), 14), np.object)
