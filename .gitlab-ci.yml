@@ -42,6 +42,8 @@ test_arosics_install:
     - export GDAL_DATA=/root/anaconda3/share/gdal
     - conda create -y -q --name arosics python=3.5
     - source activate arosics
+     # resolve some requirements with conda
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
     - python setup.py install
     - cd ..
     - pwd
