@@ -12,8 +12,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'spectral', 'geoarray>=0.5.14',
-                'py_tools_ds>=0.6.0', 'plotly', 'cmocean', 'six',
+requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'spectral', 'geoarray>=0.6.0',
+                'py_tools_ds>=0.7.0', 'plotly', 'cmocean', 'six',
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
                 # 'basemap', # conda install --yes -c conda-forge basemap; \
