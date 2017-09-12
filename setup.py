@@ -23,7 +23,7 @@ setup_requirements = [
     # TODO(danschef): put setup requirements (distutils extensions, etc.) here
 ]
 
-test_requirements = ['coverage', 'nose', 'nose-htmloutput', 'rednose']
+test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'rednose']
 
 setup(
     name='arosics',
