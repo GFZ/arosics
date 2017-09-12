@@ -12,7 +12,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'spectral', 'geoarray>=0.6.0',
+requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'spectral', 'geoarray>=0.6.2',
                 'py_tools_ds>=0.7.0', 'plotly', 'cmocean', 'six',
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
@@ -27,7 +27,7 @@ test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'redn
 
 setup(
     name='arosics',
-    version='0.4.30',
+    version='0.4.31',
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
