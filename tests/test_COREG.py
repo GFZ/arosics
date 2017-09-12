@@ -3,11 +3,9 @@
 
 """Tests for the global co-registration module of AROSICS."""
 
-
 import unittest
 import shutil
 import os
-
 
 # custom
 from .cases import test_cases
@@ -23,7 +21,6 @@ class COREG_GLOBAL_init(unittest.TestCase):
         self.tgt_path = test_cases['INTER1']['tgt_path']
         self.coreg_kwargs = test_cases['INTER1']['kwargs_global']
         self.coreg_kwargs['wp'] = test_cases['INTER1']['wp_inside']
-
 
     def test_coreg_init_from_disk(self):
         self.CRL = COREG(self.ref_path, self.tgt_path, **self.coreg_kwargs)
@@ -41,7 +38,6 @@ class COREG_GLOBAL_init(unittest.TestCase):
         self.CRL = COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
 
 
-
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     """Test case for the complete workflow of global co-registration based on two Sentinel-2 datasets, one with
     ~25% cloud cover, the other one without any clouds. The subsets cover the S2A tiles only partly (nodata areas
@@ -53,13 +49,11 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.tgt_path = test_cases['INTER1']['tgt_path']
         self.coreg_kwargs = test_cases['INTER1']['kwargs_global']
 
-
     def tearDown(self):
         """Delete output."""
         dir_out = os.path.dirname(self.coreg_kwargs['path_out'])
         if os.path.isdir(dir_out):
             shutil.rmtree(dir_out)
-
 
     def run_shift_detection_correction(self, ref, tgt, **params):
         # get instance of COREG_LOCAL object
@@ -77,7 +71,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         return CR
 
-
     def test_shift_calculation_with_default_params(self):
         """Test with default parameters - should compute X/Y shifts properly ad write the de-shifted target image."""
 
@@ -87,14 +80,13 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)
 
-    #@unittest.SkipTest
+    # @unittest.SkipTest
     def test_shift_calculation_verboseMode(self):
         """Test the verbose mode - runs the functions of the plotting submodule."""
 
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                  **dict(self.coreg_kwargs, v=True))
         self.assertTrue(CR.success)
-
 
     def test_shift_calculation_windowCoveringNodata(self):
         """Test shift detection in case the given matching window (defined by 'wp' and 'ws' covers the nodata area
@@ -107,10 +99,9 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # TODO compare to expected results
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                  **dict(self.coreg_kwargs,
-                                                        wp = test_cases['INTER1']['wp_covering_nodata'],
-                                                        ws = (256,256)))
+                                                        wp=test_cases['INTER1']['wp_covering_nodata'],
+                                                        ws=(256, 256)))
         self.assertTrue(CR.success)
-
 
     def test_shift_calculation_windowAtImageEdge(self):
         """Test shift detection in case the given matching window is close to an image edge without covering any nodata
@@ -123,9 +114,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # TODO compare to expected results
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                  **dict(self.coreg_kwargs,
-                                                        wp=test_cases['INTER1']['wp_close_to_edge'], ws=(256,256)))
+                                                        wp=test_cases['INTER1']['wp_close_to_edge'], ws=(256, 256)))
         self.assertTrue(CR.success)
-
 
     def test_shift_calculation_windowOutside(self):
         """Test if shift computation properly raises a ValueError if the given window position is outside of the image
@@ -136,7 +126,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                 **dict(self.coreg_kwargs,
                                                        wp=test_cases['INTER1']['wp_outside']))
 
-
     def test_shift_calculation_windowAtClouds(self):
         """Test if shift computation properly raises a RunTimeError if the matching window is centered at a cloudy
         image position.
@@ -145,30 +134,27 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                 **dict(self.coreg_kwargs,
-                                                       wp=test_cases['INTER1']['wp_cloudy'], ws=(256,256)))
-
+                                                       wp=test_cases['INTER1']['wp_cloudy'], ws=(256, 256)))
 
     def test_shift_calculation_differentInputGrids(self):
         """"""
 
         self.skipTest('Not yet implemented.')
 
-
     def test_shift_calculation_withoutPyFFTW(self):
         """"""
 
         self.skipTest('Not yet implemented.')
-
 
     def test_shift_calculation_SSIMdecreases(self):
         """"""
 
         self.skipTest('Not yet implemented.')
 
-    #@unittest.SkipTest
-    def test_plotting_after_shift_calculation(self):#, mock_show):
+    # @unittest.SkipTest
+    def test_plotting_after_shift_calculation(self):  # , mock_show):
         """"""
-        #mock_show.return_value = None  # probably not necessary here in your case
+        # mock_show.return_value = None  # probably not necessary here in your case
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **self.coreg_kwargs)
         self.assertTrue(CR.success)
 
@@ -181,6 +167,5 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # CR.show_matchWin(interactive=False, deshifted=True)
         CR.show_image_footprints()
 
-
-#if __name__ == '__main__':
+# if __name__ == '__main__':
 #    unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)

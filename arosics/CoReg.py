@@ -1507,7 +1507,8 @@ class COREG(object):
 
         pathVRT = os.path.splitext(os.path.basename(self.shift.path))[0] + '.vrt'
         ds_im2shift = gdal.Open(self.shift.path)
-        dst_ds = (lambda drv: drv.CreateCopy(pathVRT, ds_im2shift, 0))(gdal.GetDriverByName('VRT'))
+        drv = gdal.GetDriverByName('VRT')
+        dst_ds = drv.CreateCopy(pathVRT, ds_im2shift, 0)
         dst_ds.SetGeoTransform(gt_shifted)
         del dst_ds, ds_im2shift
 

@@ -52,7 +52,7 @@ Using conda_, the recommended approach is:
     # create virtual environment for arosics, this is optional
     conda create -y -q --name arosics python=3
     source activate arosics
-    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio fiona shapely
+    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
     conda install -y -q -c conda-forge pyfftw basemap pykrige  # these libraries are optional
 
 
@@ -72,8 +72,6 @@ Or clone the repository via GIT and update the PATH environment variable:
     git clone https://gitext.gfz-potsdam.de/danschef/geoarray.git
     git clone https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git
     PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/folder/geoarray:/path/to/your/installation/folder/py_tools_ds
-
-Before running AROSICS, make sure your GDAL_DATA environment variable is set!
 
 Credits
 -------

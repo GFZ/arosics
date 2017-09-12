@@ -58,7 +58,7 @@ Using [conda](https://conda.io/docs/), the recommended approach is:
 # create virtual environment for arosics, this is optional
 conda create -y -q --name arosics python=3
 source activate arosics
-conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio fiona shapely
+conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
 conda install -y -q -c conda-forge pyfftw basemap pykrige  # these libraries are optional
 ```
 
@@ -81,7 +81,6 @@ PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/
 
 
 AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all Python versions above 2.7.
-Before running AROSICS, make sure your GDAL_DATA environment variable is set!
 
 
 # Modules

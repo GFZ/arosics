@@ -3,7 +3,6 @@
 
 """Tests for the local co-registration module of AROSICS."""
 
-
 import unittest
 import shutil
 import os
@@ -70,7 +69,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
                         'Output of local co-registration has not been written.')
-
 
 # if __name__ == '__main__':
 #     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)

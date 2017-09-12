@@ -1,5 +1,5 @@
-geoarray>=0.5.11
-py_tools_ds>=0.4.6
+geoarray>=0.5.14
+py_tools_ds>=0.6.0
 cmocean
 numpy
 gdal
@@ -10,3 +10,4 @@ geopandas
 spectral
 plotly
 cmocean
+six
