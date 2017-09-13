@@ -3,7 +3,7 @@
 import warnings
 import os
 from copy import copy
-from six import PY3
+from six import PY2
 
 # custom
 try:
@@ -152,7 +152,7 @@ class COREG_LOCAL(object):
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:
             assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
-        if (not PY3 and CPUs is None) or (isinstance(CPUs, int) and CPUs > 1):
+        if PY2 and (CPUs is None or (isinstance(CPUs, int) and CPUs > 1)):
             CPUs = 1
             warnings.warn('Multiprocessing is currently not supported under Python 2. Using singleprocessing.')
 
