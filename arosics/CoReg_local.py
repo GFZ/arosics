@@ -154,7 +154,7 @@ class COREG_LOCAL(object):
             assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
         if PY2 and (CPUs is None or (isinstance(CPUs, int) and CPUs > 1)):
             CPUs = 1
-            warnings.warn('Multiprocessing is currently not supported under Python 2. Using singleprocessing.')
+            warnings.warn('Multiprocessing is currently not supported for Python 2. Using singleprocessing.')
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
