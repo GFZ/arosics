@@ -253,7 +253,7 @@ def get_arosics_argparser():
 
     locArg('path_tgt', type=str, help='source path of image to be shifted (any GDAL compatible image format is supported)')
 
-    locArg('grid_res', type=int, help='quality grid resolution in pixels of the target image')
+    locArg('grid_res', type=int, help='tie point grid resolution in pixels of the target image')
 
     locArg('-max_points', nargs='?', type=int,
            help="maximum number of points used to find coregistration tie points. NOTE: Points are selected randomly "

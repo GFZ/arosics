@@ -48,7 +48,7 @@ class COREG_LOCAL(object):
         :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
         :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is
                                         supported)
-        :param grid_res:                quality grid resolution in pixels of the target image (x-direction)
+        :param grid_res:                tie point grid resolution in pixels of the target image (x-direction)
         :param max_points(int):         maximum number of points used to find coregistration tie points
                                         NOTE: Points are selected randomly from the given point grid (specified by
                                         'grid_res'). If the point does not provide enough points, all available points
@@ -115,7 +115,7 @@ class COREG_LOCAL(object):
                                         ignored if footprint_poly_ref is given.
         :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted.
                                         ignored if footprint_poly_tgt is given.
-        :param outFillVal(int):         if given the generated geometric quality grid is filled with this value in case
+        :param outFillVal(int):         if given the generated tie point grid is filled with this value in case
                                         no match could be found during co-registration (default: -9999)
         :param nodata(tuple):           no data values for reference image and image to be shifted
         :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
@@ -138,7 +138,7 @@ class COREG_LOCAL(object):
                                         geographic extent and projection like 'im_ref'. The mask is used to
                                         check if the chosen matching window position is valid in the sense of
                                         useful data. Otherwise this window position is rejected.
-        :param CPUs(int):               number of CPUs to use during calculation of geometric quality grid
+        :param CPUs(int):               number of CPUs to use during calculation of tie point grid
                                         (default: None, which means 'all CPUs available')
         :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: False)
@@ -244,7 +244,7 @@ class COREG_LOCAL(object):
         if mask_baddata_tgt is not None:
             self.COREG_obj.shift.mask_baddata = mask_baddata_tgt
 
-        self._tiepoint_grid = None  # set by self.quality_grid
+        self._tiepoint_grid = None  # set by self.tiepoint_grid
         self._CoRegPoints_table = None  # set by self.CoRegPoints_table
         self._coreg_info = None  # set by self.coreg_info
         self.deshift_results = None  # set by self.correct_shifts()
@@ -317,7 +317,7 @@ class COREG_LOCAL(object):
     def CoRegPoints_table(self):
         """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
         'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
-        information containing all the results frm coregistration for all points in the geometric quality grid.
+        information containing all the results frm coregistration for all points in the tie point grid.
         """
 
         return self.tiepoint_grid.CoRegPoints_table
@@ -337,9 +337,9 @@ class COREG_LOCAL(object):
     def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
                          hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True,
                          vmin=None, vmax=None, return_map=False, zoomable=False):
-        """Shows a map of the calculated quality grid with the target image as background.
+        """Shows a map of the calculated tie point grid with the target image as background.
 
-        :param attribute2plot:      <str> the attribute of the quality grid to be shown (default: 'ABS_SHIFT')
+        :param attribute2plot:      <str> the attribute of the tie point grid to be shown (default: 'ABS_SHIFT')
         :param cmap:                <plt.cm.<colormap>> a custom color map to be applied to the plotted grid points
                                                         (default: 'RdYlGn_r')
         :param exclude_fillVals:    <bool> whether to exclude those points of the grid where spatial shift detection
@@ -372,7 +372,7 @@ class COREG_LOCAL(object):
         # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
         plt.title(attribute2plot)
 
-        # transform all points of quality grid to LonLat
+        # transform all points of tie point grid to LonLat
         outlierCols = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
         attr2include = ['geometry', attribute2plot] + outlierCols + ['X_SHIFT_M', 'Y_SHIFT_M']
         GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, attr2include].copy()\
@@ -401,7 +401,7 @@ class COREG_LOCAL(object):
             palette = cmocean.cm.delta
         # GDF['color'] = [*GDF[attribute2plot].map(lambda val: palette(norm(val)))]
 
-        # add quality grid to map
+        # add tie point grid to map
         # plot_point = lambda row: \
         #     ax.plot(*map2show(*row['LonLat']), marker='o', markersize=7.0, alpha=1.0, color=row['color'])
         # GDF.apply(plot_point, axis=1)
@@ -472,7 +472,7 @@ class COREG_LOCAL(object):
 
     def view_CoRegPoints_folium(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True):
         warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
-        assert self.CoRegPoints_table is not None, 'Calculate quality grid first!'
+        assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
         try:
             import folium
@@ -550,7 +550,7 @@ class COREG_LOCAL(object):
             return self.coreg_info
 
     def correct_shifts(self, max_GCP_count=None, cliptoextent=False, min_points_local_corr=5):
-        """Performs a local shift correction using all points from the previously calculated geometric quality grid
+        """Performs a local shift correction using all points from the previously calculated tie point grid
         that contain valid matches as GCP points.
 
         :param max_GCP_count: <int> maximum number of GCPs to use

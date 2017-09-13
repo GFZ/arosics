@@ -327,7 +327,7 @@ CRL.correct_shifts()
     Corner coordinates of image to be shifted:
     	[[319460.0, 5790510.0], [352270.0, 5900040.0], [409790.0, 5900040.0], [409790.0, 5790250.0], [319460.0, 5790250.0]]
     Matching window position (X,Y): 372220.10753674706/5841066.947109019
-    Calculating geometric quality grid (1977 points) in mode 'multiprocessing'...
+    Calculating tie point grid (1977 points) in mode 'multiprocessing'...
     	progress: |==================================================| 100.0% [1977/1977] Complete 9.75 sek
     Found 1144 valid GCPs.
     Correcting geometric shifts...
@@ -379,9 +379,9 @@ CRL = COREG_LOCAL(GeoArray(ref_ndarray, ref_gt, ref_prj),GeoArray(tgt_ndarray, t
 CRL.correct_shifts()
 ```
 
-#### visualize geometric quality grid with INITIAL shifts present in your input target image
+#### visualize tie point grid with INITIAL shifts present in your input target image
 
-Use the function COREG_LOCAL.view_CoRegPoints() to visualize the geometric quality grid with the calculated absolute lenghts of the shift vectors (the unit corresponds to the input projection - UTM in the shown example, thus the unit is 'meters'.).
+Use the function COREG_LOCAL.view_CoRegPoints() to visualize the tie point grid with the calculated absolute lenghts of the shift vectors (the unit corresponds to the input projection - UTM in the shown example, thus the unit is 'meters'.).
 
 NOTE: a calculation of reliable shifts above cloud covered areas is not possible. In the current version of AROSICS these areas are not masked. A proper masking is planned.
 
@@ -401,7 +401,7 @@ CRL.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
 
 The output figure shows the calculated absolute lenghts of the shift vectors - in this case with shifts up to ~25 meters.
 
-#### visualize geometric quality grid with shifts present AFTER shift correction
+#### visualize tie point grid with shifts present AFTER shift correction
 
 The remaining shifts after local correction can be calculated and visualized by instanciating COREG_LOCAL with the output path of the above instance of COREG_LOCAL.
 
@@ -419,7 +419,7 @@ CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
     	[[319460.0, 5790540.0], [352270.0, 5900030.0], [409780.0, 5900030.0], [409780.0, 5790260.0], [322970.0, 5790250.0], [319460.0, 5790280.0]]
     Matching window position (X,Y): 372216.38593955856/5841068.390957352
     Note: array has been downsampled to 1000 x 1000 for faster visualization.
-    Calculating geometric quality grid (1977 points) in mode 'multiprocessing'...
+    Calculating tie point grid (1977 points) in mode 'multiprocessing'...
     	progress: |==================================================| 100.0% [1977/1977] Complete 10.78 sek
 
 
@@ -429,7 +429,7 @@ CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
 
 The output figure shows a significant reduction of geometric shifts.
 
-#### show the points table of the calculated geometric quality grid
+#### show the points table of the calculated tie point grid
 
 NOTE: Point records where no valid match has been found are filled with -9999.
 
@@ -1507,11 +1507,11 @@ CRL.CoRegPoints_table
 
 
 
-#### export geometric quality grid to an ESRI point shapefile
+#### export tie point grid to an ESRI point shapefile
 
 
 ```python
-CRL.quality_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
+CRL.tiepoint_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
 ```
 
 

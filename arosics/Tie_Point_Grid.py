@@ -322,7 +322,7 @@ class Tie_Point_Grid(object):
         if self.CPUs is None or self.CPUs > 1:
             if not self.q:
                 cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
-                print("Calculating tie points grid (%s points) using %s CPU cores..." % (len(GDF), cpus))
+                print("Calculating tie point grid (%s points) using %s CPU cores..." % (len(GDF), cpus))
 
             with multiprocessing.Pool(self.CPUs, initializer=mp_initializer, initargs=(self.ref, self.shift)) as pool:
                 if self.q or not self.progress:
@@ -350,7 +350,7 @@ class Tie_Point_Grid(object):
             global_shared_im2shift = self.shift
 
             if not self.q:
-                print("Calculating tie points grid (%s points) 1 CPU core..." % len(GDF))
+                print("Calculating tie point grid (%s points) 1 CPU core..." % len(GDF))
             results = np.empty((len(geomPoints), 14), np.object)
             bar = ProgressBar(prefix='\tprogress:')
             for i, coreg_kwargs in enumerate(list_coreg_kwargs):
