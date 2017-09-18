@@ -27,7 +27,7 @@ test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'redn
 
 setup(
     name='arosics',
-    version='0.4.33',
+    version='0.5.0',
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
