@@ -537,7 +537,7 @@ class Tie_Point_Grid(object):
         else:
             # exclude all points flagged as outliers
             if 'OUTLIER' in GDF.columns:
-                GDF = GDF[GDF.OUTLIER == False].copy()
+                GDF = GDF[GDF.OUTLIER.__eq__(False)].copy()
             avail_TP = len(GDF)
 
             if not avail_TP:
@@ -899,7 +899,7 @@ class Tie_Point_Refiner(object):
         # self.GDF.SSIM_IMPROVED = \
         #     self.GDF.apply(lambda GDF_row: GDF_row['SSIM_AFTER']>GDF_row['SSIM_BEFORE'] + ssim_diff, axis=1)
 
-        return self.GDF.SSIM_IMPROVED is False
+        return ~self.GDF.SSIM_IMPROVED
 
     def _RANSAC_outlier_detection(self, inGDF):
         """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm."""
@@ -979,7 +979,7 @@ class Tie_Point_Refiner(object):
 
             count_iter += 1
 
-        outliers = inliers == False if inliers is not None and inliers.size else np.array([])
+        outliers = inliers.__eq__(False) if inliers is not None and inliers.size else np.array([])
 
         if inGDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
            (isinstance(outliers, np.ndarray) and not outliers.size):

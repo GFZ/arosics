@@ -63,7 +63,7 @@ def wfa(p, c):
     try:
         with open(p, 'a') as of:
             of.write(c)
-    except:
+    except Exception:
         pass
 
 

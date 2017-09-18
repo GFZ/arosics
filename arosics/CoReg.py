@@ -570,7 +570,7 @@ class COREG(object):
                 autosize=False,
                 width=1000,
                 height=1000,
-                margin=dict(l=65, r=50, b=65, t=90))
+                margin={'l': 65, 'r': 50, 'b': 65, 't': 90})
             fig = go.Figure(data=data, layout=layout)
 
             return iplot(fig, filename='SCPS')

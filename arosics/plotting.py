@@ -2,7 +2,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-# from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # this is needed for fig.add_subplot(..., projection='3d')
 
 
 def _norm(array, normto):

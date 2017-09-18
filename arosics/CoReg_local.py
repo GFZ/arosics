@@ -411,25 +411,25 @@ class COREG_LOCAL(object):
 
         if hide_filtered:
             if self.tieP_filter_level > 0:
-                GDF = GDF[GDF.L1_OUTLIER == False].copy()
+                GDF = GDF[GDF.L1_OUTLIER.__eq__(False)].copy()
             if self.tieP_filter_level > 1:
-                GDF = GDF[GDF.L2_OUTLIER == False].copy()
+                GDF = GDF[GDF.L2_OUTLIER.__eq__(False)].copy()
             if self.tieP_filter_level > 2:
-                GDF = GDF[GDF.L3_OUTLIER == False].copy()
+                GDF = GDF[GDF.L3_OUTLIER.__eq__(False)].copy()
         else:
             marker = 'o' if len(GDF) < 10000 else '.'
             if self.tieP_filter_level > 0:
                 # flag level 1 outliers
-                GDF_filt = GDF[GDF.L1_OUTLIER == True].copy()
+                GDF_filt = GDF[GDF.L1_OUTLIER.__eq__(True)].copy()
                 plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0,
                             label='reliability')
             if self.tieP_filter_level > 1:
                 # flag level 2 outliers
-                GDF_filt = GDF[GDF.L2_OUTLIER == True].copy()
+                GDF_filt = GDF[GDF.L2_OUTLIER.__eq__(True)].copy()
                 plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='MSSIM')
             if self.tieP_filter_level > 2:
                 # flag level 3 outliers
-                GDF_filt = GDF[GDF.L3_OUTLIER == True].copy()
+                GDF_filt = GDF[GDF.L3_OUTLIER.__eq__(True)].copy()
                 plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0,
                             label='RANSAC')
 
