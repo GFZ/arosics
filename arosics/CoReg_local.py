@@ -379,7 +379,7 @@ class COREG_LOCAL(object):
             if exclude_fillVals else self.CoRegPoints_table.loc[:, attr2include]
 
         # get LonLat coordinates for all points
-        get_LonLat = lambda X, Y: transform_any_prj(self.im2shift.projection, 4326, X, Y)
+        def get_LonLat(X, Y): return transform_any_prj(self.im2shift.projection, 4326, X, Y)
         GDF['LonLat'] = list(GDF['geometry'].map(lambda geom: get_LonLat(*tuple(np.array(geom.coords.xy)[:, 0]))))
 
         # get colors for all points
@@ -499,7 +499,7 @@ class COREG_LOCAL(object):
 
         # create map
         map_osm = folium.Map(location=[center_lat, center_lon])  # ,zoom_start=3)
-        import matplotlib
+        # import matplotlib
         plugins.ImageOverlay(
             colormap=lambda x: (1, 0, 0, x),  # TODO a colormap must be given
             # colormap=matplotlib.cm.gray, # does not work

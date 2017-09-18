@@ -64,18 +64,18 @@ try:
     import pyfftw
 except ImportError:
     warnings.warn('You need to install pyfftw manually (see https://pypi.python.org/pypi/pyFFTW) for speeding up '
-                  'the computation. It is not automatically installed.') # TODO
+                  'the computation. It is not automatically installed.')  # TODO
 
 # check for basemap
 try:
     from mpl_toolkits.basemap import Basemap
 except ImportError:
     warnings.warn('You need to install basemap manually if you want to plot maps (see www./matplotlib.org/basemap). '
-                  'It is not automatically installed.') # TODO
+                  'It is not automatically installed.')  # TODO
 
 # check for pykrige
 try:
     import pykrige
 except ImportError:
     warnings.warn('You need to install pykrige manually if you want to interpolate tie point grids produced by AROSICS '
-                  '(see https://github.com/bsmurphy/PyKrige). It is not automatically installed.') # TODO
+                  '(see https://github.com/bsmurphy/PyKrige). It is not automatically installed.')  # TODO

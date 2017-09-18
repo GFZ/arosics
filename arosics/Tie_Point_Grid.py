@@ -244,6 +244,27 @@ class Tie_Point_Grid(object):
 
         return [pointID] + CR_res
 
+    def _get_coreg_kwargs(self, pID, wp):
+        return dict(
+            pointID=pID,
+            fftw_works=self.COREG_obj.fftw_works,
+            wp=wp,
+            ws=self.COREG_obj.win_size_XY,
+            resamp_alg_calc=self.rspAlg_calc,
+            footprint_poly_ref=self.COREG_obj.ref.poly,
+            footprint_poly_tgt=self.COREG_obj.shift.poly,
+            r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
+            s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
+            max_iter=self.COREG_obj.max_iter,
+            max_shift=self.COREG_obj.max_shift,
+            nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+            force_quadratic_win=self.COREG_obj.force_quadratic_win,
+            binary_ws=self.COREG_obj.bin_ws,
+            v=False,  # otherwise this would lead to massive console output
+            q=True,  # otherwise this would lead to massive console output
+            ignore_errors=True
+        )
+
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
@@ -297,26 +318,7 @@ class Tie_Point_Grid(object):
         self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
 
         # get all variations of kwargs for coregistration
-        get_coreg_kwargs = lambda pID, wp: dict(
-            pointID=pID,
-            fftw_works=self.COREG_obj.fftw_works,
-            wp=wp,
-            ws=self.COREG_obj.win_size_XY,
-            resamp_alg_calc=self.rspAlg_calc,
-            footprint_poly_ref=self.COREG_obj.ref.poly,
-            footprint_poly_tgt=self.COREG_obj.shift.poly,
-            r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
-            s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
-            max_iter=self.COREG_obj.max_iter,
-            max_shift=self.COREG_obj.max_shift,
-            nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-            force_quadratic_win=self.COREG_obj.force_quadratic_win,
-            binary_ws=self.COREG_obj.bin_ws,
-            v=False,  # otherwise this would lead to massive console output
-            q=True,  # otherwise this would lead to massive console output
-            ignore_errors=True
-        )
-        list_coreg_kwargs = (get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index)  # generator
+        list_coreg_kwargs = (self._get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index)  # generator
 
         # run co-registration for whole grid
         if self.CPUs is None or self.CPUs > 1:
@@ -861,7 +863,7 @@ class Tie_Point_Refiner(object):
         if level > 2:
             # exclude previous outliers
             ransacInGDF = self.GDF[~self.GDF[self.new_cols].any(axis=1)].copy() \
-                if self.rs_exclude_previous_outliers else self.GDF
+                    if self.rs_exclude_previous_outliers else self.GDF
 
             if len(ransacInGDF) > 4:
                 # running RANSAC with less than four tie points makes no sense

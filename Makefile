@@ -52,7 +52,9 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr nosetests.xml
 
 lint: ## check style with flake8
-	flake8 arosics tests
+	flake8 --max-line-length=120 arosics tests > ./tests/linting/flake8.log
+	pycodestyle arosics --exclude="*.ipynb,*.ipynb*" --max-line-length=120 > ./tests/linting/pycodestyle.log
+	-pydocstyle arosics > ./tests/linting/pydocstyle.log
 
 test: ## run tests quickly with the default Python
 	python setup.py test

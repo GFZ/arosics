@@ -2,15 +2,18 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# from mpl_toolkits.mplot3d import Axes3D
+
+
+def _norm(array, normto):
+    return [float(i) * (normto / max(array)) for i in array]
 
 
 def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
     shapetuple = (1, len(XY_tuples)) if shapetuple is None else shapetuple
     assert titles is None or len(titles) == len(XY_tuples), \
         'List in titles keyword must have the same length as the passed XY_tuples.'
-    norm = lambda array, normto: [float(i) * (normto / max(array)) for i in array]
-    fig = plt.figure(figsize=norm(plt.figaspect(shapetuple[0] / shapetuple[1] * 1.), 10))
+    fig = plt.figure(figsize=_norm(plt.figaspect(shapetuple[0] / shapetuple[1] * 1.), 10))
     for i, XY in enumerate(XY_tuples):
         ax = fig.add_subplot(shapetuple[0], shapetuple[1], i + 1)
         X, Y = XY
@@ -30,9 +33,8 @@ def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
     assert titles is None or len(titles) == len(ims), 'Error: Got more or less titles than images.'
 
     shapetuple = (1, len(ims)) if shapetuple is None else shapetuple
-    norm = lambda array, normto: [float(i) * (normto / max(array)) for i in array]
     fig, axes = plt.subplots(shapetuple[0], shapetuple[1],
-                             figsize=norm(plt.figaspect(shapetuple[0] / shapetuple[1] * 1.), 20))
+                             figsize=_norm(plt.figaspect(shapetuple[0] / shapetuple[1] * 1.), 20))
     [axes[i].imshow(im, cmap='gray', interpolation='none', vmin=np.percentile(im, 2), vmax=np.percentile(im, 98))
      for i, im in enumerate(ims)]
     if titles is not None:
@@ -48,8 +50,7 @@ def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
 def subplot_3dsurface(ims, shapetuple=None):
     ims = [ims] if not isinstance(ims, list) else ims
     shapetuple = (1, len(ims)) if shapetuple is None else shapetuple
-    norm = lambda array, normto: [float(i) * (normto / max(array)) for i in array]
-    fig = plt.figure(figsize=norm(plt.figaspect((shapetuple[0] / 2.) / shapetuple[1] * 1.), 20))
+    fig = plt.figure(figsize=_norm(plt.figaspect((shapetuple[0] / 2.) / shapetuple[1] * 1.), 20))
     for i, im in enumerate(ims):
         ax = fig.add_subplot(shapetuple[0], shapetuple[1], i + 1, projection='3d')
         x = np.arange(0, im.shape[0], 1)

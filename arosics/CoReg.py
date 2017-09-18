@@ -336,7 +336,7 @@ class COREG(object):
             'COREG._set_outpathes() expects two file pathes (string) or two instances of the ' \
             'GeoArray class. Received %s and %s.' % (type(im_ref), type(im_tgt))
 
-        get_baseN = lambda path: os.path.splitext(os.path.basename(path))[0]
+        def get_baseN(path): return os.path.splitext(os.path.basename(path))[0]
 
         # get input pathes
         path_im_ref = im_ref.filePath if isinstance(im_ref, GeoArray) else im_ref
@@ -450,7 +450,8 @@ class COREG(object):
         assert self.overlap_poly, 'Please calculate the overlap polygon first.'
 
         try:
-            import folium, geojson
+            import folium
+            import geojson
         except ImportError:
             folium, geojson = None, None
         if not folium or not geojson:
@@ -498,16 +499,21 @@ class COREG(object):
             otherWin_corr = self._get_deshifted_otherWin()
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
-            get_vmin = lambda arr: np.percentile(arr, 2)
-            get_vmax = lambda arr: np.percentile(arr, 98)
-            rescale = lambda arr: rescale_intensity(arr, in_range=(get_vmin(arr), get_vmax(arr)))
-            get_arr = lambda geoArr: rescale(np.ma.masked_equal(geoArr[:], geoArr.nodata))
-            get_hv_image = lambda geoArr: hv.Image(get_arr(geoArr), bounds=(xmin, ymin, xmax, ymax))(
-                style={'cmap': 'gray',
-                       'vmin': get_vmin(geoArr[:]), 'vmax': get_vmax(geoArr[:]),  # does not work
-                       'interpolation': 'none'},
-                plot={'fig_inches': figsize, 'show_grid': True})
-            # plot={'fig_size':100, 'show_grid':True})
+            def get_vmin(arr): return np.percentile(arr, 2)
+
+            def get_vmax(arr): return np.percentile(arr, 98)
+
+            def rescale(arr): return rescale_intensity(arr, in_range=(get_vmin(arr), get_vmax(arr)))
+
+            def get_arr(geoArr): return rescale(np.ma.masked_equal(geoArr[:], geoArr.nodata))
+
+            def get_hv_image(geoArr):
+                return hv.Image(get_arr(geoArr), bounds=(xmin, ymin, xmax, ymax))(
+                    style={'cmap': 'gray',
+                           'vmin': get_vmin(geoArr[:]), 'vmax': get_vmax(geoArr[:]),  # does not work
+                           'interpolation': 'none'},
+                    plot={'fig_inches': figsize, 'show_grid': True})
+                #     plot={'fig_size':100, 'show_grid':True})
 
             imgs_orig = {1: get_hv_image(self.matchWin), 2: get_hv_image(self.otherWin)}
             imgs_corr = {1: get_hv_image(self.matchWin), 2: get_hv_image(otherWin_corr)}
@@ -521,7 +527,7 @@ class COREG(object):
             hmap_orig = hv.HoloMap(imgs_orig, kdims=['image'])
             hmap_corr = hv.HoloMap(imgs_corr, kdims=['image'])
 
-            hmap = hv.HoloMap(imgs, kdims=['image']).collate().cols(1)  # displaying this results in a too small figure
+            hv.HoloMap(imgs, kdims=['image']).collate().cols(1)  # display this results in a too small figure
             # hmap = hv.HoloMap(imgs_corr, kdims=['image']) +  hv.HoloMap(imgs_corr, kdims=['image'])
 
             # Construct a HoloMap by defining the sampling on the Dimension
@@ -709,7 +715,7 @@ class COREG(object):
 
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
-            within_equal = lambda inner, outer: inner.within(outer) or inner.equals(outer)
+            def within_equal(inner, outer): return inner.within(outer) or inner.equals(outer)
             assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
             assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
 
@@ -853,8 +859,8 @@ class COREG(object):
                 # FIXME CoRegPoints_grid.WIN_SZ is taken from self.matchBox.imDimsYX but this is not updated
 
             center_YX = np.array(im0.shape) / 2
-            xmin, xmax, ymin, ymax = int(center_YX[1] - wsYX[1] / 2), int(center_YX[1] + wsYX[1] / 2), \
-                                     int(center_YX[0] - wsYX[0] / 2), int(center_YX[0] + wsYX[0] / 2)
+            xmin, xmax = int(center_YX[1] - wsYX[1] / 2), int(center_YX[1] + wsYX[1] / 2)
+            ymin, ymax = int(center_YX[0] - wsYX[0] / 2), int(center_YX[0] + wsYX[0] / 2)
 
             in_arr0 = im0[ymin:ymax, xmin:xmax].astype(precision)
             in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
@@ -899,7 +905,8 @@ class COREG(object):
                 ifft_arr = pyfftw.FFTW(temp, np.empty_like(temp), axes=(0, 1), direction='FFTW_BACKWARD')()
             else:
                 ifft_arr = np.fft.ifft2(temp)
-            if self.v: print('backward FFTW: %.2fs' % (time.time() - time0))
+            if self.v:
+                print('backward FFTW: %.2fs' % (time.time() - time0))
 
             cps = np.abs(ifft_arr)
             # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
@@ -936,8 +943,10 @@ class COREG(object):
 
     @staticmethod
     def _clip_image(im, center_YX, winSzYX):  # TODO this is also implemented in GeoArray
-        get_bounds = lambda YX, wsY, wsX: (
-        int(YX[1] - (wsX / 2)), int(YX[1] + (wsX / 2)), int(YX[0] - (wsY / 2)), int(YX[0] + (wsY / 2)))
+
+        def get_bounds(YX, wsY, wsX):
+            return int(YX[1] - (wsX / 2)), int(YX[1] + (wsX / 2)), int(YX[0] - (wsY / 2)), int(YX[0] + (wsY / 2))
+
         wsY, wsX = winSzYX
         xmin, xmax, ymin, ymax = get_bounds(center_YX, wsY, wsX)
         return im[ymin:ymax, xmin:xmax]
@@ -1451,7 +1460,10 @@ class COREG(object):
         if not self.q:
             print('Resampling shift image in order to align coordinate grid of shift image to reference image. ')
 
-        is_alignable = lambda gsd1, gsd2: max(gsd1, gsd2) % min(gsd1, gsd2) == 0  # checks if pixel sizes are divisible
+        def is_alignable(gsd1, gsd2):
+            """Check if pixel sizes are divisible"""
+            return max(gsd1, gsd2) % min(gsd1, gsd2) == 0
+
         if not is_alignable(self.ref.xgsd, xgsd) or not is_alignable(self.ref.ygsd, ygsd) and not self.q:
             print("\nWARNING: The coordinate grids of the reference image and the image to be shifted cannot be "
                   "aligned because their pixel sizes are not exact multiples of each other (ref [X/Y]: "
