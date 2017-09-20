@@ -59,10 +59,16 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
 
         # use the getter of the CoRegPoints_table to calculate tie point grid
+        # noinspection PyStatementEffect
         CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        # CRL.view_CoRegPoints() # only works if basemap is installed
+        try:
+            # noinspection PyUnresolvedReferences
+            from mpl_toolkits.basemap import Basemap
+            CRL.view_CoRegPoints()  # only works if basemap is installed
+        except ImportError:
+            pass
 
         # test shift correction and output writer
         CRL.correct_shifts()
