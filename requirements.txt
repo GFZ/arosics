@@ -9,5 +9,4 @@ matplotlib
 geopandas
 spectral
 plotly
-cmocean
 six
