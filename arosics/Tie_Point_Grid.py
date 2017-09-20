@@ -27,6 +27,8 @@ from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
 from geoarray import GeoArray
 
+from .CoReg import GeoArray_CoReg
+
 __author__ = 'Daniel Scheffler'
 
 global_shared_imref = None
@@ -94,7 +96,7 @@ class Tie_Point_Grid(object):
         if not isinstance(COREG_obj, COREG):
             raise ValueError("'COREG_obj' must be an instance of COREG class.")
 
-        self.COREG_obj = COREG_obj
+        self.COREG_obj = COREG_obj  # type: COREG
         self.grid_res = grid_res
         self.max_points = max_points
         self.outFillVal = outFillVal
@@ -107,26 +109,29 @@ class Tie_Point_Grid(object):
         self.q = q if not v else False  # overridden by v
         self.progress = progress if not q else False  # overridden by q
 
-        self.ref = self.COREG_obj.ref
-        self.shift = self.COREG_obj.shift
+        self.ref = self.COREG_obj.ref  # type: GeoArray_CoReg
+        self.shift = self.COREG_obj.shift  # type: GeoArray_CoReg
 
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table = None  # set by self.CoRegPoints_table
         self._GCPList = None  # set by self.to_GCPList()
         self.kriged = None  # set by Raster_using_Kriging()
 
-    mean_x_shift_px = property(lambda self:
-                               self.CoRegPoints_table['X_SHIFT_PX'][
-                                   self.CoRegPoints_table['X_SHIFT_PX'] != self.outFillVal].mean())
-    mean_y_shift_px = property(lambda self:
-                               self.CoRegPoints_table['Y_SHIFT_PX'][
-                                   self.CoRegPoints_table['Y_SHIFT_PX'] != self.outFillVal].mean())
-    mean_x_shift_map = property(lambda self:
-                                self.CoRegPoints_table['X_SHIFT_M'][
-                                    self.CoRegPoints_table['X_SHIFT_M'] != self.outFillVal].mean())
-    mean_y_shift_map = property(lambda self:
-                                self.CoRegPoints_table['Y_SHIFT_M'][
-                                    self.CoRegPoints_table['Y_SHIFT_M'] != self.outFillVal].mean())
+    @property
+    def mean_x_shift_px(self):
+        return self.CoRegPoints_table['X_SHIFT_PX'][self.CoRegPoints_table['X_SHIFT_PX'] != self.outFillVal].mean()
+
+    @property
+    def mean_y_shift_px(self):
+        return self.CoRegPoints_table['Y_SHIFT_PX'][self.CoRegPoints_table['Y_SHIFT_PX'] != self.outFillVal].mean()
+
+    @property
+    def mean_x_shift_map(self):
+        return self.CoRegPoints_table['X_SHIFT_M'][self.CoRegPoints_table['X_SHIFT_M'] != self.outFillVal].mean()
+
+    @property
+    def mean_y_shift_map(self):
+        return self.CoRegPoints_table['Y_SHIFT_M'][self.CoRegPoints_table['Y_SHIFT_M'] != self.outFillVal].mean()
 
     @property
     def CoRegPoints_table(self):

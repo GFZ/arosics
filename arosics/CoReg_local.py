@@ -578,7 +578,7 @@ class COREG_LOCAL(object):
                            min_points_local_corr=min_points_local_corr,
                            resamp_alg=self.rspAlg_DS,
                            cliptoextent=cliptoextent,
-                           # clipextent            = self.im2shift.box.boxMapYX,
+                           # clipextent=self.im2shift.box.boxMapYX,
                            progress=self.progress,
                            v=self.v,
                            q=self.q)

@@ -300,49 +300,6 @@ class DESHIFTER(object):
 
         else:  # FIXME equal_prj==False ist noch NICHT implementiert
             """RESAMPLING NEEDED"""
-            # if self.warpAlg=='GDAL_cmd':
-            #     warnings.warn('This method has not been tested in its current state!')
-            #     # FIX ME nicht multiprocessing-fähig,
-            #     # FIX ME weil immer kompletter array gewarpt wird und sich ergebnisse gegenseitig überschreiben
-            #     # create tempfile
-            #     fd, path_tmp = tempfile.mkstemp(prefix='AROSICS', suffix=self.outFmt, dir=self.tempDir)
-            #     os.close(fd)
-            #
-            #     t_extent   = " -te %s %s %s %s" %self._get_out_extent()
-            #     xgsd, ygsd = self.out_gsd
-            #     cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of %s %s %s -srcnodata %s -dstnodata %s -overwrite%s"\
-            #           %(self.rspAlg, xgsd,ygsd,self.ref_prj,self.outFmt,self.im2shift.filePath,
-            #             path_tmp, self.nodata, self.nodata, t_extent)
-            #     out, exitcode, err = subcall_with_output(cmd)
-            #
-            #     if exitcode!=1 and os.path.exists(path_tmp):
-            #         """update map info, arr_shifted, geotransform and projection"""
-            #         ds_shifted = gdal.OpenShared(path_tmp) if self.outFmt == 'VRT' else gdal.Open(path_tmp)
-            #         self.shift_gt, self.shift_prj = ds_shifted.GetGeoTransform(), ds_shifted.GetProjection()
-            #         self.updated_map_info         = geotransform2mapinfo(self.shift_gt,self.shift_prj)
-            #
-            #         print('reading from', ds_shifted.GetDescription())
-            #         if self.band2process is None:
-            #             dim2RowsColsBands = \
-            #                 lambda A: np.swapaxes(np.swapaxes(A,0,2),0,1) # rasterio.open(): [bands,rows,cols]
-            #             self.arr_shifted  = dim2RowsColsBands(rasterio.open(path_tmp).read())
-            #         else:
-            #             self.arr_shifted  = rasterio.open(path_tmp).read(self.band2process)
-            #
-            #         self.GeoArray_shifted = GeoArray(self.arr_shifted,tuple(self.shift_gt), self.shift_prj)
-            #         self.is_shifted       = True
-            #         self.is_resampled     = True
-            #
-            #         ds_shifted            = None
-            #         [gdal.Unlink(p) for p in [path_tmp] if os.path.exists(p)] # delete tempfiles
-            #     else:
-            #         print("\n%s\nCommand was:  '%s'" %(err.decode('utf8'),cmd))
-            #         [gdal.Unlink(p) for p in [path_tmp] if os.path.exists(p)] # delete tempfiles
-            #         self.tracked_errors.append(RuntimeError('Resampling failed.'))
-            #         raise self.tracked_errors[-1]
-            #
-            #     # TO DO implement output writer
-
             # FIXME avoid reading the whole band if clip_extent is passed
 
             in_arr = self.im2shift[:, :, self.band2process] \
