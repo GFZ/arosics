@@ -250,12 +250,12 @@ class COREG(object):
 
         self.ignErr = ignore_errors
         self.max_win_sz_changes = 3  # TODO: änderung der window size, falls nach max_iter kein valider match gefunden
-        self.ref = None  # set by self.get_image_params
-        self.shift = None  # set by self.get_image_params
-        self.matchBox = None  # set by self.get_clip_window_properties()  => boxObj
-        self.otherBox = None  # set by self.get_clip_window_properties()  => boxObj
-        self.matchWin = None  # set by self._get_image_windows_to_match() => GeoArray
-        self.otherWin = None  # set by self._get_image_windows_to_match() => GeoArray
+        self.ref = None  # type: GeoArray_CoReg # set by self.get_image_params
+        self.shift = None  # type: GeoArray_CoReg # set by self.get_image_params
+        self.matchBox = None  # type: boxObj # set by self.get_clip_window_properties()
+        self.otherBox = None  # type: boxObj # set by self.get_clip_window_properties()
+        self.matchWin = None  # type: GeoArray # set by self._get_image_windows_to_match()
+        self.otherWin = None  # type: GeoArray # set by self._get_image_windows_to_match()
         self.overlap_poly = None  # set by self._get_overlap_properties()
         self.overlap_percentage = None  # set by self._get_overlap_properties()
         self.overlap_area = None  # set by self._get_overlap_properties()
@@ -1086,7 +1086,7 @@ class COREG(object):
         otherFull = self.ref if self.otherWin.imID == 'ref' else self.shift
         ds_results = DESHIFTER(otherFull, coreg_info,
                                band2process=otherFull.band4match + 1,
-                               clipextent=list(np.array(self.matchBox.boundsMap)[[0, 2, 1, 3]]),
+                               clipextent=self.matchBox.mapPoly.bounds,
                                target_xyGrid=matchFull.xygrid_specs,
                                q=True
                                ).correct_shifts()
@@ -1124,21 +1124,26 @@ class COREG(object):
 
         # check if shapes of two images are equal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
+        #print('hier')
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
+            #print('drin')
+            #print(self.matchWin.shape, otherWin_deshift_geoArr.shape)
             warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
             matchFull = self.ref if self.matchWin.imID == 'ref' else self.shift
-            matchWinData, matchWinGt, matchWinPrj = matchFull.get_mapPos(
-                list(np.array(self.matchBox.boundsMap)[[0, 2, 1, 3]]), self.matchWin.prj, rspAlg='cubic',
-                band2get=matchFull.band4match)
+            matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
+                                                      rspAlg='cubic', band2get=matchFull.band4match)
+            #print(self.matchWin.shape, otherWin_deshift_geoArr.shape)
+            self.matchWin.clip_to_poly(self.matchBox.mapPoly)
+            #print(self.matchWin.shape, otherWin_deshift_geoArr.shape)
 
             # at the image edges it is possible that the size of the matchBox must be reduced in order to make array
             # shapes match
             if not matchWinData.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-                self.matchBox.buffer_imXY(-np.ceil(abs(self.x_shift_px)), -np.ceil(abs(self.y_shift_px)))
+                #print('drin2')
+                self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))), float(-np.ceil(abs(self.y_shift_px))))
                 otherWin_deshift_geoArr = self._get_deshifted_otherWin()
-                matchWinData, matchWinGt, matchWinPrj = matchFull.get_mapPos(
-                    list(np.array(self.matchBox.boundsMap)[[0, 2, 1, 3]]), self.matchWin.prj, rspAlg='cubic',
-                    band2get=matchFull.band4match)
+                matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
+                                                          rspAlg='cubic', band2get=matchFull.band4match)
 
         self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr)
 
