@@ -1124,22 +1124,16 @@ class COREG(object):
 
         # check if shapes of two images are equal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
-        #print('hier')
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-            #print('drin')
-            #print(self.matchWin.shape, otherWin_deshift_geoArr.shape)
             warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
             matchFull = self.ref if self.matchWin.imID == 'ref' else self.shift
             matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
                                                       rspAlg='cubic', band2get=matchFull.band4match)
-            #print(self.matchWin.shape, otherWin_deshift_geoArr.shape)
             self.matchWin.clip_to_poly(self.matchBox.mapPoly)
-            #print(self.matchWin.shape, otherWin_deshift_geoArr.shape)
 
             # at the image edges it is possible that the size of the matchBox must be reduced in order to make array
             # shapes match
             if not matchWinData.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-                #print('drin2')
                 self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))), float(-np.ceil(abs(self.y_shift_px))))
                 otherWin_deshift_geoArr = self._get_deshifted_otherWin()
                 matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
