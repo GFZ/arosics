@@ -35,7 +35,7 @@ from py_tools_ds.geo.vector.topology import get_overlap_polygon, get_smallest_bo
 from py_tools_ds.geo.projection import prj_equal, get_proj4info
 from py_tools_ds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
 from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid
-from py_tools_ds.geo.coord_trafo import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY
+from py_tools_ds.geo.coord_trafo import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
 from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.geo.map_info import geotransform2mapinfo
 from py_tools_ds.numeric.vector import find_nearest
@@ -71,8 +71,8 @@ class GeoArray_CoReg(GeoArray):
         self.title = os.path.basename(self.filePath) if self.filePath else self.imName
 
         # validate params
-        assert self.prj, 'The %s has no projection.' % self.imName
-        assert not re.search('LOCAL_CS', self.prj), 'The %s is not georeferenced.' % self.imName
+        # assert self.prj, 'The %s has no projection.' % self.imName # TODO
+        # assert not re.search('LOCAL_CS', self.prj), 'The %s is not georeferenced.' % self.imName # TODO
         assert self.gt, 'The %s has no map information.' % self.imName
 
         # set band4match
@@ -403,8 +403,6 @@ class COREG(object):
     def _get_image_params(self):
         self.ref = GeoArray_CoReg(self.params, 'ref')
         self.shift = GeoArray_CoReg(self.params, 'shift')
-        assert self.ref.prj, 'The reference image has no projection.'
-        assert self.shift.prj, 'The target image has no projection.'
         assert prj_equal(self.ref.prj, self.shift.prj), \
             'Input projections are not equal. Different projections are currently not supported. Got %s / %s.' \
             % (get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj))
@@ -469,12 +467,16 @@ class COREG(object):
             folium.GeoJson(gjs).add_to(m)
         return m
 
-    def show_matchWin(self, figsize=(15, 15), interactive=True, after_correction=False):
+    def show_matchWin(self, figsize=(15, 15), interactive=True, after_correction=None, pmin=2, pmax=98):
         """Show the image content within the matching window.
 
         :param figsize:             <tuple> figure size
         :param interactive:         <bool> whether to return an interactive figure based on 'holoviews' library
-        :param after_correction:    <bool> whether to put the image content AFTER shift correction into the figure
+        :param after_correction:    True/False: show the image content AFTER shift correction or before
+                                    None: show both states - before and after correction (default)
+        :param pmin:                percentage to be used for excluding the darkest pixels from stretching (default: 2)
+        :param pmax:                percentage to be used for excluding the brightest pixels from stretching
+                                    (default: 98)
         :return:
         """
         if interactive:
@@ -499,51 +501,56 @@ class COREG(object):
             otherWin_corr = self._get_deshifted_otherWin()
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
-            def get_vmin(arr): return np.percentile(arr, 2)
-
-            def get_vmax(arr): return np.percentile(arr, 98)
-
-            def rescale(arr): return rescale_intensity(arr, in_range=(get_vmin(arr), get_vmax(arr)))
-
-            def get_arr(geoArr): return rescale(np.ma.masked_equal(geoArr[:], geoArr.nodata))
-
             def get_hv_image(geoArr):
-                return hv.Image(get_arr(geoArr), bounds=(xmin, ymin, xmax, ymax))(
+                arr_masked = np.ma.masked_equal(geoArr[:], geoArr.nodata)
+                vmin = np.nanpercentile(arr_masked.compressed(), pmin)
+                vmax = np.nanpercentile(arr_masked.compressed(), pmax)
+                arr2plot = rescale_intensity(arr_masked, in_range=(vmin, vmax), out_range='int8')
+
+                return hv.Image(arr2plot, bounds=(xmin, ymin, xmax, ymax))(
                     style={'cmap': 'gray',
-                           'vmin': get_vmin(geoArr[:]), 'vmax': get_vmax(geoArr[:]),  # does not work
+                           'vmin': vmin, 'vmax': vmax,
                            'interpolation': 'none'},
                     plot={'fig_inches': figsize, 'show_grid': True})
                 #     plot={'fig_size':100, 'show_grid':True})
 
-            imgs_orig = {1: get_hv_image(self.matchWin), 2: get_hv_image(self.otherWin)}
-            imgs_corr = {1: get_hv_image(self.matchWin), 2: get_hv_image(otherWin_corr)}
-            # layout = get_hv_image(self.matchWin) + get_hv_image(self.otherWin)
+            hvIm_matchWin = get_hv_image(self.matchWin)
+            hvIm_otherWin_orig = get_hv_image(self.otherWin)
+            hvIm_otherWin_corr = get_hv_image(otherWin_corr)
 
-            imgs = {1: get_hv_image(self.matchWin) + get_hv_image(self.matchWin),
-                    2: get_hv_image(self.otherWin) + get_hv_image(otherWin_corr)
-                    }
+            if after_correction is None:
+                # view both states
+                print('Matching window before and after correction (above and below): ')
+
+                # get layouts (docs on options: http://build.holoviews.org/Tutorials/Options.html)
+                layout_before = (hvIm_matchWin + hvIm_matchWin)(plot=dict(fig_inches=figsize))
+                layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr)(plot=dict(fig_inches=figsize))
+
+                # plot!
+                imgs = {1: layout_before, 2: layout_after}
+                hmap = hv.HoloMap(imgs, kdims=['image']).collate().cols(1)
+
+            else:
+                # view state before or after correction
+                imgs = {1: hvIm_matchWin, 2: hvIm_otherWin_corr if after_correction else hvIm_otherWin_orig}
+                hmap = hv.HoloMap(imgs, kdims=['image'])
 
             # Construct a HoloMap by evaluating the function over all the keys
-            hmap_orig = hv.HoloMap(imgs_orig, kdims=['image'])
-            hmap_corr = hv.HoloMap(imgs_corr, kdims=['image'])
-
-            hv.HoloMap(imgs, kdims=['image']).collate().cols(1)  # display this results in a too small figure
             # hmap = hv.HoloMap(imgs_corr, kdims=['image']) +  hv.HoloMap(imgs_corr, kdims=['image'])
 
             # Construct a HoloMap by defining the sampling on the Dimension
             # dmap = hv.DynamicMap(image_slice, kdims=[hv.Dimension('z_axis', values=keys)])
             warnings.filterwarnings('default')
-            # return hmap
 
-            return hmap_orig if not after_correction else hmap_corr
+            return hmap
 
         else:
             # TODO add titles
             self.matchWin.show(figsize=figsize)
             if after_correction:
-                self._get_deshifted_otherWin().show(figsize=figsize)
+                self._get_deshifted_otherWin().show(figsize=figsize, pmin=pmin, pmax=pmax)
             else:
-                self.otherWin.show(figsize=figsize)
+                self.otherWin.show(figsize=figsize, pmin=pmin, pmax=pmax)
 
     def show_cross_power_spectrum(self, interactive=False):
         """
@@ -1084,6 +1091,7 @@ class COREG(object):
 
         matchFull = self.ref if self.matchWin.imID == 'ref' else self.shift
         otherFull = self.ref if self.otherWin.imID == 'ref' else self.shift
+
         ds_results = DESHIFTER(otherFull, coreg_info,
                                band2process=otherFull.band4match + 1,
                                clipextent=self.matchBox.mapPoly.bounds,
@@ -1274,8 +1282,7 @@ class COREG(object):
                 self.x_shift_px, self.y_shift_px = x_totalshift * gsd_factor, y_totalshift * gsd_factor
 
                 # get map shifts
-                new_originY, new_originX = pixelToMapYX([self.x_shift_px, self.y_shift_px],
-                                                        geotransform=self.shift.gt, projection=self.shift.prj)[0]
+                new_originX, new_originY = imXY2mapXY((self.x_shift_px, self.y_shift_px), self.shift.gt)
                 self.x_shift_map, self.y_shift_map = new_originX - self.shift.gt[0], new_originY - self.shift.gt[3]
 
                 # get length of shift vector in map units

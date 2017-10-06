@@ -80,6 +80,25 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)
 
+    def test_shift_calculation_with_image_coords_only(self):
+        """Test with default parameters - should compute X/Y shifts properly ad write the de-shifted target image."""
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.prj = ''
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        tgt.prj = ''
+
+        CR = self.run_shift_detection_correction(ref, tgt,
+                                                 **dict(self.coreg_kwargs,
+                                                        footprint_poly_ref=None,
+                                                        footprint_poly_tgt=None))
+        self.assertTrue(CR.success)
+
     # @unittest.SkipTest
     def test_shift_calculation_verboseMode(self):
         """Test the verbose mode - runs the functions of the plotting submodule."""
