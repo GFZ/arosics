@@ -87,10 +87,12 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         ref = GeoArray(self.ref_path)
         ref.to_mem()
         ref.filePath = None
+        ref.gt = [0, 1, 0, 0, 0, -1]
         ref.prj = ''
         tgt = GeoArray(self.tgt_path)
         tgt.to_mem()
         tgt.filePath = None
+        tgt.gt = [0, 1, 0, 0, 0, -1]
         tgt.prj = ''
 
         CR = self.run_shift_detection_correction(ref, tgt,

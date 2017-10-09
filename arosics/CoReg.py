@@ -1147,6 +1147,13 @@ class COREG(object):
                 matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
                                                           rspAlg='cubic', band2get=matchFull.band4match)
 
+            # output validation
+            if not matchWinData.shape == otherWin_deshift_geoArr.shape:
+                warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. SSIM of the '
+                              'de-shifted target image is set to 0.')
+                self.ssim_deshifted = 0
+                return self.ssim_orig, self.ssim_deshifted
+
         self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr)
 
         if v:
