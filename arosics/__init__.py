@@ -3,6 +3,7 @@
 """Top-level package for arosics."""
 
 import warnings
+from importlib import util
 
 from arosics.CoReg import COREG
 from arosics.CoReg_local import COREG_LOCAL
@@ -11,8 +12,8 @@ from arosics.Tie_Point_Grid import Tie_Point_Grid
 
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.6.0'
-__versionalias__ = '2017-10-10_01'
+__version__ = '0.6.1'
+__versionalias__ = '2017-10-10_02'
 __all__ = ['COREG',
            'COREG_LOCAL',
            'DESHIFTER',
@@ -20,10 +21,7 @@ __all__ = ['COREG',
 
 
 # check optional dependencies
-try:
-    import pyfftw
-except ImportError:
-    pyfftw = None
+if not util.find_spec('pyfftw'):
     warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
 
-del warnings, pyfftw
+del util, warnings
