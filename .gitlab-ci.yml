@@ -70,12 +70,23 @@ deploy_pages:
   dependencies:
     - test_arosics
   script:
-    - mkdir -p public/coverage
-    - cp -r htmlcov/* public/coverage/
-    - mkdir -p public/nosetests_reports
-    - cp nosetests.* public/nosetests_reports/
+      # Create the public directory
+    - rm -rf public
+    - mkdir public
     - mkdir -p public/doc
+    - mkdir -p public/coverage
+    - mkdir -p public/nosetests_reports
+    # Copy over the gitlab-pages directory
+    - cp -r gitlab-pages/* public/
+    # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
+    # Copy over the coverage reports
+    - cp -r htmlcov/* public/coverage/
+    # Copy over the nosetests reports
+    - cp nosetests.* public/nosetests_reports/
+    # Check if everything is working great
+    - ls -al public
+    - ls -al public/doc
   artifacts:
     paths:
       - public
