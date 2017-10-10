@@ -5,7 +5,7 @@ RUN yum update -y && \
     yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git freetype \
         freetype-devel libpng-devel blas-devel lapack-devel atlas-devel
 
-ENV anaconda_dl 'Anaconda3-4.3.1-Linux-x86_64.sh'
+ENV anaconda_dl 'Anaconda3-5.0.0-Linux-x86_64.sh'
 RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_dl ; \
     bash -i /root/$anaconda_dl -b ; \
     rm -f /root/$anaconda_dl"
@@ -19,7 +19,7 @@ RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely basemap pykrige; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
     pip install geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral \
-        geoarray>=0.6.9 py_tools_ds>=0.9.0 plotly flake8 pycodestyle pylint pydocstyle coverage nose nose2 \
+        geoarray>=0.6.12 py_tools_ds>=0.9.1 plotly flake8 pycodestyle pylint pydocstyle coverage nose nose2 \
         nose-htmloutput rednose"   # must include all the requirements needed to build the docs!
 
 # copy some needed stuff to /root
