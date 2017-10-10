@@ -57,15 +57,19 @@ test_arosics_install:
     - source activate arosics
      # resolve some requirements with conda
     - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
+    # run installer
     - python setup.py install
+    # test if its importable
     - cd ..
     - pwd
     - ls
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
+  only:
+    - master
 
 
-deploy_pages:
+pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
   stage: deploy
   dependencies:
     - test_arosics
@@ -74,10 +78,12 @@ deploy_pages:
     - rm -rf public
     - mkdir public
     - mkdir -p public/doc
+    - mkdir -p public/images/
     - mkdir -p public/coverage
     - mkdir -p public/nosetests_reports
     # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
+    - cp -r docs/images/* public/images/
     # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
     # Copy over the nosetests reports
@@ -85,6 +91,8 @@ deploy_pages:
     # Check if everything is working great
     - ls -al public
     - ls -al public/doc
+    - ls -al public/coverage
+    - ls -al public/nosetests_reports
   artifacts:
     paths:
       - public
