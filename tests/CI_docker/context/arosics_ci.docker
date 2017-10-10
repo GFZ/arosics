@@ -19,7 +19,8 @@ RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely basemap pykrige; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
     pip install geopandas dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral \
-        geoarray py_tools_ds plotly flake8 pycodestyle pylint pydocstyle coverage nose nose2 nose-htmloutput rednose"   # must include all the requirements needed to build the docs!
+        geoarray>=0.6.9 py_tools_ds>=0.9.0 plotly flake8 pycodestyle pylint pydocstyle coverage nose nose2 \
+        nose-htmloutput rednose"   # must include all the requirements needed to build the docs!
 
 # copy some needed stuff to /root
 #COPY *.pkl /root/ # EXAMPLE
