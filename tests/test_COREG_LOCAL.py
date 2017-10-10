@@ -6,6 +6,7 @@
 import unittest
 import shutil
 import os
+from importlib import util
 
 # custom
 from .cases import test_cases
@@ -63,12 +64,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        try:
-            # noinspection PyUnresolvedReferences
-            from mpl_toolkits.basemap import Basemap
-            CRL.view_CoRegPoints()  # only works if basemap is installed
-        except ImportError:
-            pass
+        if util.find_spec('mpl_toolkits.basemap'):  # only works if basemap is installed
+            CRL.view_CoRegPoints()
 
         # test shift correction and output writer
         CRL.correct_shifts()

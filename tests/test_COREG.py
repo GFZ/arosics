@@ -97,6 +97,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         CR = self.run_shift_detection_correction(ref, tgt,
                                                  **dict(self.coreg_kwargs,
+                                                        wp=(1200, -1600),
                                                         footprint_poly_ref=None,
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)

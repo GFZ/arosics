@@ -4,6 +4,7 @@ import warnings
 import os
 from copy import copy
 from six import PY2
+from importlib import util
 
 # custom
 try:
@@ -474,15 +475,13 @@ class COREG_LOCAL(object):
         warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
         assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
-        try:
-            import folium
-            import geojson
-            from folium import plugins
-        except ImportError:
-            folium, geojson, plugins = [None] * 3
-        if not folium or not geojson:
+        if not all([util.find_spec('folium'), util.find_spec('geojson')]):
             raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
                               "the shell command 'pip install folium geojson'.")
+
+        import folium
+        import geojson
+        from folium import plugins
 
         lon_min, lat_min, lon_max, lat_max = \
             reproject_shapelyGeometry(self.im2shift.box.mapPoly, self.im2shift.projection, 4326).bounds

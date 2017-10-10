@@ -1052,6 +1052,11 @@ class COREG(object):
             scps = self._calc_shifted_cross_power_spectrum(gdsh_im0, crsp_im1)
 
             if scps is not None:
+                if scps.shape[0] < 3 or scps.shape[1] < 3:
+                    self._handle_error(RuntimeError('Shifted cross power spectrum became too small for computing the '
+                                                    'point of registration. Matching failed.'))
+                    return 'invalid', None, None, scps
+
                 peakpos = self._get_peakpos(scps)
                 x_shift, y_shift = self._get_shifts_from_peakpos(peakpos, scps.shape)
                 if (x_shift, y_shift) == (0, 0):
@@ -1402,7 +1407,7 @@ class COREG(object):
         self.deshift_results = DS.correct_shifts()
         return self.deshift_results
 
-    def _correct_shifts_OLD(self):
+    def _correct_shifts_OLD(self):  # pragma: no cover
         if self.success:
             if not os.path.exists(os.path.dirname(self.path_out)):
                 os.makedirs(os.path.dirname(self.path_out))
@@ -1418,7 +1423,7 @@ class COREG(object):
         else:
             warnings.warn('No result written because detection of image displacements failed.')
 
-    def _shift_image_by_updating_map_info(self):
+    def _shift_image_by_updating_map_info(self):  # pragma: no cover
         if not self.q:
             print('\nWriting output...')
         ds_im2shift = gdal.Open(self.shift.path)
@@ -1466,7 +1471,7 @@ class COREG(object):
         if not self.q:
             print('\nCoregistered image written to %s.' % self.path_out)
 
-    def _align_coordinate_grids(self):
+    def _align_coordinate_grids(self):  # pragma: no cover
         xgsd, ygsd = (self.ref.xgsd, self.ref.ygsd) if self.match_gsd else self.out_gsd if self.out_gsd \
             else (self.shift.xgsd, self.shift.ygsd)  # self.match_gsd overrides self.out_gsd in __init__
 
@@ -1518,7 +1523,7 @@ class COREG(object):
             print(output)
             self._handle_error(RuntimeError('Resampling failed.'))
 
-    def _resample_without_grid_aligning(self):
+    def _resample_without_grid_aligning(self):  # pragma: no cover
         xgsd, ygsd = (self.ref.xgsd, self.ref.ygsd) if self.match_gsd else self.out_gsd if self.out_gsd \
             else (self.shift.xgsd, self.shift.ygsd)  # self.match_gsd overrides self.out_gsd in __init__
 

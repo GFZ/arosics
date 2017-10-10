@@ -21,13 +21,13 @@ from skimage.transform import AffineTransform, PolynomialTransform
 # internal modules
 from .CoReg import COREG
 from . import io as IO
-from py_tools_ds.geo.projection import isProjectedOrGeographic, get_UTMzone, dict_to_proj4, proj4_to_WKT
+from py_tools_ds.geo.projection import isProjectedOrGeographic, isLocal, get_UTMzone, dict_to_proj4, proj4_to_WKT
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
 from geoarray import GeoArray
 
-from .CoReg import GeoArray_CoReg
+from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
 
 __author__ = 'Daniel Scheffler'
 
@@ -278,7 +278,9 @@ class Tie_Point_Grid(object):
         XYarr2PointGeom = np.vectorize(lambda X, Y: Point(X, Y), otypes=[Point])
         geomPoints = np.array(XYarr2PointGeom(self.XY_mapPoints[:, 0], self.XY_mapPoints[:, 1]))
 
-        if isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'geographic':
+        if isLocal(self.COREG_obj.shift.prj):
+            crs = None
+        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'geographic':
             crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
         elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'projected':
             UTMzone = abs(get_UTMzone(prj=self.COREG_obj.shift.prj))
@@ -622,7 +624,7 @@ class Tie_Point_Grid(object):
             print('Writing %s ...' % path_out)
         GDF2pass.to_file(path_out)
 
-    def _to_PointShapefile(self, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):
+    def _to_PointShapefile(self, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):  # pragma: no cover
         warnings.warn(DeprecationWarning(
             "'_tiepoints_grid_to_PointShapefile' is deprecated."  # TODO delete if other method validated
             " 'tiepoints_grid_to_PointShapefile' is much faster."))
@@ -677,7 +679,7 @@ class Tie_Point_Grid(object):
         return out_GA
 
     def _to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                                    path_out=None, tilepos=None):
+                                    path_out=None, tilepos=None):  # pragma: no cover
         warnings.warn(DeprecationWarning("'to_Raster_using_KrigingOLD' is deprecated. Use to_Raster_using_Kriging "
                                          "instead."))  # TODO delete
 
@@ -920,7 +922,7 @@ class Tie_Point_Refiner(object):
             raise ValueError
         min_inlier_percentage = 100 - self.rs_max_outlier_percentage
 
-        class PolyTF_1(PolynomialTransform):
+        class PolyTF_1(PolynomialTransform):  # pragma: no cover
             def estimate(*data):
                 return PolynomialTransform.estimate(*data, order=1)
 
