@@ -76,8 +76,6 @@ deploy_pages:
     - mkdir -p public/doc
     - mkdir -p public/coverage
     - mkdir -p public/nosetests_reports
-    # Copy over the gitlab-pages directory
-    - cp -r gitlab-pages/* public/
     # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
     # Copy over the coverage reports
