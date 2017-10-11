@@ -59,7 +59,7 @@ def write_envi(arr, outpath, gt=None, prj=None):
     out_mm[:, :, 0] = arr
 
 
-def wfa(p, c):
+def wfa(p, c):  # pragma: no cover
     try:
         with open(p, 'a') as of:
             of.write(c)

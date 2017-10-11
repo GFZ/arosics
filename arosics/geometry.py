@@ -23,7 +23,7 @@ def angle_to_north(XY):
     return np.abs(np.degrees(np.array(np.arctan2(XYarr[:, 1], XYarr[:, 0]) - np.pi / 2)) % 360)
 
 
-def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, q=0):
+def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, q=0):  # pragma: no cover
     # FIXME this function is not used anymore
     """
 
