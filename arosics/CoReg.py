@@ -99,6 +99,10 @@ class GeoArray_CoReg(GeoArray):
                 print('Calculating actual data corner coordinates for %s...' % self.imName)
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
+        # validate footprint poly
+        if not self.footprint_poly.is_valid:
+            self.footprint_poly = self.footprint_poly.buffer(0)
+
         if not self.q:
             print('Bounding box of calculated footprint for %s:\n\t%s' % (self.imName, self.footprint_poly.bounds))
 

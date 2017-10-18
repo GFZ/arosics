@@ -74,7 +74,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
   dependencies:
     - test_arosics
   script:
-      # Create the public directory
+    # Create the public directory
     - rm -rf public
     - mkdir public
     - mkdir -p public/doc
