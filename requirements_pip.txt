@@ -1,0 +1,6 @@
+cmocean
+geopandas
+spectral
+plotly
+six
+
