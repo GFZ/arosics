@@ -427,7 +427,7 @@ class COREG_LOCAL(object):
             if self.tieP_filter_level > 1:
                 # flag level 2 outliers
                 GDF_filt = GDF[GDF.L2_OUTLIER.__eq__(True)].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='MSSIM')
+                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='SSIM')
             if self.tieP_filter_level > 2:
                 # flag level 3 outliers
                 GDF_filt = GDF[GDF.L3_OUTLIER.__eq__(True)].copy()

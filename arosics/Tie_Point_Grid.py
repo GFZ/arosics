@@ -401,27 +401,28 @@ class Tie_Point_Grid(object):
         """
 
         tbl = self.CoRegPoints_table
-        tbl = tbl if include_outliers else tbl[~tbl['OUTLIER']].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
 
         shifts = np.array(tbl['ABS_SHIFT'])
         shifts_sq = [i * i for i in shifts if i != self.outFillVal]
 
         return np.sqrt(sum(shifts_sq) / len(shifts_sq))
 
-    def calc_overall_mssim(self, include_outliers=False):
-        # type: (bool) -> float
-        """Calculates the median value of all MSSIM values contained in tie point grid.
+    def calc_overall_ssim(self, include_outliers=False, after_correction=True):
+        # type: (bool, bool) -> float
+        """Calculates the median value of all SSIM values contained in tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
+        :param after_correction:    whether to compute median SSIM before correction or after
         """
 
         tbl = self.CoRegPoints_table
-        tbl = tbl if include_outliers else tbl[~tbl['OUTLIER']].copy()
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy()
 
-        mssim_col = np.array(tbl['MSSIM'])
-        mssim_col = [i * i for i in mssim_col if i != self.outFillVal]
+        ssim_col = np.array(tbl['SSIM_AFTER' if after_correction else 'SSIM_BEFORE'])
+        ssim_col = [i * i for i in ssim_col if i != self.outFillVal]
 
-        return float(np.median(mssim_col))
+        return float(np.median(ssim_col))
 
     def plot_shift_distribution(self, include_outliers=True, unit='m', interactive=False, figsize=None, xlim=None,
                                 ylim=None, fontsize=12, title='shift distribution'):
@@ -443,7 +444,7 @@ class Tie_Point_Grid(object):
 
         tbl = self.CoRegPoints_table
         tbl = tbl[tbl['ABS_SHIFT'] != self.outFillVal]
-        tbl_il = tbl[~tbl['OUTLIER']].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl_il = tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
         tbl_ol = tbl[tbl['OUTLIER']].copy() if 'OUTLIER' in tbl.columns else None
         x_attr = 'X_SHIFT_M' if unit == 'm' else 'X_SHIFT_PX'
         y_attr = 'Y_SHIFT_M' if unit == 'm' else 'Y_SHIFT_PX'
