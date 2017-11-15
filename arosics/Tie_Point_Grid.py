@@ -343,6 +343,7 @@ class Tie_Point_Grid(object):
                         time.sleep(.1)
                         # this does not really represent the remaining tasks but the remaining chunks
                         # -> thus chunksize=1
+                        # noinspection PyProtectedMember
                         numberDone = len(GDF) - results._number_left
                         if self.progress:
                             bar.print_progress(percent=numberDone / len(GDF) * 100)
