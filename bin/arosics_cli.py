@@ -360,7 +360,13 @@ if __name__ == '__main__':
     from socket import gethostname
     from datetime import datetime as dt
     from getpass import getuser
-    from arosics.io import wfa
+
+    def wfa(p, c):
+        try:
+            with open(p, 'a') as of:
+                of.write(c)
+        except Exception:
+            pass
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
 

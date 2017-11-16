@@ -29,6 +29,10 @@ Status
         :target: http://danschef.gitext.gfz-potsdam.de/arosics/coverage/
 .. image:: https://img.shields.io/pypi/v/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
+.. image:: https://img.shields.io/pypi/l/arosics.svg
+        :target: https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
+.. image:: https://img.shields.io/pypi/pyversions/arosics.svg
+        :target: https://img.shields.io/pypi/pyversions/arosics.svg
 
 See also the latest coverage_ report and the nosetests_ HTML report.
 
@@ -52,8 +56,12 @@ Using conda_, the recommended approach is:
     # create virtual environment for arosics, this is optional
     conda create -y -q --name arosics python=3
     source activate arosics
-    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
-    conda install -y -q -c conda-forge pyfftw basemap pykrige  # these libraries are optional
+    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+
+    # optional libraries:
+    conda install -y -q -c conda-forge basemap pykrige
+    conda install -y -q -c conda-forge pyfftw  # Linux and MacOS
+    conda install -y -q -c jesserobertson pyfftw  # Windows
 
 
 To install AROSICS, use the pip installer:

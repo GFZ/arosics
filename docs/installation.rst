@@ -14,8 +14,12 @@ Using conda_, the recommended approach is:
     # create virtual environment for arosics, this is optional
     conda create -y -q --name arosics python=3
     source activate arosics
-    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
-    conda install -y -q -c conda-forge pyfftw basemap pykrige  # these libraries are optional
+    conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+
+    # optional libraries:
+    conda install -y -q -c conda-forge basemap pykrige
+    conda install -y -q -c conda-forge pyfftw  # Linux and MacOS
+    conda install -y -q -c jesserobertson pyfftw  # Windows
 
 
 Stable release

@@ -20,11 +20,11 @@ from skimage.transform import AffineTransform, PolynomialTransform
 
 # internal modules
 from .CoReg import COREG
-from . import io as IO
 from py_tools_ds.geo.projection import isProjectedOrGeographic, isLocal, get_UTMzone, dict_to_proj4, proj4_to_WKT
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
+from py_tools_ds.io.vector.writer import write_shp
 from geoarray import GeoArray
 
 from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
@@ -611,11 +611,11 @@ class Tie_Point_Grid(object):
         GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
 
         # replace boolean values (cannot be written)
+        GDF2pass = GDF2pass.replace(False, 0)  # replace all booleans where column dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(True, 1)
         for col in GDF2pass.columns:
             if GDF2pass[col].dtype == np.bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)
-        GDF2pass = GDF2pass.replace(False, 0)  # replace all remaining booleans where dtype is not np.bool but np.object
-        GDF2pass = GDF2pass.replace(True, 1)
 
         path_out = path_out if path_out else \
             get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
@@ -637,7 +637,7 @@ class Tie_Point_Grid(object):
 
         fName_out = "CoRegPoints_grid%s_ws%s.shp" % (self.grid_res, self.COREG_obj.win_size_XY)
         path_out = os.path.join(self.dir_out, fName_out)
-        IO.write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
+        write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
 
     def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
         # type: (str) -> GeoArray
@@ -680,45 +680,6 @@ class Tie_Point_Grid(object):
 
         return out_GA
 
-    def _to_Raster_using_KrigingOLD(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                                    path_out=None, tilepos=None):  # pragma: no cover
-        warnings.warn(DeprecationWarning("'to_Raster_using_KrigingOLD' is deprecated. Use to_Raster_using_Kriging "
-                                         "instead."))  # TODO delete
-
-        GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
-
-        # subset if tilepos is given
-        rows, cols = tilepos if tilepos else self.shift.shape
-        GDF2pass = GDF2pass.loc[(GDF2pass['X_IM'] >= cols[0]) & (GDF2pass['X_IM'] <= cols[1]) &
-                                (GDF2pass['Y_IM'] >= rows[0]) & (GDF2pass['Y_IM'] <= rows[1])]
-
-        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_UTM'], GDF2pass['Y_UTM'], GDF2pass[attrName]
-
-        xmin, ymin, xmax, ymax = GDF2pass.total_bounds
-
-        grid_res = outGridRes if outGridRes else int(min(xmax - xmin, ymax - ymin) / 250)
-        grid_x, grid_y = np.arange(xmin, xmax + grid_res, grid_res), np.arange(ymax, ymin - grid_res, -grid_res)
-
-        # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
-        #            (Cambridge University Press, 1997) 272 p.
-        from pykrige.ok import OrdinaryKriging
-        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical', verbose=False)
-        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y)  # ,backend='C',)
-
-        path_out = path_out if path_out else \
-            get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
-                                fName_out="Kriging__%s__grid%s_ws(%s_%s).tif"
-                                          % (attrName, self.grid_res, self.COREG_obj.win_size_XY[0],
-                                             self.COREG_obj.win_size_XY[1]))
-        print('Writing %s ...' % path_out)
-        # add a half pixel grid points are centered on the output pixels
-        xmin, ymin, xmax, ymax = xmin - grid_res / 2, ymin - grid_res / 2, xmax + grid_res / 2, ymax + grid_res / 2
-        IO.write_numpy_to_image(zvalues, path_out, gt=(xmin, grid_res, 0, ymax, 0, -grid_res),
-                                prj=self.COREG_obj.shift.prj)
-
-        return zvalues
-
     def to_Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
                                 fName_out=None, tilepos=None, tilesize=500, mp=None):
 
@@ -752,17 +713,6 @@ class Tie_Point_Grid(object):
         GDF = self.CoRegPoints_table
         GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
 
-        #         # subset if tilepos is given
-        # #        overlap_factor =
-        #         rows,cols = tilepos if tilepos else self.tgt_shape
-        #         xvals, yvals = np.sort(GDF2pass['X_IM'].values.flat),np.sort(GDF2pass['Y_IM'].values.flat)
-        #         cS,cE = UTL.find_nearest(xvals,cols[0],'off',1), UTL.find_nearest(xvals,cols[1],'on',1)
-        #         rS,rE = UTL.find_nearest(yvals,rows[0],'off',1), UTL.find_nearest(yvals,rows[1],'on',1)
-        #         # GDF2pass        = GDF2pass.loc[(GDF2pass['X_IM']>=cols[0])&(GDF2pass['X_IM']<=cols[1])&
-        #         #                                (GDF2pass['Y_IM']>=rows[0])&(GDF2pass['Y_IM']<=rows[1])]
-        #         GDF2pass        = GDF2pass.loc[(GDF2pass['X_IM']>=cS)&(GDF2pass['X_IM']<=cE)&
-        #                                        (GDF2pass['Y_IM']>=rS)&(GDF2pass['Y_IM']<=rE)]
-
         X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_UTM'], GDF2pass['Y_UTM'], GDF2pass[attrName]
 
         xmin, ymin, xmax, ymax = GDF2pass.total_bounds
@@ -783,11 +733,12 @@ class Tie_Point_Grid(object):
             fName_out = fName_out if fName_out else \
                 "Kriging__%s__grid%s_ws%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY)
         path_out = get_generic_outpath(dir_out=self.dir_out, fName_out=fName_out)
-        print('Writing %s ...' % path_out)
         # add a half pixel grid points are centered on the output pixels
         xmin, ymin, xmax, ymax = xmin - grid_res / 2, ymin - grid_res / 2, xmax + grid_res / 2, ymax + grid_res / 2
-        IO.write_numpy_to_image(zvalues, path_out, gt=(xmin, grid_res, 0, ymax, 0, -grid_res),
-                                prj=self.COREG_obj.shift.prj)
+
+        GeoArray(zvalues,
+                 geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
+                 projection=self.COREG_obj.shift.prj).save(path_out)
 
         return zvalues
 

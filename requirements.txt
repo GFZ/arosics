@@ -1,5 +1,5 @@
 geoarray>=0.6.16
-py_tools_ds>=0.9.3
+py_tools_ds>=0.12.0
 cmocean
 numpy
 gdal
@@ -7,6 +7,5 @@ shapely
 scikit-image
 matplotlib
 geopandas
-spectral
 plotly
 six

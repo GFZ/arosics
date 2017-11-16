@@ -16,6 +16,9 @@
 [![build status](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/commits/master)
 [![coverage report](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/)
 [![pypi_status](https://img.shields.io/pypi/v/arosics.svg)](https://pypi.python.org/pypi/arosics)
+[![license](https://img.shields.io/pypi/l/arosics.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE)
+[![python versions](https://img.shields.io/pypi/pyversions/arosics.svg)](https://img.shields.io/pypi/pyversions/arosics.svg)
+
 
 See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) and the [nosetests](http://danschef.gitext.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html) HTML report.
 
@@ -58,8 +61,12 @@ Using [conda](https://conda.io/docs/), the recommended approach is:
 # create virtual environment for arosics, this is optional
 conda create -y -q --name arosics python=3
 source activate arosics
-conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
-conda install -y -q -c conda-forge pyfftw basemap pykrige  # these libraries are optional
+conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+
+# optional libraries:
+conda install -y -q -c conda-forge basemap pykrige
+conda install -y -q -c conda-forge pyfftw  # Linux and MacOS
+conda install -y -q -c jesserobertson pyfftw  # Windows
 ```
 
 To install AROSICS, use the pip installer:

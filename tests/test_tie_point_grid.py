@@ -4,6 +4,10 @@
 """Tests for the module arosics.Tie_Point_Grid."""
 
 import unittest
+import tempfile
+import os
+from importlib import util
+import shutil
 
 # custom
 from .cases import test_cases
@@ -31,6 +35,10 @@ class Test_Tie_Point_Grid(unittest.TestCase):
                                  v=CRL.v,
                                  q=CRL.q)
 
+    def tearDown(self):
+        if os.path.isdir(self.TPG.dir_out):
+            shutil.rmtree(self.TPG.dir_out)
+
     def test_mean_shifts(self):
         self.assertIsInstance(self.TPG.mean_x_shift_px, float)
         self.assertIsInstance(self.TPG.mean_y_shift_px, float)
@@ -51,24 +59,32 @@ class Test_Tie_Point_Grid(unittest.TestCase):
     def test_plot_shift_distribution(self):
         self.TPG.plot_shift_distribution()
 
-    @unittest.SkipTest
     def test_dump_CoRegPoints_table(self):
-        raise NotImplementedError()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outpath = os.path.join(tmpdir, 'CoRegPoints_table.pkl')
+            self.TPG.dump_CoRegPoints_table(outpath)
+            self.assertTrue(os.path.isfile(outpath))
 
     def test_to_GCPList(self):
         self.TPG.to_GCPList()
 
-    @unittest.SkipTest
     def test_to_PointShapefile(self):
-        # TODO requires to delete output later
-        self.TPG.to_PointShapefile()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outpath = os.path.join(tmpdir, 'test_out_shapefile.shp')
+            self.TPG.to_PointShapefile(outpath)
+            self.assertTrue(os.path.isfile(outpath))
 
-    @unittest.SkipTest
     def test_to_vectorfield(self):
-        # TODO requires to delete output later
-        self.TPG.to_vectorfield()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outpath = os.path.join(tmpdir, 'test_vectorfield.bsq')
+            self.TPG.to_vectorfield(outpath, fmt='ENVI', mode='md')
+            self.assertTrue(os.path.isfile(outpath))
+            self.TPG.to_vectorfield(outpath, fmt='ENVI', mode='uv')
+            self.assertTrue(os.path.isfile(outpath))
 
-    @unittest.SkipTest
     def test_to_Raster_using_Kriging(self):
-        # TODO requires to delete output later
-        self.TPG.to_Raster_using_Kriging(attrName='X_SHIFT_MAP')
+        if util.find_spec('pykrige.ok'):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outpath = os.path.join(tmpdir, 'X_SHIFT_M__interpolated.bsq')
+                self.TPG.to_Raster_using_Kriging(attrName='X_SHIFT_M', fName_out=outpath)
+                self.assertTrue(os.path.isfile(outpath))
