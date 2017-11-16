@@ -7,6 +7,5 @@ shapely
 scikit-image
 matplotlib
 geopandas
-spectral
 plotly
 six

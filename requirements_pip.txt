@@ -1,5 +1,4 @@
 cmocean
-spectral
 plotly
 six
 

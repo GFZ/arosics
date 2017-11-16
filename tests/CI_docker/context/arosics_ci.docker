@@ -18,7 +18,7 @@ RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     conda install --yes -c ioam holoviews bokeh ; \
     conda install --yes -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely basemap pykrige geopandas; \
     conda install --yes -c conda-forge 'icu=58.*' lxml ; \
-    pip install dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse spectral \
+    pip install dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse \
         geoarray>=0.6.12 py_tools_ds>=0.9.1 plotly flake8 pycodestyle pylint pydocstyle coverage nose nose2 \
         nose-htmloutput rednose"   # must include all the requirements needed to build the docs!
 

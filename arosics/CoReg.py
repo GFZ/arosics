@@ -25,7 +25,6 @@ from skimage.exposure import rescale_intensity
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
 from . import geometry as GEO
-from . import io as IO
 from . import plotting as PLT
 
 from geoarray import GeoArray
@@ -40,6 +39,8 @@ from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.geo.map_info import geotransform2mapinfo
 from py_tools_ds.numeric.vector import find_nearest
 from py_tools_ds.similarity.raster import calc_ssim
+from py_tools_ds.io.raster.writer import convert_gdal_to_bsq__mp
+from py_tools_ds.io.vector.writer import write_shp
 
 __author__ = 'Daniel Scheffler'
 
@@ -293,9 +294,9 @@ class COREG(object):
         self._get_overlap_properties()
 
         if self.v and self.path_verbose_out:
-            IO.write_shp(os.path.join(self.path_verbose_out, 'poly_imref.shp'), self.ref.poly, self.ref.prj)
-            IO.write_shp(os.path.join(self.path_verbose_out, 'poly_im2shift.shp'), self.shift.poly, self.shift.prj)
-            IO.write_shp(os.path.join(self.path_verbose_out, 'overlap_poly.shp'), self.overlap_poly, self.ref.prj)
+            write_shp(os.path.join(self.path_verbose_out, 'poly_imref.shp'), self.ref.poly, self.ref.prj)
+            write_shp(os.path.join(self.path_verbose_out, 'poly_im2shift.shp'), self.shift.poly, self.shift.prj)
+            write_shp(os.path.join(self.path_verbose_out, 'overlap_poly.shp'), self.overlap_poly, self.ref.prj)
 
         # FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection())
         # FIXME später basteln für den fall, dass projektionen nicht gleich sind
@@ -307,8 +308,8 @@ class COREG(object):
         self._get_clip_window_properties()  # sets self.matchBox, self.otherBox and much more
 
         if self.v and self.path_verbose_out and self.matchBox.mapPoly and self.success is not False:
-            IO.write_shp(os.path.join(self.path_verbose_out, 'poly_matchWin.shp'),
-                         self.matchBox.mapPoly, self.matchBox.prj)
+            write_shp(os.path.join(self.path_verbose_out, 'poly_matchWin.shp'),
+                      self.matchBox.mapPoly, self.matchBox.prj)
 
         self.success = False if self.success is False or not self.matchBox.boxMapYX else None
         self._coreg_info = None  # private attribute to be filled by self.coreg_info property
@@ -741,8 +742,8 @@ class COREG(object):
                 print('Target window size %s not possible due to too small overlap area or window position too close '
                       'to an image edge. New matching window size: %s.' % (self.win_size_XY, match_win_size_XY))
 
-                # IO.write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
-                # IO.write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
+                # write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
+                # write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
 
     def _get_image_windows_to_match(self):
         """Reads the matching window and the other window using subset read, and resamples the other window to the
@@ -1433,7 +1434,7 @@ class COREG(object):
         ds_im2shift = gdal.Open(self.shift.path)
         if not ds_im2shift.GetDriver().ShortName == 'ENVI':  # FIXME laaangsam
             if self.CPUs is not None and self.CPUs > 1:
-                IO.convert_gdal_to_bsq__mp(self.shift.path, self.path_out)
+                convert_gdal_to_bsq__mp(self.shift.path, self.path_out)
             else:
                 os.system('gdal_translate -of ENVI %s %s' % (self.shift.path, self.path_out))
             file2getHdr = self.path_out
