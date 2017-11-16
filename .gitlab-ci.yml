@@ -56,7 +56,7 @@ test_arosics_install:
     - conda create -y -q --name arosics python=3
     - source activate arosics
      # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
     # run installer
     - python setup.py install
     # test if its importable
