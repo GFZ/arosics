@@ -7,6 +7,7 @@ import unittest
 import tempfile
 import os
 from importlib import util
+import shutil
 
 # custom
 from .cases import test_cases
@@ -33,6 +34,10 @@ class Test_Tie_Point_Grid(unittest.TestCase):
                                  progress=CRL.progress,
                                  v=CRL.v,
                                  q=CRL.q)
+
+    def tearDown(self):
+        if os.path.isdir(self.TPG.dir_out):
+            shutil.rmtree(self.TPG.dir_out)
 
     def test_mean_shifts(self):
         self.assertIsInstance(self.TPG.mean_x_shift_px, float)
