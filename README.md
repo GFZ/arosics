@@ -17,7 +17,7 @@
 [![coverage report](https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg)](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/)
 [![pypi_status](https://img.shields.io/pypi/v/arosics.svg)](https://pypi.python.org/pypi/arosics)
 [![license](https://img.shields.io/pypi/l/arosics.svg)](https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE)
-[![python versions](https://img.shields.io/pypi/pyversions/arosics.svg)]()
+[![python versions](https://img.shields.io/pypi/pyversions/arosics.svg)](https://img.shields.io/pypi/pyversions/arosics.svg)
 
 
 See also the latest [coverage](http://danschef.gitext.gfz-potsdam.de/arosics/coverage/) and the [nosetests](http://danschef.gitext.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html) HTML report.

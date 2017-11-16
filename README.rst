@@ -32,7 +32,7 @@ Status
 .. image:: https://img.shields.io/pypi/l/arosics.svg
         :target: https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
 .. image:: https://img.shields.io/pypi/pyversions/arosics.svg
-        :target:
+        :target: https://img.shields.io/pypi/pyversions/arosics.svg
 
 See also the latest coverage_ report and the nosetests_ HTML report.
 
