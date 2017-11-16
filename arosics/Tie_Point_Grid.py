@@ -611,11 +611,11 @@ class Tie_Point_Grid(object):
         GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
 
         # replace boolean values (cannot be written)
+        GDF2pass = GDF2pass.replace(False, 0)  # replace all booleans where column dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(True, 1)
         for col in GDF2pass.columns:
             if GDF2pass[col].dtype == np.bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)
-        GDF2pass = GDF2pass.replace(False, 0)  # replace all remaining booleans where dtype is not np.bool but np.object
-        GDF2pass = GDF2pass.replace(True, 1)
 
         path_out = path_out if path_out else \
             get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
