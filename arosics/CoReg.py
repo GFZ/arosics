@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
-import shutil
-import subprocess
 import time
 import warnings
 from copy import copy
@@ -29,17 +26,15 @@ from . import plotting as PLT
 
 from geoarray import GeoArray
 from py_tools_ds.convenience.object_oriented import alias_property
-from py_tools_ds.geo.coord_calc import corner_coord_to_minmax, get_corner_coordinates
+from py_tools_ds.geo.coord_calc import get_corner_coordinates
 from py_tools_ds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
 from py_tools_ds.geo.projection import prj_equal, get_proj4info
 from py_tools_ds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
 from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid
-from py_tools_ds.geo.coord_trafo import pixelToMapYX, reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
+from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
 from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.geo.map_info import geotransform2mapinfo
-from py_tools_ds.numeric.vector import find_nearest
 from py_tools_ds.similarity.raster import calc_ssim
-from py_tools_ds.io.raster.writer import convert_gdal_to_bsq__mp
 from py_tools_ds.io.vector.writer import write_shp
 
 __author__ = 'Daniel Scheffler'
@@ -1411,150 +1406,3 @@ class COREG(object):
                        q=self.q)
         self.deshift_results = DS.correct_shifts()
         return self.deshift_results
-
-    def _correct_shifts_OLD(self):  # pragma: no cover
-        if self.success:
-            if not os.path.exists(os.path.dirname(self.path_out)):
-                os.makedirs(os.path.dirname(self.path_out))
-            equal_prj = prj_equal(self.ref.prj, self.shift.prj)
-
-            if equal_prj and not self.align_grids and not self.match_gsd and \
-                    self.out_gsd in [None, [self.shift.xgsd, self.shift.ygsd]]:
-                self._shift_image_by_updating_map_info()
-            elif equal_prj and self.align_grids:  # match_gsd and out_gsd are respected
-                self._align_coordinate_grids()
-            else:  # match_gsd and out_gsd are respected ### TODO: out_proj implementieren
-                self._resample_without_grid_aligning()
-        else:
-            warnings.warn('No result written because detection of image displacements failed.')
-
-    def _shift_image_by_updating_map_info(self):  # pragma: no cover
-        if not self.q:
-            print('\nWriting output...')
-        ds_im2shift = gdal.Open(self.shift.path)
-        if not ds_im2shift.GetDriver().ShortName == 'ENVI':  # FIXME laaangsam
-            if self.CPUs is not None and self.CPUs > 1:
-                convert_gdal_to_bsq__mp(self.shift.path, self.path_out)
-            else:
-                os.system('gdal_translate -of ENVI %s %s' % (self.shift.path, self.path_out))
-            file2getHdr = self.path_out
-        else:
-            shutil.copy(self.shift.path, self.path_out)
-            file2getHdr = self.shift.path
-        del ds_im2shift
-
-        path_hdr = '%s.hdr' % os.path.splitext(file2getHdr)[0]
-        path_hdr = '%s.hdr' % file2getHdr if not os.path.exists(path_hdr) else path_hdr
-        path_hdr = None if not os.path.exists(path_hdr) else path_hdr
-
-        assert path_hdr, 'No header file found for %s. Applying shifts failed.' % file2getHdr
-
-        new_originY, new_originX = pixelToMapYX([self.x_shift_px, self.y_shift_px],
-                                                geotransform=self.shift.gt, projection=self.shift.prj)[0]
-        map_xshift, map_yshift = new_originX - self.shift.gt[0], new_originY - self.shift.gt[3]
-        if not self.q:
-            print('Calculated map shifts (X,Y): %s, %s' % (map_xshift, map_yshift))
-
-        with open(path_hdr, 'r') as inF:
-            content = inF.read()
-            map_info_line = [i for i in content.split('\n') if re.search('map info [\w+]*=', i, re.I)][0]
-            map_info_string = re.search('{([\w+\s\S]*)}', map_info_line, re.I).group(1)
-            map_info = [i.strip() for i in map_info_string.split(',')]
-        if not self.q:
-            print('Original map info: %s' % map_info)
-        new_map_info = map_info
-        new_map_info[3] = str(float(map_info[3]) + map_xshift)
-        new_map_info[4] = str(float(map_info[4]) + map_yshift)
-        if not self.q:
-            print('Updated map info:  %s' % new_map_info)
-        new_map_info_line = 'map info = { %s }' % ' , '.join(new_map_info)
-        new_content = content.replace(map_info_line, new_map_info_line)
-        outpath_hdr = '%s.hdr' % os.path.splitext(self.path_out)[0]
-        with open(outpath_hdr, 'w') as outF:
-            outF.write(new_content)
-
-        if not self.q:
-            print('\nCoregistered image written to %s.' % self.path_out)
-
-    def _align_coordinate_grids(self):  # pragma: no cover
-        xgsd, ygsd = (self.ref.xgsd, self.ref.ygsd) if self.match_gsd else self.out_gsd if self.out_gsd \
-            else (self.shift.xgsd, self.shift.ygsd)  # self.match_gsd overrides self.out_gsd in __init__
-
-        if not self.q:
-            print('Resampling shift image in order to align coordinate grid of shift image to reference image. ')
-
-        def is_alignable(gsd1, gsd2):
-            """Check if pixel sizes are divisible"""
-            return max(gsd1, gsd2) % min(gsd1, gsd2) == 0
-
-        if not is_alignable(self.ref.xgsd, xgsd) or not is_alignable(self.ref.ygsd, ygsd) and not self.q:
-            print("\nWARNING: The coordinate grids of the reference image and the image to be shifted cannot be "
-                  "aligned because their pixel sizes are not exact multiples of each other (ref [X/Y]: "
-                  "%s %s; shift [X/Y]: %s %s). Therefore the pixel size of the reference image is chosen for the "
-                  "resampled output image. If you don´t like that you can use the '-out_gsd' parameter to set an "
-                  "appropriate output pixel size.\n" % (self.ref.xgsd, self.ref.ygsd, xgsd, ygsd))
-            xgsd, ygsd = self.ref.xgsd, self.ref.ygsd
-
-        r_xmin, r_xmax, r_ymin, r_ymax = corner_coord_to_minmax(get_corner_coordinates(self.ref.path))
-        imref_xgrid = np.arange(r_xmin, r_xmax, self.ref.xgsd)
-        imref_ygrid = np.arange(r_ymin, r_ymax, self.ref.ygsd)
-        s_xmin, s_xmax, s_ymin, s_ymax = corner_coord_to_minmax(get_corner_coordinates(self.shift.path))
-        xmin, xmax = find_nearest(imref_xgrid, s_xmin, 'off', extrapolate=1), find_nearest(imref_xgrid, s_xmax, 'on',
-                                                                                           extrapolate=1)
-        ymin, ymax = find_nearest(imref_ygrid, s_ymin, 'off', extrapolate=1), find_nearest(imref_ygrid, s_ymax, 'on',
-                                                                                           extrapolate=1)
-
-        new_originY, new_originX = pixelToMapYX([self.x_shift_px, self.y_shift_px],
-                                                geotransform=self.shift.gt, projection=self.shift.prj)[0]
-        map_xshift, map_yshift = new_originX - self.shift.gt[0], new_originY - self.shift.gt[3]
-        if not self.q:
-            print('Calculated map shifts (X,Y): %s, %s' % (map_xshift, map_yshift))
-        gt_shifted = list(self.shift.gt[:])
-        gt_shifted[0], gt_shifted[3] = new_originX, new_originY
-
-        pathVRT = os.path.splitext(os.path.basename(self.shift.path))[0] + '.vrt'
-        ds_im2shift = gdal.Open(self.shift.path)
-        dst_ds = gdal.GetDriverByName('VRT').CreateCopy(pathVRT, ds_im2shift, 0)
-        dst_ds.SetGeoTransform(gt_shifted)
-        del dst_ds, ds_im2shift
-
-        cmd = "gdalwarp -r cubic -tr %s %s -t_srs '%s' -of ENVI %s %s -overwrite -te %s %s %s %s" \
-              % (xgsd, ygsd, self.ref.prj, pathVRT, self.path_out, xmin, ymin, xmax, ymax)
-        output = subprocess.check_output(cmd, shell=True)
-        if output != 1 and os.path.exists(self.path_out):
-            if not self.q:
-                print('Coregistered and resampled image written to %s.' % self.path_out)
-        else:
-            print(output)
-            self._handle_error(RuntimeError('Resampling failed.'))
-
-    def _resample_without_grid_aligning(self):  # pragma: no cover
-        xgsd, ygsd = (self.ref.xgsd, self.ref.ygsd) if self.match_gsd else self.out_gsd if self.out_gsd \
-            else (self.shift.xgsd, self.shift.ygsd)  # self.match_gsd overrides self.out_gsd in __init__
-
-        new_originY, new_originX = pixelToMapYX([self.x_shift_px, self.y_shift_px],
-                                                geotransform=self.shift.gt, projection=self.shift.prj)[0]
-        map_xshift, map_yshift = new_originX - self.shift.gt[0], new_originY - self.shift.gt[3]
-        if not self.q:
-            print('Calculated map shifts (X,Y): %s, %s' % (map_xshift, map_yshift))
-        gt_shifted = list(self.shift.gt[:])
-        gt_shifted[0], gt_shifted[3] = new_originX, new_originY
-
-        pathVRT = os.path.splitext(os.path.basename(self.shift.path))[0] + '.vrt'
-        ds_im2shift = gdal.Open(self.shift.path)
-        drv = gdal.GetDriverByName('VRT')
-        dst_ds = drv.CreateCopy(pathVRT, ds_im2shift, 0)
-        dst_ds.SetGeoTransform(gt_shifted)
-        del dst_ds, ds_im2shift
-
-        if not self.q:
-            print('Resampling shift image without aligning of coordinate grids. ')
-        cmd = "gdalwarp -r %s -tr %s %s -t_srs '%s' -of ENVI %s %s -overwrite" \
-              % (self.rspAlg_calc, xgsd, ygsd, self.ref.prj, pathVRT, self.path_out)
-        output = subprocess.check_output(cmd, shell=True)
-        if output != 1 and os.path.exists(self.path_out):
-            if not self.q:
-                print('Coregistered and resampled image written to %s.' % self.path_out)
-        else:
-            print(output)
-            self._handle_error(RuntimeError('Resampling failed.'))
