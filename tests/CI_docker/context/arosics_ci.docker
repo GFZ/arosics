@@ -1,6 +1,5 @@
 FROM conda_pyenv:pinned_v0.1
 
-RUN /bin/bash -i -c "; \
-    source /root/anaconda3/bin/activate ; \
+RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
     source activate py3; \
     conda env update -f /root/environment_arosics.yml"
