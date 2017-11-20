@@ -1,5 +1,8 @@
 FROM conda_pyenv:pinned_v0.1
 
+# copy some needed stuff to /root
+COPY *.yml /root/
+
 RUN /bin/bash -i -c "\
     source /root/miniconda3/bin/activate ; \
     source activate py3; \
