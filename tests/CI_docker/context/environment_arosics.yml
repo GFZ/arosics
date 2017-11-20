@@ -15,8 +15,6 @@ dependencies:
   - lxml
   - geopandas
   - ipython
-  - geoarray>=0.6.16
-  - py_tools_ds>=0.12.1
   - shapely
   - matplotlib
   - basemap
@@ -46,3 +44,5 @@ dependencies:
     - rednose
     - cmocean
     - plotly
+    - geoarray>=0.6.16
+    - py_tools_ds>=0.12.1
