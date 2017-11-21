@@ -335,11 +335,15 @@ class COREG_LOCAL(object):
         footprints of the input images as well as the corresponding overlap area."""
         return self.COREG_obj.show_image_footprints()
 
-    def view_CoRegPoints(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True, backgroundIm='tgt',
-                         hide_filtered=True, figsize=None, savefigPath='', savefigDPI=96, showFig=True,
-                         vmin=None, vmax=None, return_map=False, zoomable=False):
+    def view_CoRegPoints(self, shapes2plot='points', attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True,
+                         backgroundIm='tgt', hide_filtered=True, figsize=None, title='', vector_scale=1.,
+                         savefigPath='', savefigDPI=96, showFig=True, vmin=None, vmax=None, return_map=False,
+                         zoomable=False):
+        # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool) -> tuple
         """Shows a map of the calculated tie point grid with the target image as background.
 
+        :param shapes2plot:         <str> 'points': plot points representing values of 'attribute2plot' onto the map
+                                          'vectors': plot shift vectors onto the map
         :param attribute2plot:      <str> the attribute of the tie point grid to be shown (default: 'ABS_SHIFT')
         :param cmap:                <plt.cm.<colormap>> a custom color map to be applied to the plotted grid points
                                                         (default: 'RdYlGn_r')
@@ -350,6 +354,8 @@ class COREG_LOCAL(object):
         :param hide_filtered:       <bool> hide all points that have been filtered out according to tie point filter
                                     level
         :param figsize:             <tuple> size of the figure to be viewed, e.g. (10,10)
+        :param title:               <str> plot title
+        :param vector_scale:        <float> scale factor for shift vector length (default: 1 -> no scaling)
         :param savefigPath:
         :param savefigDPI:
         :param showFig:             <bool> whether to show or to hide the figure
@@ -371,7 +377,7 @@ class COREG_LOCAL(object):
         # ax.tick_params(axis='both', which='minor', labelsize=8)
 
         # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
-        plt.title(attribute2plot)
+        plt.title(title or attribute2plot)
 
         # transform all points of tie point grid to LonLat
         outlierCols = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
@@ -437,25 +443,45 @@ class COREG_LOCAL(object):
             if self.tieP_filter_level > 0:
                 plt.legend(loc=0, scatterpoints=1)
 
-        # plot all points on top
+        # plot all points or vectors on top
         if not GDF.empty:
-            vmin_auto, vmax_auto = (np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 95)) \
+            vmin_auto, vmax_auto = (np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 98)) \
                 if attribute2plot != 'ANGLE' else (0, 360)
             vmin = vmin if vmin is not None else vmin_auto
             vmax = vmax if vmax is not None else vmax_auto
 
-            points = plt.scatter(GDF['plt_X'], GDF['plt_Y'], c=GDF[attribute2plot], lw=0,
-                                 cmap=palette, marker='o' if len(GDF) < 10000 else '.', s=50, alpha=1.0,
-                                 vmin=vmin, vmax=vmax)
+            if shapes2plot == 'vectors':
+                # plot shift vectors
+                # doc: https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.quiver.html
+                plt.quiver(GDF['plt_X'], GDF['plt_Y'],
+                           -GDF['X_SHIFT_M'], -GDF['Y_SHIFT_M'],  # invert absolute shifts to make arrows point to tgt
+                           GDF[attribute2plot].clip(vmin, vmax),  # sets the colors
+                           scale=1200 / vector_scale,  # larger values decrease the arrow length
+                           width=.0015,  # arrow width (in relation to plot width)
+                           # linewidth=1, # maybe use this to mark outliers instead of scatter points
+                           cmap=palette,
+                           pivot='middle'  # position the middle point of the arrows onto the tie point location
+                           )
+                mappable = None
 
-            # plot shift vectors
-            # map2show.quiver(GDF['plt_X'], GDF['plt_Y'], GDF['X_SHIFT_M'], GDF['Y_SHIFT_M'])#, scale=700)
+            elif shapes2plot == 'points':
+                # plot tie points
+                points = plt.scatter(GDF['plt_X'], GDF['plt_Y'], c=GDF[attribute2plot], lw=0,
+                                     cmap=palette, marker='o' if len(GDF) < 10000 else '.', s=50, alpha=1.0,
+                                     vmin=vmin, vmax=vmax)
+                mappable = points
+
+            else:
+                raise ValueError("The parameter 'shapes2plot' must be set to 'vectors' or 'points'. Received %s."
+                                 % shapes2plot)
 
             # add colorbar
             divider = make_axes_locatable(plt.gca())
-            cax = divider.append_axes("right", size="2%",
-                                      pad=0.1)  # create axis on the right; size =2% of ax; padding = 0.1 inch
-            plt.colorbar(points, cax=cax)
+            # create axis on the right; size =2% of ax; padding = 0.1 inch
+            cax = divider.append_axes("right", size="2%", pad=0.1)
+
+            plt.colorbar(mappable, cax=cax)
+
         else:
             if not self.q:
                 warnings.warn('Cannot plot any tie point because none is left after tie point validation.')

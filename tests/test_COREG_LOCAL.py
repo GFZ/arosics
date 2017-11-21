@@ -65,7 +65,9 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         # test tie point grid visualization
         if util.find_spec('mpl_toolkits.basemap'):  # only works if basemap is installed
-            CRL.view_CoRegPoints()
+            CRL.view_CoRegPoints(hide_filtered=True)
+            CRL.view_CoRegPoints(hide_filtered=False)
+            CRL.view_CoRegPoints(shapes2plot='vectors')
 
         # test shift correction and output writer
         CRL.correct_shifts()

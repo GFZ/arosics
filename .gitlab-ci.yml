@@ -19,8 +19,8 @@ stages:
 test_arosics:
   stage: test
   script:
-    - source /root/anaconda3/bin/activate
-    - export GDAL_DATA=/root/anaconda3/share/gdal
+    - source /root/miniconda3/bin/activate
+    - export GDAL_DATA=/root/miniconda3/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
     - make nosetests
     - make docs
@@ -36,8 +36,8 @@ test_arosics:
 test_styles:
   stage: test
   script:
-    - source /root/anaconda3/bin/activate
-    - export GDAL_DATA=/root/anaconda3/share/gdal
+    - source /root/miniconda3/bin/activate
+    - export GDAL_DATA=/root/miniconda3/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
     - make lint
   artifacts:
@@ -51,8 +51,8 @@ test_styles:
 test_arosics_install:
   stage: test
   script:
-    - source /root/anaconda3/bin/activate
-    - export GDAL_DATA=/root/anaconda3/share/gdal
+    - source /root/miniconda3/bin/activate
+    - export GDAL_DATA=/root/miniconda3/share/gdal
     - conda create -y -q --name arosics python=3
     - source activate arosics
      # resolve some requirements with conda
@@ -106,7 +106,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
-    - source /root/anaconda3/bin/activate
+    - source /root/miniconda3/bin/activate
     - mkdir -p public/images/
     - cp -r docs/images/* public/images/
     - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc

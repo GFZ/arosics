@@ -1,43 +1,8 @@
-FROM centos:7
-# matplotlib requires freetype, freetype-devel, libpng-devel under centos
-# scikit-image requires blas-devel, lapack-devel, atlas-devel under centos
-RUN yum update -y && \
-    yum install -y wget vim bzip2 gcc gcc-c++ make libgl1-mesa-glx mesa-libGL qt5-qtbase-gui git freetype \
-        freetype-devel libpng-devel blas-devel lapack-devel atlas-devel
-
-ENV anaconda_dl 'Anaconda3-5.0.0-Linux-x86_64.sh'
-RUN /bin/bash -i -c "cd /root; wget https://repo.continuum.io/archive/$anaconda_dl ; \
-    bash -i /root/$anaconda_dl -b ; \
-    rm -f /root/$anaconda_dl"
-
-# 'conda install --yes -c conda-forge 'icu=58.*' lxml' fixing a bug for conda-forge gdal build, as of 06/2017
-# holoviews and bokeh is only needed for geoarray because its not installable via pip during geoarray.setup.py
-RUN /bin/bash -i -c "source /root/anaconda3/bin/activate ; \
-    conda install --yes pyqt; \
-    conda install --yes -c conda-forge pyfftw=0.10.4 ; \
-    conda install --yes -c ioam holoviews bokeh ; \
-    conda install --yes -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely basemap pykrige geopandas; \
-    conda install --yes -c conda-forge 'icu=58.*' lxml ; \
-    pip install dicttoxml jsmin cerberus pyprind pint iso8601 tqdm mpld3 sphinx-argparse \
-        geoarray>=0.6.12 py_tools_ds>=0.12.1 plotly flake8 pycodestyle pylint pydocstyle coverage nose nose2 \
-        nose-htmloutput rednose"   # must include all the requirements needed to build the docs!
+FROM gms_base_centos:pinned_v0.1
 
 # copy some needed stuff to /root
-#COPY *.pkl /root/ # EXAMPLE
-#COPY *.h5 /root/  # EXAMPLE
+COPY *.yml /root/
 
-# install git lfs
-RUN /bin/bash -i -c "curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.rpm.sh | bash"
-
-# installing git large file support, see here: https://git-lfs.github.com/ , change version number below for future upgrades
-ENV git_lfs_v='2.1.1'
-RUN /bin/bash -i -c "wget https://github.com/git-lfs/git-lfs/releases/download/v${git_lfs_v}/git-lfs-linux-amd64-${git_lfs_v}.tar.gz; \
-    tar -zxvf git-lfs-linux-amd64-${git_lfs_v}.tar.gz; \
-    cd git-lfs-${git_lfs_v}; \
-    bash ./install.sh"
-
-# set matplotlib backend to Agg as default, Qt won't work in headless docker containers
-RUN bash -i -c 'source /root/anaconda3/bin/activate; \
-    sed -i "/backend      : tkagg/c\backend      : Agg" $(python -c "import matplotlib; print(matplotlib.matplotlib_fname())"); \
-    sed -i "/backend      : Qt4Agg/c\backend      : Agg" $(python -c "import matplotlib; print(matplotlib.matplotlib_fname())"); \
-    sed -i "/backend      : qt5agg/c\backend      : Agg" $(python -c "import matplotlib; print(matplotlib.matplotlib_fname())")'
+RUN /bin/bash -i -c "\
+    source /root/miniconda3/bin/activate ; \
+    conda env update -n root -f /root/environment_arosics.yml"
