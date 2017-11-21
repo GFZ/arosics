@@ -1,0 +1,48 @@
+name: arosics
+
+channels: &id1
+  - http://conda.anaconda.org/ioam  # only for holoviews
+  - http://conda.anaconda.org/conda-forge
+
+dependencies:
+  - python=3.*.*
+  - pyqt
+  - numpy
+  - gdal
+  - scikit-image
+  - rasterio
+  - pyproj
+  - lxml
+  - geopandas
+  - ipython
+  - shapely
+  - matplotlib
+  - basemap
+  - holoviews
+  - bokeh
+  - pykrige
+  - pip:
+    - dicttoxml
+    - jsmin
+    - cerberus
+    - pyprind
+    - pint
+    - iso8601
+    - tqdm
+    - mpld3
+    - sphinx-argparse
+    - six
+    - spectral
+    - flake8
+    - pycodestyle
+    - pylint
+    - pydocstyle
+    - nose
+    - nose2
+    - nose-htmloutput
+    - coverage
+    - rednose
+    - cmocean
+    - plotly
+    - geoarray>=0.6.16
+    - py_tools_ds>=0.12.1
