@@ -69,6 +69,9 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
             CRL.view_CoRegPoints(hide_filtered=False)
             CRL.view_CoRegPoints(shapes2plot='vectors')
 
+        if util.find_spec('folium') and util.find_spec('geojson'):
+            CRL.view_CoRegPoints_folium()
+
         # test shift correction and output writer
         CRL.correct_shifts()
 
