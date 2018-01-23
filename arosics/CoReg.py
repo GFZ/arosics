@@ -4,6 +4,7 @@ import os
 import time
 import warnings
 from copy import copy
+from typing import Iterable
 
 # custom
 try:
@@ -215,8 +216,8 @@ class COREG(object):
         if data_corners_tgt and not isinstance(data_corners_tgt[0], list):  # group if not [[x,y],[x,y]..]
             data_corners_tgt = [data_corners_tgt[i:i + 2] for i in range(0, len(data_corners_tgt), 2)]
         if nodata:
-            assert isinstance(nodata, tuple) and len(nodata) == 2, \
-                "'nodata' must be a tuple with two values. Got %s with length %s." % (type(nodata), len(nodata))
+            assert isinstance(nodata, Iterable) and len(nodata) == 2, \
+                "'nodata' must be an iterable with two values. Got %s with length %s." % (type(nodata), len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
             assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
         if resamp_alg_calc in ['average', 5] and (v or not q):
