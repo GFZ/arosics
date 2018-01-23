@@ -14,17 +14,17 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.6.16',
-                'py_tools_ds>=0.12.1', 'plotly', 'cmocean', 'six',
+                'py_tools_ds>=0.12.1', 'plotly', 'cmocean', 'six', 'importlib'
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
                 # 'basemap', # conda install --yes -c conda-forge basemap; \
                 ]
 
 setup_requirements = [
-    # TODO(danschef): put setup requirements (distutils extensions, etc.) here
+    'setuptools', 'importlib'
 ]
 
-test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'rednose']
+test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'rednose', 'importlib']
 
 setup(
     name='arosics',
