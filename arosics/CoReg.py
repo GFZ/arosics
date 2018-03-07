@@ -430,15 +430,29 @@ class COREG(object):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
+            # noinspection PyProtectedMember
+            def apply_subset_bandnames_metadata(geoArr_cr):
+                # TODO: replace that function with geoArr.get_subset(zslice=slice(band4match, band4match+1))
+                # TODO: as soon as all metadata are passed through get_subset()
+                zslice = slice(geoArr_cr.band4match, geoArr_cr.band4match+1)
+                geoArr_cr.bandnames = list(np.array(list(geoArr_cr._bandnames))[zslice])
+                geoArr_cr.metadata = None if geoArr_cr._metadata is None else \
+                    geoArr_cr._metadata[list(np.array(range(geoArr_cr.bands))[zslice])].copy()
+                return geoArr_cr
+
             if self.grid2use == 'ref':
-                # resample target image to refernce image
+                # resample target image to reference image
                 self.shift.arr = self.shift[:, :, self.shift.band4match]  # resample the needed band only
+                self.shift = apply_subset_bandnames_metadata(self.shift)
+
                 self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
                 self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
+
             else:
                 # resample reference image to target image
                 # FIXME in case of different projections this will change the projection of the reference image!
                 self.ref.arr = self.ref[:, :, self.ref.band4match]  # resample the needed band only
+                self.ref = apply_subset_bandnames_metadata(self.ref)
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
