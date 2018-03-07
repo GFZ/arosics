@@ -435,9 +435,14 @@ class COREG(object):
                 # TODO: replace that function with geoArr.get_subset(zslice=slice(band4match, band4match+1))
                 # TODO: as soon as all metadata are passed through get_subset()
                 zslice = slice(geoArr_cr.band4match, geoArr_cr.band4match+1)
-                geoArr_cr.bandnames = list(np.array(list(geoArr_cr._bandnames))[zslice])
-                geoArr_cr.metadata = None if geoArr_cr._metadata is None else \
-                    geoArr_cr._metadata[list(np.array(range(geoArr_cr.bands))[zslice])].copy()
+
+                if geoArr_cr._bandnames:
+                    geoArr_cr.bandnames = list(np.array(list(geoArr_cr._bandnames))[zslice])
+
+                if geoArr_cr._metadata is not None:
+                    geoArr_cr.metadata = \
+                        geoArr_cr._metadata[list(np.array(range(len(geoArr_cr._metadata.columns)))[zslice])].copy()
+
                 return geoArr_cr
 
             if self.grid2use == 'ref':
