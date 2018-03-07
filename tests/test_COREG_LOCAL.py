@@ -86,39 +86,3 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 #
 #      # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
 #      testResult = unittest.TextTestRunner(verbosity=2).run(alltests)
-
-
-class TestBandnames(unittest.TestCase):
-    def setUp(self):
-        import dill
-        with open('/home/gfz-fe/scheffler/temp/coreg_bug_bandnames/CRL_argskwargs.dill', 'rb') as inF:
-            argskwargs = dill.load(inF)
-
-        argskwargs['im_ref'] = '/home/gfz-fe/scheffler/temp/coreg_bug_bandnames/ref_image.tif'
-        argskwargs['im_tgt'] = '/home/gfz-fe/scheffler/temp/coreg_bug_bandnames/L2A_T32UPV_20170430T103021_B05_20m.jp2'
-        argskwargs['q'] = False
-
-        self.argskwargs = argskwargs
-
-    def test(self):
-        crl = COREG_LOCAL(**self.argskwargs)
-        crl.tiepoint_grid
-        crl.correct_shifts()
-
-
-# class TestBandnames(unittest.TestCase):
-#     def setUp(self):
-#         import dill
-#         with open('/home/gfz-fe/scheffler/temp/coreg_bug_bandnames/CRL_argskwargs_60m.dill', 'rb') as inF:
-#             argskwargs = dill.load(inF)
-#
-#         argskwargs['im_ref'] = '/home/gfz-fe/scheffler/temp/coreg_bug_bandnames/ref_image.tif'
-#         argskwargs['im_tgt'] = '/home/gfz-fe/scheffler/temp/coreg_bug_bandnames/L2A_T32UPV_20170430T103021_B01_60m.jp2'
-#         argskwargs['q'] = False
-#
-#         self.argskwargs = argskwargs
-#
-#     def test(self):
-#         crl = COREG_LOCAL(**self.argskwargs)
-#         crl.tiepoint_grid
-#         crl.correct_shifts()
