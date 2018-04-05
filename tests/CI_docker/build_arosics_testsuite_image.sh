@@ -2,16 +2,8 @@
 
 context_dir="./context"
 dockerfile="arosics_ci.docker"
-tag="arosics_ci:latest"
+tag="arosics_ci:0.6.10"
 gitlab_runner="arosics_gitlab_CI_runner"
-
-# get py_tools_ds project # TODO move this to setup.py as soon as package is public
-rm -rf context/py_tools_ds
-git clone https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git ./context/py_tools_ds
-
-# get geoarray project # TODO move this to setup.py as soon as package is public
-rm -rf context/geoarray
-git clone https://gitext.gfz-potsdam.de/danschef/geoarray.git ./context/geoarray
 
 echo "#### Build runner docker image"
 sudo docker rmi ${tag}
@@ -36,4 +28,4 @@ sudo docker exec -it ${gitlab_runner} /bin/bash -c "export RUNNER_EXECUTOR=docke
   --tag-list  arosics_ci_client \
   --description '${runner_name}' \
   --docker-image '${tag}' "
-ls
+

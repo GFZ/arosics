@@ -1,10 +1,11 @@
-git+https://gitext.gfz-potsdam.de/danschef/geoarray.git
-git+https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git
+geoarray>=0.6.16
+py_tools_ds>=0.12.1
+cmocean
 numpy
 gdal
 shapely
 scikit-image
 matplotlib
 geopandas
-spectral
-pykrige
+plotly
+six
