@@ -4,6 +4,7 @@ import os
 import time
 import warnings
 from copy import copy
+from typing import Iterable
 
 # custom
 try:
@@ -215,8 +216,8 @@ class COREG(object):
         if data_corners_tgt and not isinstance(data_corners_tgt[0], list):  # group if not [[x,y],[x,y]..]
             data_corners_tgt = [data_corners_tgt[i:i + 2] for i in range(0, len(data_corners_tgt), 2)]
         if nodata:
-            assert isinstance(nodata, tuple) and len(nodata) == 2, \
-                "'nodata' must be a tuple with two values. Got %s with length %s." % (type(nodata), len(nodata))
+            assert isinstance(nodata, Iterable) and len(nodata) == 2, \
+                "'nodata' must be an iterable with two values. Got %s with length %s." % (type(nodata), len(nodata))
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
             assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
         if resamp_alg_calc in ['average', 5] and (v or not q):
@@ -429,15 +430,34 @@ class COREG(object):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
+            # noinspection PyProtectedMember
+            def apply_subset_bandnames_metadata(geoArr_cr):
+                # TODO: replace that function with geoArr.get_subset(zslice=slice(band4match, band4match+1))
+                # TODO: as soon as all metadata are passed through get_subset()
+                zslice = slice(geoArr_cr.band4match, geoArr_cr.band4match+1)
+
+                if geoArr_cr._bandnames:
+                    geoArr_cr.bandnames = list(np.array(list(geoArr_cr._bandnames))[zslice])
+
+                if geoArr_cr._metadata is not None:
+                    geoArr_cr.metadata = \
+                        geoArr_cr._metadata[list(np.array(range(len(geoArr_cr._metadata.columns)))[zslice])].copy()
+
+                return geoArr_cr
+
             if self.grid2use == 'ref':
-                # resample target image to refernce image
+                # resample target image to reference image
                 self.shift.arr = self.shift[:, :, self.shift.band4match]  # resample the needed band only
+                self.shift = apply_subset_bandnames_metadata(self.shift)
+
                 self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
                 self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
+
             else:
                 # resample reference image to target image
                 # FIXME in case of different projections this will change the projection of the reference image!
                 self.ref.arr = self.ref[:, :, self.ref.band4match]  # resample the needed band only
+                self.ref = apply_subset_bandnames_metadata(self.ref)
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
