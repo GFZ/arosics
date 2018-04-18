@@ -3,16 +3,15 @@
 
 """Tests for the local co-registration module of AROSICS."""
 
-
 import unittest
 import shutil
 import os
+from importlib import util
 
 # custom
 from .cases import test_cases
 from arosics import COREG_LOCAL
 from geoarray import GeoArray
-
 
 
 class COREG_LOCAL_init(unittest.TestCase):
@@ -56,16 +55,22 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         if os.path.isdir(dir_out):
             shutil.rmtree(dir_out)
 
-
     def test_calculation_of_tie_point_grid(self):
         # get instance of COREG_LOCAL object
         CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
 
         # use the getter of the CoRegPoints_table to calculate tie point grid
-        TPG = CRL.CoRegPoints_table
+        # noinspection PyStatementEffect
+        CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        #CRL.view_CoRegPoints() # only works if basemap is installed
+        if util.find_spec('mpl_toolkits.basemap'):  # only works if basemap is installed
+            CRL.view_CoRegPoints(hide_filtered=True)
+            CRL.view_CoRegPoints(hide_filtered=False)
+            CRL.view_CoRegPoints(shapes2plot='vectors')
+
+        if util.find_spec('folium') and util.find_spec('geojson'):
+            CRL.view_CoRegPoints_folium()
 
         # test shift correction and output writer
         CRL.correct_shifts()
@@ -73,12 +78,11 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
                         'Output of local co-registration has not been written.')
 
-
-#if __name__ == '__main__':
-#    unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
+# if __name__ == '__main__':
+#     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
 #
-#     suite = unittest.TestLoader().loadTestsFromTestCase(eval("CompleteWorkflow_INTER1_S2A_S2A"))
+#      suite = unittest.TestLoader().loadTestsFromTestCase(eval("CompleteWorkflow_INTER1_S2A_S2A"))
 #     alltests = unittest.TestSuite(suite)
 #
-#     # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
-#     testResult = unittest.TextTestRunner(verbosity=2).run(alltests)
+#      # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
+#      testResult = unittest.TextTestRunner(verbosity=2).run(alltests)

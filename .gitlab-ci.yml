@@ -12,18 +12,16 @@ variables:
 
 stages:
   - test
-  - deploy_pages
-  - deploy_to_pypi
+  - deploy
   - cleanup
 
 
 test_arosics:
   stage: test
   script:
-    - source /root/anaconda3/bin/activate
-    - export GDAL_DATA=/root/anaconda3/share/gdal
+    - source /root/miniconda3/bin/activate
+    - export GDAL_DATA=/root/miniconda3/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-    - pip install rednose # remove as soon as it is included in test runner
     - make nosetests
     - make docs
   artifacts:
@@ -32,35 +30,69 @@ test_arosics:
     - docs/_build/html/
     - nosetests.html
     - nosetests.xml
+    when: always
+
+
+test_styles:
+  stage: test
+  script:
+    - source /root/miniconda3/bin/activate
+    - export GDAL_DATA=/root/miniconda3/share/gdal
+    - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
+    - make lint
+  artifacts:
+    paths:
+    - tests/linting/flake8.log
+    - tests/linting/pycodestyle.log
+    - tests/linting/pydocstyle.log
+    when: always
 
 
 test_arosics_install:
   stage: test
   script:
-    - source /root/anaconda3/bin/activate
-    - conda create -y -q --name arosics python=3.5
+    - source /root/miniconda3/bin/activate
+    - export GDAL_DATA=/root/miniconda3/share/gdal
+    - conda create -y -q --name arosics python=3
     - source activate arosics
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib # resolve these requirements with conda
+     # resolve some requirements with conda
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+    # run installer
     - python setup.py install
+    # test if its importable
     - cd ..
     - pwd
     - ls
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
+  only:
+    - master
 
 
-pages:
-  stage: deploy_pages
+pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
+  stage: deploy
   dependencies:
     - test_arosics
   script:
-    - mkdir -p public/coverage
-    - cp -r htmlcov/* public/coverage/
-    - mkdir -p public/nosetests_reports
-    - cp nosetests.* public/nosetests_reports/
+    # Create the public directory
+    - rm -rf public
+    - mkdir public
     - mkdir -p public/doc
+    - mkdir -p public/images/
+    - mkdir -p public/coverage
+    - mkdir -p public/nosetests_reports
+    # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
-
+    - cp -r docs/images/* public/images/
+    # Copy over the coverage reports
+    - cp -r htmlcov/* public/coverage/
+    # Copy over the nosetests reports
+    - cp nosetests.* public/nosetests_reports/
+    # Check if everything is working great
+    - ls -al public
+    - ls -al public/doc
+    - ls -al public/coverage
+    - ls -al public/nosetests_reports
   artifacts:
     paths:
       - public
@@ -70,11 +102,11 @@ pages:
 
 
 deploy_pypi:
-  stage: deploy_to_pypi
+  stage: deploy
   dependencies:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
-    - source /root/anaconda3/bin/activate
+    - source /root/miniconda3/bin/activate
     - mkdir -p public/images/
     - cp -r docs/images/* public/images/
     - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
