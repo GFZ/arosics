@@ -34,7 +34,7 @@ class DESHIFTER(object):
         :Keyword Arguments:
             - path_out(str):        /output/directory/filename for coregistered results
             - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
-                                    compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+                                    compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
             - out_crea_options(list): GDAL creation options for the output image,
                                     e.g. ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
             - band2process (int):   The index of the band to be processed within the given array (starts with 1),
@@ -382,7 +382,7 @@ def deshift_image_using_coreg_info(im2shift, coreg_results, path_out=None, fmt_o
     :param path_out:      /output/directory/filename for coregistered results. If None, no output is written - only
                           the shift corrected results are returned.
     :param fmt_out:       raster file format for output file. ignored if path_out is None. can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)
+                          compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
     :param q:             quiet mode (default: False)
     :return:
     """

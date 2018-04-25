@@ -147,7 +147,7 @@ def get_arosics_argparser():
 
     gop_p('-fmt_out', nargs='?', type=str, default='ENVI',
           help="raster file format for output file. ignored if path_out is None. can "
-               "be any GDAL compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI)")
+               "be any GDAL compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)")
 
     gop_p('-br', nargs='?', type=int, default=1,
           help='band of reference image to be used for matching (starts with 1; default: 1)')
@@ -195,7 +195,7 @@ def get_arosics_argparser():
     gop_p('-mask_ref', nargs='?', type=str, metavar='file path', default=None,
           help="path to a 2D boolean mask file for the reference image where all bad data pixels (e.g. clouds) are "
                "marked with True or 1 and the remaining pixels with False or 0. Must have the same geographic extent "
-               "and projection like the refernce image. The mask is used to check if the chosen matching window "
+               "and projection like the reference image. The mask is used to check if the chosen matching window "
                "position is valid in the sense of useful data. Otherwise this window position is rejected.")
 
     gop_p('-mask_tgt', nargs='?', type=str, metavar='file path', default=None,
