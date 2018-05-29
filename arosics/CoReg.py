@@ -120,7 +120,7 @@ class COREG(object):
                  footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
                  nodata=(None, None), calc_corners=True, binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None,
                  CPUs=None, force_quadratic_win=True, progress=True, v=False, path_verbose_out=None, q=False,
-                 ignore_errors=False):
+                 ignore_errors=False, dem=None):
 
         """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
         at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
@@ -200,6 +200,7 @@ class COREG(object):
         :param ignore_errors(bool):     Useful for batch processing. (default: False)
                                         In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px
                                         is None
+        :param dem(str, GeoArray):      optional DEM for calculating aspect direction
         """
 
         self.params = dict([x for x in locals().items() if x[0] != "self"])
@@ -250,6 +251,7 @@ class COREG(object):
         self.progress = progress if not q else False  # overridden by q
 
         self.ignErr = ignore_errors
+        self.dem = dem
         self.max_win_sz_changes = 3  # TODO: änderung der window size, falls nach max_iter kein valider match gefunden
         self.ref = None  # type: GeoArray_CoReg # set by self.get_image_params
         self.shift = None  # type: GeoArray_CoReg # set by self.get_image_params
@@ -962,6 +964,159 @@ class COREG(object):
         max_flat_idx = np.argmax(scps)
         return np.array(np.unravel_index(max_flat_idx, scps.shape))
 
+    def _get_win_aspect(self):
+        """returns the approx global aspect of the used window
+        """
+
+        dem_match_win = self._get_dem_window()
+
+        def get_aspect(dem):
+            """returns approx global aspect of DEM
+
+            :param dem: <GeoArray>  DEM window
+            """
+
+            ul = dem[0, 0]
+            um = dem[0, dem.shape[1] // 2]
+            ur = dem[0, -1]
+            ml = dem[dem.shape[0] // 2, 0]
+            mr = dem[dem.shape[0] // 2, -1]
+            dl = dem[-1, 0]
+            dm = dem[-1, dem.shape[1] // 2]
+            dr = dem[-1, -1]
+
+            # naive copy arcpy aspect
+            dx = ((ur + 2 * mr + dr) - (ul + 2 * ml + dl)) / 8
+            dy = ((dl + 2 * dm + dr) - (ul + 2 * um + ur)) / 8
+
+            aspect = 57.29578 * np.arctan2(dy, -dx)
+            if aspect < 0:
+                aspect = 90.0 - aspect
+            elif aspect > 90.0:
+                aspect = 360.0 - aspect + 90.0
+            else:
+                aspect = 90.0 - aspect
+
+            return aspect
+
+        return get_aspect(dem_match_win)
+
+    def _get_dem_window(self):
+        """returns DEM at position of window used for CoReg
+        """
+
+        xmin, xmax, ymin, ymax = self.matchBox.boundsMap
+
+        dem = self.dem
+
+        try:
+
+            dem_match_win = GeoArray(*dem.get_mapPos(mapBounds=(xmin, ymin, xmax, ymax), mapBounds_prj=self.ref.prj))
+
+        except:
+
+            raise ValueError('DEM could not match')
+
+        return dem_match_win
+
+    def _get_top_peakpos(self, scps):
+        """returns the row/column position of the  greatest peaks within the given cross power spectrum.
+
+        :param scps: <np.ndarray> shifted cross power spectrum
+        :return:     <np.ndarray> [(row, column),(row, column)...]
+        """
+
+        def calc_peak_reliability(peak, scps):
+            """Calculates a confidence percentage that can be used as an assessment for reliability with the used peak
+            copy from _calc_shift_reliavbility()
+            :param peak:  <np.ndarray> [row, column]
+            :param scps:  <np.ndarray> shifted cross power spectrum
+            :return:
+            """
+
+            # calculate mean power at peak
+            peakR, peakC = peak
+
+            power_at_peak = np.mean(scps[peakR - 1:peakR + 2, peakC - 1:peakC + 2])
+
+            # calculate mean power without peak + 3* standard deviation
+            scps_masked = np.array(scps)
+            scps_masked[peakR - 1:peakR + 2, peakC - 1:peakC + 2] = -9999
+            scps_masked = np.ma.masked_equal(scps_masked, -9999)
+            power_without_peak = np.mean(scps_masked) + 2 * np.std(scps_masked)
+
+            # calculate confidence
+            confid = 100 - ((power_without_peak / power_at_peak) * 100)
+            confid = 100 if confid > 100 else 0 if confid < 0 else confid
+
+            return confid
+
+        def get_direction_difference(peak, win_aspect, win_size):
+
+            peak = [peak[0] - win_size[0] // 2, peak[1] - win_size[1] // 2]
+
+            direct = np.degrees(np.arctan2(peak[0], peak[1]))
+
+            if direct < 0:
+                direct = 90.0 - direct
+            elif direct > 90.0:
+                direct = 360.0 - direct + 90.0
+            elif peak[0] == 0 and peak[1] == 0:
+                direct = win_aspect
+            else:
+                direct = 90.0 - direct
+
+            return abs(win_aspect - direct)
+
+        def mask_peak(peak, scps):
+
+            # calculate mean power at peak
+            peakR, peakC = peak
+
+            scps_masked = scps
+            scps_masked[peakR - 1:peakR + 2, peakC - 1:peakC + 2] = np.mean(scps_masked)
+
+            return scps
+
+        peakpos = self._get_peakpos(scps)
+
+        if self.dem is None:
+
+            return peakpos
+
+        else:
+
+            if self.v:
+                print('Update: Trying to improve estimated reliability with DEM\nEstimated reliability: %s'
+                      % (calc_peak_reliability(peakpos, scps)))
+
+            peakpos_save = peakpos  # naive way, improve
+            win_aspect = self._get_win_aspect()
+            win_size = self.win_size_XY
+
+            reli = calc_peak_reliability(peakpos, scps)
+
+            for i in range(self.max_iter):
+
+                if calc_peak_reliability(peakpos, scps) > reli and get_direction_difference(peakpos, win_aspect,
+                                                                                            win_size) < 90:
+
+                    if self.v:
+                        print('Update: Estimated reliability evaluated with DEM\nEstimated reliability: %s'
+                              % (calc_peak_reliability(peakpos, scps)))
+
+                    return peakpos
+
+                else:
+
+                    scps = mask_peak(peakpos, scps)
+                    peakpos = self._get_peakpos(scps)
+
+            if self.v:
+                print('Update: Estimated reliability not improved with DEM')
+
+            return peakpos_save
+
     @staticmethod
     def _get_shifts_from_peakpos(peakpos, arr_shape):
         y_shift = peakpos[0] - arr_shape[0] // 2
@@ -1032,7 +1187,7 @@ class COREG(object):
         return sidemax_lr, sidemax_ab
 
     def _calc_integer_shifts(self, scps):
-        peakpos = self._get_peakpos(scps)
+        peakpos = self._get_top_peakpos(scps)
         x_intshift, y_intshift = self._get_shifts_from_peakpos(peakpos, scps.shape)
         return x_intshift, y_intshift
 

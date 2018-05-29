@@ -175,6 +175,9 @@ class Tie_Point_Grid(object):
         if not self.q:
             print('Initializing tie points grid...')
 
+        if self.COREG_obj.dem is not None:
+            print('Using DEM to get valid shifts...')
+
         Xarr, Yarr = np.meshgrid(np.arange(0, self.shift.shape[1], grid_res),
                                  np.arange(0, self.shift.shape[0], grid_res))
 
@@ -267,7 +270,8 @@ class Tie_Point_Grid(object):
             binary_ws=self.COREG_obj.bin_ws,
             v=False,  # otherwise this would lead to massive console output
             q=True,  # otherwise this would lead to massive console output
-            ignore_errors=True
+            ignore_errors=True,
+            dem=self.COREG_obj.dem
         )
 
     def get_CoRegPoints_table(self):
