@@ -17,6 +17,7 @@ from geopandas import GeoDataFrame, GeoSeries
 from shapely.geometry import Point
 from skimage.measure import points_in_poly, ransac
 from skimage.transform import AffineTransform, PolynomialTransform
+from functools import partial
 
 # internal modules
 from .CoReg import COREG
@@ -51,7 +52,7 @@ class Tie_Point_Grid(object):
 
     def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
                  tieP_filter_level=3, outlDetect_settings=None, dir_out=None, CPUs=None, progress=True, v=False,
-                 q=False):
+                 q=False, majority_filter=False):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -91,6 +92,7 @@ class Tie_Point_Grid(object):
         :param progress(bool):          show progress bars (default: True)
         :param v(bool):                 verbose mode (default: False)
         :param q(bool):                 quiet mode (default: False)
+        :param majority_filter(tuple)   Optional use of (X,X)kernel majority filter of the neighbourhood
         """
 
         if not isinstance(COREG_obj, COREG):
@@ -107,6 +109,7 @@ class Tie_Point_Grid(object):
         self.CPUs = CPUs
         self.v = v
         self.q = q if not v else False  # overridden by v
+        self.majority_filter = majority_filter
         self.progress = progress if not q else False  # overridden by q
 
         self.ref = self.COREG_obj.ref  # type: GeoArray_CoReg
@@ -393,9 +396,94 @@ class Tie_Point_Grid(object):
             GDF = GDF.merge(GDF_filt[['POINT_ID'] + new_columns], on='POINT_ID', how="outer")
         GDF = GDF.fillna(int(self.outFillVal))
 
+        if self.majority_filter is not None:
+
+            GDF = self.use_majority_filter(GDF)
+
         self.CoRegPoints_table = GDF
 
         return self.CoRegPoints_table
+
+    def use_majority_filter(self, coreg_table):
+
+        if self.CPUs is None or self.CPUs > 1:
+            cpus = multiprocessing.cpu_count()
+
+            print('Use majority filter with %s CPUs...' % cpus)
+
+            pool = multiprocessing.Pool(processes=cpus)
+
+            shift = partial(self._find_shift,
+                            coreg_table=coreg_table,
+                            grid_res=(self.COREG_obj.win_size_XY[0], self.COREG_obj.win_size_XY[1]),
+                            majority_kernel=self.majority_filter)
+
+            points = ((row.X_IM, row.Y_IM) for i, row in coreg_table.iterrows())  # generator
+
+            if self.q or not self.progress:
+                results = pool.map(shift, points)
+
+            else:
+
+                results = pool.map_async(shift, points, chunksize=1)
+                bar = ProgressBar(prefix='\tprogress:')
+                while True:
+                    time.sleep(.1)
+                    numberDone = len(coreg_table) - results._number_left
+                    if self.progress:
+                        bar.print_progress(percent=numberDone / len(coreg_table) * 100)
+                    if results.ready():
+                        # <= this is the line where multiprocessing can freeze if an exception appears within
+                        # COREG ans is not raised
+                        results = results.get()
+                        break
+
+            coreg_table['ABS_SHIFT'] = [i[0] for i in results]
+            coreg_table['RELIABILITY'] = [i[1] for i in results]
+
+        else:
+            print('Use majority filter with 1 CPU...')
+            bar = ProgressBar(prefix='\tprogress:')
+            for i, row in coreg_table.iterrows():
+                point = (row.X_IM, row.Y_IM)
+                bar.print_progress(percent=i / len(coreg_table) * 100)
+                shift, reliability = self._find_shift(point, coreg_table, self.majority_filter)
+
+                coreg_table.loc[
+                    (coreg_table.X_IM == point[0]) & (coreg_table.Y_IM == point[1]), 'ABS_SHIFT'] = shift
+
+                coreg_table.loc[
+                    (coreg_table.X_IM == point[0]) & (coreg_table.Y_IM == point[1]), 'RELIABILITY'] = reliability
+
+        return coreg_table
+
+    @staticmethod
+    def _find_shift(point, coreg_table, grid_res, majority_kernel):
+
+        shifts = []
+        reli = []
+
+        for i in range(-majority_kernel[0], majority_kernel[0], 1):
+            for j in range(-majority_kernel[1], majority_kernel[1], 1):
+
+                x_coord = point[0] + grid_res[0]*i
+                y_coord = point[1] + grid_res[1]*j
+
+                if x_coord in coreg_table[coreg_table.Y_IM == y_coord].X_IM.values:
+
+                    if coreg_table[(coreg_table.X_IM == x_coord) & (coreg_table.Y_IM == y_coord)]\
+                                              ['ABS_SHIFT'].item() >= 0:
+
+                        shifts.append(coreg_table[(coreg_table.X_IM == x_coord) & (coreg_table.Y_IM == y_coord)]\
+                                              ['ABS_SHIFT'].item())
+
+                    else:
+                        shifts.append(0)
+
+                    reli.append(coreg_table[(coreg_table.X_IM == x_coord) & (coreg_table.Y_IM == y_coord)]\
+                                               ['RELIABILITY'].item())
+
+        return np.mean(shifts), np.mean(reli)
 
     def calc_rmse(self, include_outliers=False):
         # type: (bool) -> float

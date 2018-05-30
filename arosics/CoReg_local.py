@@ -39,7 +39,7 @@ class COREG_LOCAL(object):
                  footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
                  outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True, force_quadratic_win=True,
                  mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True, v=False, q=False,
-                 ignore_errors=True, dem=None):
+                 ignore_errors=True, dem=None, majority_filter=None):
 
         """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
         are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
@@ -146,6 +146,7 @@ class COREG_LOCAL(object):
         :param q(bool):                 quiet mode (default: False)
         :param ignore_errors(bool):     Useful for batch processing. (default: False)
         :param dem(str, GeoaArray):     Optional DEM for reliability improvement
+        :param majority_filter(tuple):  Optional (X,X)kernel majority filter of neighbouring pixels
         """
 
         # assertions / input validation
@@ -193,6 +194,7 @@ class COREG_LOCAL(object):
         self.progress = progress if not q else False  # overridden by v
         self.ignErr = ignore_errors  # FIXME this is not yet implemented for COREG_LOCAL
         self.dem = dem
+        self.majority_filter = majority_filter
 
         assert self.tieP_filter_level in range(4), 'Invalid tie point filter level.'
         assert isinstance(self.imref, GeoArray) and isinstance(self.im2shift, GeoArray), \
@@ -310,7 +312,8 @@ class COREG_LOCAL(object):
                                                  CPUs=self.CPUs,
                                                  progress=self.progress,
                                                  v=self.v,
-                                                 q=self.q)
+                                                 q=self.q,
+                                                 majority_filter=self.majority_filter)
             self._tiepoint_grid.get_CoRegPoints_table()
 
             if self.v:
