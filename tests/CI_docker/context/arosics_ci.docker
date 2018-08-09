@@ -1,4 +1,4 @@
-FROM gms_base_centos:pinned_v0.1
+FROM gms_base_centos:latest
 
 # copy some needed stuff to /root
 COPY *.yml /root/

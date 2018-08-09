@@ -59,7 +59,7 @@ class COREG_LOCAL(object):
                                             - if None (default), no output is written to disk
                                             - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
         :param fmt_out(str):            raster file format for output file. ignored if path_out is None. Can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GeoTIFF'; default: ENVI). Refer to
+                                        compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to
                                         http://www.gdal.org/formats_list.html to get a full list of supported formats.
         :param out_crea_options(list):  GDAL creation options for the output image,
                                         e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]

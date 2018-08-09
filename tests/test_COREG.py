@@ -175,7 +175,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
     # @unittest.SkipTest
     def test_plotting_after_shift_calculation(self):  # , mock_show):
-        """"""
+        """Test plotting functionality."""
         # mock_show.return_value = None  # probably not necessary here in your case
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **self.coreg_kwargs)
         self.assertTrue(CR.success)
@@ -183,10 +183,12 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # test all the visualization functions
         CR.show_cross_power_spectrum()
         CR.show_cross_power_spectrum(interactive=True)
-        CR.show_matchWin(interactive=False)
+        CR.show_matchWin(interactive=False, after_correction=None)
         CR.show_matchWin(interactive=False, after_correction=True)
-        # CR.show_matchWin(interactive=True) # only works if test is started with ipython
-        # CR.show_matchWin(interactive=False, deshifted=True)
+        CR.show_matchWin(interactive=False, after_correction=False)
+        CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
+        CR.show_matchWin(interactive=True, after_correction=True)
+        CR.show_matchWin(interactive=True, after_correction=False)
         CR.show_image_footprints()
 
 # if __name__ == '__main__':
