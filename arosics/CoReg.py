@@ -430,34 +430,15 @@ class COREG(object):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
-            # noinspection PyProtectedMember
-            def apply_subset_bandnames_metadata(geoArr_cr):
-                # TODO: replace that function with geoArr.get_subset(zslice=slice(band4match, band4match+1))
-                # TODO: as soon as all metadata are passed through get_subset()
-                zslice = slice(geoArr_cr.band4match, geoArr_cr.band4match+1)
-
-                if geoArr_cr._bandnames:
-                    geoArr_cr.bandnames = list(np.array(list(geoArr_cr._bandnames))[zslice])
-
-                if geoArr_cr._metadata is not None:
-                    geoArr_cr.metadata = \
-                        geoArr_cr._metadata[list(np.array(range(len(geoArr_cr._metadata.columns)))[zslice])].copy()
-
-                return geoArr_cr
-
             if self.grid2use == 'ref':
                 # resample target image to reference image
-                self.shift.arr = self.shift[:, :, self.shift.band4match]  # resample the needed band only
-                self.shift = apply_subset_bandnames_metadata(self.shift)
-
+                self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
                 self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
                 self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
 
             else:
                 # resample reference image to target image
-                # FIXME in case of different projections this will change the projection of the reference image!
-                self.ref.arr = self.ref[:, :, self.ref.band4match]  # resample the needed band only
-                self.ref = apply_subset_bandnames_metadata(self.ref)
+                self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
@@ -608,7 +589,6 @@ class COREG(object):
             PLT.subplot_3dsurface(scps.astype(np.float32))
 
     def _get_opt_winpos_winsize(self):
-        # type: (tuple,tuple) -> None
         """
         Calculates optimal window position and size in reference image units according to DGM, cloud_mask and
         trueCornerLonLat.

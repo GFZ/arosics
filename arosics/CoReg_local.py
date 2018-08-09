@@ -318,7 +318,7 @@ class COREG_LOCAL(object):
     def CoRegPoints_table(self):
         """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
         'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
-        information containing all the results frm coregistration for all points in the tie point grid.
+        information containing all the results from coregistration for all points in the tie point grid.
         """
 
         return self.tiepoint_grid.CoRegPoints_table
