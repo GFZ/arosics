@@ -375,8 +375,8 @@ class Tie_Point_Grid(object):
                     bar.print_progress((i + 1) / len(GDF) * 100)
                 results[i, :] = self._get_spatial_shifts(coreg_kwargs)
 
-                # merge results with GDF
-        records = GeoDataFrame(np.array(results, np.object),
+        # merge results with GDF
+        records = GeoDataFrame(results,
                                columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
                                         'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
                                         'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
