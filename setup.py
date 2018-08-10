@@ -17,7 +17,7 @@ version = {}
 with open("arosics/version.py") as version_file:
     exec(version_file.read(), version)
 
-requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.6.16',
+requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.8.0',
                 'py_tools_ds>=0.12.1', 'plotly', 'cmocean', 'six',
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \

@@ -44,5 +44,5 @@ dependencies:
     - rednose
     - cmocean
     - plotly
-    - geoarray>=0.6.16
+    - geoarray>=0.8.0
     - py_tools_ds>=0.12.1
