@@ -432,13 +432,15 @@ class COREG(object):
 
             if self.grid2use == 'ref':
                 # resample target image to reference image
-                self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
+                if self.shift.bands > 1:
+                    self.shift = self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
                 self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
                 self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
 
             else:
                 # resample reference image to target image
-                self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
+                if self.ref.bands > 1:
+                    self.ref = self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
