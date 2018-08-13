@@ -5,4 +5,4 @@ COPY *.yml /root/
 
 RUN /bin/bash -i -c "\
     source /root/miniconda3/bin/activate ; \
-    conda env update -n root -f /root/environment_arosics.yml"
+    conda env update-f /root/environment_arosics.yml"

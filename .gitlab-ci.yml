@@ -20,7 +20,8 @@ test_arosics:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
-    - export GDAL_DATA=/root/miniconda3/share/gdal
+    - source activate arosics
+    - export GDAL_DATA=/root/miniconda3/envs/arosics/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
     - make nosetests
     - make docs
@@ -37,7 +38,8 @@ test_styles:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
-    - export GDAL_DATA=/root/miniconda3/share/gdal
+    - source activate arosics
+    - export GDAL_DATA=/root/miniconda3/envs/arosics/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
     - pip install "pycodestyle>=2.0.0,!=2.4.0"  # TODO remove as soon as docker runner is recreated
     - make lint
@@ -53,9 +55,8 @@ test_arosics_install:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
-    - export GDAL_DATA=/root/miniconda3/share/gdal
-    - conda create -y -q --name arosics python=3
-    - source activate arosics
+    - conda create -y -q --name arosics_testinstall python=3
+    - source activate arosics_testinstall
      # resolve some requirements with conda
     - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
     # run installer
@@ -108,6 +109,7 @@ deploy_pypi:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
     - source /root/miniconda3/bin/activate
+    - source activate arosics
     - mkdir -p public/images/
     - cp -r docs/images/* public/images/
     - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
