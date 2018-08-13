@@ -35,9 +35,8 @@ dependencies:
     - six
     - spectral
     - flake8
-    - pycodestyle
-    - pylint
     - pycodestyle<2.4.0  # fixes ImportError: module 'pycodestyle' has no attribute 'break_around_binary_operator'
+    - pylint
     - nose
     - nose2
     - nose-htmloutput

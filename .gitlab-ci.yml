@@ -41,7 +41,7 @@ test_styles:
     - source activate arosics
     - export GDAL_DATA=/root/miniconda3/envs/arosics/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-    - pip install "pycodestyle>=2.0.0,!=2.4.0"  # TODO remove as soon as docker runner is recreated
+#    - pip install "pycodestyle>=2.0.0,!=2.4.0"  # TODO remove as soon as docker runner is recreated
     - make lint
   artifacts:
     paths:
