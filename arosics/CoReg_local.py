@@ -501,13 +501,9 @@ class COREG_LOCAL(object):
         warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
         assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
-        if not all([util.find_spec('folium'), util.find_spec('geojson')]):
-            raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
-                              "the shell command 'pip install folium geojson'.")
-
         import folium
         import geojson
-        from folium import plugins
+        from folium.raster_layers import ImageOverlay
 
         lon_min, lat_min, lon_max, lat_max = \
             reproject_shapelyGeometry(self.im2shift.box.mapPoly, self.im2shift.projection, 4326).bounds
@@ -525,7 +521,7 @@ class COREG_LOCAL(object):
         # create map
         map_osm = folium.Map(location=[center_lat, center_lon])  # ,zoom_start=3)
         # import matplotlib
-        plugins.ImageOverlay(
+        ImageOverlay(
             colormap=lambda x: (1, 0, 0, x),  # TODO a colormap must be given
             # colormap=matplotlib.cm.gray, # does not work
             image=image2plot, bounds=[[lat_min, lon_min], [lat_max, lon_max]],

@@ -450,14 +450,8 @@ class COREG(object):
         # TODO different colors for polygons
         assert self.overlap_poly, 'Please calculate the overlap polygon first.'
 
-        try:
-            import folium
-            import geojson
-        except ImportError:
-            folium, geojson = None, None
-        if not folium or not geojson:
-            raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
-                              "the shell command 'pip install folium geojson'.")
+        import folium
+        import geojson
 
         refPoly = reproject_shapelyGeometry(self.ref.poly, self.ref.epsg, 4326)
         shiftPoly = reproject_shapelyGeometry(self.shift.poly, self.shift.epsg, 4326)
