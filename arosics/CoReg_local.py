@@ -4,7 +4,6 @@ import warnings
 import os
 from copy import copy
 from six import PY2
-from importlib import util
 
 # custom
 try:
