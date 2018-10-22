@@ -294,7 +294,7 @@ class Tie_Point_Grid(object):
         GDF = GeoDataFrame(index=range(len(geomPoints)), crs=crs,
                            columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_UTM', 'Y_UTM'])
         GDF['geometry'] = geomPoints
-        GDF['POINT_ID'] = np.array(range(len(geomPoints))).astype(np.object)
+        GDF['POINT_ID'] = range(len(geomPoints))
         GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
         GDF.loc[:, ['X_UTM', 'Y_UTM']] = self.XY_mapPoints
 
@@ -374,6 +374,7 @@ class Tie_Point_Grid(object):
                                         'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
                                         'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
+        GDF = GDF.astype(np.object)  # must be equal to records.dtypes; We need np.object due to None values
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
