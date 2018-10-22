@@ -294,7 +294,7 @@ class Tie_Point_Grid(object):
         GDF = GeoDataFrame(index=range(len(geomPoints)), crs=crs,
                            columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_UTM', 'Y_UTM'])
         GDF['geometry'] = geomPoints
-        GDF['POINT_ID'] = range(len(geomPoints))
+        GDF['POINT_ID'] = np.array(range(len(geomPoints))).astype(np.object)
         GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
         GDF.loc[:, ['X_UTM', 'Y_UTM']] = self.XY_mapPoints
 
