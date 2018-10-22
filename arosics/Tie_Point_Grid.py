@@ -374,8 +374,8 @@ class Tie_Point_Grid(object):
                                         'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
                                         'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
-        GDF = GDF.astype(np.object)  # must be equal to records.dtypes; We need np.object due to None values
-        GDF = GDF.merge(records, on='POINT_ID', how="inner")
+        # merge DataFrames (dtype must be equal to records.dtypes; We need np.object due to None values)
+        GDF = GDF.astype(np.object).merge(records.astype(np.object), on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
         if not self.q:
