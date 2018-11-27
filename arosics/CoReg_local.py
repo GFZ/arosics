@@ -16,7 +16,8 @@ except ImportError:
     pyfftw = None
 import numpy as np
 from matplotlib import pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colorbar import ColorbarBase
+from matplotlib.colors import Normalize
 
 from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
@@ -338,7 +339,7 @@ class COREG_LOCAL(object):
                          backgroundIm='tgt', hide_filtered=True, figsize=None, title='', vector_scale=1.,
                          savefigPath='', savefigDPI=96, showFig=True, vmin=None, vmax=None, return_map=False,
                          zoomable=False):
-        # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool) -> tuple
+        # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool, bool) -> ...
         """Shows a map of the calculated tie point grid with the target image as background.
 
         :param shapes2plot:         <str> 'points': plot points representing values of 'attribute2plot' onto the map
@@ -372,11 +373,11 @@ class COREG_LOCAL(object):
         fig, ax, map2show = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True,
                                                   band=self.COREG_obj.shift.band4match, zoomable=zoomable)
 
-        plt.tick_params(axis='both', which='major', labelsize=40)
+        ax.tick_params(axis='both', which='major', labelsize=40)
         # ax.tick_params(axis='both', which='minor', labelsize=8)
 
         # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
-        plt.title(title or attribute2plot)
+        ax.set_title(title or attribute2plot)
 
         # transform all points of tie point grid to LonLat
         outlierCols = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
@@ -392,7 +393,7 @@ class COREG_LOCAL(object):
         # vmin = min(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
         # vmax = max(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
         # norm = mpl_normalize(vmin=vmin, vmax=vmax)
-        palette = cmap if cmap is not None else plt.cm.RdYlGn_r
+        palette = cmap if cmap is not None else plt.cm.get_cmap('RdYlGn_r')
         if cmap is None and attribute2plot == 'ANGLE':
             # import matplotlib.colors as mcolors
             # colors1 = plt.cm.RdYlGn_r(np.linspace(0., 1, 128))
@@ -404,7 +405,7 @@ class COREG_LOCAL(object):
             # palette = plt.cm.hsv
 
             import cmocean
-            palette = cmocean.cm.delta
+            palette = getattr(cmocean.cm, 'delta')
         # GDF['color'] = [*GDF[attribute2plot].map(lambda val: palette(norm(val)))]
 
         # add tie point grid to map
@@ -427,20 +428,20 @@ class COREG_LOCAL(object):
             if self.tieP_filter_level > 0:
                 # flag level 1 outliers
                 GDF_filt = GDF[GDF.L1_OUTLIER.__eq__(True)].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0,
-                            label='reliability')
+                ax.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0,
+                           label='reliability')
             if self.tieP_filter_level > 1:
                 # flag level 2 outliers
                 GDF_filt = GDF[GDF.L2_OUTLIER.__eq__(True)].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='SSIM')
+                ax.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='SSIM')
             if self.tieP_filter_level > 2:
                 # flag level 3 outliers
                 GDF_filt = GDF[GDF.L3_OUTLIER.__eq__(True)].copy()
-                plt.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0,
-                            label='RANSAC')
+                ax.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0,
+                           label='RANSAC')
 
             if self.tieP_filter_level > 0:
-                plt.legend(loc=0, scatterpoints=1)
+                ax.legend(loc=0, scatterpoints=1)
 
         # plot all points or vectors on top
         if not GDF.empty:
@@ -452,34 +453,30 @@ class COREG_LOCAL(object):
             if shapes2plot == 'vectors':
                 # plot shift vectors
                 # doc: https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.quiver.html
-                plt.quiver(GDF['plt_X'], GDF['plt_Y'],
-                           -GDF['X_SHIFT_M'], -GDF['Y_SHIFT_M'],  # invert absolute shifts to make arrows point to tgt
-                           GDF[attribute2plot].clip(vmin, vmax),  # sets the colors
-                           scale=1200 / vector_scale,  # larger values decrease the arrow length
-                           width=.0015,  # arrow width (in relation to plot width)
-                           # linewidth=1, # maybe use this to mark outliers instead of scatter points
-                           cmap=palette,
-                           pivot='middle'  # position the middle point of the arrows onto the tie point location
-                           )
-                mappable = None
+                ax.quiver(GDF['plt_X'], GDF['plt_Y'],
+                          -GDF['X_SHIFT_M'], -GDF['Y_SHIFT_M'],  # invert absolute shifts to make arrows point to tgt
+                          GDF[attribute2plot].clip(vmin, vmax),  # sets the colors
+                          scale=1200 / vector_scale,  # larger values decrease the arrow length
+                          width=.0015,  # arrow width (in relation to plot width)
+                          # linewidth=1, # maybe use this to mark outliers instead of scatter points
+                          cmap=palette,
+                          pivot='middle'  # position the middle point of the arrows onto the tie point location
+                          )
 
             elif shapes2plot == 'points':
                 # plot tie points
-                points = plt.scatter(GDF['plt_X'], GDF['plt_Y'], c=GDF[attribute2plot], lw=0,
-                                     cmap=palette, marker='o' if len(GDF) < 10000 else '.', s=50, alpha=1.0,
-                                     vmin=vmin, vmax=vmax)
-                mappable = points
+                ax.scatter(GDF['plt_X'], GDF['plt_Y'], c=GDF[attribute2plot], lw=0,
+                           cmap=palette, marker='o' if len(GDF) < 10000 else '.', s=50, alpha=1.0,
+                           vmin=vmin, vmax=vmax)
 
             else:
                 raise ValueError("The parameter 'shapes2plot' must be set to 'vectors' or 'points'. Received %s."
                                  % shapes2plot)
 
             # add colorbar
-            divider = make_axes_locatable(plt.gca())
-            # create axis on the right; size =2% of ax; padding = 0.1 inch
-            cax = divider.append_axes("right", size="2%", pad=0.1)
-
-            plt.colorbar(mappable, cax=cax)
+            p = ax.get_position().get_points().flatten()  # [left, bottom, right, top]
+            cax = fig.add_axes([p[2] + 0.02, p[1], 0.02,  p[3] - p[1]])  # [left, bottom, width, height]
+            ColorbarBase(cax, cmap=palette, norm=Normalize(vmin=vmin, vmax=vmax), orientation='vertical')
 
         else:
             if not self.q:
