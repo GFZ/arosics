@@ -611,9 +611,9 @@ class Tie_Point_Grid(object):
         GDF = self.CoRegPoints_table
 
         if skip_nodata:
-            GDF2pass = GDF
-        else:
             GDF2pass = GDF[GDF[skip_nodata_col] != self.outFillVal].copy()
+        else:
+            GDF2pass = GDF
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         # replace boolean values (cannot be written)
