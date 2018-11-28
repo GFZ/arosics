@@ -74,6 +74,11 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             self.TPG.to_PointShapefile(outpath)
             self.assertTrue(os.path.isfile(outpath))
 
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outpath = os.path.join(tmpdir, 'test_out_shapefile_incl_nodata.shp')
+            self.TPG.to_PointShapefile(outpath, skip_nodata=False)
+            self.assertTrue(os.path.isfile(outpath))
+
     def test_to_vectorfield(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, 'test_vectorfield.bsq')

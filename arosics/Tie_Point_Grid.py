@@ -609,11 +609,16 @@ class Tie_Point_Grid(object):
         """
 
         GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
+
+        if skip_nodata:
+            GDF2pass = GDF
+        else:
+            GDF2pass = GDF[GDF[skip_nodata_col] != self.outFillVal].copy()
+            GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         # replace boolean values (cannot be written)
-        GDF2pass = GDF2pass.replace(False, 0)  # replace all booleans where column dtype is not np.bool but np.object
-        GDF2pass = GDF2pass.replace(True, 1)
+        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(True, 1).copy()
         for col in GDF2pass.columns:
             if GDF2pass[col].dtype == np.bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)
