@@ -342,18 +342,17 @@ class COREG(object):
 
         # get input paths
         def get_input_path(im):
-            if isinstance(im, GeoArray):
-                if not im.is_inmem:
-                    return im.filePath
-                else:
-                    raise ValueError(self.path_out, "The output path must be explicitly set in case the input "
-                                                    "reference or target image is in-memory (without a reference to a "
-                                                    "physical file on disk). Received path_out='%s'." % self.path_out)
-            else:
-                return im
+            path = im.filePath if isinstance(im, GeoArray) else im
 
-        path_im_ref = get_input_path(im_ref) if self.path_out else None
-        path_im_tgt = get_input_path(im_tgt) if self.path_out else None
+            if isinstance(im, GeoArray) and im.filePath is None and self.path_out == 'auto':
+                raise ValueError(self.path_out, "The output path must be explicitly set in case the input "
+                                                "reference or target image is in-memory (without a reference to a "
+                                                "physical file on disk). Received path_out='%s'." % self.path_out)
+
+            return path
+
+        path_im_ref = get_input_path(im_ref)
+        path_im_tgt = get_input_path(im_tgt)
 
         if self.path_out:  # this also applies to self.path_out='auto'
 
