@@ -21,7 +21,7 @@ test_cases = dict(
             footprint_poly_tgt='POLYGON ((341890 5866490, 356180 5866490, 356180 5834970, 335440 5834970, '
                                '335490 5845270, 341890 5866490))',
             progress=False,
-            v=0),
+            v=False),
         wp_inside=(344720, 5848485),  # inside of overlap
         wp_covering_nodata=(339611, 5856426),  # close to the image edge of the input images -> win>64px covers nodata
         wp_close_to_edge=(353810, 5840516),  # close to the image edge of the input images -> win>64px covers nodata

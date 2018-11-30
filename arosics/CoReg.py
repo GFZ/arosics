@@ -337,11 +337,23 @@ class COREG(object):
             'COREG._set_outpathes() expects two file pathes (string) or two instances of the ' \
             'GeoArray class. Received %s and %s.' % (type(im_ref), type(im_tgt))
 
-        def get_baseN(path): return os.path.splitext(os.path.basename(path))[0]
+        def get_baseN(path):
+            return os.path.splitext(os.path.basename(path))[0]
 
-        # get input pathes
-        path_im_ref = im_ref.filePath if isinstance(im_ref, GeoArray) else im_ref
-        path_im_tgt = im_tgt.filePath if isinstance(im_tgt, GeoArray) else im_tgt
+        # get input paths
+        def get_input_path(im):
+            if isinstance(im, GeoArray):
+                if not im.is_inmem:
+                    return im.filePath
+                else:
+                    raise ValueError(self.path_out, "The output path must be explicitly set in case the input "
+                                                    "reference or target image is in-memory (without a reference to a "
+                                                    "physical file on disk). Received path_out='%s'." % self.path_out)
+            else:
+                return im
+
+        path_im_ref = get_input_path(im_ref) if self.path_out else None
+        path_im_tgt = get_input_path(im_tgt) if self.path_out else None
 
         if self.path_out:  # this also applies to self.path_out='auto'
 

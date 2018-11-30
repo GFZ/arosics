@@ -6,6 +6,7 @@
 import unittest
 import shutil
 import os
+import numpy as np
 
 # custom
 from .cases import test_cases
@@ -101,6 +102,18 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                         footprint_poly_ref=None,
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)
+
+    def test_shift_calculation_inmem_gAs_path_out_auto(self):
+        """Test input parameter path_out='auto' in case input reference/ target image are in-memory GeoArrays."""
+        ref = GeoArray(np.random.randint(1, 100, (1000, 1000)))
+        tgt = GeoArray(np.random.randint(1, 100, (1000, 1000)))
+
+        with self.assertRaises(ValueError):
+            self.run_shift_detection_correction(ref, tgt,
+                                                **dict(self.coreg_kwargs,
+                                                       path_out='auto',
+                                                       fmt_out='ENVI',
+                                                       v=True))
 
     # @unittest.SkipTest
     def test_shift_calculation_verboseMode(self):
