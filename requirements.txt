@@ -1,5 +1,5 @@
 geoarray>=0.8.0
-py_tools_ds>=0.12.1
+py_tools_ds>=0.13.4
 cmocean
 numpy
 gdal
