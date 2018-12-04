@@ -4,7 +4,7 @@ import os
 import time
 import warnings
 from copy import copy
-from typing import Iterable
+from typing import Iterable, Union, Tuple  # noqa F401
 
 # custom
 try:
@@ -698,7 +698,8 @@ class COREG(object):
         # Check, ob match Fenster größer als anderes Fenster
         if not (matchBox.mapPoly.within(otherBox.mapPoly) or matchBox.mapPoly == otherBox.mapPoly):
             # dann für anderes Fenster kleinstes Fenster finden, das match-Fenster umgibt
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchBox.boxMapYX, otherBox.gt)
+            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
+                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues
 
         # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird
         t_start = time.time()
@@ -707,7 +708,8 @@ class COREG(object):
             xLarger, yLarger = otherBox.is_larger_DimXY(overlapWin.boundsIm)
             matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
             previous_area = otherBox.mapPoly.area
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchBox.boxMapYX, otherBox.gt)
+            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
+                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues)
 
             if previous_area == otherBox.mapPoly.area or time.time() - t_start > 1.5:
                 # happens e.g in case of a triangular footprint
@@ -825,7 +827,7 @@ class COREG(object):
 
     @staticmethod
     def _shrink_winsize_to_binarySize(win_shape_YX, target_size=None):
-        # type: (tuple, tuple, int , int) -> any
+        # type: (tuple, tuple) -> Union[Tuple[int, int], None]
         """Shrinks a given window size to the closest binary window size (a power of 2) -
         separately for X- and Y-dimension.
 
@@ -968,7 +970,7 @@ class COREG(object):
     def _get_grossly_deshifted_images(self, im0, im1, x_intshift, y_intshift):
         # TODO this is also implemented in GeoArray # this should update ref.win.data and shift.win.data
         # FIXME avoid that matching window gets smaller although shifting it  with the previous win_size would not move
-        # FIXME it into nodata-area
+        #       it into nodata-area
         # get_grossly_deshifted_im0
         old_center_YX = np.array(im0.shape) / 2
         new_center_YX = [old_center_YX[0] + y_intshift, old_center_YX[1] + x_intshift]
