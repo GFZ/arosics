@@ -26,7 +26,7 @@ requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopa
                 ]
 
 setup_requirements = [
-    # TODO(danschef): put setup requirements (distutils extensions, etc.) here
+    'setuptools'
 ]
 
 test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'rednose']
