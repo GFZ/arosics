@@ -59,14 +59,14 @@ Using [conda](https://conda.io/docs/), the recommended approach is:
 
 ```bash
 # create virtual environment for arosics, this is optional
-conda create -y -q --name arosics python=3
+conda create --name arosics python=3
 source activate arosics
-conda install -y -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+conda install -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas cmocean
 
 # optional libraries:
-conda install -y -q -c conda-forge basemap pykrige
-conda install -y -q -c conda-forge pyfftw  # Linux and MacOS
-conda install -y -q -c jesserobertson pyfftw  # Windows
+conda install -c conda-forge basemap pykrige
+conda install -c conda-forge pyfftw  # Linux and MacOS
+conda install -c jesserobertson pyfftw  # Windows
 ```
 
 To install AROSICS, use the pip installer:

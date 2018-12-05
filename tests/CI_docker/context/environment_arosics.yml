@@ -22,6 +22,7 @@ dependencies:
   - holoviews
   - bokeh
   - pykrige
+  - cmocean
   - pip:
     - dicttoxml
     - jsmin
@@ -45,7 +46,6 @@ dependencies:
     - nose-htmloutput
     - coverage
     - rednose
-    - cmocean
     - plotly
     - geoarray>=0.8.8
     - py_tools_ds>=0.13.7
