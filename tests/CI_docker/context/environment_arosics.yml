@@ -9,6 +9,7 @@ dependencies:
   - pyqt
   - numpy
   - gdal
+  - conda-forge::libgdal  # force to use conda-forge for libgdal to avoid package version incompatiblies due to mixed channels
   - scikit-image
   - rasterio
   - pyproj
@@ -33,8 +34,10 @@ dependencies:
     - sphinx-argparse
     - six
     - spectral
+    - folium>=0.6.0
+    - geojson
     - flake8
-    - pycodestyle
+    - pycodestyle<2.4.0  # fixes ImportError: module 'pycodestyle' has no attribute 'break_around_binary_operator'
     - pylint
     - pydocstyle
     - nose
@@ -44,5 +47,5 @@ dependencies:
     - rednose
     - cmocean
     - plotly
-    - geoarray>=0.6.16
-    - py_tools_ds>=0.12.1
+    - geoarray>=0.8.0
+    - py_tools_ds>=0.13.7

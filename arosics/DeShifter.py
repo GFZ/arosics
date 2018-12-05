@@ -3,6 +3,7 @@
 import collections
 import time
 import warnings
+import numpy as np
 
 # internal modules
 from geoarray import GeoArray
@@ -246,10 +247,11 @@ class DESHIFTER(object):
         # snap clipextent to output grid
         # (in case of odd input coords the output coords are moved INSIDE the input array)
         xmin, ymin, xmax, ymax = self.clipextent
-        xmin = find_nearest(self.out_grid[0], xmin, roundAlg='on', extrapolate=True)
-        ymin = find_nearest(self.out_grid[1], ymin, roundAlg='on', extrapolate=True)
-        xmax = find_nearest(self.out_grid[0], xmax, roundAlg='off', extrapolate=True)
-        ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True)
+        x_tol, y_tol = float(np.ptp(self.out_grid[0]) / 10000), float(np.ptp(self.out_grid[1]) / 10000)  # 10.000th pix
+        xmin = find_nearest(self.out_grid[0], xmin, roundAlg='on', extrapolate=True, tolerance=x_tol)
+        ymin = find_nearest(self.out_grid[1], ymin, roundAlg='on', extrapolate=True, tolerance=y_tol)
+        xmax = find_nearest(self.out_grid[0], xmax, roundAlg='off', extrapolate=True, tolerance=x_tol)
+        ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True, tolerance=y_tol)
         return xmin, ymin, xmax, ymax
 
     def correct_shifts(self):

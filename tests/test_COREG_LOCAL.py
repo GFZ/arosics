@@ -78,6 +78,28 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
                         'Output of local co-registration has not been written.')
 
+    def test_calculation_of_tie_point_grid_float_coords(self):
+        # NOTE: This does not test against unequaly sized output of get_image_windows_to_match().
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.gt = [330000.19999996503, 0.6, 0.0, 5862000.7999997628, 0.0, -0.6]
+        # ref.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        tgt.gt = [330000.19999996503, 0.6, 0.0, 5862000.7999997628, 0.0, -0.6]
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(**self.coreg_kwargs))
+
+        # use the getter of the CoRegPoints_table to calculate tie point grid
+        # noinspection PyStatementEffect
+        CRL.CoRegPoints_table
+
+
 # if __name__ == '__main__':
 #     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
 #
