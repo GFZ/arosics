@@ -20,8 +20,10 @@ test_arosics:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
-    - export GDAL_DATA=/root/miniconda3/share/gdal
+    - source activate ci_env
+    - export GDAL_DATA=/root/miniconda3/envs/ci_env/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
+    - pip install "py_tools_ds>=0.13.7"  # FIXME remove as soon as docker runner has been updated
     - make nosetests
     - make docs
   artifacts:
@@ -37,8 +39,10 @@ test_styles:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
-    - export GDAL_DATA=/root/miniconda3/share/gdal
+    - source activate ci_env
+    - export GDAL_DATA=/root/miniconda3/envs/ci_env/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
+#    - pip install "pycodestyle>=2.0.0,!=2.4.0"  # TODO remove as soon as docker runner is recreated
     - make lint
   artifacts:
     paths:
@@ -52,11 +56,11 @@ test_arosics_install:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
-    - export GDAL_DATA=/root/miniconda3/share/gdal
-    - conda create -y -q --name arosics python=3
-    - source activate arosics
+    - conda create -y -q --name arosics_testinstall python=3
+    - source activate arosics_testinstall
      # resolve some requirements with conda
     - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+    - conda install --yes -q -c conda-forge libgdal ncurses # Fix for libgdal installed from defaults channel causing libkea.so.1.4.7: cannot open shared object file: No such file or directory
     # run installer
     - python setup.py install
     # test if its importable
@@ -107,6 +111,7 @@ deploy_pypi:
     - test_arosics
   script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
     - source /root/miniconda3/bin/activate
+    - source activate ci_env
     - mkdir -p public/images/
     - cp -r docs/images/* public/images/
     - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
