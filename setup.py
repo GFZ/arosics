@@ -5,7 +5,8 @@
 
 from setuptools import setup, find_packages
 import warnings
-from importlib import util
+from pkgutil import find_loader
+
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -17,7 +18,7 @@ version = {}
 with open("arosics/version.py") as version_file:
     exec(version_file.read(), version)
 
-requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.8.0',
+requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.8.8',
                 'py_tools_ds>=0.13.7', 'plotly', 'cmocean', 'six', 'folium>=0.6.0', 'geojson'
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
@@ -66,16 +67,16 @@ setup(
 
 
 # check for pyfftw
-if not util.find_spec('pyfftw'):
+if not find_loader('pyfftw'):
     warnings.warn('You need to install pyfftw manually (see https://pypi.python.org/pypi/pyFFTW) for speeding up '
                   'the computation. It is not automatically installed.')
 
 # check for basemap
-if not util.find_spec('mpl_toolkits.basemap'):
+if not find_loader('mpl_toolkits.basemap'):
     warnings.warn('You need to install basemap manually if you want to plot maps (see www./matplotlib.org/basemap). '
                   'It is not automatically installed.')
 
 # check for pykrige
-if not util.find_spec('pykrige'):
+if not find_loader('pykrige'):
     warnings.warn('You need to install pykrige manually if you want to interpolate tie point grids produced by AROSICS '
                   '(see https://github.com/bsmurphy/PyKrige). It is not automatically installed.')

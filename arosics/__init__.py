@@ -2,8 +2,8 @@
 
 """Top-level package for arosics."""
 
-import warnings
-from importlib import util
+import warnings as _warnings
+from pkgutil import find_loader as _find_loader
 
 from arosics.CoReg import COREG
 from arosics.CoReg_local import COREG_LOCAL
@@ -22,7 +22,5 @@ __all__ = ['COREG',
 
 
 # check optional dependencies
-if not util.find_spec('pyfftw'):
-    warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
-
-del util, warnings
+if not _find_loader('pyfftw'):
+    _warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')

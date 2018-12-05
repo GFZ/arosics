@@ -6,7 +6,7 @@
 import unittest
 import tempfile
 import os
-from importlib import util
+from pkgutil import find_loader
 import shutil
 
 # custom
@@ -88,7 +88,7 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             self.assertTrue(os.path.isfile(outpath))
 
     def test_to_Raster_using_Kriging(self):
-        if util.find_spec('pykrige.ok'):
+        if find_loader('pykrige.ok'):
             with tempfile.TemporaryDirectory() as tmpdir:
                 outpath = os.path.join(tmpdir, 'X_SHIFT_M__interpolated.bsq')
                 self.TPG.to_Raster_using_Kriging(attrName='X_SHIFT_M', fName_out=outpath)

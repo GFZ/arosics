@@ -1,4 +1,4 @@
-geoarray>=0.8.0
+geoarray>=0.8.8
 py_tools_ds>=0.13.7
 cmocean
 numpy
