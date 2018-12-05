@@ -1227,15 +1227,12 @@ class COREG(object):
         im0 = self.matchWin[:] if self.matchWin.imID == 'ref' else self.otherWin[:]
         im1 = self.otherWin[:] if self.otherWin.imID == 'shift' else self.matchWin[:]
 
-        if self.v:
-            print('Matching windows with equalized spatial resolution:')
-            PLT.subplot_imshow([im0, im1], [self.ref.title, self.shift.title], grid=True)
-
         gsd_factor = self.imfft_gsd / self.shift.xgsd
 
         if self.v:
+            print('Matching windows with equalized spatial resolution:')
+            PLT.subplot_imshow([im0, im1], [self.ref.title, self.shift.title], grid=True)
             print('gsd_factor', gsd_factor)
-        if self.v:
             print('imfft_gsd_mapvalues', self.imfft_gsd)
 
         # calculate cross power spectrum without any de-shifting applied
