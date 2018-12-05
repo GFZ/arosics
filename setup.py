@@ -45,7 +45,7 @@ setup(
     install_requires=requirements,
     license="GNU General Public License v3",
     zip_safe=False,
-    keywords='arosics',
+    keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
