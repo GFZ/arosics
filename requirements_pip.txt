@@ -1,4 +1,5 @@
 cmocean
 plotly
 six
-importlib
+folium>=0.6.0
+geojson

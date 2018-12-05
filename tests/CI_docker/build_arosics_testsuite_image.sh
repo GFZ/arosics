@@ -2,7 +2,7 @@
 
 context_dir="./context"
 dockerfile="arosics_ci.docker"
-tag="arosics_ci:0.8.6"
+tag="arosics_ci:0.8.7"
 gitlab_runner="arosics_gitlab_CI_runner"
 
 echo "#### Build runner docker image"

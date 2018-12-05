@@ -4,7 +4,7 @@ import os
 import time
 import warnings
 from copy import copy
-from typing import Iterable
+from typing import Iterable, Union, Tuple  # noqa F401
 
 # custom
 try:
@@ -337,11 +337,22 @@ class COREG(object):
             'COREG._set_outpathes() expects two file pathes (string) or two instances of the ' \
             'GeoArray class. Received %s and %s.' % (type(im_ref), type(im_tgt))
 
-        def get_baseN(path): return os.path.splitext(os.path.basename(path))[0]
+        def get_baseN(path):
+            return os.path.splitext(os.path.basename(path))[0]
 
-        # get input pathes
-        path_im_ref = im_ref.filePath if isinstance(im_ref, GeoArray) else im_ref
-        path_im_tgt = im_tgt.filePath if isinstance(im_tgt, GeoArray) else im_tgt
+        # get input paths
+        def get_input_path(im):
+            path = im.filePath if isinstance(im, GeoArray) else im
+
+            if isinstance(im, GeoArray) and im.filePath is None and self.path_out == 'auto':
+                raise ValueError(self.path_out, "The output path must be explicitly set in case the input "
+                                                "reference or target image is in-memory (without a reference to a "
+                                                "physical file on disk). Received path_out='%s'." % self.path_out)
+
+            return path
+
+        path_im_ref = get_input_path(im_ref)
+        path_im_tgt = get_input_path(im_tgt)
 
         if self.path_out:  # this also applies to self.path_out='auto'
 
@@ -430,34 +441,17 @@ class COREG(object):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
-            # noinspection PyProtectedMember
-            def apply_subset_bandnames_metadata(geoArr_cr):
-                # TODO: replace that function with geoArr.get_subset(zslice=slice(band4match, band4match+1))
-                # TODO: as soon as all metadata are passed through get_subset()
-                zslice = slice(geoArr_cr.band4match, geoArr_cr.band4match+1)
-
-                if geoArr_cr._bandnames:
-                    geoArr_cr.bandnames = list(np.array(list(geoArr_cr._bandnames))[zslice])
-
-                if geoArr_cr._metadata is not None:
-                    geoArr_cr.metadata = \
-                        geoArr_cr._metadata[list(np.array(range(len(geoArr_cr._metadata.columns)))[zslice])].copy()
-
-                return geoArr_cr
-
             if self.grid2use == 'ref':
                 # resample target image to reference image
-                self.shift.arr = self.shift[:, :, self.shift.band4match]  # resample the needed band only
-                self.shift = apply_subset_bandnames_metadata(self.shift)
-
+                if self.shift.bands > 1:
+                    self.shift = self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
                 self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
                 self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
 
             else:
                 # resample reference image to target image
-                # FIXME in case of different projections this will change the projection of the reference image!
-                self.ref.arr = self.ref[:, :, self.ref.band4match]  # resample the needed band only
-                self.ref = apply_subset_bandnames_metadata(self.ref)
+                if self.ref.bands > 1:
+                    self.ref = self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
@@ -467,14 +461,8 @@ class COREG(object):
         # TODO different colors for polygons
         assert self.overlap_poly, 'Please calculate the overlap polygon first.'
 
-        try:
-            import folium
-            import geojson
-        except ImportError:
-            folium, geojson = None, None
-        if not folium or not geojson:
-            raise ImportError("This method requires the libraries 'folium' and 'geojson'. They can be installed with "
-                              "the shell command 'pip install folium geojson'.")
+        import folium
+        import geojson
 
         refPoly = reproject_shapelyGeometry(self.ref.poly, self.ref.epsg, 4326)
         shiftPoly = reproject_shapelyGeometry(self.shift.poly, self.shift.epsg, 4326)
@@ -608,7 +596,6 @@ class COREG(object):
             PLT.subplot_3dsurface(scps.astype(np.float32))
 
     def _get_opt_winpos_winsize(self):
-        # type: (tuple,tuple) -> None
         """
         Calculates optimal window position and size in reference image units according to DGM, cloud_mask and
         trueCornerLonLat.
@@ -711,7 +698,8 @@ class COREG(object):
         # Check, ob match Fenster größer als anderes Fenster
         if not (matchBox.mapPoly.within(otherBox.mapPoly) or matchBox.mapPoly == otherBox.mapPoly):
             # dann für anderes Fenster kleinstes Fenster finden, das match-Fenster umgibt
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchBox.boxMapYX, otherBox.gt)
+            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
+                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues
 
         # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird
         t_start = time.time()
@@ -720,7 +708,8 @@ class COREG(object):
             xLarger, yLarger = otherBox.is_larger_DimXY(overlapWin.boundsIm)
             matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
             previous_area = otherBox.mapPoly.area
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(matchBox.boxMapYX, otherBox.gt)
+            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
+                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues)
 
             if previous_area == otherBox.mapPoly.area or time.time() - t_start > 1.5:
                 # happens e.g in case of a triangular footprint
@@ -838,7 +827,7 @@ class COREG(object):
 
     @staticmethod
     def _shrink_winsize_to_binarySize(win_shape_YX, target_size=None):
-        # type: (tuple, tuple, int , int) -> any
+        # type: (tuple, tuple) -> Union[Tuple[int, int], None]
         """Shrinks a given window size to the closest binary window size (a power of 2) -
         separately for X- and Y-dimension.
 
@@ -981,7 +970,7 @@ class COREG(object):
     def _get_grossly_deshifted_images(self, im0, im1, x_intshift, y_intshift):
         # TODO this is also implemented in GeoArray # this should update ref.win.data and shift.win.data
         # FIXME avoid that matching window gets smaller although shifting it  with the previous win_size would not move
-        # FIXME it into nodata-area
+        #       it into nodata-area
         # get_grossly_deshifted_im0
         old_center_YX = np.array(im0.shape) / 2
         new_center_YX = [old_center_YX[0] + y_intshift, old_center_YX[1] + x_intshift]
