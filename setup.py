@@ -13,8 +13,12 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.6.16',
-                'py_tools_ds>=0.12.1', 'plotly', 'cmocean', 'six',
+version = {}
+with open("arosics/version.py") as version_file:
+    exec(version_file.read(), version)
+
+requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.8.0',
+                'py_tools_ds>=0.13.7', 'plotly', 'cmocean', 'six', 'folium>=0.6.0', 'geojson'
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
                 # 'basemap', # conda install --yes -c conda-forge basemap; \
@@ -28,7 +32,7 @@ test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'redn
 
 setup(
     name='arosics',
-    version='0.8.4',
+    version=version['__version__'],
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
@@ -53,6 +57,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
     test_suite='tests',
     tests_require=test_requirements,

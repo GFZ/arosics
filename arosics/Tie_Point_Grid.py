@@ -368,13 +368,14 @@ class Tie_Point_Grid(object):
                     bar.print_progress((i + 1) / len(GDF) * 100)
                 results[i, :] = self._get_spatial_shifts(coreg_kwargs)
 
-                # merge results with GDF
-        records = GeoDataFrame(np.array(results, np.object),
+        # merge results with GDF
+        records = GeoDataFrame(results,
                                columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
                                         'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
                                         'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
-        GDF = GDF.merge(records, on='POINT_ID', how="inner")
+        # merge DataFrames (dtype must be equal to records.dtypes; We need np.object due to None values)
+        GDF = GDF.astype(np.object).merge(records.astype(np.object), on='POINT_ID', how="inner")
         GDF = GDF.fillna(int(self.outFillVal))
 
         if not self.q:
@@ -608,11 +609,16 @@ class Tie_Point_Grid(object):
         """
 
         GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
+
+        if skip_nodata:
+            GDF2pass = GDF[GDF[skip_nodata_col] != self.outFillVal].copy()
+        else:
+            GDF2pass = GDF
+            GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         # replace boolean values (cannot be written)
-        GDF2pass = GDF2pass.replace(False, 0)  # replace all booleans where column dtype is not np.bool but np.object
-        GDF2pass = GDF2pass.replace(True, 1)
+        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(True, 1).copy()
         for col in GDF2pass.columns:
             if GDF2pass[col].dtype == np.bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)

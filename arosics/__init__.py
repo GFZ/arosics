@@ -10,10 +10,11 @@ from arosics.CoReg_local import COREG_LOCAL
 from arosics.DeShifter import DESHIFTER
 from arosics.Tie_Point_Grid import Tie_Point_Grid
 
+from .version import __version__, __versionalias__   # noqa (E402 + F401)
+
+
 __author__ = """Daniel Scheffler"""
 __email__ = 'daniel.scheffler@gfz-potsdam.de'
-__version__ = '0.8.4'
-__versionalias__ = '2018-03-08_01'
 __all__ = ['COREG',
            'COREG_LOCAL',
            'DESHIFTER',
