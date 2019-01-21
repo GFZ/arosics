@@ -16,7 +16,8 @@ from matplotlib import pyplot as plt
 from geopandas import GeoDataFrame, GeoSeries
 from shapely.geometry import Point
 from skimage.measure import points_in_poly, ransac
-from skimage.transform import AffineTransform, PolynomialTransform
+from skimage.transform import AffineTransform
+# from skimage.transform import PolynomialTransform
 
 # internal modules
 from .CoReg import COREG
@@ -194,7 +195,7 @@ class Tie_Point_Grid(object):
         return XY_points, XY_mapPoints
 
     def _exclude_bad_XYpos(self, GDF):
-        """Excludes all points outside of the image overlap area and all points where the bad data mask is True (if given).
+        """Exclude all points outside of the image overlap area and where the bad data mask is True (if given).
 
         :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_UTM' and 'Y_UTM'
         :return:
@@ -427,7 +428,7 @@ class Tie_Point_Grid(object):
 
     def plot_shift_distribution(self, include_outliers=True, unit='m', interactive=False, figsize=None, xlim=None,
                                 ylim=None, fontsize=12, title='shift distribution'):
-        # type: (bool, str, bool, tuple, list, list, int) -> tuple
+        # type: (bool, str, bool, tuple, list, list, int, str) -> tuple
         """Creates a 2D scatterplot containing the distribution of calculated X/Y-shifts.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
@@ -646,7 +647,7 @@ class Tie_Point_Grid(object):
         write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
 
     def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
-        # type: (str) -> GeoArray
+        # type: (str, str, str) -> GeoArray
         """Saves the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield
         (e.g. using ArcGIS)
 
@@ -881,9 +882,9 @@ class Tie_Point_Refiner(object):
             raise ValueError
         min_inlier_percentage = 100 - self.rs_max_outlier_percentage
 
-        class PolyTF_1(PolynomialTransform):  # pragma: no cover
-            def estimate(*data):
-                return PolynomialTransform.estimate(*data, order=1)
+        # class PolyTF_1(PolynomialTransform):  # pragma: no cover
+        #     def estimate(*data):
+        #         return PolynomialTransform.estimate(*data, order=1)
 
         # robustly estimate affine transform model with RANSAC
         # eliminates not more than the given maximum outlier percentage of the tie points
