@@ -415,9 +415,11 @@ class COREG(object):
     def _get_image_params(self):
         self.ref = GeoArray_CoReg(self.params, 'ref')
         self.shift = GeoArray_CoReg(self.params, 'shift')
-        assert prj_equal(self.ref.prj, self.shift.prj), \
-            'Input projections are not equal. Different projections are currently not supported. Got %s / %s.' \
-            % (get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj))
+
+        if not prj_equal(self.ref.prj, self.shift.prj):
+            raise RuntimeError(
+                'Input projections are not equal. Different projections are currently not supported. Got %s / %s.'
+                % (get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj)))
 
     def _get_overlap_properties(self):
         overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
