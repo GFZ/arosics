@@ -12,6 +12,7 @@ import numpy as np
 from .cases import test_cases
 from arosics import COREG
 from geoarray import GeoArray
+from py_tools_ds.geo.projection import EPSG2WKT
 
 
 class COREG_GLOBAL_init(unittest.TestCase):
@@ -171,6 +172,38 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                  **dict(self.coreg_kwargs,
                                                         wp=test_cases['INTER1']['wp_close_to_edge'], ws=(256, 256)))
         self.assertTrue(CR.success)
+
+    def test_shift_calculation_noWGS84(self):
+        """Test if shift computation properly raises a RunTimeError if the matching window is centered at a cloudy
+        image position.
+        """
+
+        ref = GeoArray(self.ref_path).to_mem()
+        tgt = GeoArray(self.tgt_path).to_mem()
+
+        # force to overwrite projection
+        ref.filePath = None
+        tgt.filePath = None
+        ref.prj = EPSG2WKT(3035)  # ETRS89_LAEA_Europe
+        tgt.prj = EPSG2WKT(3035)  # ETRS89_LAEA_Europe
+
+        CR = self.run_shift_detection_correction(ref, tgt, **dict(self.coreg_kwargs))
+        self.assertTrue(CR.success)
+
+    def test_shift_calculation_different_geographic_datum(self):
+        """Test if shift computation properly raises a RunTimeError if the matching window is centered at a cloudy
+        image position.
+        """
+
+        ref = GeoArray(self.ref_path).to_mem()
+        tgt = GeoArray(self.tgt_path).to_mem()
+
+        # force to overwrite projection
+        ref.filePath = None
+        ref.prj = EPSG2WKT(3035)  # ETRS89_LAEA_Europe
+
+        with self.assertRaises(RuntimeError):
+            self.run_shift_detection_correction(ref, tgt, **dict(self.coreg_kwargs))
 
     def test_shift_calculation_windowOutside(self):
         """Test if shift computation properly raises a ValueError if the given window position is outside of the image
