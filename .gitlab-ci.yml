@@ -23,7 +23,7 @@ test_arosics:
     - source activate ci_env
     - export GDAL_DATA=/root/miniconda3/envs/ci_env/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-    - pip install "py_tools_ds>=0.14.10"  # FIXME remove as soon as docker runner has been updated
+    - pip install "py_tools_ds>=0.14.12"  # FIXME remove as soon as docker runner has been updated
     - make nosetests
     - make docs
   artifacts:
