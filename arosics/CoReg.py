@@ -260,7 +260,8 @@ class COREG(object):
         self.overlap_poly = None  # set by self._get_overlap_properties()
         self.overlap_percentage = None  # set by self._get_overlap_properties()
         self.overlap_area = None  # set by self._get_overlap_properties()
-        self.imfft_gsd = None  # set by self.get_clip_window_properties()
+        self.imfft_xgsd = None  # set by self.get_clip_window_properties()
+        self.imfft_ygsd = None  # set by self.get_clip_window_properties()
         self.fftw_works = None  # set by self._calc_shifted_cross_power_spectrum()
         self.fftw_win_size_YX = None  # set by calc_shifted_cross_power_spectrum()
 
@@ -737,7 +738,8 @@ class COREG(object):
             assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
             assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
 
-            self.imfft_gsd = self.ref.xgsd if self.grid2use == 'ref' else self.shift.xgsd
+            self.imfft_xgsd = self.ref.xgsd if self.grid2use == 'ref' else self.shift.xgsd
+            self.imfft_ygsd = self.ref.ygsd if self.grid2use == 'ref' else self.shift.ygsd
             self.ref.win, self.shift.win = (matchBox, otherBox) if self.grid2use == 'ref' else (otherBox, matchBox)
             self.matchBox, self.otherBox = matchBox, otherBox
             self.ref.win.size_YX = tuple([int(i) for i in self.ref.win.imDimsYX])
@@ -804,7 +806,7 @@ class COREG(object):
                                                                self.otherWin.gt,
                                                                self.otherWin.prj,
                                                                self.matchWin.prj,
-                                                               out_gsd=(self.imfft_gsd, self.imfft_gsd),
+                                                               out_gsd=(self.imfft_xgsd, abs(self.imfft_ygsd)),
                                                                out_bounds=([tgt_xmin, tgt_ymin, tgt_xmax, tgt_ymax]),
                                                                rspAlg=_dict_rspAlg_rsp_Int[self.rspAlg_calc],
                                                                in_nodata=self.otherWin.nodata,
@@ -813,7 +815,7 @@ class COREG(object):
 
         if self.matchWin.shape != self.otherWin.shape:
             self._handle_error(
-                RuntimeError('Catched a possible ProgrammingError at window position %s: Bad output of '
+                RuntimeError('Caught a possible ProgrammingError at window position %s: Bad output of '
                              'get_image_windows_to_match. Reference image shape is %s whereas shift '
                              'image shape is %s.' % (str(self.matchBox.wp), self.matchWin.shape, self.otherWin.shape)),
                 warn=True)
@@ -1229,13 +1231,16 @@ class COREG(object):
         im0 = self.matchWin[:] if self.matchWin.imID == 'ref' else self.otherWin[:]
         im1 = self.otherWin[:] if self.otherWin.imID == 'shift' else self.matchWin[:]
 
-        gsd_factor = self.imfft_gsd / self.shift.xgsd
+        xgsd_factor = self.imfft_xgsd / self.shift.xgsd
+        ygsd_factor = self.imfft_ygsd / self.shift.ygsd
 
         if self.v:
             print('Matching windows with equalized spatial resolution:')
             PLT.subplot_imshow([im0, im1], [self.ref.title, self.shift.title], grid=True)
-            print('gsd_factor', gsd_factor)
-            print('imfft_gsd_mapvalues', self.imfft_gsd)
+            print('xgsd_factor', xgsd_factor)
+            print('ygsd_factor', ygsd_factor)
+            print('imfft_xgsd_mapvalues', self.imfft_xgsd)
+            print('imfft_ygsd_mapvalues', self.imfft_ygsd)
 
         # calculate cross power spectrum without any de-shifting applied
         scps = self._calc_shifted_cross_power_spectrum()  # 8-18ms
@@ -1299,7 +1304,7 @@ class COREG(object):
                                  % (x_totalshift, y_totalshift)))
             else:
                 self.success = True
-                self.x_shift_px, self.y_shift_px = x_totalshift * gsd_factor, y_totalshift * gsd_factor
+                self.x_shift_px, self.y_shift_px = x_totalshift * xgsd_factor, y_totalshift * ygsd_factor
 
                 # get map shifts
                 new_originX, new_originY = imXY2mapXY((self.x_shift_px, self.y_shift_px), self.shift.gt)
