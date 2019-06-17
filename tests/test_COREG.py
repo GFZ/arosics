@@ -74,7 +74,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         return CR
 
     def test_shift_calculation_with_default_params(self):
-        """Test with default parameters - should compute X/Y shifts properly ad write the de-shifted target image."""
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
 
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                  **dict(self.coreg_kwargs,
@@ -83,7 +83,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(CR.success)
 
     def test_shift_calculation_with_image_coords_only(self):
-        """Test with default parameters - should compute X/Y shifts properly ad write the de-shifted target image."""
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
 
         # overwrite gt and prj
         ref = GeoArray(self.ref_path)
@@ -105,7 +105,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(CR.success)
 
     def test_shift_calculation_with_float_coords(self):
-        """Test with default parameters - should compute X/Y shifts properly ad write the de-shifted target image."""
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
 
         # overwrite gt and prj
         ref = GeoArray(self.ref_path)
@@ -116,6 +116,26 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         tgt.to_mem()
         tgt.filePath = None
         tgt.gt = [335440.0000001, 10.1, 0.0, 5866490.0000001, 0.0, -10.1]
+
+        CR = self.run_shift_detection_correction(ref, tgt,
+                                                 **dict(self.coreg_kwargs,
+                                                        wp=(341500.0, 5861440.0),
+                                                        footprint_poly_ref=None,
+                                                        footprint_poly_tgt=None))
+        self.assertTrue(CR.success)
+
+    def test_shift_calculation_nonquadratic_pixels(self):
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.gt = [330000.00000001, 5.8932, 0.0, 5862000.0000001, 0.0, -10.1]
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        tgt.gt = [335440.0000001, 5.8933, 0.0, 5866490.0000001, 0.0, -10.1]
 
         CR = self.run_shift_detection_correction(ref, tgt,
                                                  **dict(self.coreg_kwargs,
