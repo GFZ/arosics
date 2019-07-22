@@ -1536,6 +1536,9 @@ python arosics_cli.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.
 
 # Credits
 
+AROSICS was developed within the context of the GeoMultiSens project funded by the German Federal Ministry 
+of Education and Research (project grant code: 01 IS 14 010 A-C).
+
 This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the
 [audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template.
 The test data represent modified Copernicus Sentinel data (2016).
