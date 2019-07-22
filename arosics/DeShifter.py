@@ -49,16 +49,16 @@ class DESHIFTER(object):
         r"""
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
-        :arg im2shift:
-            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
+        :arg im2shift (`str`, `GeoArray`):
+            path of an image to be de-shifted or alternatively a GeoArray object
 
-        :arg coreg_results:
-            <dict> the results of the co-registration as given by COREG.coreg_info or COREG_LOCAL.coreg_info
+        :arg coreg_results (`dict`):
+            the results of the co-registration as given by COREG.coreg_info or COREG_LOCAL.coreg_info
 
-        :key path_out:
+        :key path_out (`str`):
               /output/directory/filename for coregistered results
 
-        :key fmt_out (``str``):
+        :key fmt_out (`str`):
              raster file format for output file. ignored if path_out is None. can be any GDAL
             compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
 
