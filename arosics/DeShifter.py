@@ -49,43 +49,72 @@ class DESHIFTER(object):
         r"""
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
-        :param im2shift:            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
-        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info or
-                                    COREG_LOCAL.coreg_info respectively
+        :arg im2shift:
+            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
 
-        :Keyword Arguments:
-            * *path_out* (``str``):        /output/directory/filename for coregistered results
-            - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
-                                    compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
-            - out_crea_options(list): GDAL creation options for the output image,
-                                    e.g. ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
-            - band2process (int):   The index of the band to be processed within the given array (starts with 1),
-                                    default = None (all bands are processed)
-            - nodata(int, float):   no data value of the image to be de-shifted
-            - out_gsd (float):      output pixel size in units of the reference coordinate system (default = pixel size
-                                    of the input array), given values are overridden by match_gsd=True
-            - align_grids (bool):   True: align the input coordinate grid to the reference (does not affect the
-                                    output pixel size as long as input and output pixel sizes are compatible
-                                    (5:30 or 10:30 but not 4:30), default = False
-            - match_gsd (bool):     True: match the input pixel size to the reference pixel size,
-                                    default = False
-            - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]].
-                                    This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
-            - min_points_local_corr number of valid tie points, below which a global shift correction is performed
-                                    instead of a local correction (global X/Y shift is then computed as the mean shift
-                                    of the remaining points)(default: 5 tie points)
-            - resamp_alg(str)       the resampling algorithm to be used if neccessary
-                                    (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
-                                                       max, min, med, q1, q3)
-            - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
-                                    areas outside of the actual bounds, default = False
-            - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
-                                    The given coordinates are automatically snapped to the output grid.
-            - CPUs(int):            number of CPUs to use (default: None, which means 'all CPUs available')
-            - progress(bool):       show progress bars (default: True)
-            - v(bool):              verbose mode (default: False)
-            - q(bool):              quiet mode (default: False)
+        :arg coreg_results:
+            <dict> the results of the co-registration as given by COREG.coreg_info or COREG_LOCAL.coreg_info
 
+        :key path_out:
+              /output/directory/filename for coregistered results
+
+        :key fmt_out (``str``):
+             raster file format for output file. ignored if path_out is None. can be any GDAL
+            compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
+
+        :key out_crea_options(``list``):
+            GDAL creation options for the output image, e.g., ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
+
+        :key band2process (``int``):
+            The index of the band to be processed within the given array (starts with 1),
+            default = None (all bands are processed)
+
+        :key nodata(``int``, ``float``):
+            no data value of the image to be de-shifted
+
+        :key out_gsd (``float``):
+           output pixel size in units of the reference coordinate system (default = pixel size of the input array),
+            given values are overridden by match_gsd=True
+
+        :key align_grids (``bool``):
+            True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+
+        :key match_gsd (``bool``):
+            True: match the input pixel size to the reference pixel size, default = False
+
+        :key target_xyGrid(``list``):
+            a list with an x-grid and a y-grid like [[15,45], [15,45]].
+             This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
+
+        :key min_points_local_corr (``int``):
+            number of valid tie points, below which a global shift correction is performed instead of a local
+            correction (global X/Y shift is then computed as the mean shift of the remaining points)
+            (default: 5 tie points)
+
+        :key resamp_alg(``str``)
+            the resampling algorithm to be used if neccessary
+            (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
+
+        :key cliptoextent (``bool``):
+            True: clip the input image to its actual bounds while deleting possible no data areas outside of the actual
+            bounds, default = False
+
+        :key clipextent (``list``):
+            xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
+            The given coordinates are automatically snapped to the output grid.
+
+        :key CPUs(``int``):
+            number of CPUs to use (default: None, which means 'all CPUs available')
+
+        :key progress(``bool``):
+            show progress bars (default: True)
+
+        :key v(``bool``):
+            verbose mode (default: False)
+
+        :key q(``bool``):
+            quiet mode (default: False)
         """
 
         # private attributes
