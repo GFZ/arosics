@@ -1,5 +1,26 @@
 # -*- coding: utf-8 -*-
 
+# AROSICS - Automated and Robust Open-Source Image Co-Registration Software
+#
+# Copyright (C) 2019  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+#
+# This software was developed within the context of the GeoMultiSens project funded
+# by the German Federal Ministry of Education and Research
+# (project grant code: 01 IS 14 010 A-C).
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Lesser General Public License along
+# with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import collections
 import time
 import warnings
@@ -25,7 +46,7 @@ class DESHIFTER(object):
     """See help(DESHIFTER) for documentation!"""
 
     def __init__(self, im2shift, coreg_results, **kwargs):
-        """
+        r"""
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
         :param im2shift:            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
@@ -33,7 +54,7 @@ class DESHIFTER(object):
                                     COREG_LOCAL.coreg_info respectively
 
         :Keyword Arguments:
-            - path_out(str):        /output/directory/filename for coregistered results
+            * *path_out* (``str``):        /output/directory/filename for coregistered results
             - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
                                     compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
             - out_crea_options(list): GDAL creation options for the output image,
