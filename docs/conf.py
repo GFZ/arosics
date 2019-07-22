@@ -45,7 +45,8 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
-    'sphinxarg.ext'
+    'sphinxarg.ext',
+    'sphinx_autodoc_typehints'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -147,7 +148,8 @@ html_theme_options = {
     'sticky_navigation': True,
     'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': False
+    'titles_only': False,
+    'set_type_checking_flag': True  # option of sphinx_autodoc_typehints extension
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

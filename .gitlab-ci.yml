@@ -27,6 +27,7 @@ test_arosics:
     - make nosetests
     # create the docs
     - pip install sphinx_rtd_theme  # Read-the-docs theme for SPHINX documentation
+    - pip install sphinx-autodoc-typehints
     - make docs
   artifacts:
     paths:
