@@ -46,13 +46,13 @@ class DESHIFTER(object):
     """See help(DESHIFTER) for documentation!"""
 
     def __init__(self, im2shift, coreg_results, **kwargs):
-        r"""
+        """
         Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
 
         :param (str, GeoArray) im2shift:
             path of an image to be de-shifted or alternatively a GeoArray object
 
-        :arg (dict) coreg_results :
+        :param (dict) coreg_results :
             the results of the co-registration as given by COREG.coreg_info or COREG_LOCAL.coreg_info
 
         :key (int) path_out:
