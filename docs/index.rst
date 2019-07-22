@@ -1,12 +1,12 @@
-Welcome to AROSICS's documentation!
-===================================
+AROSICS documentation
+=====================
 
-Contents:
+**This documentation is structured as follows:**
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
-   readme
+   about
    installation
    usage
    modules
