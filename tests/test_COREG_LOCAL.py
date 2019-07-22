@@ -121,44 +121,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.CoRegPoints_table
 
 
-class CompleteWorkflow_JamesLawrence(unittest.TestCase):
-    """Test case for the complete workflow of local co-registration based on two Sentinel-2 datasets, one with
-    ~25% cloud cover, the other one without any clouds. The subsets cover the S2A tiles only partly (nodata areas
-    are present).
-    """
-
-    def setUp(self):
-        self.ref_path = '/home/gfz-fe/scheffler/temp/coreg_bug_james_lawrence_2019/' \
-                        'Bournemouth_5be0ab0e-ed18-4edf-b43a-41ed99440a56-inv.tif'
-        self.tgt_path = '/home/gfz-fe/scheffler/temp/coreg_bug_james_lawrence_2019/' \
-                        'Bournemouth_ee49f7e5-228f-4377-8a93-0a4a46f4f426-inv.tif'
-        # self.coreg_kwargs = test_cases['INTER1']['kwargs_local']
-        self.coreg_kwargs = dict(grid_res=80, CPUs=1)
-
-    def test_calculation_of_tie_point_grid(self):
-        # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
-
-        # use the getter of the CoRegPoints_table to calculate tie point grid
-        # noinspection PyStatementEffect
-        CRL.CoRegPoints_table
-
-        # # test tie point grid visualization
-        # if find_loader('mpl_toolkits.basemap'):  # only works if basemap is installed
-        #     CRL.view_CoRegPoints(hide_filtered=True)
-        #     CRL.view_CoRegPoints(hide_filtered=False)
-        #     CRL.view_CoRegPoints(shapes2plot='vectors')
-        #
-        # if find_loader('folium') and find_loader('geojson'):
-        #     CRL.view_CoRegPoints_folium()
-        #
-        # # test shift correction and output writer
-        # CRL.correct_shifts()
-        #
-        # self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
-        #                 'Output of local co-registration has not been written.')
-
-
 # if __name__ == '__main__':
 #     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
 #
