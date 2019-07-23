@@ -9,7 +9,7 @@ AROSICS documentation
    about
    installation
    usage
-   modules
+   api_cli_reference
    contributing
    authors
    history
