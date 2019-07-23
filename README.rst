@@ -37,49 +37,29 @@ Status
 See also the latest coverage_ report and the nosetests_ HTML report.
 
 
-Features
---------
+Feature overview
+----------------
 
-* Detection and correction of local or global geometric displacements between two input images.
+Detection and correction of local or global geometric displacements between two input images:
 
+* Local co-registration:
 
-Installation
-------------
+  A dense grid of tie points is automatically computed, whereas tie points are subsequently validated using a
+  multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters of an
+  affine transformation. Warping of the target image is done using an appropriate resampling technique
+  (cubic by default).
 
-AROSICS depends on some open source packages which are usually installed without problems by the automatic install
-routine. However, for some projects, we strongly recommend resolving the dependency before the automatic installer
-is run. This approach avoids problems with conflicting versions of the same software.
-Using conda_, the recommended approach is:
+|
 
- .. code-block:: console
+* Global co-registration:
 
-    # create virtual environment for arosics, this is optional
-    conda create --name arosics python=3
-    source activate arosics
-    conda install -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas cmocean
+  Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable).
+  This allows very fast co-registration but only corrects for translational (global) X/Y shifts.
+  The calculated subpixel-shifts are (by default) applied to the geocoding information of the output image.
+  No spatial resampling is done automatically as long as both input images have the same projection.
+  If you need the output image to be aligned to the reference image coordinate grid
+  (by using an appropriate resampling algorithm), use the '-align_grids' option.
 
-    # optional libraries:
-    conda install -c conda-forge basemap pykrige
-    conda install -c conda-forge pyfftw  # Linux and MacOS
-    conda install -c jesserobertson pyfftw  # Windows
-
-
-To install AROSICS, use the pip installer:
-
- .. code-block:: console
-
-    pip install arosics
-
-
-Or clone the repository via GIT and update the PATH environment variable:
-
- .. code-block:: console
-
-    cd /your/installation/folder
-    git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
-    git clone https://gitext.gfz-potsdam.de/danschef/geoarray.git
-    git clone https://gitext.gfz-potsdam.de/danschef/py_tools_ds.git
-    PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/folder/geoarray:/path/to/your/installation/folder/py_tools_ds
 
 Credits
 -------

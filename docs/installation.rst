@@ -25,7 +25,7 @@ Using conda_, the recommended approach is:
 
 3. Install optional libraries for AROSICS (only needed for some specific functions):
 
-   .. code-block::
+   .. code-block:: bash
 
     conda install -c conda-forge basemap pykrige
     conda install -c conda-forge pyfftw  # Linux and MacOS
