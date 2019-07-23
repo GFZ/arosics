@@ -18,7 +18,13 @@ In this section you can find some advice how to use AROSICS. The package offers 
 
 
 .. toctree::
-   :maxdepth: 1
-   :name: Cookbook
+   :maxdepth: 2
+   :caption: Usage from the command line
 
    usage/cli.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Usage from the Python API
+
+   usage/api.rst
