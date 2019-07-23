@@ -1,21 +1,24 @@
-=====
+.. _usage:
+
+#####
 Usage
-=====
+#####
 
-To use arosics in a project::
+In this section you can find some advice how to use AROSICS. The package offers two main interfaces:
 
-    import arosics
+1. the command line interface
+
+2. the Python API interface
 
 
-Command line utilities
-**********************
+.. todo::
 
-arosics_cli.py
------------
+   This section is not yet complete but will be continously updated in future.
+   If you miss topics, feel free to suggest new entries here!
 
-At the command line, arosics provides the **arosics_cli.py** command:
 
-.. argparse::
-   :filename: ./../bin/arosics_cli.py
-   :func: get_arosics_argparser
-   :prog: arosics_cli.py
+.. toctree::
+   :maxdepth: 1
+   :name: Cookbook
+
+   usage/cli.rst

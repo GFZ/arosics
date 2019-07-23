@@ -30,6 +30,7 @@ Feature overview
   affine transformation. Warping of the target image is done using an appropriate resampling technique
   (cubic by default).
 
+|
 
 * Global co-registration:
 
