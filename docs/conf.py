@@ -119,10 +119,13 @@ pygments_style = 'sphinx'
 # '__init__' documents only the __init__ methods, 'class' documents only the class methods and 'both' documents both
 autoclass_content = 'both'
 
+# If true, `todo` and `todoList` produce output, else they produce nothing.
+todo_include_todos = True
+
 
 # Increase content width of generated docs
 def setup(app):
-    app.add_stylesheet('wider_theme.css')
+    app.add_stylesheet('custom.css')
 
 
 # -- Options for HTML output -------------------------------------------
