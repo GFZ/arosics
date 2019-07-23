@@ -1,5 +1,5 @@
-Command line utilities
-**********************
+Usage from the command line
+***************************
 
 arosics_cli.py
 --------------
