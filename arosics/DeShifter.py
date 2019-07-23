@@ -43,11 +43,14 @@ _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline':
 
 
 class DESHIFTER(object):
-    """See help(DESHIFTER) for documentation!"""
+    """
+    Class to deshift an image array or one of its products by applying previously the computed coregistration info.
+
+    See help(DESHIFTER) for documentation.
+    """
 
     def __init__(self, im2shift, coreg_results, **kwargs):
-        """
-        Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
+        """Get an instance of DESHIFTER.
 
         :param (str, GeoArray) im2shift:
             path of an image to be de-shifted or alternatively a GeoArray object
@@ -116,7 +119,6 @@ class DESHIFTER(object):
         :key (bool) q:
             quiet mode (default: False)
         """
-
         # private attributes
         self._grids_alignable = None
 
@@ -249,15 +251,14 @@ class DESHIFTER(object):
 
     @property
     def warping_needed(self):
-        """Returns True if image warping is needed in consideration of the input parameters of DESHIFTER."""
-
+        """Return True if image warping is needed in consideration of the input parameters of DESHIFTER."""
         assert self.out_grid, 'Output grid must be calculated before.'
         equal_prj = prj_equal(self.ref_prj, self.shift_prj)
         return \
             False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
 
     def _are_grids_alignable(self, in_xgsd, in_ygsd, out_xgsd, out_ygsd):
-        """Checks if the input image pixel grid is alignable to the output grid.
+        """Check if the input image pixel grid is alignable to the output grid.
 
         :param in_xgsd:
         :param in_ygsd:
@@ -424,9 +425,10 @@ class DESHIFTER(object):
 
 
 def deshift_image_using_coreg_info(im2shift, coreg_results, path_out=None, fmt_out='ENVI', q=False):
-    """Corrects a geometrically distorted image using previously calculated coregistration info. This function can be
-    used for example to corrects spatial shifts of mask files using the same transformation parameters that have been
-    used to correct their source images.
+    """Correct a geometrically distorted image using previously calculated coregistration info.
+
+    This function can be used for example to correct spatial shifts of mask files using the same transformation
+    parameters that have been used to correct their source images.
 
     :param im2shift:      <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
     :param coreg_results: <dict> the results of the co-registration as given by COREG.coreg_info or

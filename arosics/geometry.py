@@ -37,17 +37,17 @@ __author__ = 'Daniel Scheffler'
 
 
 def angle_to_north(XY):
-    """Calculates the angle between the lines [origin:[0,0],north:[0,1]] and
-     [origin:[0,0],pointXY:[X,Y]] in clockwise direction. Returns values between 0 and 360 degrees.
-     """
+    """Calculate the angle in degrees of a given line to north in clockwise direction.
+
+    Angle definition: between [origin:[0,0],north:[0,1]] and [origin:[0,0],pointXY:[X,Y]].
+    """
     XY = np.array(XY)
     XYarr = XY if len(XY.shape) == 2 else XY.reshape((1, 2))
     return np.abs(np.degrees(np.array(np.arctan2(XYarr[:, 1], XYarr[:, 0]) - np.pi / 2)) % 360)
 
 
 def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, q=0):  # pragma: no cover
-    # FIXME this function is not used anymore
-    """
+    """Return the actual map corner coordinates of a given image file or GeoArray instance.
 
     :param fPath_or_geoarray:
     :param band:                <int> index of the band to be used (starting with 0)
@@ -57,6 +57,7 @@ def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, 
     :param q:
     :return:
     """
+    # FIXME this function is not used anymore
     warnings.warn('This function is not in use anymore. Use it on your own risk!', DeprecationWarning)
     geoArr = GeoArray(fPath_or_geoarray) if not isinstance(fPath_or_geoarray, GeoArray) else fPath_or_geoarray
 
@@ -120,7 +121,7 @@ def get_subset_GeoTransform(gt_fullArr, subset_box_imYX):
 
 
 def get_gdalReadInputs_from_boxImYX(boxImYX):
-    """Returns row_start,col_start,rows_count,cols_count and assumes boxImYX as [UL_YX,UR_YX,LR_YX,LL_YX)"""
+    """Return row_start,col_start,rows_count,cols_count and assumes boxImYX as [UL_YX,UR_YX,LR_YX,LL_YX)."""
     rS, cS = boxImYX[0]
     clip_sz_x = abs(boxImYX[1][1] - boxImYX[0][1])  # URx-ULx
     clip_sz_y = abs(boxImYX[0][0] - boxImYX[3][0])  # ULy-LLy
@@ -128,7 +129,7 @@ def get_gdalReadInputs_from_boxImYX(boxImYX):
 
 
 def get_GeoArrayPosition_from_boxImYX(boxImYX):
-    """Returns row_start,row_end,col_start,col_end and assumes boxImYX as [UL_YX,UR_YX,LR_YX,LL_YX)"""
+    """Return row_start,row_end,col_start,col_end and assumes boxImYX as [UL_YX,UR_YX,LR_YX,LL_YX)."""
     rS, cS = boxImYX[0]  # UL
     rE, cE = boxImYX[2]  # LR
     return rS, rE - 1, cS, cE - 1  # -1 because boxImYX represents outer box and includes the LR corner of LR pixel

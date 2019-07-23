@@ -58,7 +58,7 @@ global_shared_im2shift = None
 
 
 def mp_initializer(imref, imtgt):
-    """Declare global variables needed for self._get_spatial_shifts()
+    """Declare global variables needed for self._get_spatial_shifts().
 
     :param imref:   reference image
     :param imtgt:   target image
@@ -69,16 +69,21 @@ def mp_initializer(imref, imtgt):
 
 
 class Tie_Point_Grid(object):
-    """See help(Tie_Point_Grid) for documentation!"""
+    """
+    The 'Tie_Point_Grid' class applies the algorithm to detect spatial shifts to the overlap area of the input images.
+
+    Spatial shifts are calculated for each point in grid of which the parameters can be adjusted using keyword
+    arguments. Shift correction performs a polynomial transformation using te calculated shifts of each point in the
+    grid as GCPs. Thus 'Tie_Point_Grid' can be used to correct for locally varying geometric distortions of the target
+    image.
+
+    See help(Tie_Point_Grid) for documentation!
+    """
 
     def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
                  tieP_filter_level=3, outlDetect_settings=None, dir_out=None, CPUs=None, progress=True, v=False,
                  q=False):
-
-        """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
-        are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
-        correction performs a polynomial transformation using te calculated shifts of each point in the grid as GCPs.
-        Thus 'Tie_Point_Grid' can be used to correct for locally varying geometric distortions of the target image.
+        """Get an instance of the 'Tie_Point_Grid' class.
 
         :param COREG_obj(object):       an instance of COREG class
         :param grid_res:                grid resolution in pixels of the target image (x-direction)
@@ -114,7 +119,6 @@ class Tie_Point_Grid(object):
         :param v(bool):                 verbose mode (default: False)
         :param q(bool):                 quiet mode (default: False)
         """
-
         if not isinstance(COREG_obj, COREG):
             raise ValueError("'COREG_obj' must be an instance of COREG class.")
 
@@ -157,9 +161,10 @@ class Tie_Point_Grid(object):
 
     @property
     def CoRegPoints_table(self):
-        """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
-        'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
-        information containing all the results from coregistration for all points in the tie points grid.
+        """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
+
+        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
+                                     'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE'
         """
         if self._CoRegPoints_table is not None:
             return self._CoRegPoints_table
@@ -173,9 +178,7 @@ class Tie_Point_Grid(object):
 
     @property
     def GCPList(self):
-        """Returns a list of GDAL compatible GCP objects.
-        """
-
+        """Return a list of GDAL compatible GCP objects."""
         if self._GCPList:
             return self._GCPList
         else:
@@ -187,13 +190,13 @@ class Tie_Point_Grid(object):
         self._GCPList = GCPList
 
     def _get_imXY__mapXY_points(self, grid_res):
-        """Returns a numpy array containing possible positions for coregistration tie points according to the given
-        grid resolution.
+        """Return a numpy array containing possible positions for coregistration tie points.
+
+        NOTE: The returned positions are dependent from the given grid resolution.
 
         :param grid_res:
         :return:
         """
-
         if not self.q:
             print('Initializing tie points grid...')
 
@@ -221,7 +224,6 @@ class Tie_Point_Grid(object):
         :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_UTM' and 'Y_UTM'
         :return:
         """
-
         # exclude all points outside of overlap area
         inliers = points_in_poly(self.XY_mapPoints,
                                  np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
@@ -418,11 +420,10 @@ class Tie_Point_Grid(object):
 
     def calc_rmse(self, include_outliers=False):
         # type: (bool) -> float
-        """Calculates root mean square error of absolute shifts from the tie point grid.
+        """Calculate root mean square error of absolute shifts from the tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
-
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
 
@@ -433,12 +434,11 @@ class Tie_Point_Grid(object):
 
     def calc_overall_ssim(self, include_outliers=False, after_correction=True):
         # type: (bool, bool) -> float
-        """Calculates the median value of all SSIM values contained in tie point grid.
+        """Calculate the median value of all SSIM values contained in tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
         :param after_correction:    whether to compute median SSIM before correction or after
         """
-
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy()
 
@@ -450,7 +450,7 @@ class Tie_Point_Grid(object):
     def plot_shift_distribution(self, include_outliers=True, unit='m', interactive=False, figsize=None, xlim=None,
                                 ylim=None, fontsize=12, title='shift distribution'):
         # type: (bool, str, bool, tuple, list, list, int, str) -> tuple
-        """Creates a 2D scatterplot containing the distribution of calculated X/Y-shifts.
+        """Create a 2D scatterplot containing the distribution of calculated X/Y-shifts.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
         :param unit:                'm' for meters or 'px' for pixels (default: 'm')
@@ -461,7 +461,6 @@ class Tie_Point_Grid(object):
         :param fontsize:            size of all used fonts
         :param title:               the title to be plotted above the figure
         """
-
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
 
@@ -621,15 +620,15 @@ class Tie_Point_Grid(object):
 
     def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):
         # type: (str, bool, str) -> None
-        """Writes the calculated tie points grid to a point shapefile containing
-        Tie_Point_Grid.CoRegPoints_table as attribute table. This shapefile can easily be displayed using GIS software.
+        """Write the calculated tie points grid to a point shapefile (e.g., for visualization by a GIS software).
+
+        NOTE: The shapefile uses Tie_Point_Grid.CoRegPoints_table as attribute table.
 
         :param path_out:        <str> the output path. If not given, it is automatically defined.
         :param skip_nodata:     <bool> whether to skip all points where no valid match could be found
         :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
                                 identify points where no valid match could be found
         """
-
         GDF = self.CoRegPoints_table
 
         if skip_nodata:
@@ -669,8 +668,9 @@ class Tie_Point_Grid(object):
 
     def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
         # type: (str, str, str) -> GeoArray
-        """Saves the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield
-        (e.g. using ArcGIS)
+        """Save the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield.
+
+        NOTE: For example ArcGIS is able to visualize such 2-band raster files as a vectorfield.
 
         :param path_out:    <str> the output path. If not given, it is automatically defined.
         :param fmt:         <str> output raster format string
@@ -678,7 +678,6 @@ class Tie_Point_Grid(object):
                                     'uv': outputs X-/Y shifts
                                     'md': outputs magnitude and direction
         """
-
         assert mode in ['uv', 'md'], "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' " \
                                      "(outputs magnitude and direction)'. Got %s." % mode
         attr_b1 = 'X_SHIFT_M' if mode == 'uv' else 'ABS_SHIFT'
@@ -778,9 +777,11 @@ class Tie_Point_Grid(object):
 
 
 class Tie_Point_Refiner(object):
+    """A class for performing outlier detection."""
+
     def __init__(self, GDF, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
                  rs_exclude_previous_outliers=True, rs_timeout=20, q=False):
-        """A class for performing outlier detection.
+        """Get an instance of Tie_Point_Refiner.
 
         :param GDF:                             GeoDataFrame like TiePointGrid.CoRegPoints_table containing all tie
                                                 points to be filtered and the corresponding metadata
@@ -798,7 +799,6 @@ class Tie_Point_Refiner(object):
 
         :param q:
         """
-
         self.GDF = GDF.copy()
         self.min_reliability = min_reliability
         self.rs_max_outlier_percentage = rs_max_outlier
@@ -825,7 +825,6 @@ class Tie_Point_Refiner(object):
 
         :return:
         """
-
         # TODO catch empty GDF
 
         # RELIABILITY filtering
@@ -876,12 +875,10 @@ class Tie_Point_Refiner(object):
 
     def _reliability_thresholding(self):
         """Exclude all records where estimated reliability of the calculated shifts is below the given threshold."""
-
         return self.GDF.RELIABILITY < self.min_reliability
 
     def _SSIM_filtering(self):
         """Exclude all records where SSIM decreased."""
-
         # ssim_diff  = np.median(self.GDF['SSIM_AFTER']) - np.median(self.GDF['SSIM_BEFORE'])
 
         # self.GDF.SSIM_IMPROVED = \
@@ -891,7 +888,6 @@ class Tie_Point_Refiner(object):
 
     def _RANSAC_outlier_detection(self, inGDF):
         """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm."""
-
         src_coords = np.array(inGDF[['X_UTM', 'Y_UTM']])
         xyShift = np.array(inGDF[['X_SHIFT_M', 'Y_SHIFT_M']])
         est_coords = src_coords + xyShift

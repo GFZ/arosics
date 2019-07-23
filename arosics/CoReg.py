@@ -133,7 +133,13 @@ class GeoArray_CoReg(GeoArray):
 
 
 class COREG(object):
-    """See help(COREG) for documentation!"""
+    """The COREG class detects and corrects global X/Y shifts between a target and refernce image.
+
+    Geometric shifts are calculated at a specific (adjustable) image position. Correction performs a global shifting
+    in X- or Y direction.
+
+    See help(COREG) for documentation!
+    """
 
     def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', out_crea_options=None, r_b4match=1, s_b4match=1,
                  wp=(None, None), ws=(256, 256), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
@@ -142,9 +148,7 @@ class COREG(object):
                  nodata=(None, None), calc_corners=True, binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None,
                  CPUs=None, force_quadratic_win=True, progress=True, v=False, path_verbose_out=None, q=False,
                  ignore_errors=False):
-
-        """Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are calculated
-        at a specific (adjustable) image position. Correction performs a global shifting in X- or Y direction.
+        """Get an instance of the COREG class.
 
         :param im_ref(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
                                         of reference image
@@ -222,7 +226,6 @@ class COREG(object):
                                         In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px
                                         is None
         """
-
         self.params = dict([x for x in locals().items() if x[0] != "self"])
 
         # assertions
@@ -333,15 +336,15 @@ class COREG(object):
         self._coreg_info = None  # private attribute to be filled by self.coreg_info property
 
     def _handle_error(self, error, warn=False, warnMsg=None):
-        """Appends the given error to self.tracked_errors, sets self.success to False and raises the error in case
-        self.ignore_errors = True.
+        """Append the given error to self.tracked_errors.
+
+        This sets self.success to False and raises the error in case self.ignore_errors = True.
 
         :param error:   instance of an error
         :param warn:    whether to give a warning in case error would be ignored otherwise
         :param warnMsg: a custom message for the warning
         :return:
         """
-
         warn = warn or warnMsg is not None or self.v
 
         self.tracked_errors.append(error)
@@ -458,9 +461,7 @@ class COREG(object):
             'Overlap area covers only %s pixels. At least 16*16 pixels are needed.' % px_covered
 
     def equalize_pixGrids(self):
-        """
-        Equalize image grids and projections of reference and target image (align target to reference).
-        """
+        """Equalize image grids and projections of reference and target image (align target to reference)."""
         if not (prj_equal(self.ref.prj, self.shift.prj) and self.ref.xygrid_specs == self.shift.xygrid_specs):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
@@ -480,8 +481,10 @@ class COREG(object):
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
     def show_image_footprints(self):
-        """This method is intended to be called from Jupyter Notebook and shows a web map containing the calculated
-        footprints of the input images as well as the corresponding overlap area."""
+        """Show a web map containing the calculated footprints and overlap area of the input images.
+
+        NOTE: This method is intended to be called from Jupyter Notebook.
+        """
         # TODO different colors for polygons
         assert self.overlap_poly, 'Please calculate the overlap polygon first.'
 
@@ -585,14 +588,14 @@ class COREG(object):
                 self.otherWin.show(figsize=figsize, pmin=pmin, pmax=pmax)
 
     def show_cross_power_spectrum(self, interactive=False):
-        """
-        Shows a 3D surface of the cross power spectrum resulting from phase correlating the reference and target
-        image within the matching window.
+        """Show a 3D surface of the cross power spectrum.
+
+        NOTE: The cross power spectrum is the result from phase correlating the reference and target
+              image within the matching window.
 
         :param interactive:  whether to return an interactice 3D surface plot based on 'plotly' library
         :return:
         """
-
         if interactive:
             # create plotly 3D surface
 
@@ -620,9 +623,9 @@ class COREG(object):
             PLT.subplot_3dsurface(scps.astype(np.float32))
 
     def _get_opt_winpos_winsize(self):
-        """
-        Calculates optimal window position and size in reference image units according to DGM, cloud_mask and
-        trueCornerLonLat.
+        """Calculate optimal window position and size in reference image units.
+
+        NOTE: The returned values are computed according to DGM, cloud_mask and trueCornerLonLat.
         """
         # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
         # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
@@ -674,9 +677,11 @@ class COREG(object):
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512, 512)
 
     def _get_clip_window_properties(self):
-        """Calculate all properties of the matching window and the other window. These windows are used to read the
-        corresponding image positions in the reference and the target image.
-        hint: Even if X- and Y-dimension of the target window is equal, the output window can be NOT quadratic!
+        """Calculate all properties of the matching window and the other window.
+
+        These windows are used to read the corresponding image positions in the reference and the target image.
+
+        NOTE: Even if X- and Y-dimension of the target window is equal, the output window can be NON-quadratic!
         """
         # FIXME image sizes like 10000*256 are still possible
 
@@ -775,10 +780,11 @@ class COREG(object):
                 # write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
 
     def _get_image_windows_to_match(self):
-        """Reads the matching window and the other window using subset read, and resamples the other window to the
-        resolution and the pixel grid of the matching window. The result consists of two images with the same
-        dimensions and exactly the same corner coordinates."""
+        """Read the matching window and the other window as subsets.
 
+        Th other window is resampled to the resolution and the pixel grid of the matching window.
+        The result consists of two images with the same dimensions and exactly the same corner coordinates.
+        """
         match_fullGeoArr = self.ref if self.grid2use == 'ref' else self.shift
         other_fullGeoArr = self.shift if self.grid2use == 'ref' else self.ref
 
@@ -853,13 +859,13 @@ class COREG(object):
     @staticmethod
     def _shrink_winsize_to_binarySize(win_shape_YX, target_size=None):
         # type: (tuple, tuple) -> Union[Tuple[int, int], None]
-        """Shrinks a given window size to the closest binary window size (a power of 2) -
-        separately for X- and Y-dimension.
+        """Shrink a given window size to the closest binary window size (a power of 2).
+
+        NOTE: X- and Y-dimension are handled separately.
 
         :param win_shape_YX:    <tuple> source window shape as pixel units (rows,colums)
         :param target_size:     <tuple> source window shape as pixel units (rows,colums)
         """
-
         binarySizes = [2 ** i for i in range(3, 14)]  # [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
         possibSizes_X = [i for i in binarySizes if i <= win_shape_YX[1]]
         possibSizes_Y = [i for i in binarySizes if i <= win_shape_YX[0]]
@@ -872,14 +878,13 @@ class COREG(object):
             return None
 
     def _calc_shifted_cross_power_spectrum(self, im0=None, im1=None, precision=np.complex64):
-        """Calculates shifted cross power spectrum for quantifying x/y-shifts.
+        """Calculate the shifted cross power spectrum for quantifying X/Y-shifts.
 
         :param im0:         reference image
         :param im1:         subject image to shift
         :param precision:   to be quantified as a datatype
         :return:            2D-numpy-array of the shifted cross power spectrum
         """
-
         im0 = im0 if im0 is not None else self.matchWin[:] if self.matchWin.imID == 'ref' else self.otherWin[:]
         im1 = im1 if im1 is not None else self.otherWin[:] if self.otherWin.imID == 'shift' else self.matchWin[:]
 
@@ -968,7 +973,7 @@ class COREG(object):
 
     @staticmethod
     def _get_peakpos(scps):
-        """Returns the row/column position of the peak within the given cross power spectrum.
+        """Return the row/column position of the peak within the given cross power spectrum.
 
         :param scps: <np.ndarray> shifted cross power spectrum
         :return:     <np.ndarray> [row, column]
@@ -1051,12 +1056,11 @@ class COREG(object):
         return x_intshift, y_intshift
 
     def _calc_shift_reliability(self, scps):
-        """Calculates a confidence percentage that can be used as an assessment for reliability of the calculated shifts.
+        """Calculate a confidence percentage to be used as an assessment for reliability of the calculated shifts.
 
         :param scps:    <np.ndarray> shifted cross power spectrum
         :return:
         """
-
         # calculate mean power at peak
         peakR, peakC = self._get_peakpos(scps)
         power_at_peak = np.mean(scps[peakR - 1:peakR + 2, peakC - 1:peakC + 2])
@@ -1113,17 +1117,17 @@ class COREG(object):
         return x_intshift + x_subshift, y_intshift + y_subshift
 
     def _get_deshifted_otherWin(self):
-        """Returns a de-shifted version of self.otherWin as a GeoArray instance.The output dimensions and geographic
-        bounds are equal to those of self.matchWin and geometric shifts are corrected according to the previously
-        computed X/Y shifts within the matching window. This allows direct application of algorithms e.g. measuring
-        image similarity.
+        """Return a de-shifted version of self.otherWin as a GeoArray instance.
+
+        The output dimensions and geographic bounds are equal to those of self.matchWin and geometric shifts are
+        corrected according to the previously computed X/Y shifts within the matching window. This allows direct
+        application of algorithms e.g. measuring image similarity.
 
         The image subset that is resampled in this function is always the same that has been resampled during
         computation of geometric shifts (usually the image with the higher geometric resolution).
 
         :returns:   GeoArray instance of de-shifted self.otherWin
         """
-
         # shift vectors have been calculated to fit target image onto reference image
         # -> so the shift vectors have to be inverted if shifts are applied to reference image
         coreg_info = self._get_inverted_coreg_info() if self.otherWin.imID == 'ref' else self.coreg_info
@@ -1140,13 +1144,11 @@ class COREG(object):
         return ds_results['GeoArray_shifted']
 
     def _validate_ssim_improvement(self, v=False):
-        """Computes mean structural similarity index between reference and target image before and after correction
-        of geometric shifts..
+        """Compute mean structural similarity index between reference and target image before and after co-regsitration.
 
         :param v:   <bool> verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
         :return:    <tuple> SSIM before an after shift correction
         """
-
         assert self.success is not None, \
             'Calculate geometric shifts first before trying to measure image similarity improvement!'
         assert self.success in [True, None], \
@@ -1220,8 +1222,7 @@ class COREG(object):
 
     @property
     def ssim_improved(self):
-        """Returns True if image similarity within the matching window has been improved by correcting the previously
-         computed geometric shifts."""
+        """Return True if image similarity within the matching window has been improved by co-registration."""
         if self.success is True:
             if self._ssim_improved is None:
                 ssim_orig, ssim_deshifted = self._validate_ssim_improvement()
@@ -1234,12 +1235,10 @@ class COREG(object):
 
     def calculate_spatial_shifts(self):
         # type: (COREG) -> str
-
         """Compute the global X/Y shift between reference and the target image within the matching window.
 
         :return: 'success' or 'fail'
         """
-
         if self.success is False:
             return 'fail'
 
@@ -1373,9 +1372,7 @@ class COREG(object):
 
     @property
     def coreg_info(self):
-        """A dictionary containing all the information needed to correct the detected global X/Y shift of the target
-        image."""
-
+        """Return a dictionary containing everything to correct the detected global X/Y shift of the target image."""
         if self._coreg_info:
             return self._coreg_info
         else:
@@ -1395,9 +1392,10 @@ class COREG(object):
             return self._coreg_info
 
     def _get_inverted_coreg_info(self):
-        """Returns an inverted dictionary of coreg_info that can be passed to DESHIFTER in order to fit the REFERENCE
-        image onto the TARGET image."""
+        """Return an inverted dictionary of coreg_info.
 
+        This dictionary can be passed to DESHIFTER in order to fit the REFERENCE image onto the TARGET image.
+        """
         inv_coreg_info = copy(self.coreg_info)
         inv_coreg_info['corrected_shifts_px']['x'] *= -1
         inv_coreg_info['corrected_shifts_px']['y'] *= -1
@@ -1418,12 +1416,10 @@ class COREG(object):
 
     def correct_shifts(self):
         # type: (COREG) -> dict
-
         """Correct the already calculated X/Y shift of the target image.
 
         :return: COREG.deshift_results (dictionary)
         """
-
         DS = DESHIFTER(self.shift, self.coreg_info,
                        path_out=self.path_out,
                        fmt_out=self.fmt_out,

@@ -19,12 +19,12 @@ In this section you can find some advice how to use AROSICS. The package offers 
 
 .. toctree::
    :maxdepth: 1
-   :caption: Usage from the command line
+   :name: Usage from the command line
 
    usage/cli.rst
 
 .. toctree::
    :maxdepth: 2
-   :caption: Usage of the Python API
+   :name: Usage of the Python API
 
    usage/api.rst

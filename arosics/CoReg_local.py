@@ -51,7 +51,15 @@ __author__ = 'Daniel Scheffler'
 
 
 class COREG_LOCAL(object):
-    """See help(COREG_LOCAL) for documentation!"""
+    """
+    COREG_LOCAL applies the algorithm to detect spatial shifts to the whole overlap area of the input images.
+
+    Spatial shifts are calculated for each point in grid of which the parameters can be adjusted using keyword
+    arguments. Shift correction performs a polynomial transformation using the calculated shifts of each point in the
+    grid as GCPs. Thus this class can be used to correct for locally varying geometric distortions of the target image.
+
+    See help(COREG_LOCAL) for documentation.
+    """
 
     def __init__(self, im_ref, im_tgt, grid_res, max_points=None, window_size=(256, 256), path_out=None, fmt_out='ENVI',
                  out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
@@ -61,11 +69,7 @@ class COREG_LOCAL(object):
                  outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True, force_quadratic_win=True,
                  mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True, v=False, q=False,
                  ignore_errors=True):
-
-        """Applies the algorithm to detect spatial shifts to the whole overlap area of the input images. Spatial shifts
-        are calculated for each point in grid of which the parameters can be adjusted using keyword arguments. Shift
-        correction performs a polynomial transformation using the calculated shifts of each point in the grid as GCPs.
-        Thus this class can be used to correct for locally varying geometric distortions of the target image.
+        """Get an instance of COREG_LOCAL.
 
         :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
         :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is
@@ -167,7 +171,6 @@ class COREG_LOCAL(object):
         :param q(bool):                 quiet mode (default: False)
         :param ignore_errors(bool):     Useful for batch processing. (default: False)
         """
-
         # assertions / input validation
         assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
         if match_gsd and out_gsd:
@@ -273,8 +276,7 @@ class COREG_LOCAL(object):
         self._success = None  # set by self.success property
 
     def check_if_fftw_works(self):
-        """Assigns the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output.
-        """
+        """Assign the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output."""
         # calculate global shift once in order to check is fftw works
         try:
             self.COREG_obj.q = True
@@ -337,11 +339,11 @@ class COREG_LOCAL(object):
 
     @property
     def CoRegPoints_table(self):
-        """Returns a GeoDataFrame with the columns 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE',
-        'Y_WIN_SIZE','X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE' containing all
-        information containing all the results from coregistration for all points in the tie point grid.
-        """
+        """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
 
+        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
+                                     'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE'
+        """
         return self.tiepoint_grid.CoRegPoints_table
 
     @property
@@ -352,8 +354,10 @@ class COREG_LOCAL(object):
         return self._success
 
     def show_image_footprints(self):
-        """This method is intended to be called from Jupyter Notebook and shows a web map containing the calculated
-        footprints of the input images as well as the corresponding overlap area."""
+        """Show a web map containing the calculated footprints and overlap area of the input images.
+
+        NOTE: This method is intended to be called from Jupyter Notebook.
+        """
         return self.COREG_obj.show_image_footprints()
 
     def view_CoRegPoints(self, shapes2plot='points', attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True,
@@ -361,7 +365,8 @@ class COREG_LOCAL(object):
                          savefigPath='', savefigDPI=96, showFig=True, vmin=None, vmax=None, return_map=False,
                          zoomable=False):
         # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool, bool) -> ...
-        """Shows a map of the calculated tie point grid with the target image as background.
+        """
+        Show a map of the calculated tie point grid with the target image as background.
 
         :param shapes2plot:         <str> 'points': plot points representing values of 'attribute2plot' onto the map
                                           'vectors': plot shift vectors onto the map
@@ -386,7 +391,6 @@ class COREG_LOCAL(object):
         :param zoomable:            <bool> enable or disable zooming via mpld3
         :return:
         """
-
         # get a map showing target image
         if backgroundIm not in ['tgt', 'ref']:
             raise ValueError('backgroundIm')
@@ -554,8 +558,7 @@ class COREG_LOCAL(object):
         return map_osm
 
     def _get_updated_map_info_meanShifts(self):
-        """Returns the updated map info of the target image, shifted on the basis of the mean X/Y shifts."""
-
+        """Return the updated map info of the target image, shifted on the basis of the mean X/Y shifts."""
         original_map_info = geotransform2mapinfo(self.im2shift.gt, self.im2shift.prj)
         updated_map_info = copy(original_map_info)
         updated_map_info[3] = str(float(original_map_info[3]) + self.tiepoint_grid.mean_x_shift_map)
@@ -564,9 +567,7 @@ class COREG_LOCAL(object):
 
     @property
     def coreg_info(self):
-        """A dictionary containing all the information needed to correct the detected local displacements of the target
-        image."""
-
+        """Return a dictionary containing everthing to correct the detected local displacements of the target image."""
         if self._coreg_info:
             return self._coreg_info
         else:
@@ -588,8 +589,9 @@ class COREG_LOCAL(object):
             return self.coreg_info
 
     def correct_shifts(self, max_GCP_count=None, cliptoextent=False, min_points_local_corr=5):
-        """Performs a local shift correction using all points from the previously calculated tie point grid
-        that contain valid matches as GCP points.
+        """Perform a local shift correction using all points from the previously calculated tie point grid.
+
+        NOTE: Only valid matches are used as GCP points.
 
         :param max_GCP_count: <int> maximum number of GCPs to use
         :param cliptoextent:  <bool> whether to clip the output image to its real extent
@@ -598,7 +600,6 @@ class COREG_LOCAL(object):
                                         the mean shift of the remaining points)(default: 5 tie points)
         :return:
         """
-
         coreg_info = self.coreg_info
 
         if self.tiepoint_grid.GCPList:
