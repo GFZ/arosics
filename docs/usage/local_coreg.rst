@@ -14,23 +14,20 @@ detect and correct local shifts - with input data on disk
 
 .. code-block:: python
 
-    from arosics import COREG_LOCAL
+    >>> from arosics import COREG_LOCAL
 
-    im_reference = '/path/to/your/ref_image.bsq'
-    im_target    = '/path/to/your/tgt_image.bsq'
-    kwargs = {
-        'grid_res'     : 200,
-        'window_size'  : (64,64),
-        'path_out'     : 'auto',
-        'projectDir'   : 'my_project',
-        'q'            : False,
-    }
+    >>> im_reference = '/path/to/your/ref_image.bsq'
+    >>> im_target    = '/path/to/your/tgt_image.bsq'
+    >>> kwargs = {
+    >>>     'grid_res'     : 200,
+    >>>     'window_size'  : (64,64),
+    >>>     'path_out'     : 'auto',
+    >>>     'projectDir'   : 'my_project',
+    >>>     'q'            : False,
+    >>> }
 
-    CRL = COREG_LOCAL(im_reference,im_target,**kwargs)
-    CRL.correct_shifts()
-
-
-.. code-block:: python
+    >>> CRL = COREG_LOCAL(im_reference,im_target,**kwargs)
+    >>> CRL.correct_shifts()
 
     Calculating actual data corner coordinates for reference image...
     Corner coordinates of reference image:
@@ -86,12 +83,12 @@ class as described above.
 
 .. code-block:: python
 
-    from geoarray import GeoArray
+    >>> from geoarray import GeoArray
 
-    CRL = COREG_LOCAL(GeoArray(ref_ndarray, ref_gt, ref_prj),
-                      GeoArray(tgt_ndarray, tgt_gt, tgt_prj),
-                      **kwargs)
-    CRL.correct_shifts()
+    >>> CRL = COREG_LOCAL(GeoArray(ref_ndarray, ref_gt, ref_prj),
+    >>>                   GeoArray(tgt_ndarray, tgt_gt, tgt_prj),
+    >>>                   **kwargs)
+    >>> CRL.correct_shifts()
 
 
 visualize tie point grid with INITIAL shifts present in your input target image
@@ -109,9 +106,7 @@ example, thus the unit is 'meters'.).
 
 .. code-block:: python
 
-    CRL.view_CoRegPoints(figsize=(15,15), backgroundIm='ref')
-
-.. code-block:: python
+    >>> CRL.view_CoRegPoints(figsize=(15,15), backgroundIm='ref')
 
     Note: array has been downsampled to 1000 x 1000 for faster visualization.
 
@@ -129,11 +124,8 @@ The remaining shifts after local correction can be calculated and visualized by 
 
 .. code-block:: python
 
-    CRL_after_corr = COREG_LOCAL(im_reference, CRL.path_out, **kwargs)
-    CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
-
-
-.. code-block:: python
+    >>> CRL_after_corr = COREG_LOCAL(im_reference, CRL.path_out, **kwargs)
+    >>> CRL_after_corr.view_CoRegPoints(figsize=(15,15),backgroundIm='ref')
 
     Calculating actual data corner coordinates for reference image...
     Corner coordinates of reference image:
@@ -161,7 +153,7 @@ show the points table of the calculated tie point grid
 
 .. code-block:: python
 
-    CRL.CoRegPoints_table
+    >>> CRL.CoRegPoints_table
 
 
 .. raw:: html
@@ -1236,7 +1228,7 @@ export tie point grid to an ESRI point shapefile
 
 .. code-block:: python
 
-    CRL.tiepoint_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
+    >>> CRL.tiepoint_grid.to_PointShapefile(path_out='/path/to/your/output_shapefile.shp')
 
 
 ----
@@ -1250,4 +1242,4 @@ co-registration would look like this:
 
 .. code-block:: bash
 
-    python arosics_cli.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50
+    $ python arosics_cli.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50

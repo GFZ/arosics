@@ -12,31 +12,31 @@ Using conda_, the recommended approach is:
 
    .. code-block:: bash
 
-    conda create --name arosics python=3
-    source activate arosics
+    $ conda create --name arosics python=3
+    $ source activate arosics
 
 
 2. Install some libraries needed for AROSICS:
 
    .. code-block:: bash
 
-    conda install -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas cmocean
+    $ conda install -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas cmocean
 
 
 3. Install optional libraries for AROSICS (only needed for some specific functions):
 
    .. code-block:: bash
 
-    conda install -c conda-forge basemap pykrige
-    conda install -c conda-forge pyfftw  # Linux and MacOS
-    conda install -c jesserobertson pyfftw  # Windows
+    $ conda install -c conda-forge basemap pykrige
+    $ conda install -c conda-forge pyfftw  # Linux and MacOS
+    $ conda install -c jesserobertson pyfftw  # Windows
 
 
 4. Then install AROSICS using the pip installer:
 
    .. code-block:: bash
 
-    pip install arosics
+    $ pip install arosics
 
 
 This is the preferred method to install arosics, as it will always install the most recent stable release.

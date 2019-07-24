@@ -14,15 +14,13 @@ calculate spatial shifts - with input data on disk
 
 .. code-block:: python
 
-    from arosics import COREG
+    >>> from arosics import COREG
 
-    im_reference = '/path/to/your/ref_image.bsq'
-    im_target    = '/path/to/your/tgt_image.bsq'
+    >>> im_reference = '/path/to/your/ref_image.bsq'
+    >>> im_target    = '/path/to/your/tgt_image.bsq'
 
-    CR = COREG(im_reference, im_target, wp=(354223, 5805559), ws=(256,256))
-    CR.calculate_spatial_shifts()
-
-.. code-block:: python
+    >>> CR = COREG(im_reference, im_target, wp=(354223, 5805559), ws=(256,256))
+    >>> CR.calculate_spatial_shifts()
 
     Calculating actual data corner coordinates for reference image...
     Corner coordinates of reference image:
@@ -49,30 +47,30 @@ First, create some example input images for AROSICS in-memory
 
 .. code-block:: python
 
-    from geoarray import GeoArray
-    from arosics import COREG
+    >>> from geoarray import GeoArray
+    >>> from arosics import COREG
 
-    im_reference = '/path/to/your/ref_image.bsq'
-    im_target    = '/path/to/your/tgt_image.bsq'
+    >>> im_reference = '/path/to/your/ref_image.bsq'
+    >>> im_target    = '/path/to/your/tgt_image.bsq'
 
     # get a sample numpy array with corresponding geoinformation as reference image
-    geoArr  = GeoArray(im_reference)
+    >>> geoArr  = GeoArray(im_reference)
 
-    ref_ndarray = geoArr[:]            # numpy.ndarray with shape (10980, 10980)
-    ref_gt      = geoArr.geotransform  # GDAL geotransform: (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0)
-    ref_prj     = geoArr.projection    # projection as WKT string ('PROJCS["WGS 84 / UTM zone 33N....')
+    >>> ref_ndarray = geoArr[:]            # numpy.ndarray with shape (10980, 10980)
+    >>> ref_gt      = geoArr.geotransform  # GDAL geotransform: (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0)
+    >>> ref_prj     = geoArr.projection    # projection as WKT string ('PROJCS["WGS 84 / UTM zone 33N....')
 
     # get a sample numpy array with corresponding geoinformation as target image
-    geoArr  = GeoArray(im_target)
+    >>> geoArr  = GeoArray(im_target)
 
-    tgt_ndarray = geoArr[:]            # numpy.ndarray with shape (10980, 10980)
-    tgt_gt      = geoArr.geotransform  # GDAL geotransform: (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0)
-    tgt_prj     = geoArr.projection    # projection as WKT string ('PROJCS["WGS 84 / UTM zone 33N....')
+    >>> tgt_ndarray = geoArr[:]            # numpy.ndarray with shape (10980, 10980)
+    >>> tgt_gt      = geoArr.geotransform  # GDAL geotransform: (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0)
+    >>> tgt_prj     = geoArr.projection    # projection as WKT string ('PROJCS["WGS 84 / UTM zone 33N....')
 
     # create in-memory instances of GeoArray from the numpy array data, the GDAL geotransform tuple and the WKT
     # projection string
-    geoArr_reference = GeoArray(ref_ndarray, ref_gt, ref_prj)
-    geoArr_target    = GeoArray(tgt_ndarray, tgt_gt, tgt_prj)
+    >>> geoArr_reference = GeoArray(ref_ndarray, ref_gt, ref_prj)
+    >>> geoArr_target    = GeoArray(tgt_ndarray, tgt_gt, tgt_prj)
 
 
 Now pass these in-memory :class:`GeoArray<geoarray.GeoArray>` instances to :class:`arosics.COREG`
@@ -80,11 +78,8 @@ and calculate spatial shifts:
 
 .. code-block:: python
 
-    CR = COREG(geoArr_reference, geoArr_target, wp=(354223, 5805559), ws=(256,256))
-    CR.calculate_spatial_shifts()
-
-
-.. code-block:: python
+    >>> CR = COREG(geoArr_reference, geoArr_target, wp=(354223, 5805559), ws=(256,256))
+    >>> CR.calculate_spatial_shifts()
 
     Calculating actual data corner coordinates for reference image...
     Corner coordinates of reference image:
@@ -116,10 +111,7 @@ numpy array and its corresponding geoinformation.
 
 .. code-block:: python
 
-    CR.correct_shifts()
-
-
-.. code-block:: python
+    >>> CR.correct_shifts()
 
     OrderedDict([('band', None),
                  ('is shifted', True),
@@ -166,13 +158,10 @@ Take a look at the keyword arguments of the :class:`arosics.DESHIFTER` class whe
 
 .. code-block:: python
 
-    from arosics import DESHIFTER
+    >>> from arosics import DESHIFTER
 
-    DESHIFTER(im_target1, CR.coreg_info).correct_shifts()
-    DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
-
-
-.. code-block:: python
+    >>> DESHIFTER(im_target1, CR.coreg_info).correct_shifts()
+    >>> DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
 
     OrderedDict([('band', None),
                  ('is shifted', True),
@@ -213,11 +202,11 @@ The help instructions of the console interface can be accessed like this:
 
 .. code-block:: bash
 
-    python arosics_cli.py -h
+    $ python arosics_cli.py -h
 
 Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global
 co-registration would look like this:
 
 .. code-block:: bash
 
-    python arosics_cli.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+    $ python arosics_cli.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
