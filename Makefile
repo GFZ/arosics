@@ -80,7 +80,7 @@ nosetests: clean-test ## Runs nosetests with coverage, xUnit and nose-html-outpu
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -f docs/arosics.rst
 	rm -f docs/modules.rst
-	sphinx-apidoc arosics -o docs/ --private --doc-project 'Python API Reference'
+	sphinx-apidoc arosics -o docs/ --private --doc-project 'Python API reference'
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html
