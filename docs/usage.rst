@@ -15,7 +15,7 @@ of misregistrations locally or globally present in your input data.
 
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 4
 
     usage/input_data_requirements.rst
     usage/global_coreg.rst
