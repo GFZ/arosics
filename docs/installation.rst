@@ -41,6 +41,12 @@ Using conda_, the recommended approach is:
 
 This is the preferred method to install arosics, as it will always install the most recent stable release.
 
+.. note::
+
+    AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all Python versions
+    above 2.7. However, we will continously drop the support for Python 2.7 in future.
+
+
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
 

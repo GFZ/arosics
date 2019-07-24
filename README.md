@@ -36,10 +36,20 @@ The input images can have any [GDAL compatible image format](http://www.gdal.org
 AROSICS supports local and global co-registration.
 
 * Local co-registration:
-A dense grid of tie points is automatically computed, whereas tie points are subsequently validated using a multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters of an affine transformation. Warping of the target image is done using an appropriate resampling technique (cubic by default).
+
+  A dense grid of tie points is automatically computed, whereas tie points are subsequently validated using a 
+  multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters 
+  of an affine transformation. Warping of the target image is done using an appropriate resampling technique 
+  (cubic by default).
 
 * Global co-registration:
-Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable). This allows very fast co-registration but only corrects for translational (global) X/Y shifts. The calculated subpixel-shifts are (by default) applied to the geocoding information of the output image. No spatial resampling is done automatically as long as both input images have the same projection. If you need the output image to be aligned to the reference image coordinate grid (by using an appropriate resampling algorithm), use the '-align_grids' option.
+
+  Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable).
+  This allows very fast co-registration but only corrects for translational (global) X/Y shifts. The calculated 
+  subpixel-shifts are (by default) applied to the geocoding information of the output image. No spatial resampling 
+  is done automatically as long as both input images have the same projection. If you need the output image to be 
+  aligned to the reference image coordinate grid (by using an appropriate resampling algorithm), use the '-align_grids'
+  option.
 
 
 AROSICS is designed to robustly handle the typical difficulties of multi-sensoral/multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically calculated. Thereby, no-data regions within the images are automatically respected. Providing the map coordinates of the actual data corners lets you save some calculation time, because in this case the automatic algorithm can be skipped. The no-data value of each image is automatically derived from the image corners. The verbose program mode gives some more output about the interim results, shows some figures and writes the used footprint and overlap polygons to disk. Note, that maybe the figures must be manually closed in in order to continue the processing (depending on your Python configuration).
@@ -52,9 +62,10 @@ For further details regarding the implemented algorithm, example use cases, qual
 Installation
 ------------
 
-AROSICS depends on some open source packages which are usually installed without problems by the automatic install
-routine. However, for some projects, we strongly recommend resolving the dependency before the automatic installer
-is run. This approach avoids problems with conflicting versions of the same software.
+AROSICS depends on some open source packages which are usually installed without problems by 
+the automatic install routine. However, for some projects, we strongly recommend resolving the 
+dependencies before the automatic installer is run. This approach avoids problems with 
+conflicting versions of the same software.
 Using [conda](https://conda.io/docs/), the recommended approach is:
 
 ```bash
@@ -87,14 +98,16 @@ PATH=$PATH:/path/to/your/installation/folder/arosics:/path/to/your/installation/
 ```
 
 
-AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all Python versions above 2.7.
+AROSICS has been tested with Python 3.4+ and Python 2.7. It should be fully compatible to all 
+Python versions above 2.7.
 
 
 # Modules
 
 ## CoReg
 
-This module calculates spatial shifts and performs a global correction (based on a single matching window).
+This module calculates spatial shifts and performs a global correction 
+(based on a single matching window).
 
 ### Python Interface
 
@@ -303,7 +316,10 @@ python arosics_cli.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image
 
 ## CoReg_local
 
-This module has been designed to detect and correct geometric shifts present locally in your input image. The class COREG_LOCAL calculates a grid of spatial shifts with points spread over the whole overlap area of the input images. Based on this grid a correction of local shifts can be performed.
+This module has been designed to detect and correct geometric shifts present locally in your 
+input image. The class COREG_LOCAL calculates a grid of spatial shifts with points spread over 
+the whole overlap area of the input images. Based on this grid a correction of local shifts 
+can be performed.
 
 ### Python interface
 

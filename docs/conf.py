@@ -46,7 +46,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
     'sphinxarg.ext',
-    'sphinx_autodoc_typehints'
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.intersphinx'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -123,9 +124,16 @@ autoclass_content = 'both'
 todo_include_todos = True
 
 
-# Increase content width of generated docs
+# Apply custom sphinx styles (e.g., increase content width of generated docs)
 def setup(app):
     app.add_stylesheet('custom.css')
+
+
+# Add mappings for intersphinx extension (allows to link to the API reference of other sphinx documentations)
+intersphinx_mapping = {
+    'geoarray': ('http://danschef.gitext.gfz-potsdam.de/geoarray/doc/', None),
+    'python': ('http://docs.python.org/3', None),
+}
 
 
 # -- Options for HTML output -------------------------------------------

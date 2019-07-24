@@ -29,9 +29,7 @@ Feature overview
   multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters of an
   affine transformation. Warping of the target image is done using an appropriate resampling technique
   (cubic by default).
-
 |
-
 * Global co-registration:
 
   Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable).
