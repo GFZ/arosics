@@ -9,14 +9,17 @@ The package offers two main interfaces:
 
 
 .. toctree::
-   :maxdepth: 1
-   :name: the command line interface
-   usage/cli.rst
+    :maxdepth: 1
+    :hidden:
+    :caption: the command line interface
+
+    usage/cli.rst
 
 .. toctree::
-   :maxdepth: 2
-   :name: the Python API interface
-   usage/api.rst
+    :maxdepth: 2
+    :name: the Python API interface
+
+    usage/api.rst
 
 
 .. todo::

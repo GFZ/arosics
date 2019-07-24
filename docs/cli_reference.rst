@@ -1,5 +1,5 @@
-Usage from the command line
-***************************
+Command line interface reference
+********************************
 
 arosics_cli.py
 --------------
