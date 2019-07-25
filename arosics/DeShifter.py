@@ -43,51 +43,82 @@ _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline':
 
 
 class DESHIFTER(object):
-    """See help(DESHIFTER) for documentation!"""
+    """
+    Class to deshift an image array or one of its products by applying previously the computed coregistration info.
+
+    See help(DESHIFTER) for documentation.
+    """
 
     def __init__(self, im2shift, coreg_results, **kwargs):
-        r"""
-        Deshift an image array or one of its products by applying the coregistration info calculated by COREG class.
+        """Get an instance of DESHIFTER.
 
-        :param im2shift:            <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
-        :param coreg_results:       <dict> the results of the co-registration as given by COREG.coreg_info or
-                                    COREG_LOCAL.coreg_info respectively
+        :param (str, GeoArray) im2shift:
+            path of an image to be de-shifted or alternatively a GeoArray object
 
-        :Keyword Arguments:
-            * *path_out* (``str``):        /output/directory/filename for coregistered results
-            - fmt_out (str):        raster file format for output file. ignored if path_out is None. can be any GDAL
-                                    compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
-            - out_crea_options(list): GDAL creation options for the output image,
-                                    e.g. ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
-            - band2process (int):   The index of the band to be processed within the given array (starts with 1),
-                                    default = None (all bands are processed)
-            - nodata(int, float):   no data value of the image to be de-shifted
-            - out_gsd (float):      output pixel size in units of the reference coordinate system (default = pixel size
-                                    of the input array), given values are overridden by match_gsd=True
-            - align_grids (bool):   True: align the input coordinate grid to the reference (does not affect the
-                                    output pixel size as long as input and output pixel sizes are compatible
-                                    (5:30 or 10:30 but not 4:30), default = False
-            - match_gsd (bool):     True: match the input pixel size to the reference pixel size,
-                                    default = False
-            - target_xyGrid(list):  a list with an x-grid and a y-grid like [[15,45], [15,45]].
-                                    This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
-            - min_points_local_corr number of valid tie points, below which a global shift correction is performed
-                                    instead of a local correction (global X/Y shift is then computed as the mean shift
-                                    of the remaining points)(default: 5 tie points)
-            - resamp_alg(str)       the resampling algorithm to be used if neccessary
-                                    (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode,
-                                                       max, min, med, q1, q3)
-            - cliptoextent (bool):  True: clip the input image to its actual bounds while deleting possible no data
-                                    areas outside of the actual bounds, default = False
-            - clipextent (list):    xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
-                                    The given coordinates are automatically snapped to the output grid.
-            - CPUs(int):            number of CPUs to use (default: None, which means 'all CPUs available')
-            - progress(bool):       show progress bars (default: True)
-            - v(bool):              verbose mode (default: False)
-            - q(bool):              quiet mode (default: False)
+        :param (dict) coreg_results :
+            the results of the co-registration as given by COREG.coreg_info or COREG_LOCAL.coreg_info
 
+        :key (int) path_out:
+             /output/directory/filename for coregistered results
+
+        :key (str) fmt_out:
+            raster file format for output file. ignored if path_out is None. can be any GDAL
+            compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
+
+        :key (list) out_crea_options:
+            GDAL creation options for the output image, e.g., ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
+
+        :key (int) band2process:
+            The index of the band to be processed within the given array (starts with 1),
+            default = None (all bands are processed)
+
+        :key (int, float) nodata:
+            no data value of the image to be de-shifted
+
+        :key (float) out_gsd:
+            output pixel size in units of the reference coordinate system (default = pixel size of the input array),
+            given values are overridden by match_gsd=True
+
+        :key (bool) align_grids:
+            True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+
+        :key (bool) match_gsd:
+            True: match the input pixel size to the reference pixel size, default = False
+
+        :key (list) target_xyGrid:
+            a list with an x-grid and a y-grid like [[15,45], [15,45]].
+            This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
+
+        :key (int) min_points_local_corr:
+            number of valid tie points, below which a global shift correction is performed instead of a local
+            correction (global X/Y shift is then computed as the mean shift of the remaining points)
+            (default: 5 tie points)
+
+        :key (str) resamp_alg:
+            the resampling algorithm to be used if neccessary
+            (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
+
+        :key (bool) cliptoextent:
+            True: clip the input image to its actual bounds while deleting possible no data areas outside of the actual
+            bounds, default = False
+
+        :key (list) clipextent:
+            xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
+            The given coordinates are automatically snapped to the output grid.
+
+        :key (int) CPUs:
+            number of CPUs to use (default: None, which means 'all CPUs available')
+
+        :key (bool) progress:
+            show progress bars (default: True)
+
+        :key (bool) v:
+            verbose mode (default: False)
+
+        :key (bool) q:
+            quiet mode (default: False)
         """
-
         # private attributes
         self._grids_alignable = None
 
@@ -220,15 +251,14 @@ class DESHIFTER(object):
 
     @property
     def warping_needed(self):
-        """Returns True if image warping is needed in consideration of the input parameters of DESHIFTER."""
-
+        """Return True if image warping is needed in consideration of the input parameters of DESHIFTER."""
         assert self.out_grid, 'Output grid must be calculated before.'
         equal_prj = prj_equal(self.ref_prj, self.shift_prj)
         return \
             False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
 
     def _are_grids_alignable(self, in_xgsd, in_ygsd, out_xgsd, out_ygsd):
-        """Checks if the input image pixel grid is alignable to the output grid.
+        """Check if the input image pixel grid is alignable to the output grid.
 
         :param in_xgsd:
         :param in_ygsd:
@@ -395,9 +425,10 @@ class DESHIFTER(object):
 
 
 def deshift_image_using_coreg_info(im2shift, coreg_results, path_out=None, fmt_out='ENVI', q=False):
-    """Corrects a geometrically distorted image using previously calculated coregistration info. This function can be
-    used for example to corrects spatial shifts of mask files using the same transformation parameters that have been
-    used to correct their source images.
+    """Correct a geometrically distorted image using previously calculated coregistration info.
+
+    This function can be used for example to correct spatial shifts of mask files using the same transformation
+    parameters that have been used to correct their source images.
 
     :param im2shift:      <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
     :param coreg_results: <dict> the results of the co-registration as given by COREG.coreg_info or

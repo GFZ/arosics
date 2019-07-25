@@ -54,6 +54,9 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+docs/arosics.rst
+docs/arosics.*.rst
+docs/modules.rst
 
 # PyBuilder
 target/

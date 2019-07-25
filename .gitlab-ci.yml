@@ -25,6 +25,9 @@ test_arosics:
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
     - pip install "py_tools_ds>=0.14.12"  # FIXME remove as soon as docker runner has been updated
     - make nosetests
+    # create the docs
+    - pip install sphinx_rtd_theme  # Read-the-docs theme for SPHINX documentation
+    - pip install sphinx-autodoc-typehints
     - make docs
   artifacts:
     paths:
@@ -103,6 +106,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     expire_in: 30 days
   only:
     - master
+    - enhancement/improve_docs
 
 
 deploy_pypi:
