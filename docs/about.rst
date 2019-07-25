@@ -22,6 +22,10 @@ Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 
 <http://www.mdpi.com/2072-4292/9/7/676>`__.
 
 
+* GitLab Repository: https://gitext.gfz-potsdam.de/danschef/arosics/
+* Documentation: http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+
+
 
 Feature overview
 ----------------
