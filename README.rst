@@ -75,7 +75,7 @@ affine transformation. Warping of the target image is done using an appropriate 
 Here is an example of the computed shift vectors after filtering false-positives
 (mainly due to clouds in the target image):
 
-.. image:: docs/images/shift_vectors_testcase1__900x824.png
+.. image:: docs/images/shift_vectors_testcase1__900x824.gif
 
 
 For further details check out the `documentation <http://danschef.gitext.gfz-potsdam.de/arosics/doc/>`__!
