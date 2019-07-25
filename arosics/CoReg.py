@@ -581,6 +581,7 @@ class COREG(object):
 
         else:
             # TODO add titles
+            # TODO handle after_correction=None here
             self.matchWin.show(figsize=figsize)
             if after_correction:
                 self._get_deshifted_otherWin().show(figsize=figsize, pmin=pmin, pmax=pmax)
