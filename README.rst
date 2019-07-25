@@ -1,11 +1,15 @@
 .. figure:: http://danschef.gitext.gfz-potsdam.de/arosics/images/arosics_logo.png
         :target: https://gitext.gfz-potsdam.de/danschef/arosics
 
-An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
+**An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data**
 
 
 * Free software: GNU General Public License v3
-* Documentation: http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+* **Documentation:** http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+* The (open-access) **paper** corresponding to this software repository can be found here:
+  `Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source Image
+   Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676.
+   <http://www.mdpi.com/2072-4292/9/7/676>`__
 
 
 Status
@@ -35,18 +39,19 @@ Status
         :target: https://img.shields.io/pypi/pyversions/arosics.svg
 
 See also the latest coverage_ report and the nosetests_ HTML report.
-Detection and correction of local or global geometric displacements between two input images:
 
 Feature overview
 ----------------
 
-AROSICS is a python package to perform automatic subpixel co-registration of two satellite image datasets
+AROSICS is a python package to perform **automatic subpixel co-registration** of two satellite image datasets
 based on an image matching approach working in the frequency domain, combined with a multistage workflow for
 effective detection of false-positives.
 
-It detects and corrects local as well as global misregistrations between two input images in the subpixel scale,
+It detects and corrects **local as well as global misregistrations** between two input images in the subpixel scale,
 that are often present in satellite imagery. The algorithm is robust against the typical difficulties of
-multi-sensoral/multi-temporal images. It supports a wide range of input data formats and can be used from the command
+multi-sensoral/multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms.
+The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area
+is automatically detected. AROSICS supports a wide range of input data formats and can be used from the command
 line (without any Python experience) or as a normal Python package.
 
 
