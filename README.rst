@@ -62,7 +62,7 @@ also allows to align the output image to the reference image coordinate grid if 
 Here is an example of a Landsat-8 / Sentinel-2 image pair before and after co-registration using AROSICS:
 
 .. image:: docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_1066x540.gif
-    :width: 80%
+   :scale: 80
 
 
 Local co-registration - for spatially variable shifts but a bit slower
@@ -77,7 +77,7 @@ Here is an example of the computed shift vectors after filtering false-positives
 (mainly due to clouds in the target image):
 
 .. image:: docs/images/shift_vectors_testcase1.png
-    :width: 500
+   :scale: 80
 
 
 For further details check out the `documentation <http://danschef.gitext.gfz-potsdam.de/arosics/doc/>`__!
