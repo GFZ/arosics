@@ -54,6 +54,12 @@ If you are proposing a feature:
 * Remember that this is a volunteer-driven project, and that contributions
   are welcome :)
 
+You may also join out chat here: |Gitter|
+
+.. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
+    :target: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
+    :alt: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
+
 Get Started!
 ------------
 
