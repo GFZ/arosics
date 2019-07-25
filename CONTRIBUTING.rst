@@ -59,38 +59,51 @@ Get Started!
 
 Ready to contribute? Here's how to set up `arosics` for local development.
 
-1. Fork the `arosics` repo on GitHub.
-2. Clone your fork locally::
+#. Fork the `arosics` repo on GitHub.
 
-    $ git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
+#. Clone your fork locally:
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+   .. code-block:: bash
 
-    $ mkvirtualenv arosics
-    $ cd arosics/
-    $ python setup.py develop
+      $ git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
 
-4. Create a branch for local development::
+#. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed,
+   this is how you set up your fork for local development:
 
-    $ git checkout -b name-of-your-bugfix-or-feature
+   .. code-block:: bash
+
+      $ mkvirtualenv arosics
+      $ cd arosics/
+      $ python setup.py develop
+
+#. Create a branch for local development:
+
+   .. code-block:: bash
+
+      $ git checkout -b name-of-your-bugfix-or-feature
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
+#. When you're done making changes, check that your changes pass flake8 and the tests,
+   including testing other Python versions with tox:
 
-    $ flake8 arosics tests
-    $ python setup.py test or py.test
-    $ tox
+   .. code-block:: bash
+
+      $ flake8 arosics tests
+      $ python -m unittest discover
+      $ tox
 
    To get flake8 and tox, just pip install them into your virtualenv.
 
-6. Commit your changes and push your branch to GitHub::
+#. Commit your changes and push your branch to GitHub:
 
-    $ git add .
-    $ git commit -m "Your detailed description of your changes."
-    $ git push origin name-of-your-bugfix-or-feature
+   .. code-block:: bash
 
-7. Submit a pull request through the GitHub website.
+      $ git add .
+      $ git commit -m "Your detailed description of your changes."
+      $ git push origin name-of-your-bugfix-or-feature
+
+#. Submit a pull request through the GitHub website.
 
 Pull Request Guidelines
 -----------------------
@@ -108,7 +121,9 @@ Before you submit a pull request, check that it meets these guidelines:
 Tips
 ----
 
-To run a subset of tests::
+To run a subset of tests:
 
+.. code-block:: bash
 
-    $ python -m unittest tests.test_arosics
+    # e.g., to test if the COREG class can be properly initialized:
+    $ python -m unittest tests.test_COREG.COREG_GLOBAL_init
