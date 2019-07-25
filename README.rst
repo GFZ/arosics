@@ -62,7 +62,7 @@ also allows to align the output image to the reference image coordinate grid if 
 Here is an example of a Landsat-8 / Sentinel-2 image pair before and after co-registration using AROSICS:
 
 .. image:: docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_1066x540.gif
-    :width: 500
+    :width: 80%
 
 
 Local co-registration - for spatially variable shifts but a bit slower
@@ -80,13 +80,13 @@ Here is an example of the computed shift vectors after filtering false-positives
     :width: 500
 
 
-For further details check out the `documentation <http://danschef.gitext.gfz-potsdam.de/arosics/doc/>`!
+For further details check out the `documentation <http://danschef.gitext.gfz-potsdam.de/arosics/doc/>`__!
 
 Credits
 -------
 
 AROSICS was developed by Daniel Scheffler (German Research Centre of Geosciences) within the context of the
-`GeoMultiSens project <http://www.geomultisens.de/>`__ funded by the German Federal Ministry of Education and Research
+`GeoMultiSens <http://www.geomultisens.de/>`__ project funded by the German Federal Ministry of Education and Research
 (project grant code: 01 IS 14 010 A-C).
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
