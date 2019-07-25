@@ -7,7 +7,9 @@
 * Free software: GNU General Public License v3
 * **Documentation:** http://danschef.gitext.gfz-potsdam.de/arosics/doc/
 * The (open-access) **paper** corresponding to this software repository can be found here:
-  `Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676. <http://www.mdpi.com/2072-4292/9/7/676>`__
+  `Scheffler et al. 2017 <http://www.mdpi.com/2072-4292/9/7/676>`__
+  (cite as: Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source
+  Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676).
 
 
 Status
