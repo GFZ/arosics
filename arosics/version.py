@@ -22,5 +22,5 @@
 # with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-__version__ = '0.8.19'
-__versionalias__ = '2019-07-22_01'
+__version__ = '0.9.0'
+__versionalias__ = '2019-08-25_01'
