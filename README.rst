@@ -50,7 +50,8 @@ multi-sensoral/multi-temporal images. It supports a wide range of input data for
 line (without any Python experience) or as a normal Python package.
 
 
-**Global co-registration - fast but only for static X/Y-shifts:**
+Global co-registration - fast but only for static X/Y-shifts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Only a global X/Y translation is computed within a small subset of the input images (window position is adjustable).
 This allows very fast co-registration but only corrects for translational (global) X/Y shifts.
@@ -61,9 +62,11 @@ also allows to align the output image to the reference image coordinate grid if 
 Here is an example of a Landsat-8 / Sentinel-2 image pair before and after co-registration using AROSICS:
 
 .. image:: docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_1066x540.gif
+    :width: 500
 
 
-**Local co-registration - for spatially variable shifts but a bit slower**:
+Local co-registration - for spatially variable shifts but a bit slower
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A dense grid of tie points is automatically computed, whereas tie points are subsequently validated using a
 multistage workflow. Only those tie points not marked as false-positives are used to compute the parameters of an
@@ -74,6 +77,7 @@ Here is an example of the computed shift vectors after filtering false-positives
 (mainly due to clouds in the target image):
 
 .. image:: docs/images/shift_vectors_testcase1.png
+    :width: 500
 
 
 For further details check out the `documentation <http://danschef.gitext.gfz-potsdam.de/arosics/doc/>`!
