@@ -4,12 +4,6 @@ before_script:
   - cp -r docs/images/* public/images/
 
 
-# Advise GitLab that these environment vars should be loaded from the Variables config.
-variables:
-    PYPI_USER: SECURE
-    PYPI_PASSWORD: SECURE
-
-
 stages:
   - test
   - deploy
@@ -113,28 +107,13 @@ deploy_pypi:
   stage: deploy
   dependencies:
     - test_arosics
-  script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
+  script:
     - source /root/miniconda3/bin/activate
     - source activate ci_env
-    - mkdir -p public/images/
-    - cp -r docs/images/* public/images/
-#    - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
-#    - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
-#    - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
-#    - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
-#    - python setup.py check sdist upload -r pypi  # This will fail if your creds are bad.
-#    - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
     - pip install -U twine
     - python setup.py sdist
-    - twine upload dist/*
+    - twine upload dist/*  # requires creds as environment variables
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
   except:
     - dev
-
-
-cleanup_pypirc:
-   stage: cleanup
-   when: always   # this is important; run even if preceding stages failed.
-   script:
-    - rm -vf ~/.pypirc  # we don't want to leave these around, but GitLab may clean up anyway.
