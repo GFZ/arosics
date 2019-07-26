@@ -62,7 +62,7 @@ test_arosics_install:
     - conda create -y -q --name arosics_testinstall python=3
     - source activate arosics_testinstall
      # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas pyresample>=1.11.0
     - conda install --yes -q -c conda-forge libgdal ncurses # Fix for libgdal installed from defaults channel causing libkea.so.1.4.7: cannot open shared object file: No such file or directory
     # run installer
     - python setup.py install
@@ -118,12 +118,15 @@ deploy_pypi:
     - source activate ci_env
     - mkdir -p public/images/
     - cp -r docs/images/* public/images/
-    - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
-    - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
-    - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
-    - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
-    - python setup.py check sdist upload -r pypi  # This will fail if your creds are bad.
-    - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
+#    - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
+#    - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
+#    - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
+#    - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
+#    - python setup.py check sdist upload -r pypi  # This will fail if your creds are bad.
+#    - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
+    - pip install -U twine
+    - python setup.py sdist
+    - twine upload dist/*
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
   except:

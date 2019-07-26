@@ -23,6 +23,7 @@ dependencies:
   - bokeh
   - pykrige
   - cmocean
+  - pyresample>=1.11.0
   - pip:
     - dicttoxml
     - jsmin
