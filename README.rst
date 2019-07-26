@@ -1,10 +1,10 @@
-============================================================================================================
-AROSICS - An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
-============================================================================================================
-
 .. figure:: http://danschef.gitext.gfz-potsdam.de/arosics/images/arosics_logo.png
-        :target: https://gitext.gfz-potsdam.de/danschef/arosics
+    :target: https://gitext.gfz-potsdam.de/danschef/arosics
+    :align: center
 
+==================================================================================================
+An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
+==================================================================================================
 
 * Free software: GNU General Public License v3
 * **Documentation:** http://danschef.gitext.gfz-potsdam.de/arosics/doc/
