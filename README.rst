@@ -44,8 +44,6 @@ Status
         :target: https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
 .. image:: https://img.shields.io/pypi/pyversions/arosics.svg
         :target: https://img.shields.io/pypi/pyversions/arosics.svg
-.. image:: https://img.shields.io/pypi/dm/arosics.svg
-        :target: https://img.shields.io/pypi/dm/arosics.svg
 
 See also the latest coverage_ report and the nosetests_ HTML report.
 
@@ -110,3 +108,5 @@ documentation have been provided by NASA (Landsat-8) and ESA (Sentinel-2).
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _coverage: http://danschef.gitext.gfz-potsdam.de/arosics/coverage/
 .. _nosetests: http://danschef.gitext.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
+.. _conda: https://conda.io/docs/
+
