@@ -25,6 +25,7 @@
 
 import warnings as _warnings
 from pkgutil import find_loader as _find_loader
+import sentry_sdk
 
 from arosics.CoReg import COREG
 from arosics.CoReg_local import COREG_LOCAL
@@ -45,3 +46,7 @@ __all__ = ['COREG',
 # check optional dependencies
 if not _find_loader('pyfftw'):
     _warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
+
+
+# initialize Sentry SDK for automatic error tracking
+sentry_sdk.init("https://ae3c38165e9c40469b24a639e6ea078c@sentry.io/1514585")

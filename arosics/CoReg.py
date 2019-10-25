@@ -355,6 +355,9 @@ class COREG(object):
             print('\nWARNING: ' + warnMsg)
 
         if not self.ignErr:
+            import sentry_sdk
+            sentry_sdk.capture_exception(error)
+
             raise error
 
     def _set_outpathes(self, im_ref, im_tgt):
