@@ -45,7 +45,7 @@ Status
 .. image:: https://img.shields.io/pypi/pyversions/arosics.svg
         :target: https://img.shields.io/pypi/pyversions/arosics.svg
 .. image:: https://img.shields.io/pypi/dm/arosics.svg
-        :target: https://img.shields.io/pypi/dm/arosics.svg
+        :target: https://pypi.python.org/pypi/arosics
 
 See also the latest coverage_ report and the nosetests_ HTML report.
 
