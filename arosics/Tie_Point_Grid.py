@@ -34,7 +34,8 @@ except ImportError:
     from osgeo import gdal
 import numpy as np
 from matplotlib import pyplot as plt
-from geopandas import GeoDataFrame, GeoSeries
+from geopandas import GeoDataFrame
+from pandas import DataFrame, Series
 from shapely.geometry import Point
 from skimage.measure import points_in_poly, ransac
 from skimage.transform import AffineTransform
@@ -393,14 +394,17 @@ class Tie_Point_Grid(object):
                 results[i, :] = self._get_spatial_shifts(coreg_kwargs)
 
         # merge results with GDF
-        records = GeoDataFrame(results,
-                               columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
-                                        'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
-                                        'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
+        # NOTE: We use a pandas.DataFrame here because the geometry column is missing.
+        #       GDF.astype(...) fails with geopandas>0.6.0 if the geometry columns is missing.
+        records = DataFrame(results,
+                            columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
+                                     'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
+                                     'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
         # merge DataFrames (dtype must be equal to records.dtypes; We need np.object due to None values)
         GDF = GDF.astype(np.object).merge(records.astype(np.object), on='POINT_ID', how="inner")
-        GDF = GDF.fillna(int(self.outFillVal))
+        GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
+        GDF.crs = crs  # gets lost when using GDF.astype(np.object), so we have to reassign that
 
         if not self.q:
             print("Found %s matches." % len(GDF[GDF.LAST_ERR == int(self.outFillVal)]))
@@ -412,7 +416,7 @@ class Tie_Point_Grid(object):
             TPR = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], **self.outlDetect_settings)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF = GDF.merge(GDF_filt[['POINT_ID'] + new_columns], on='POINT_ID', how="outer")
-        GDF = GDF.fillna(int(self.outFillVal))
+        GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
 
         self.CoRegPoints_table = GDF
 
@@ -829,7 +833,7 @@ class Tie_Point_Refiner(object):
 
         # RELIABILITY filtering
         if level > 0:
-            marked_recs = GeoSeries(self._reliability_thresholding())
+            marked_recs = self._reliability_thresholding()  # type: Series
             self.GDF['L1_OUTLIER'] = marked_recs
             self.new_cols.append('L1_OUTLIER')
 
@@ -839,8 +843,8 @@ class Tie_Point_Refiner(object):
 
         # SSIM filtering
         if level > 1:
-            marked_recs = GeoSeries(self._SSIM_filtering())
-            self.GDF['L2_OUTLIER'] = marked_recs
+            marked_recs = self._SSIM_filtering()
+            self.GDF['L2_OUTLIER'] = marked_recs  # type: Series
             self.new_cols.append('L2_OUTLIER')
 
             if not self.q:
@@ -855,7 +859,7 @@ class Tie_Point_Refiner(object):
             if len(ransacInGDF) > 4:
                 # running RANSAC with less than four tie points makes no sense
 
-                marked_recs = GeoSeries(self._RANSAC_outlier_detection(ransacInGDF))
+                marked_recs = self._RANSAC_outlier_detection(ransacInGDF)  # type: Series
                 # we need to join a list here because otherwise it's merged by the 'index' column
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist()
 
@@ -967,19 +971,19 @@ class Tie_Point_Refiner(object):
 
         if inGDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
            (isinstance(outliers, np.ndarray) and not outliers.size):
-            gs = GeoSeries([False] * len(self.GDF))
+            outseries = Series([False] * len(self.GDF))
         elif len(inGDF) < len(self.GDF):
             inGDF['outliers'] = outliers
             fullGDF = GeoDataFrame(self.GDF['POINT_ID'])
             fullGDF = fullGDF.merge(inGDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
             # fullGDF.outliers.copy()[~fullGDF.POINT_ID.isin(GDF.POINT_ID)] = False
             fullGDF = fullGDF.fillna(False)  # NaNs are due to exclude_previous_outliers
-            gs = fullGDF['outliers']
+            outseries = fullGDF['outliers']
         else:
-            gs = GeoSeries(outliers)
+            outseries = Series(outliers)
 
-        assert len(gs) == len(self.GDF), 'RANSAC output validation failed.'
+        assert len(outseries) == len(self.GDF), 'RANSAC output validation failed.'
 
         self.ransac_model_robust = model_robust
 
-        return gs
+        return outseries

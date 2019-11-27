@@ -15,6 +15,7 @@ dependencies:
   - pyproj
   - lxml
   - geopandas
+  - pandas
   - ipython
   - shapely
   - matplotlib
