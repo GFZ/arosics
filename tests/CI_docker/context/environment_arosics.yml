@@ -11,9 +11,7 @@ dependencies:
   - gdal
   - conda-forge::libgdal  # force to use conda-forge for libgdal to avoid package version incompatiblies due to mixed channels
   - scikit-image
-  - rasterio
   - pyproj
-  - lxml
   - geopandas
   - pandas
   - ipython
@@ -49,4 +47,4 @@ dependencies:
     - rednose
     - plotly
     - geoarray>=0.8.17
-    - py_tools_ds>=0.14.12
+    - py_tools_ds>=0.14.25

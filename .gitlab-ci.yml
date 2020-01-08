@@ -17,7 +17,7 @@ test_arosics:
     - source activate ci_env
     - export GDAL_DATA=/root/miniconda3/envs/ci_env/share/gdal
     - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-    - pip install "py_tools_ds>=0.14.12"  # FIXME remove as soon as docker runner has been updated
+    - pip install "py_tools_ds>=0.14.25"  # FIXME remove as soon as docker runner has been updated
     - make nosetests
     # create the docs
     - pip install sphinx_rtd_theme  # Read-the-docs theme for SPHINX documentation
@@ -56,7 +56,7 @@ test_arosics_install:
     - conda create -y -q --name arosics_testinstall python=3
     - source activate arosics_testinstall
      # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas pandas
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj shapely geopandas pandas
     - conda install --yes -q -c conda-forge libgdal ncurses # Fix for libgdal installed from defaults channel causing libkea.so.1.4.7: cannot open shared object file: No such file or directory
     # run installer
     - python setup.py install
