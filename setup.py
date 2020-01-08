@@ -44,7 +44,6 @@ requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopa
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
                 # 'basemap', # conda install --yes -c conda-forge basemap; \
-                # 'pyresample'  # conda install --yes -c conda-forge pyresample>=1.11.0
                 ]
 
 setup_requirements = [
