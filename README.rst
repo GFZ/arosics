@@ -34,7 +34,7 @@ Status
      :alt: Updates
 
 
-.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/build.svg
+.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/pipeline.svg
         :target: https://gitext.gfz-potsdam.de/danschef/arosics/commits/master
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
         :target: http://danschef.gitext.gfz-potsdam.de/arosics/coverage/
