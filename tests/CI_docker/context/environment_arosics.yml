@@ -15,7 +15,7 @@ dependencies:
   - geopandas
   - pandas
   - ipython
-  - shapely
+  - shapely<=1.6.4
   - matplotlib
   - basemap
   - holoviews

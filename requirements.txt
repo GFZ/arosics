@@ -3,7 +3,7 @@ py_tools_ds>=0.14.25
 cmocean
 numpy
 gdal
-shapely
+shapely<=1.6.4
 scikit-image
 matplotlib
 geopandas
