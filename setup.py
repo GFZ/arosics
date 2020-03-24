@@ -39,8 +39,8 @@ version = {}
 with open("arosics/version.py") as version_file:
     exec(version_file.read(), version)
 
-requirements = ['numpy', 'gdal', 'shapely<=1.6.4', 'scikit-image', 'matplotlib', 'geopandas', 'pandas', 'geoarray>=0.8.17',
-                'py_tools_ds>=0.14.25', 'plotly', 'cmocean', 'six', 'folium>=0.6.0', 'geojson'
+requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'pandas',
+                'geoarray>=0.8.17', 'py_tools_ds>=0.14.27', 'plotly', 'cmocean', 'six', 'folium>=0.6.0', 'geojson'
                 # 'pykrige'  # conda install --yes -c conda-forge pykrige
                 # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
                 # 'basemap', # conda install --yes -c conda-forge basemap; \
