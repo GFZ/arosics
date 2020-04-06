@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2019  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2020  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
@@ -115,6 +115,7 @@ class GeoArray_CoReg(GeoArray):
             # footprint_poly is calculated automatically by GeoArray
             if not CoReg_params['q']:
                 print('Calculating actual data corner coordinates for %s...' % self.imName)
+
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
         # validate footprint poly
@@ -480,6 +481,9 @@ class COREG(object):
                 self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
                 self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
+            # self.ref.gt = (self.ref.gt[0], 1, self.ref.gt[2], self.ref.gt[3], self.ref.gt[4], -1)
+            # self.shift.gt = (self.shift.gt[0], 1, self.shift.gt[2], self.shift.gt[3], self.shift.gt[4], -1)
+
     def show_image_footprints(self):
         """Show a web map containing the calculated footprints and overlap area of the input images.
 
@@ -723,7 +727,7 @@ class COREG(object):
             matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
 
         # matching_win direkt auf grid2use (Rundungsfehler bei Koordinatentrafo beseitigen)
-        matchBox.imPoly = round_shapelyPoly_coords(matchBox.imPoly, precision=0, out_dtype=int)
+        matchBox.imPoly = round_shapelyPoly_coords(matchBox.imPoly, precision=0)
 
         # Check, ob match Fenster größer als anderes Fenster
         if not (matchBox.mapPoly.within(otherBox.mapPoly) or matchBox.mapPoly == otherBox.mapPoly):
