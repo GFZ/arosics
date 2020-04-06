@@ -27,9 +27,7 @@ Using conda_, the recommended approach is:
 
    .. code-block:: bash
 
-    $ conda install -c conda-forge basemap pykrige
-    $ conda install -c conda-forge pyfftw  # Linux and MacOS
-    $ conda install -c jesserobertson pyfftw  # Windows
+    $ conda install -c conda-forge basemap pykrige pyfftw
 
 
 4. Then install AROSICS using the pip installer:

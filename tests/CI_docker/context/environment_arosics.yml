@@ -1,7 +1,6 @@
 name: arosics
 
 channels: &id1
-  - http://conda.anaconda.org/ioam  # only for holoviews
   - http://conda.anaconda.org/conda-forge
 
 dependencies:
@@ -37,7 +36,7 @@ dependencies:
     - folium>=0.6.0
     - geojson
     - flake8
-    - pycodestyle<2.4.0  # fixes ImportError: module 'pycodestyle' has no attribute 'break_around_binary_operator'
+    - pycodestyle
     - pylint
     - pydocstyle
     - nose
