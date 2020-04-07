@@ -1,6 +1,6 @@
 {
     "title": "AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
-    "description": "AROSICS is a python package to perform automatic subpixel co-registration of two satellite image datasets based on an image matching approach working in the frequency domain, combined with a multistage workflow for effective detection of false-positives. It detects and corrects **local as well as global misregistrations** between two input images in the subpixel scale, that are often present in satellite imagery. The algorithm is robust against the typical difficulties of multi-sensoral/multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically detected. AROSICS supports a wide range of input data formats and can be used from the command line (without any Python experience) or as a normal Python package. SpecHomo is a Python package for spectral homogenization of multispectral satellite data, i.e., for the transformation of the spectral information of one sensor into the spectral domain of another one. This simplifies workflows, increases the reliability of subsequently derived multi-sensor products and may also enable the generation of new products that are not possible with the initial spectral definition.",
+    "description": "AROSICS is a python package to perform automatic subpixel co-registration of two satellite image datasets based on an image matching approach working in the frequency domain, combined with a multistage workflow for effective detection of false-positives. \n\nIt detects and corrects local as well as global misregistrations between two input images in the subpixel scale, that are often present in satellite imagery. The algorithm is robust against the typical difficulties of multi-sensoral / multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically detected. AROSICS supports a wide range of input data formats and can be used from the command line (without any Python experience) or as a normal Python package.",
     "license": "GPL-3.0+",
     "upload_type": "software",
     "keywords": [
@@ -16,6 +16,9 @@
             "affiliation": "Helmholtz Centre Potsdam German Research Centre for Geosciences GFZ, Section 1.4 - Remote Sensing and Geoinformatics",
             "orcid": "0000-0003-4106-8928"
         }
+    ],
+    "references": [
+        "Scheffler, D.; Hollstein, A.; Diedrich, H.; Segl, K.; Hostert, P. AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sens. 2017, 9, 676. doi:https://doi.org/10.3390/rs9070676"
     ],
     "related_identifiers": [
         {
