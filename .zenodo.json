@@ -39,5 +39,12 @@
             "relation": "isCitedBy",
             "resource_type": "publication-article"
         }
+    ],
+    "grants": [
+        {
+            "code": "01 IS 14 010 A-C",
+            "funder": "German Federal Ministry of Education and Research",
+            "title": "GeoMultiSens"
+        }
     ]
 }
