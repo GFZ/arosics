@@ -12,6 +12,8 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
   `Scheffler et al. 2017 <http://www.mdpi.com/2072-4292/9/7/676>`__
   (cite as: Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source
   Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676).
+* Information on how to **cite the EnPT Python package** can be found in the
+  `CITATION <https://gitext.gfz-potsdam.de/danschef/arosics/-/blob/master/CITATION>`__ file.
 * Submit feedback by filing an issue `here <https://gitext.gfz-potsdam.de/danschef/arosics/issues>`__
   or join our chat here: |Gitter|
 
@@ -46,6 +48,8 @@ Status
         :target: https://img.shields.io/pypi/pyversions/arosics.svg
 .. image:: https://img.shields.io/pypi/dm/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
+.. image:: https://zenodo.org/badge/253474603.svg
+   :target: https://zenodo.org/badge/latestdoi/253474603
 
 See also the latest coverage_ report and the nosetests_ HTML report.
 
