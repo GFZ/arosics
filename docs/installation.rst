@@ -12,7 +12,7 @@ Using conda_, the recommended approach is:
 
    .. code-block:: bash
 
-    $ conda create --name arosics python=3
+    $ conda create -c conda-forge --name arosics python=3
     $ source activate arosics
 
 
