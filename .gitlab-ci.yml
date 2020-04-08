@@ -2,6 +2,11 @@ before_script:
   - git lfs pull
 
 
+# Advise GitLab that these environment vars should be loaded from the Variables config.
+variables:
+    GITHUB_RELEASE_TOKEN: SECURE
+
+
 stages:
   - test
   - deploy
@@ -122,3 +127,20 @@ deploy_pypi:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
   except:
     - dev
+
+
+create_github_release:
+    stage: deploy
+    dependencies:
+        - test_arosics
+    script:
+        curl --data '{"tag_name": "$CI_COMMIT_TAG",
+                      "target_commitish": "master",
+                      "name": "$CI_COMMIT_TAG",
+                      "body": "",
+                      "draft": false,
+                      "prerelease": false}' \
+            https://api.github.com/repos/GFZ/arosics/releases?access_token=$GITHUB_RELEASE_TOKEN
+    only:
+        - master
+        - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
