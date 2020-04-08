@@ -134,13 +134,16 @@ create_github_release:
     dependencies:
         - test_arosics
     script:
-        - curl --data "{"tag_name":"$CI_COMMIT_TAG",
-                        "target_commitish":"master",
-                        "name":"$CI_COMMIT_TAG",
-                        "body":"",
-                        "draft":false,
-                        "prerelease":false}" \
-            https://api.github.com/repos/GFZ/arosics/releases?access_token=$GITHUB_RELEASE_TOKEN
+        - API_JSON=$(printf '{"tag_name":"%s",
+                              "target_commitish":"master",
+                              "name":"%s",
+                              "body":"",
+                              "draft":false,
+                              "prerelease":false}' \
+            $CI_COMMIT_TAG $CI_COMMIT_TAG)
+        - 'AUTH_HEADER="Authorization: token $GITHUB_RELEASE_TOKEN"'  # quotes avoid YAML syntax error caused by ':'
+        - curl https://api.github.com/repos/GFZ/arosics/releases --data "$API_JSON" -H "$AUTH_HEADER"
     only:
-        - master
         - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+    except:
+        - dev
