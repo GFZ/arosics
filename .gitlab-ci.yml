@@ -129,7 +129,7 @@ create_github_release:
     dependencies:
         - test_arosics
     script:
-        - bash create_release_from_gitlab_ci.sh  # uses environment variables set in the UI
+        - bash ./.github/create_release_from_gitlab_ci.sh  # uses environment variables set in the UI
     only:
         - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
     except:
