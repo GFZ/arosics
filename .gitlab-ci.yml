@@ -2,11 +2,6 @@ before_script:
   - git lfs pull
 
 
-# Advise GitLab that these environment vars should be loaded from the Variables config.
-variables:
-    GITHUB_RELEASE_TOKEN: SECURE
-
-
 stages:
   - test
   - deploy
@@ -134,15 +129,7 @@ create_github_release:
     dependencies:
         - test_arosics
     script:
-        - API_JSON=$(printf '{"tag_name":"%s",
-                              "target_commitish":"master",
-                              "name":"%s",
-                              "body":"",
-                              "draft":false,
-                              "prerelease":false}' \
-            $CI_COMMIT_TAG $CI_COMMIT_TAG)
-        - 'AUTH_HEADER="Authorization: token $GITHUB_RELEASE_TOKEN"'  # quotes avoid YAML syntax error caused by ':'
-        - curl https://api.github.com/repos/GFZ/arosics/releases --data "$API_JSON" -H "$AUTH_HEADER"
+        - bash create_release_from_gitlab_ci.sh  # uses environment variables set in the UI
     only:
         - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
     except:
