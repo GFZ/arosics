@@ -12,7 +12,7 @@ test_arosics:
   stage: test
   script:
     - source /root/miniconda3/bin/activate ci_env
-    - pip install "py_tools_ds>=0.14.27"  # FIXME remove as soon as docker runner has been updated
+    - pip install "py_tools_ds>=0.14.28"  # FIXME remove as soon as docker runner has been updated
 
     # run tests
     - make nosetests

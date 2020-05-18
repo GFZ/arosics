@@ -46,4 +46,4 @@ dependencies:
     - rednose
     - plotly
     - geoarray>=0.8.17
-    - py_tools_ds>=0.14.27
+    - py_tools_ds>=0.14.28
