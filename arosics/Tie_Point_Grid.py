@@ -385,7 +385,7 @@ class Tie_Point_Grid(object):
             global_shared_im2shift = self.shift
 
             if not self.q:
-                print("Calculating tie point grid (%s points) 1 CPU core..." % len(GDF))
+                print("Calculating tie point grid (%s points) on 1 CPU core..." % len(GDF))
             results = np.empty((len(geomPoints), 14), np.object)
             bar = ProgressBar(prefix='\tprogress:')
             for i, coreg_kwargs in enumerate(list_coreg_kwargs):

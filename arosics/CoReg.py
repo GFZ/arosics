@@ -546,12 +546,14 @@ class COREG(object):
                 vmax = np.nanpercentile(arr_masked.compressed(), pmax)
                 arr2plot = rescale_intensity(arr_masked, in_range=(vmin, vmax), out_range='int8')
 
-                return hv.Image(arr2plot, bounds=(xmin, ymin, xmax, ymax))(
-                    style={'cmap': 'gray',
-                           'vmin': vmin, 'vmax': vmax,
-                           'interpolation': 'none'},
-                    plot={'fig_inches': figsize, 'show_grid': True})
-                #     plot={'fig_size':100, 'show_grid':True})
+                return hv.Image(arr2plot, bounds=(xmin, ymin, xmax, ymax))\
+                    .opts(style={'cmap': 'gray',
+                                 'vmin': vmin,
+                                 'vmax': vmax,
+                                 'interpolation': 'none'},
+                          plot={'fig_inches': figsize,
+                                # 'fig_size': 100,
+                                'show_grid': True})
 
             hvIm_matchWin = get_hv_image(self.matchWin)
             hvIm_otherWin_orig = get_hv_image(self.otherWin)
@@ -562,8 +564,8 @@ class COREG(object):
                 print('Matching window before and after correction (above and below): ')
 
                 # get layouts (docs on options: http://build.holoviews.org/Tutorials/Options.html)
-                layout_before = (hvIm_matchWin + hvIm_matchWin)(plot=dict(fig_inches=figsize))
-                layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr)(plot=dict(fig_inches=figsize))
+                layout_before = (hvIm_matchWin + hvIm_matchWin).opts(plot=dict(fig_inches=figsize))
+                layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr).opts(plot=dict(fig_inches=figsize))
 
                 # plot!
                 imgs = {1: layout_before, 2: layout_after}
