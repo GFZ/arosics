@@ -105,6 +105,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
     def test_shift_calculation_with_image_coords_only(self):
         """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
+        # FIXME fails when executed alone
 
         # overwrite gt and prj
         ref = GeoArray(self.ref_path)

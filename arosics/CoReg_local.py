@@ -548,7 +548,9 @@ class COREG_LOCAL(object):
             image=image2plot, bounds=[[lat_min, lon_min], [lat_max, lon_max]],
         ).add_to(map_osm)
 
-        folium.GeoJson(self.CoRegPoints_table.loc[:, ['geometry', attribute2plot]]).add_to(map_osm)
+        points_values = self.CoRegPoints_table[['geometry', attribute2plot]]
+        points_values.geometry.crs = points_values.crs
+        folium.GeoJson(points_values).add_to(map_osm)
 
         # add overlap polygon
         overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.epsg, 4326)
