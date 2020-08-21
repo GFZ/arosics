@@ -106,15 +106,18 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         ref = GeoArray(self.ref_path)
         ref.to_mem()
         ref.filePath = None
-        ref.gt = [330000.19999996503, 0.6, 0.0, 5862000.7999997628, 0.0, -0.6]
-        # ref.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
         tgt = GeoArray(self.tgt_path)
         tgt.to_mem()
         tgt.filePath = None
-        tgt.gt = [330000.19999996503, 0.6, 0.0, 5862000.7999997628, 0.0, -0.6]
+
+        ref.gt = [330000.19999996503, 10.00000001, 0.0, 5862000.7999997628, 0.0, -10.00000001]
+        # ref.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
+        tgt.gt = [335440.19999996503, 10.00000001, 0.0, 5866490.7999997628, 0.0, -10.00000001]
+        # tgt.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(**self.coreg_kwargs))
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+                                           **self.coreg_kwargs))
 
         # use the getter of the CoRegPoints_table to calculate tie point grid
         # noinspection PyStatementEffect
