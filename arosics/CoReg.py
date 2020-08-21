@@ -52,7 +52,7 @@ from py_tools_ds.geo.coord_calc import get_corner_coordinates
 from py_tools_ds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
 from py_tools_ds.geo.projection import prj_equal, get_proj4info
 from py_tools_ds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
-from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid
+from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid, is_coord_grid_equal
 from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
 from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.geo.map_info import geotransform2mapinfo
@@ -463,7 +463,8 @@ class COREG(object):
 
     def equalize_pixGrids(self):
         """Equalize image grids and projections of reference and target image (align target to reference)."""
-        if not (prj_equal(self.ref.prj, self.shift.prj) and self.ref.xygrid_specs == self.shift.xygrid_specs):
+        if not (prj_equal(self.ref.prj, self.shift.prj) and
+                is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs)):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
@@ -528,7 +529,7 @@ class COREG(object):
                 raise ImportError(
                     "This method requires the library 'holoviews'. It can be installed for Anaconda with "
                     "the shell command 'conda install -c ioam holoviews bokeh'.")
-            warnings.filterwarnings('ignore')
+
             hv.notebook_extension('matplotlib')
             hv.Store.add_style_opts(hv.Image, ['vmin', 'vmax'])
 
@@ -581,7 +582,6 @@ class COREG(object):
 
             # Construct a HoloMap by defining the sampling on the Dimension
             # dmap = hv.DynamicMap(image_slice, kdims=[hv.Dimension('z_axis', values=keys)])
-            warnings.filterwarnings('default')
 
             return hmap
 
@@ -648,7 +648,7 @@ class COREG(object):
             wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
             # validate window position
-            if not self.overlap_poly.contains(Point(wp)):
+            if not self.overlap_poly.buffer(1e-5).contains(Point(wp)):
                 # in case the centroid point is not within overlap area
                 if not self.q:
                     warnings.warn("The centroid point of the two input images could not be used as matching window "
@@ -660,11 +660,11 @@ class COREG(object):
                 overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.representative_point().coords.xy
                 wp = overlap_center_pos_x[0], overlap_center_pos_y[0]
 
-            assert self.overlap_poly.contains(Point(wp))
+            assert self.overlap_poly.buffer(1e-5).contains(Point(wp))
 
         else:
             # validate window position
-            if not self.overlap_poly.contains(Point(wp)):
+            if not self.overlap_poly.buffer(1e-5).contains(Point(wp)):
                 self._handle_error(ValueError('The provided window position %s/%s is outside of the overlap '
                                               'area of the two input images. Check the coordinates.' % wp))
 
@@ -767,7 +767,9 @@ class COREG(object):
 
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
-            def within_equal(inner, outer): return inner.within(outer) or inner.equals(outer)
+            def within_equal(inner, outer):
+                return inner.within(outer.buffer(1e-5)) or inner.equals(outer)
+
             assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
             assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
 
@@ -1249,9 +1251,6 @@ class COREG(object):
         if self.success is False:
             return 'fail'
 
-        if self.q:
-            warnings.simplefilter('ignore')
-
         # set self.matchWin and self.otherWin (GeoArray instances)
         self._get_image_windows_to_match()  # 45-90ms
 
@@ -1274,7 +1273,6 @@ class COREG(object):
 
         if scps is None:
             self.success = False
-            warnings.simplefilter('default')
 
             return 'fail'
 
@@ -1363,8 +1361,6 @@ class COREG(object):
             # set self.ssim_before and ssim_after
             self._validate_ssim_improvement()  # FIXME uses the not updated matchWin size
             self.shift_reliability = self._calc_shift_reliability(scps)
-
-        warnings.simplefilter('default')
 
         return 'success'
 
