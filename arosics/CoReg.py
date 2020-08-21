@@ -648,7 +648,7 @@ class COREG(object):
             wp = (wp[0] if wp[0] else overlap_center_pos_x[0]), (wp[1] if wp[1] else overlap_center_pos_y[0])
 
             # validate window position
-            if not self.overlap_poly.contains(Point(wp)):
+            if not self.overlap_poly.buffer(1e-5).contains(Point(wp)):
                 # in case the centroid point is not within overlap area
                 if not self.q:
                     warnings.warn("The centroid point of the two input images could not be used as matching window "
@@ -660,11 +660,11 @@ class COREG(object):
                 overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.representative_point().coords.xy
                 wp = overlap_center_pos_x[0], overlap_center_pos_y[0]
 
-            assert self.overlap_poly.contains(Point(wp))
+            assert self.overlap_poly.buffer(1e-5).contains(Point(wp))
 
         else:
             # validate window position
-            if not self.overlap_poly.contains(Point(wp)):
+            if not self.overlap_poly.buffer(1e-5).contains(Point(wp)):
                 self._handle_error(ValueError('The provided window position %s/%s is outside of the overlap '
                                               'area of the two input images. Check the coordinates.' % wp))
 
@@ -767,7 +767,9 @@ class COREG(object):
 
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
-            def within_equal(inner, outer): return inner.within(outer) or inner.equals(outer)
+            def within_equal(inner, outer):
+                return inner.within(outer.buffer(1e-5)) or inner.equals(outer)
+
             assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
             assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
 
