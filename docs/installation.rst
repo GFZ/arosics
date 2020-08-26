@@ -20,7 +20,7 @@ Using conda_, the recommended approach is:
 
    .. code-block:: bash
 
-    $ conda install -c conda-forge numpy gdal scikit-image matplotlib pyproj shapely geopandas pandas cmocean
+    $ conda install -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas cmocean
 
 
 3. Install optional libraries for AROSICS (only needed for some specific functions):

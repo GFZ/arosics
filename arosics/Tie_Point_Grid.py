@@ -43,7 +43,7 @@ from skimage.transform import AffineTransform
 
 # internal modules
 from .CoReg import COREG
-from py_tools_ds.geo.projection import isProjectedOrGeographic, isLocal, get_UTMzone, dict_to_proj4, proj4_to_WKT
+from py_tools_ds.geo.projection import isProjectedOrGeographic, isLocal, get_UTMzone
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
@@ -690,13 +690,13 @@ class Tie_Point_Grid(object):
         xshift_arr, gt, prj = points_to_raster(points=self.CoRegPoints_table['geometry'],
                                                values=self.CoRegPoints_table[attr_b1],
                                                tgt_res=self.shift.xgsd * self.grid_res,
-                                               prj=proj4_to_WKT(dict_to_proj4(self.CoRegPoints_table.crs)),
+                                               prj=self.CoRegPoints_table.crs.to_wkt(),
                                                fillVal=self.outFillVal)
 
         yshift_arr, gt, prj = points_to_raster(points=self.CoRegPoints_table['geometry'],
                                                values=self.CoRegPoints_table[attr_b2],
                                                tgt_res=self.shift.xgsd * self.grid_res,
-                                               prj=proj4_to_WKT(dict_to_proj4(self.CoRegPoints_table.crs)),
+                                               prj=self.CoRegPoints_table.crs.to_wkt(),
                                                fillVal=self.outFillVal)
 
         out_GA = GeoArray(np.dstack([xshift_arr, yshift_arr]), gt, prj, nodata=self.outFillVal)
