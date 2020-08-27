@@ -305,16 +305,19 @@ class Tie_Point_Grid(object):
 
         if isLocal(self.COREG_obj.shift.prj):
             crs = None
-        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'geographic':
-            crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
-        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'projected':
-            UTMzone = abs(get_UTMzone(prj=self.COREG_obj.shift.prj))
-            south = get_UTMzone(prj=self.COREG_obj.shift.prj) < 0
-            crs = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone, south=south, units='m', no_defs=True)
-            if not south:
-                del crs['south']
         else:
-            crs = None
+            from pyproj import CRS
+            crs = CRS(self.COREG_obj.shift.epsg)
+        # elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'geographic':
+        #     crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
+        # elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'projected':
+        #     UTMzone = abs(get_UTMzone(prj=self.COREG_obj.shift.prj))
+        #     south = get_UTMzone(prj=self.COREG_obj.shift.prj) < 0
+        #     crs = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone, south=south, units='m', no_defs=True)
+        #     if not south:
+        #         del crs['south']
+        # else:
+        #     crs = None
 
         GDF = GeoDataFrame(index=range(len(geomPoints)), crs=crs,
                            columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_UTM', 'Y_UTM'])
@@ -374,7 +377,7 @@ class Tie_Point_Grid(object):
                             bar.print_progress(percent=numberDone / len(GDF) * 100)
                         if results.ready():
                             # <= this is the line where multiprocessing can freeze if an exception appears within
-                            # COREG ans is not raised
+                            # COREG and is not raised
                             results = results.get()
                             break
 
