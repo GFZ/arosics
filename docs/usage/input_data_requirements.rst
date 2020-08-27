@@ -22,6 +22,14 @@ header file.
     represents the same map coordinate. The computed misregistration is then returned in image coordinate units.
 
 
+Supported projections
+~~~~~~~~~~~~~~~~~~~~~
+
+AROSICS provides full support for UTM projections and geographic coordinates. Providing support for other projections
+is currently work in progress (see `here <https://gitext.gfz-potsdam.de/danschef/arosics/-/issues/37>`__ for the
+status) and may lead to some incompatibities.
+
+
 Geographic overlap
 ~~~~~~~~~~~~~~~~~~
 
