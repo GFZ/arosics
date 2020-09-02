@@ -12,8 +12,10 @@ test_arosics:
   stage: test
   script:
     - source /root/miniconda3/bin/activate ci_env
-    - pip install "py_tools_ds>=0.14.28"  # FIXME remove as soon as docker runner has been updated
-    - pip install "geoarray>=0.8.30"  # FIXME remove as soon as docker runner has been updated
+
+    # update py_tools_ds and geoarray
+    # - pip install "py_tools_ds>=0.14.28"
+    # - pip install "geoarray>=0.8.30"
 
     # run tests
     - make nosetests
