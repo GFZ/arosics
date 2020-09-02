@@ -49,4 +49,5 @@ gitlab-ci-multi-runner register \
   --locked='true' \
   --access-level='not_protected' \
   --docker-pull-policy='never'
+  "
 ls
