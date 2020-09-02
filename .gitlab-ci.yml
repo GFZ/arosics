@@ -52,7 +52,7 @@ test_arosics_install:
     - source /root/miniconda3/bin/activate
 
     # update conda and python
-    - conda update -n base -c defaults conda
+    - conda update -n base -c conda-forge conda
     # - conda update -c conda-forge python
 
     # create arosics environment
