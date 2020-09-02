@@ -27,7 +27,7 @@ docker run \
     -v /var/run/docker.sock:/var/run/docker.sock \
     gitlab/gitlab-runner:latest
 
-# register the runner at the corresponding GitLab repository via a registration-tok
+# register the runner at the corresponding GitLab repository via a registration-token
 echo "#### Register container at gitlab, get token here https://gitext.gfz-potsdam.de/danschef/arosics/settings/ci_cd"
 read -p "Please enter gitlab token: " token
 echo ""
