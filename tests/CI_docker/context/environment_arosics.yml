@@ -1,10 +1,11 @@
 name: arosics
 
 channels: &id1
-  - http://conda.anaconda.org/conda-forge
+  - conda-forge
 
 dependencies:
   - python=3.*.*
+  - pip
   - pyqt
   - numpy
   - gdal
@@ -20,6 +21,7 @@ dependencies:
   - bokeh
   - pykrige
   - cmocean
+
   - pip:
     - dicttoxml
     - jsmin
