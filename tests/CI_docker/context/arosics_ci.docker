@@ -1,4 +1,4 @@
-FROM gms_base_centos:0.4
+#FROM gms_base_centos:0.4
 
 # copy some needed stuff to /root
 COPY *.yml /root/
