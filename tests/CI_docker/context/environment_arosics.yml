@@ -9,6 +9,7 @@ dependencies:
   - pyqt
   - numpy
   - gdal
+  - conda-forge::libgdal  # force to use conda-forge for libgdal to avoid package version incompatiblies due to mixed channels
   - scikit-image
   - pyproj>2.2.0
   - geopandas
