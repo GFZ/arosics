@@ -29,7 +29,7 @@
         },
         {
             "scheme": "url",
-            "identifier": "http://danschef.gitext.gfz-potsdam.de/arosics/doc",
+            "identifier": "https://danschef.gitext-pages.gfz-potsdam.de/arosics/doc",
             "relation": "isDocumentedBy",
             "resource_type": "publication-softwaredocumentation"
         },

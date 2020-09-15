@@ -1,4 +1,4 @@
-.. figure:: http://danschef.gitext.gfz-potsdam.de/arosics/images/arosics_logo.png
+.. figure:: https://danschef.gitext-pages.gfz-potsdam.de/arosics/images/arosics_logo.png
     :target: https://gitext.gfz-potsdam.de/danschef/arosics
     :align: center
 
@@ -7,7 +7,7 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
 ==================================================================================================
 
 * Free software: GNU General Public License v3
-* **Documentation:** http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+* **Documentation:** https://danschef.gitext-pages.gfz-potsdam.de/arosics/doc/
 * The (open-access) **paper** corresponding to this software repository can be found here:
   `Scheffler et al. 2017 <http://www.mdpi.com/2072-4292/9/7/676>`__
   (cite as: Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source
@@ -39,7 +39,7 @@ Status
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/pipeline.svg
         :target: https://gitext.gfz-potsdam.de/danschef/arosics/commits/master
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
-        :target: http://danschef.gitext.gfz-potsdam.de/arosics/coverage/
+        :target: https://danschef.gitext-pages.gfz-potsdam.de/arosics/coverage/
 .. image:: https://img.shields.io/pypi/v/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
 .. image:: https://img.shields.io/pypi/l/arosics.svg
@@ -97,7 +97,7 @@ Here is an example of the computed shift vectors after filtering false-positives
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/shift_vectors_testcase1__900x824.gif
 
 
-For further details check out the `documentation <http://danschef.gitext.gfz-potsdam.de/arosics/doc/>`__!
+For further details check out the `documentation <https://danschef.gitext-pages.gfz-potsdam.de/arosics/doc/>`__!
 
 Credits
 -------
@@ -112,7 +112,7 @@ documentation have been provided by NASA (Landsat-8) and ESA (Sentinel-2).
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
-.. _coverage: http://danschef.gitext.gfz-potsdam.de/arosics/coverage/
-.. _nosetests: http://danschef.gitext.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
+.. _coverage: https://danschef.gitext-pages.gfz-potsdam.de/arosics/coverage/
+.. _nosetests: https://danschef.gitext-pages.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
 .. _conda: https://conda.io/docs/
 
