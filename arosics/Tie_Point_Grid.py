@@ -33,7 +33,6 @@ try:
 except ImportError:
     from osgeo import gdal
 import numpy as np
-from matplotlib import pyplot as plt
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
@@ -464,6 +463,8 @@ class Tie_Point_Grid(object):
         :param fontsize:            size of all used fonts
         :param title:               the title to be plotted above the figure
         """
+        from matplotlib import pyplot as plt
+
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
 

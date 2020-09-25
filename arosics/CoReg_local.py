@@ -25,6 +25,7 @@ import warnings
 import os
 from copy import copy
 from six import PY2
+from typing import TYPE_CHECKING
 
 # custom
 try:
@@ -36,9 +37,9 @@ try:
 except ImportError:
     pyfftw = None
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.colorbar import ColorbarBase
-from matplotlib.colors import Normalize
+
+if TYPE_CHECKING:
+    from matplotlib import pyplot as plt  # noqa F401
 
 from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
@@ -391,6 +392,10 @@ class COREG_LOCAL(object):
         :param zoomable:            <bool> enable or disable zooming via mpld3
         :return:
         """
+        from matplotlib import pyplot as plt  # noqa
+        from matplotlib.colorbar import ColorbarBase
+        from matplotlib.colors import Normalize
+
         # get a map showing target image
         if backgroundIm not in ['tgt', 'ref']:
             raise ValueError('backgroundIm')

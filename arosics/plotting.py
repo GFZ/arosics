@@ -22,8 +22,6 @@
 # with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # this is needed for fig.add_subplot(..., projection='3d')
 
 
 def _norm(array, normto):
@@ -31,6 +29,8 @@ def _norm(array, normto):
 
 
 def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
+    from matplotlib import pyplot as plt
+
     shapetuple = (1, len(XY_tuples)) if shapetuple is None else shapetuple
     assert titles is None or len(titles) == len(XY_tuples), \
         'List in titles keyword must have the same length as the passed XY_tuples.'
@@ -50,6 +50,8 @@ def subplot_2dline(XY_tuples, titles=None, shapetuple=None, grid=False):
 
 
 def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
+    from matplotlib import pyplot as plt
+
     ims = [ims] if not isinstance(ims, list) else ims
     assert titles is None or len(titles) == len(ims), 'Error: Got more or less titles than images.'
 
@@ -69,6 +71,9 @@ def subplot_imshow(ims, titles=None, shapetuple=None, grid=False):
 
 
 def subplot_3dsurface(ims, shapetuple=None):
+    from matplotlib import pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # this is needed for fig.add_subplot(..., projection='3d')
+
     ims = [ims] if not isinstance(ims, list) else ims
     shapetuple = (1, len(ims)) if shapetuple is None else shapetuple
     fig = plt.figure(figsize=_norm(plt.figaspect((shapetuple[0] / 2.) / shapetuple[1] * 1.), 20))
