@@ -39,7 +39,6 @@ try:
 except ImportError:
     pyfftw = None
 from shapely.geometry import Point, Polygon
-from skimage.exposure import rescale_intensity
 
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
@@ -542,6 +541,8 @@ class COREG(object):
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
             def get_hv_image(geoArr):
+                from skimage.exposure import rescale_intensity  # import here to avoid static TLS ImportError
+
                 arr_masked = np.ma.masked_equal(geoArr[:], geoArr.nodata)
                 vmin = np.nanpercentile(arr_masked.compressed(), pmin)
                 vmax = np.nanpercentile(arr_masked.compressed(), pmax)

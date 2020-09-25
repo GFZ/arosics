@@ -37,9 +37,6 @@ from matplotlib import pyplot as plt
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
-from skimage.measure import points_in_poly, ransac
-from skimage.transform import AffineTransform
-# from skimage.transform import PolynomialTransform
 
 # internal modules
 from .CoReg import COREG
@@ -225,6 +222,8 @@ class Tie_Point_Grid(object):
         :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_UTM' and 'Y_UTM'
         :return:
         """
+        from skimage.measure import points_in_poly  # import here to avoid static TLS ImportError
+
         # exclude all points outside of overlap area
         inliers = points_in_poly(self.XY_mapPoints,
                                  np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
@@ -892,6 +891,8 @@ class Tie_Point_Refiner(object):
 
     def _RANSAC_outlier_detection(self, inGDF):
         """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm."""
+        # from skimage.transform import PolynomialTransform  # import here to avoid static TLS ImportError
+
         src_coords = np.array(inGDF[['X_UTM', 'Y_UTM']])
         xyShift = np.array(inGDF[['X_SHIFT_M', 'Y_SHIFT_M']])
         est_coords = src_coords + xyShift
@@ -942,6 +943,10 @@ class Tie_Point_Refiner(object):
             # RANSAC call
             # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
             if src_coords.size and est_coords.size:
+                # import here to avoid static TLS ImportError
+                from skimage.measure import ransac
+                from skimage.transform import AffineTransform
+
                 model_robust, inliers = \
                     ransac((src_coords, est_coords), AffineTransform,
                            min_samples=6,
