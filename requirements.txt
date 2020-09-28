@@ -12,3 +12,6 @@ plotly
 six
 folium>=0.6.0
 geojson
+pykrige
+pyfftw
+basemap

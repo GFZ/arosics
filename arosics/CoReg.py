@@ -527,7 +527,7 @@ class COREG(object):
             if not hv:
                 raise ImportError(
                     "This method requires the library 'holoviews'. It can be installed for Anaconda with "
-                    "the shell command 'conda install -c ioam holoviews bokeh'.")
+                    "the shell command 'conda install -c conda-forge holoviews bokeh'.")
 
             hv.notebook_extension('matplotlib')
             hv.Store.add_style_opts(hv.Image, ['vmin', 'vmax'])

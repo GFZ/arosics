@@ -60,7 +60,7 @@ test_arosics_install:
     - source activate arosics_testinstall
 
      # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas pykrige pyfftw basemap
 
     # run installer
     - python setup.py install

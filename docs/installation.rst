@@ -20,17 +20,10 @@ Using conda_, the recommended approach is:
 
    .. code-block:: bash
 
-    $ conda install -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas cmocean
+    $ conda install -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas cmocean basemap pykrige pyfftw
 
 
-3. Install optional libraries for AROSICS (only needed for some specific functions):
-
-   .. code-block:: bash
-
-    $ conda install -c conda-forge basemap pykrige pyfftw
-
-
-4. Then install AROSICS using the pip installer:
+3. Then install AROSICS using the pip installer:
 
    .. code-block:: bash
 

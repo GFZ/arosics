@@ -6,7 +6,6 @@ channels: &id1
 dependencies:
   - python=3.*.*
   - pip
-  - pyqt
   - numpy
   - gdal
   - scikit-image
@@ -20,6 +19,7 @@ dependencies:
   - holoviews
   - bokeh
   - pykrige
+  - pyfftw
   - cmocean
 
   - pip:
