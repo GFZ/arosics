@@ -2,10 +2,7 @@
 Installation
 ============
 
-AROSICS depends on some open source packages which are usually installed without problems by the automatic install
-routine. However, for some projects, we strongly recommend resolving the dependency before the automatic installer
-is run. This approach avoids problems with conflicting versions of the same software.
-Using conda_, the recommended approach is:
+Using conda_, AROSICS is installed as follows:
 
 
 1. Create virtual environment for arosics (optional but recommended):
@@ -16,21 +13,28 @@ Using conda_, the recommended approach is:
     $ source activate arosics
 
 
-2. Install some libraries needed for AROSICS:
+2. Then install AROSICS itself:
 
    .. code-block:: bash
 
-    $ conda install -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas cmocean basemap pykrige pyfftw
+    $ conda install -c conda-forge arosics
 
 
-3. Then install AROSICS using the pip installer:
+This is the preferred method to install AROSICS, as it will always installs the most recent stable release and
+automatically resolves all the dependencies.
+
+
+If you don't use conda_, you may use the pip installer of AROSICS. However, please note that AROSICS depends on some
+open source packages that may cause problems when installed with pip. Therefore, we strongly recommend resolving the
+`dependencies of AROSICS`_ before the automatic installer is run.
+
+
+To run the pip installer of AROSICS use:
 
    .. code-block:: bash
 
     $ pip install arosics
 
-
-This is the preferred method to install arosics, as it will always install the most recent stable release.
 
 .. note::
 
@@ -44,3 +48,4 @@ you through the process.
 .. _pip: https://pip.pypa.io
 .. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
 .. _conda: https://conda.io/docs
+.. _`dependencies of AROSICS`: https://gitext.gfz-potsdam.de/danschef/arosics/-/blob/master/requirements.txt
