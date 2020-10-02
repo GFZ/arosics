@@ -40,7 +40,7 @@ with open("arosics/version.py") as version_file:
 requirements = [
     'numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'pandas', 'plotly', 'cmocean', 'six',
     'folium>=0.6.0', 'geojson', 'pykrige', 'pyfftw', 'geoarray>=0.8.30', 'py_tools_ds>=0.14.28',
-    'basemap @ git+https://github.com/matplotlib/basemap.git'
+    'basemap @ git+https://github.com/matplotlib/basemap#egg=basemap'
 ]
 
 setup_requirements = [

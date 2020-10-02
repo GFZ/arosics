@@ -126,7 +126,7 @@ todo_include_todos = True
 
 # Apply custom sphinx styles (e.g., increase content width of generated docs)
 def setup(app):
-    app.add_stylesheet('custom.css')
+    app.add_css_file('custom.css')
 
 
 # Add mappings for intersphinx extension (allows to link to the API reference of other sphinx documentations)
