@@ -15,25 +15,15 @@ dependencies:
   - ipython
   - shapely
   - matplotlib
-  - basemap
   - holoviews
-  - bokeh
   - pykrige
   - pyfftw
   - cmocean
+  - cartopy
 
   - pip:
-    - dicttoxml
-    - jsmin
-    - cerberus
-    - pyprind
-    - pint
-    - iso8601
-    - tqdm
-    - mpld3
     - sphinx-argparse
     - six
-    - spectral
     - folium>=0.6.0
     - geojson
     - flake8
@@ -46,5 +36,5 @@ dependencies:
     - coverage
     - rednose
     - plotly
-    - geoarray>=0.8.30
+    - geoarray>=0.9.0
     - py_tools_ds>=0.15.0
