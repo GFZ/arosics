@@ -363,9 +363,8 @@ class COREG_LOCAL(object):
 
     def view_CoRegPoints(self, shapes2plot='points', attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True,
                          backgroundIm='tgt', hide_filtered=True, figsize=None, title='', vector_scale=1.,
-                         savefigPath='', savefigDPI=96, showFig=True, vmin=None, vmax=None, return_map=False,
-                         zoomable=False):
-        # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool, bool) -> ...
+                         savefigPath='', savefigDPI=96, showFig=True, vmin=None, vmax=None, return_map=False):
+        # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool) -> ...
         """
         Show a map of the calculated tie point grid with the target image as background.
 
@@ -388,63 +387,62 @@ class COREG_LOCAL(object):
         :param showFig:             <bool> whether to show or to hide the figure
         :param vmin:
         :param vmax:
-        :param return_map           <bool>
-        :param zoomable:            <bool> enable or disable zooming via mpld3
+        :param return_map           <bool
         :return:
         """
         from matplotlib import pyplot as plt  # noqa
-        from matplotlib.colorbar import ColorbarBase
         from matplotlib.colors import Normalize
+        from cartopy.crs import PlateCarree
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        # get a map showing target image
+        # get a map showing the reference or target image
         if backgroundIm not in ['tgt', 'ref']:
             raise ValueError('backgroundIm')
         backgroundIm = self.im2shift if backgroundIm == 'tgt' else self.imref
-        fig, ax, map2show = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True,
-                                                  band=self.COREG_obj.shift.band4match, zoomable=zoomable)
+        fig, ax = backgroundIm.show_map(figsize=figsize, nodataVal=self.nodata[1], return_map=True,
+                                        band=self.COREG_obj.shift.band4match)
 
-        ax.tick_params(axis='both', which='major', labelsize=40)
-        # ax.tick_params(axis='both', which='minor', labelsize=8)
+        # set figure title
+        dict_attr_title = dict(
+            X_WIN_SIZE='size of the matching window in x-direction [pixels]',
+            Y_WIN_SIZE='size of the matching window in y-direction [pixels]',
+            X_SHIFT_PX='absolute shifts in x-direction [pixels]',
+            Y_SHIFT_PX='absolute shifts in y-direction [pixels]',
+            X_SHIFT_M='absolute shifts in x-direction [map units]',
+            Y_SHIFT_M='absolute shifts in y-direction [map units]',
+            ABS_SHIFT='absolute shift vector length [map units]',
+            ANGLE='shift vector direction [angle in degrees]',
+            SSIM_BEFORE='structural similarity index before co-registration',
+            SSIM_AFTER='structural similarity index after co-registration',
+            SSIM_IMPROVED='structural similarity index improvement through co-registration [yes/no]',
+            RELIABILITY='reliability of the computed shift vector'
+        )
+        if title:
+            ax.set_title(title)
+        elif attribute2plot in dict_attr_title:
+            ax.set_title(dict_attr_title[attribute2plot], pad=20)
+        elif attribute2plot in self.CoRegPoints_table.columns:
+            ax.set_title(attribute2plot)
+        else:
+            raise ValueError(attribute2plot, "Invalid value for 'attribute2plot'. Valid values are: %s."
+                             % ", ".join(self.CoRegPoints_table.columns))
 
-        # fig, ax, map2show = backgroundIm.show_map_utm(figsize=(20,20), nodataVal=self.nodata[1], return_map=True)
-        ax.set_title(title or attribute2plot)
-
-        # transform all points of tie point grid to LonLat
+        # get GeoDataFrame containing everything needed for plotting
         outlierCols = [c for c in self.CoRegPoints_table.columns if 'OUTLIER' in c]
         attr2include = ['geometry', attribute2plot] + outlierCols + ['X_SHIFT_M', 'Y_SHIFT_M']
         GDF = self.CoRegPoints_table.loc[self.CoRegPoints_table.X_SHIFT_M != self.outFillVal, attr2include].copy()\
             if exclude_fillVals else self.CoRegPoints_table.loc[:, attr2include]
 
         # get LonLat coordinates for all points
-        def get_LonLat(X, Y): return transform_any_prj(self.im2shift.projection, 4326, X, Y)
-        GDF['LonLat'] = list(GDF['geometry'].map(lambda geom: get_LonLat(*tuple(np.array(geom.coords.xy)[:, 0]))))
+        XY = np.array([geom.coords.xy for geom in GDF.geometry]).reshape(-1, 2)
+        lon, lat = transform_any_prj(self.im2shift.projection, 4326, XY[:, 0], XY[:, 1])
+        GDF['Lon'], GDF['Lat'] = lon, lat
 
         # get colors for all points
-        # vmin = min(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
-        # vmax = max(GDF[GDF[attribute2plot] != self.outFillVal][attribute2plot])
-        # norm = mpl_normalize(vmin=vmin, vmax=vmax)
         palette = cmap if cmap is not None else plt.cm.get_cmap('RdYlGn_r')
         if cmap is None and attribute2plot == 'ANGLE':
-            # import matplotlib.colors as mcolors
-            # colors1 = plt.cm.RdYlGn_r(np.linspace(0., 1, 128))
-            # colors2 = plt.cm.RdYlGn(np.linspace(0., 1, 128))
-
-            # combine them and build a new colormap
-            # colors  = np.vstack((colors1, colors2))
-            # palette = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
-            # palette = plt.cm.hsv
-
             import cmocean
             palette = getattr(cmocean.cm, 'delta')
-        # GDF['color'] = [*GDF[attribute2plot].map(lambda val: palette(norm(val)))]
-
-        # add tie point grid to map
-        # plot_point = lambda row: \
-        #     ax.plot(*map2show(*row['LonLat']), marker='o', markersize=7.0, alpha=1.0, color=row['color'])
-        # GDF.apply(plot_point, axis=1)
-        GDF['plt_XY'] = list(GDF['LonLat'].map(lambda ll: map2show(*ll)))
-        GDF['plt_X'] = list(GDF['plt_XY'].map(lambda XY: XY[0]))
-        GDF['plt_Y'] = list(GDF['plt_XY'].map(lambda XY: XY[1]))
 
         if hide_filtered:
             if self.tieP_filter_level > 0:
@@ -455,27 +453,31 @@ class COREG_LOCAL(object):
                 GDF = GDF[GDF.L3_OUTLIER.__eq__(False)].copy()
         else:
             marker = 'o' if len(GDF) < 10000 else '.'
+            common_kw = dict(marker=marker, alpha=1.0, transform=PlateCarree())
             if self.tieP_filter_level > 0:
                 # flag level 1 outliers
                 GDF_filt = GDF[GDF.L1_OUTLIER.__eq__(True)].copy()
-                ax.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='b', marker=marker, s=250, alpha=1.0,
-                           label='reliability')
+                ax.scatter(GDF_filt['Lon'], GDF_filt['Lat'], c='b', s=250, label='reliability',
+                           **common_kw)
             if self.tieP_filter_level > 1:
                 # flag level 2 outliers
                 GDF_filt = GDF[GDF.L2_OUTLIER.__eq__(True)].copy()
-                ax.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='r', marker=marker, s=150, alpha=1.0, label='SSIM')
+                ax.scatter(GDF_filt['Lon'], GDF_filt['Lat'], c='r', s=150, label='SSIM',
+                           **common_kw)
             if self.tieP_filter_level > 2:
                 # flag level 3 outliers
                 GDF_filt = GDF[GDF.L3_OUTLIER.__eq__(True)].copy()
-                ax.scatter(GDF_filt['plt_X'], GDF_filt['plt_Y'], c='y', marker=marker, s=250, alpha=1.0,
-                           label='RANSAC')
+                ax.scatter(GDF_filt['Lon'], GDF_filt['Lat'], c='y', s=250, label='RANSAC',
+                           **common_kw)
 
             if self.tieP_filter_level > 0:
                 ax.legend(loc=0, scatterpoints=1)
 
         # plot all points or vectors on top
         if not GDF.empty:
-            vmin_auto, vmax_auto = (np.percentile(GDF[attribute2plot], 0), np.percentile(GDF[attribute2plot], 98)) \
+            vmin_auto, vmax_auto = \
+                (np.percentile(GDF[attribute2plot], 0),
+                 np.percentile(GDF[attribute2plot], 98)) \
                 if attribute2plot != 'ANGLE' else (0, 360)
             vmin = vmin if vmin is not None else vmin_auto
             vmax = vmax if vmax is not None else vmax_auto
@@ -483,30 +485,48 @@ class COREG_LOCAL(object):
             if shapes2plot == 'vectors':
                 # plot shift vectors
                 # doc: https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.quiver.html
-                ax.quiver(GDF['plt_X'], GDF['plt_Y'],
-                          -GDF['X_SHIFT_M'], -GDF['Y_SHIFT_M'],  # invert absolute shifts to make arrows point to tgt
-                          GDF[attribute2plot].clip(vmin, vmax),  # sets the colors
-                          scale=1200 / vector_scale,  # larger values decrease the arrow length
-                          width=.0015,  # arrow width (in relation to plot width)
-                          # linewidth=1, # maybe use this to mark outliers instead of scatter points
-                          cmap=palette,
-                          pivot='middle'  # position the middle point of the arrows onto the tie point location
-                          )
+                mappable = ax.quiver(
+                    GDF['Lon'].values, GDF['Lat'].values,
+                    -GDF['X_SHIFT_M'].values,
+                    -GDF['Y_SHIFT_M'].values,  # invert absolute shifts to make arrows point to tgt
+                    GDF[attribute2plot].clip(vmin, vmax),  # sets the colors
+                    scale=1200 / vector_scale,  # larger values decrease the arrow length
+                    width=.0015,  # arrow width (in relation to plot width)
+                    # linewidth=1, # maybe use this to mark outliers instead of scatter points
+                    cmap=palette,
+                    pivot='middle',  # position the middle point of the arrows onto the tie point location
+                    transform=PlateCarree()
+                    )
 
             elif shapes2plot == 'points':
                 # plot tie points
-                ax.scatter(GDF['plt_X'], GDF['plt_Y'], c=GDF[attribute2plot], lw=0,
-                           cmap=palette, marker='o' if len(GDF) < 10000 else '.', s=50, alpha=1.0,
-                           vmin=vmin, vmax=vmax)
-
+                mappable = ax.scatter(
+                    GDF['Lon'], GDF['Lat'],
+                    c=GDF[attribute2plot],
+                    lw=0,
+                    cmap=palette,
+                    marker='o' if len(GDF) < 10000 else '.',
+                    s=50,
+                    alpha=1.0,
+                    vmin=vmin,
+                    vmax=vmax,
+                    transform=PlateCarree())
+                pass
             else:
-                raise ValueError("The parameter 'shapes2plot' must be set to 'vectors' or 'points'. Received %s."
-                                 % shapes2plot)
+                raise ValueError("The parameter 'shapes2plot' must be set to 'vectors' or 'points'. "
+                                 "Received %s." % shapes2plot)
 
             # add colorbar
-            p = ax.get_position().get_points().flatten()  # [left, bottom, right, top]
-            cax = fig.add_axes([p[2] + 0.02, p[1], 0.02,  p[3] - p[1]])  # [left, bottom, width, height]
-            ColorbarBase(cax, cmap=palette, norm=Normalize(vmin=vmin, vmax=vmax), orientation='vertical')
+            divider = make_axes_locatable(ax)
+            cax = divider.new_vertical(size="2%", pad=0.4, pack_start=True,
+                                       axes_class=plt.Axes  # needed because ax is a GeoAxis instance
+                                       )
+            fig.add_axes(cax)
+            fig.colorbar(mappable, cax=cax, cmap=palette,
+                         norm=Normalize(vmin=vmin, vmax=vmax), orientation="horizontal")
+
+            # hack to enlarge the figure on the top to avoid cutting off the title (everthing else has no effect)
+            divider.new_vertical(size="2%", pad=0.4, pack_start=False, axes_class=plt.Axes)
 
         else:
             if not self.q:
@@ -516,7 +536,7 @@ class COREG_LOCAL(object):
             fig.savefig(savefigPath, dpi=savefigDPI)
 
         if return_map:
-            return fig, ax, map2show
+            return fig, ax
 
         if showFig and not self.q:
             plt.show(block=True)

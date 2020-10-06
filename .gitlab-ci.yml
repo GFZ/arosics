@@ -13,9 +13,11 @@ test_arosics:
   script:
     - source /root/miniconda3/bin/activate ci_env
 
+    - conda install -c conda-forge cartopy  # FIXME remove as soon as docker container is rebuilt
+
     # update py_tools_ds and geoarray
     # - pip install "py_tools_ds>=0.14.28"
-    # - pip install "geoarray>=0.8.30"
+    - pip install "geoarray>=0.9.0"
 
     # run tests
     - make nosetests
@@ -60,7 +62,7 @@ test_arosics_install:
     - source activate arosics_testinstall
 
      # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas pykrige pyfftw basemap
+    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas pykrige pyfftw cartopy
 
     # run installer
     - python setup.py install

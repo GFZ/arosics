@@ -1,10 +1,10 @@
-pip
 bumpversion
-wheel
-watchdog
-flake8
-tox
 coverage
-Sphinx
 cryptography
+flake8
+pip
 PyYAML
+Sphinx
+tox
+watchdog
+wheel
