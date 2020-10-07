@@ -42,6 +42,8 @@ Status
         :target: https://danschef.gitext-pages.gfz-potsdam.de/arosics/coverage/
 .. image:: https://img.shields.io/pypi/v/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
+.. image:: https://img.shields.io/conda/vn/conda-forge/arosics.svg
+        :target: https://anaconda.org/conda-forge/arosics
 .. image:: https://img.shields.io/pypi/l/arosics.svg
         :target: https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
 .. image:: https://img.shields.io/pypi/pyversions/arosics.svg
