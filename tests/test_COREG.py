@@ -28,6 +28,7 @@ import unittest
 import shutil
 import os
 import numpy as np
+import warnings
 
 # custom
 from .cases import test_cases
@@ -181,10 +182,13 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     # @unittest.SkipTest
     def test_shift_calculation_verboseMode(self):
         """Test the verbose mode - runs the functions of the plotting submodule."""
-
-        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
-                                                 **dict(self.coreg_kwargs, v=True))
-        self.assertTrue(CR.success)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
+            CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
+                                                     **dict(self.coreg_kwargs, v=True))
+            self.assertTrue(CR.success)
 
     def test_shift_calculation_windowCoveringNodata(self):
         """Test shift detection in case the given matching window (defined by 'wp' and 'ws' covers the nodata area
@@ -289,15 +293,19 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(CR.success)
 
         # test all the visualization functions
-        CR.show_cross_power_spectrum()
-        CR.show_cross_power_spectrum(interactive=True)
-        CR.show_matchWin(interactive=False, after_correction=None)
-        CR.show_matchWin(interactive=False, after_correction=True)
-        CR.show_matchWin(interactive=False, after_correction=False)
-        CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
-        CR.show_matchWin(interactive=True, after_correction=True)
-        CR.show_matchWin(interactive=True, after_correction=False)
-        CR.show_image_footprints()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
+            CR.show_cross_power_spectrum()
+            CR.show_cross_power_spectrum(interactive=True)
+            CR.show_matchWin(interactive=False, after_correction=None)
+            CR.show_matchWin(interactive=False, after_correction=True)
+            CR.show_matchWin(interactive=False, after_correction=False)
+            CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
+            CR.show_matchWin(interactive=True, after_correction=True)
+            CR.show_matchWin(interactive=True, after_correction=False)
+            CR.show_image_footprints()
 
 # if __name__ == '__main__':
 #    unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)

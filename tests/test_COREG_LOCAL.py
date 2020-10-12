@@ -27,6 +27,7 @@
 import unittest
 import shutil
 import os
+import warnings
 
 # custom
 from .cases import test_cases
@@ -84,10 +85,14 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.CoRegPoints_table
 
         # test tie point grid visualization
-        CRL.view_CoRegPoints(hide_filtered=True)
-        CRL.view_CoRegPoints(hide_filtered=False)
-        CRL.view_CoRegPoints(shapes2plot='vectors')
-        CRL.view_CoRegPoints_folium()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
+            CRL.view_CoRegPoints(hide_filtered=True)
+            CRL.view_CoRegPoints(hide_filtered=False)
+            CRL.view_CoRegPoints(shapes2plot='vectors')
+            CRL.view_CoRegPoints_folium()
 
         # test shift correction and output writer
         CRL.correct_shifts()

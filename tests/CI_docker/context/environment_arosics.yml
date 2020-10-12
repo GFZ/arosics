@@ -12,7 +12,7 @@ dependencies:
   - pyproj>2.2.0
   - geopandas
   - pandas
-  - ipython
+  - ipython # needed to test interactive plotting
   - shapely
   - matplotlib
   - holoviews

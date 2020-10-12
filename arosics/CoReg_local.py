@@ -522,8 +522,7 @@ class COREG_LOCAL(object):
                                        axes_class=plt.Axes  # needed because ax is a GeoAxis instance
                                        )
             fig.add_axes(cax)
-            fig.colorbar(mappable, cax=cax, cmap=palette,
-                         norm=Normalize(vmin=vmin, vmax=vmax), orientation="horizontal")
+            fig.colorbar(mappable, cax=cax, orientation="horizontal")
 
             # hack to enlarge the figure on the top to avoid cutting off the title (everthing else has no effect)
             divider.new_vertical(size="2%", pad=0.4, pack_start=False, axes_class=plt.Axes)

@@ -37,7 +37,7 @@ version = {}
 with open("arosics/version.py") as version_file:
     exec(version_file.read(), version)
 
-requirements = [
+req = [
     'cmocean',
     'folium>=0.6.0',
     'gdal',
@@ -56,28 +56,23 @@ requirements = [
     'six',
 ]
 
-setup_requirements = [
+req_setup = [
     'setuptools',
     'setuptools-git'
 ]
 
-test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'rednose']
+# ipython is needed for testing interactive plotting
+req_test = ['coverage', 'nose', 'nose2', 'nose-htmloutput', 'rednose', 'ipython']
+
+req_doc = ['sphinx-argparse', 'sphinx_rtd_theme']
+
+req_lint = ['flake8', 'pycodestyle', 'pydocstyle']
+
+req_dev = req_setup + req_test + req_doc + req_lint
 
 setup(
-    name='arosics',
-    version=version['__version__'],
-    description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
-    long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
     author_email='daniel.scheffler@gfz-potsdam.de',
-    url='https://gitext.gfz-potsdam.de/danschef/arosics',
-    packages=find_packages(exclude=['tests*']),
-    include_package_data=True,
-    scripts=["bin/arosics_cli.py"],
-    install_requires=requirements,
-    license="GPL-3.0-or-later",
-    zip_safe=False,
-    keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
@@ -92,7 +87,25 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
     ],
+    description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
+    extras_require={
+        "doc": req_doc,
+        "test": req_test,
+        "lint": req_lint,
+        "dev": req_dev
+    },
+    include_package_data=True,
+    install_requires=req,
+    keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
+    license="GPL-3.0-or-later",
+    long_description=readme + '\n\n' + history,
+    name='arosics',
+    packages=find_packages(exclude=['tests*']),
+    scripts=["bin/arosics_cli.py"],
+    setup_requires=req_setup,
     test_suite='tests',
-    tests_require=test_requirements,
-    setup_requires=setup_requirements,
+    tests_require=req + req_test,
+    url='https://gitext.gfz-potsdam.de/danschef/arosics',
+    version=version['__version__'],
+    zip_safe=False,
 )

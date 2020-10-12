@@ -29,6 +29,7 @@ import tempfile
 import os
 from pkgutil import find_loader
 import shutil
+import warnings
 
 # custom
 from .cases import test_cases
@@ -78,7 +79,11 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         self.TPG.calc_overall_ssim(include_outliers=True, after_correction=False)
 
     def test_plot_shift_distribution(self):
-        self.TPG.plot_shift_distribution()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
+            self.TPG.plot_shift_distribution()
 
     def test_dump_CoRegPoints_table(self):
         with tempfile.TemporaryDirectory() as tmpdir:
