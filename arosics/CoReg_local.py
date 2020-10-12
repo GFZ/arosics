@@ -391,7 +391,6 @@ class COREG_LOCAL(object):
         :return:
         """
         from matplotlib import pyplot as plt  # noqa
-        from matplotlib.colors import Normalize
         from cartopy.crs import PlateCarree
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
