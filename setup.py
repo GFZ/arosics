@@ -71,7 +71,7 @@ setup(
     author="Daniel Scheffler",
     author_email='daniel.scheffler@gfz-potsdam.de',
     url='https://gitext.gfz-potsdam.de/danschef/arosics',
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests*']),
     include_package_data=True,
     scripts=["bin/arosics_cli.py"],
     install_requires=requirements,
@@ -79,7 +79,7 @@ setup(
     zip_safe=False,
     keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
