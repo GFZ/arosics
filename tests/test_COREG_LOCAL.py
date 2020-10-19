@@ -121,11 +121,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.calculate_spatial_shifts()
 
 
-        # use the getter of the CoRegPoints_table to calculate tie point grid
-        # noinspection PyStatementEffect
-        CRL.CoRegPoints_table
-
-
 # if __name__ == '__main__':
 #     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
 #
