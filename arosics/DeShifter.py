@@ -52,7 +52,7 @@ class DESHIFTER(object):
     def __init__(self, im2shift, coreg_results, **kwargs):
         """Get an instance of DESHIFTER.
 
-        :param (str, GeoArray) im2shift:
+        :param (str | GeoArray) im2shift:
             path of an image to be de-shifted or alternatively a GeoArray object
 
         :param (dict) coreg_results :

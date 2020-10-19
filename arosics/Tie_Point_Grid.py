@@ -229,10 +229,9 @@ class Tie_Point_Grid(object):
         GDF = GDF[inliers].copy()
         # GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # works but much slower
 
-        # FIXME track that
         assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check your input data!'
 
-        # exclude all point where bad data mask is True (e.g. points on clouds etc.)
+        # exclude all points where bad data mask is True (e.g. points on clouds etc.)
         orig_len_GDF = len(GDF)  # length of GDF after dropping all points outside the overlap polygon
         mapXY = np.array(GDF.loc[:, ['X_UTM', 'Y_UTM']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref.mask_baddata.read_pointData(mapXY) \
@@ -242,8 +241,12 @@ class Tie_Point_Grid(object):
         GDF = GDF[(~GDF['REF_BADDATA']) & (~GDF['TGT_BADDATA'])]
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
             if not self.q:
-                print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
-                      % (orig_len_GDF - len(GDF), orig_len_GDF))
+                if not GDF.empty:
+                    print('With respect to the provided bad data mask(s) %s points of initially %s have been excluded.'
+                          % (orig_len_GDF - len(GDF), orig_len_GDF))
+                else:
+                    warnings.warn('With respect to the provided bad data mask(s) no coregistration point could be '
+                                  'placed within an image area usable for coregistration.')
 
         return GDF
 
@@ -418,6 +421,12 @@ class Tie_Point_Grid(object):
 
         self.CoRegPoints_table = GDF
 
+        if not self.q:
+            if GDF.empty:
+                warnings.warn('No valid GCPs could by identified.')
+            else:
+                print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
+
         return self.CoRegPoints_table
 
     def calc_rmse(self, include_outliers=False):
@@ -591,9 +600,6 @@ class Tie_Point_Grid(object):
             GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_UTM_new, GDF_row.Y_UTM_new, 0,
                                                             GDF_row.X_IM, GDF_row.Y_IM), axis=1)
             self.GCPList = GDF.GCP.tolist()
-
-            if not self.q:
-                print('Found %s valid tie points.' % len(self.GCPList))
 
             return self.GCPList
 

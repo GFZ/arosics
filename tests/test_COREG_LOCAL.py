@@ -80,9 +80,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # get instance of COREG_LOCAL object
         CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
 
-        # use the getter of the CoRegPoints_table to calculate tie point grid
-        # noinspection PyStatementEffect
-        CRL.CoRegPoints_table
+        # calculate tie point grid
+        CRL.calculate_spatial_shifts()
 
         # test tie point grid visualization
         with warnings.catch_warnings():
@@ -119,6 +118,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # get instance of COREG_LOCAL object
         CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
                                            **self.coreg_kwargs))
+        CRL.calculate_spatial_shifts()
+
 
         # use the getter of the CoRegPoints_table to calculate tie point grid
         # noinspection PyStatementEffect
