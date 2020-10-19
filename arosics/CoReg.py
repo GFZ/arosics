@@ -1244,7 +1244,7 @@ class COREG(object):
         self._ssim_improved = has_improved
 
     def calculate_spatial_shifts(self):
-        # type: (COREG) -> str
+        # type: () -> str
         """Compute the global X/Y shift between reference and the target image within the matching window.
 
         :return: 'success' or 'fail'
@@ -1419,7 +1419,7 @@ class COREG(object):
         return inv_coreg_info
 
     def correct_shifts(self):
-        # type: (COREG) -> dict
+        # type: () -> dict
         """Correct the already calculated X/Y shift of the target image.
 
         :return: COREG.deshift_results (dictionary)

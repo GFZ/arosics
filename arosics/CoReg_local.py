@@ -72,8 +72,8 @@ class COREG_LOCAL(object):
                  ignore_errors=True):
         """Get an instance of COREG_LOCAL.
 
-        :param im_ref(str, GeoArray):   source path of reference image (any GDAL compatible image format is supported)
-        :param im_tgt(str, GeoArray):   source path of image to be shifted (any GDAL compatible image format is
+        :param im_ref(str | GeoArray):  source path of reference image (any GDAL compatible image format is supported)
+        :param im_tgt(str | GeoArray):  source path of image to be shifted (any GDAL compatible image format is
                                         supported)
         :param grid_res:                tie point grid resolution in pixels of the target image (x-direction)
         :param max_points(int):         maximum number of points used to find coregistration tie points
@@ -151,14 +151,14 @@ class COREG_LOCAL(object):
                                         given)
         :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: True)
         :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
-        :param mask_baddata_ref(str, BadDataMask):
+        :param mask_baddata_ref(str | BadDataMask):
                                         path to a 2D boolean mask file (or an instance of BadDataMask) for the
                                         reference image where all bad data pixels (e.g. clouds) are marked with
                                         True and the remaining pixels with False. Must have the same geographic
                                         extent and projection like 'im_ref'. The mask is used to check if the
                                         chosen matching window position is valid in the sense of useful data.
                                         Otherwise this window position is rejected.
-        :param mask_baddata_tgt(str, BadDataMask):
+        :param mask_baddata_tgt(str | BadDataMask):
                                         path to a 2D boolean mask file (or an instance of BadDataMask) for the
                                         image to be shifted where all bad data pixels (e.g. clouds) are marked
                                         with True and the remaining pixels with False. Must have the same
@@ -317,25 +317,7 @@ class COREG_LOCAL(object):
         if self._tiepoint_grid:
             return self._tiepoint_grid
         else:
-            self._tiepoint_grid = Tie_Point_Grid(self.COREG_obj, self.grid_res,
-                                                 max_points=self.max_points,
-                                                 outFillVal=self.outFillVal,
-                                                 resamp_alg_calc=self.rspAlg_calc,
-                                                 tieP_filter_level=self.tieP_filter_level,
-                                                 outlDetect_settings=dict(
-                                                     min_reliability=self.min_reliability,
-                                                     rs_max_outlier=self.rs_max_outlier,
-                                                     rs_tolerance=self.rs_tolerance),
-                                                 dir_out=self.projectDir,
-                                                 CPUs=self.CPUs,
-                                                 progress=self.progress,
-                                                 v=self.v,
-                                                 q=self.q)
-            self._tiepoint_grid.get_CoRegPoints_table()
-
-            if self.v:
-                print('Visualizing CoReg points grid...')
-                self.view_CoRegPoints(figsize=(10, 10))
+            self.calculate_spatial_shifts()
             return self._tiepoint_grid
 
     @property
@@ -350,9 +332,29 @@ class COREG_LOCAL(object):
     @property
     def success(self):
         self._success = self.tiepoint_grid.GCPList != []
-        if not self._success and not self.q:
-            warnings.warn('No valid GCPs could by identified.')
         return self._success
+
+    def calculate_spatial_shifts(self):
+        self._tiepoint_grid = \
+            Tie_Point_Grid(self.COREG_obj, self.grid_res,
+                           max_points=self.max_points,
+                           outFillVal=self.outFillVal,
+                           resamp_alg_calc=self.rspAlg_calc,
+                           tieP_filter_level=self.tieP_filter_level,
+                           outlDetect_settings=dict(
+                               min_reliability=self.min_reliability,
+                               rs_max_outlier=self.rs_max_outlier,
+                               rs_tolerance=self.rs_tolerance),
+                           dir_out=self.projectDir,
+                           CPUs=self.CPUs,
+                           progress=self.progress,
+                           v=self.v,
+                           q=self.q)
+        self._tiepoint_grid.get_CoRegPoints_table()
+
+        if self.v:
+            print('Visualizing CoReg points grid...')
+            self.view_CoRegPoints(figsize=(10, 10))
 
     def show_image_footprints(self):
         """Show a web map containing the calculated footprints and overlap area of the input images.
@@ -541,7 +543,7 @@ class COREG_LOCAL(object):
         else:
             plt.close(fig)
 
-    def view_CoRegPoints_folium(self, attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True):
+    def view_CoRegPoints_folium(self, attribute2plot='ABS_SHIFT'):
         warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
         assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
@@ -596,13 +598,18 @@ class COREG_LOCAL(object):
         if self._coreg_info:
             return self._coreg_info
         else:
+            if not self._tiepoint_grid:
+                self.calculate_spatial_shifts()
+
+            TPG = self._tiepoint_grid
+
             self._coreg_info = {
-                'GCPList': self.tiepoint_grid.GCPList,
-                'mean_shifts_px': {'x': self.tiepoint_grid.mean_x_shift_px,
-                                   'y': self.tiepoint_grid.mean_y_shift_px},
-                'mean_shifts_map': {'x': self.tiepoint_grid.mean_x_shift_map,
-                                    'y': self.tiepoint_grid.mean_y_shift_map},
-                'updated map info means': self._get_updated_map_info_meanShifts(),
+                'GCPList': TPG.GCPList,
+                'mean_shifts_px': {'x': TPG.mean_x_shift_px if TPG.GCPList else None,
+                                   'y': TPG.mean_y_shift_px if TPG.GCPList else None},
+                'mean_shifts_map': {'x': TPG.mean_x_shift_map if TPG.GCPList else None,
+                                    'y': TPG.mean_y_shift_map if TPG.GCPList else None},
+                'updated map info means': self._get_updated_map_info_meanShifts() if TPG.GCPList else None,
                 'original map info': geotransform2mapinfo(self.imref.gt, self.imref.prj),
                 'reference projection': self.imref.prj,
                 'reference geotransform': self.imref.gt,
@@ -625,13 +632,14 @@ class COREG_LOCAL(object):
                                         the mean shift of the remaining points)(default: 5 tie points)
         :return:
         """
-        coreg_info = self.coreg_info
+        if not self._tiepoint_grid:
+            self.calculate_spatial_shifts()
 
         if self.tiepoint_grid.GCPList:
             if max_GCP_count:
-                coreg_info['GCPList'] = coreg_info['GCPList'][:max_GCP_count]
+                self.coreg_info['GCPList'] = self.coreg_info['GCPList'][:max_GCP_count]
 
-            DS = DESHIFTER(self.im2shift, coreg_info,
+            DS = DESHIFTER(self.im2shift, self.coreg_info,
                            path_out=self.path_out,
                            fmt_out=self.fmt_out,
                            out_crea_options=self.out_creaOpt,

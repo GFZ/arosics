@@ -64,7 +64,7 @@ req_setup = [
 # ipython is needed for testing interactive plotting
 req_test = ['coverage', 'nose', 'nose2', 'nose-htmloutput', 'rednose', 'ipython']
 
-req_doc = ['sphinx-argparse', 'sphinx_rtd_theme']
+req_doc = ['sphinx-argparse', 'sphinx_rtd_theme', 'sphinx-autodoc-typehints']
 
 req_lint = ['flake8', 'pycodestyle', 'pydocstyle']
 
