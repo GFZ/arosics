@@ -125,12 +125,15 @@ class Tie_Point_Grid(object):
         self.outFillVal = outFillVal
         self.rspAlg_calc = resamp_alg_calc
         self.tieP_filter_level = tieP_filter_level
-        self.outlDetect_settings = outlDetect_settings if outlDetect_settings else dict(q=q)
+        self.outlDetect_settings = outlDetect_settings or dict()
         self.dir_out = dir_out
         self.CPUs = CPUs
         self.v = v
         self.q = q if not v else False  # overridden by v
         self.progress = progress if not q else False  # overridden by q
+
+        if 'q' not in self.outlDetect_settings:
+            self.outlDetect_settings['q'] = self.q
 
         self.ref = self.COREG_obj.ref  # type: GeoArray_CoReg
         self.shift = self.COREG_obj.shift  # type: GeoArray_CoReg
