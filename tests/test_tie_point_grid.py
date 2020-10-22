@@ -119,3 +119,8 @@ class Test_Tie_Point_Grid(unittest.TestCase):
                 outpath = os.path.join(tmpdir, 'X_SHIFT_M__interpolated.bsq')
                 self.TPG.to_Raster_using_Kriging(attrName='X_SHIFT_M', fName_out=outpath)
                 self.assertTrue(os.path.isfile(outpath))
+
+
+if __name__ == '__main__':
+    import nose2
+    nose2.main()

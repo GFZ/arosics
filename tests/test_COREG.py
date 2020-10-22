@@ -307,5 +307,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
             CR.show_matchWin(interactive=True, after_correction=False)
             CR.show_image_footprints()
 
-# if __name__ == '__main__':
-#    unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
+
+if __name__ == '__main__':
+    import nose2
+    nose2.main()

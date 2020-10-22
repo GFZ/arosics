@@ -121,11 +121,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.calculate_spatial_shifts()
 
 
-# if __name__ == '__main__':
-#     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
-#
-#      suite = unittest.TestLoader().loadTestsFromTestCase(eval("CompleteWorkflow_INTER1_S2A_S2A"))
-#     alltests = unittest.TestSuite(suite)
-#
-#      # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
-#      testResult = unittest.TextTestRunner(verbosity=2).run(alltests)
+if __name__ == '__main__':
+    import nose2
+    nose2.main()
