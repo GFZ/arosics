@@ -7,5 +7,5 @@ COPY *.yml /root/
 RUN /bin/bash -i -c "\
     source /root/miniconda3/bin/activate ; \
     conda update -n base -c conda-forge conda;\
-    source activate ci_env; \
+    conda activate ci_env; \
     conda env update -n ci_env -f /root/environment_arosics.yml"

@@ -5,7 +5,7 @@ Installation
 Using Anaconda or Miniconda (recommended)
 -----------------------------------------
 
-Using conda_, AROSICS is installed as follows:
+Using conda_ (latest version recommended), AROSICS is installed as follows:
 
 
 1. Create virtual environment for arosics (optional but recommended):
@@ -13,7 +13,7 @@ Using conda_, AROSICS is installed as follows:
    .. code-block:: bash
 
     $ conda create -c conda-forge --name arosics python=3
-    $ source activate arosics
+    $ conda activate arosics
 
 
 2. Then install AROSICS itself:
@@ -23,7 +23,7 @@ Using conda_, AROSICS is installed as follows:
     $ conda install -c conda-forge arosics
 
 
-This is the preferred method to install AROSICS, as it will always installs the most recent stable release and
+This is the preferred method to install AROSICS, as it always installs the most recent stable release and
 automatically resolves all the dependencies.
 
 

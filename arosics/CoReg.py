@@ -695,13 +695,30 @@ class COREG(object):
 
         wpX, wpY = self.win_pos_XY
         wsX, wsY = self.win_size_XY
-        ref_wsX, ref_wsY = (wsX * self.ref.xgsd, wsY * self.ref.ygsd)  # image units -> map units
-        shift_wsX, shift_wsY = (wsX * self.shift.xgsd, wsY * self.shift.ygsd)  # image units -> map units
-        ref_box_kwargs = {'wp': (wpX, wpY), 'ws': (ref_wsX, ref_wsY), 'gt': self.ref.gt}
-        shift_box_kwargs = {'wp': (wpX, wpY), 'ws': (shift_wsX, shift_wsY), 'gt': self.shift.gt}
-        matchBox = boxObj(**ref_box_kwargs) if self.grid2use == 'ref' else boxObj(**shift_box_kwargs)
-        otherBox = boxObj(**shift_box_kwargs) if self.grid2use == 'ref' else boxObj(**ref_box_kwargs)
-        overlapWin = boxObj(mapPoly=self.overlap_poly, gt=self.ref.gt)
+
+        # image units -> map units
+        ref_wsX = wsX * self.ref.xgsd
+        ref_wsY = wsY * self.ref.ygsd
+        shift_wsX = wsX * self.shift.xgsd
+        shift_wsY = wsY * self.shift.ygsd
+
+        ref_box_kwargs = \
+            dict(wp=(wpX, wpY),
+                 ws=(ref_wsX, ref_wsY),
+                 gt=self.ref.gt)
+        shift_box_kwargs = \
+            dict(wp=(wpX, wpY),
+                 ws=(shift_wsX, shift_wsY),
+                 gt=self.shift.gt)
+        matchBox =\
+            boxObj(**ref_box_kwargs) if self.grid2use == 'ref' else \
+            boxObj(**shift_box_kwargs)
+        otherBox = \
+            boxObj(**shift_box_kwargs) if self.grid2use == 'ref' else \
+            boxObj(**ref_box_kwargs)
+        overlapWin = \
+            boxObj(mapPoly=self.overlap_poly,
+                   gt=self.ref.gt)
 
         # clip matching window to overlap area
         matchBox.mapPoly = matchBox.mapPoly.intersection(overlapWin.mapPoly)
@@ -709,8 +726,13 @@ class COREG(object):
         # check if matchBox extent touches no data area of the image -> if yes: shrink it
         overlapPoly_within_matchWin = matchBox.mapPoly.intersection(self.overlap_poly)
         if overlapPoly_within_matchWin.area < matchBox.mapPoly.area:
-            wsX_start, wsY_start = 1 if wsX >= wsY else wsX / wsY, 1 if wsY >= wsX else wsY / wsX
-            box = boxObj(**dict(wp=(wpX, wpY), ws=(wsX_start, wsY_start), gt=matchBox.gt))
+            wsX_start, wsY_start = \
+                1 if wsX >= wsY else \
+                wsX / wsY, 1 if wsY >= wsX else \
+                wsY / wsX
+            box = boxObj(**dict(wp=(wpX, wpY),
+                                ws=(wsX_start, wsY_start),
+                                gt=matchBox.gt))
             while True:
                 box.buffer_imXY(1, 1)
                 if not box.mapPoly.within(overlapPoly_within_matchWin):
@@ -719,36 +741,52 @@ class COREG(object):
                     break
 
         # move matching window to imref grid or im2shift grid
-        mW_rows, mW_cols = (self.ref.rows, self.ref.cols) if self.grid2use == 'ref' else \
+        mW_rows, mW_cols = \
+            (self.ref.rows, self.ref.cols) if self.grid2use == 'ref' else \
             (self.shift.rows, self.shift.cols)
-        matchBox.mapPoly = move_shapelyPoly_to_image_grid(matchBox.mapPoly, matchBox.gt, mW_rows, mW_cols, 'NW')
+        matchBox.mapPoly = move_shapelyPoly_to_image_grid(matchBox.mapPoly,
+                                                          matchBox.gt, mW_rows,
+                                                          mW_cols,
+                                                          'NW')
 
-        # check, ob durch Verschiebung auf Grid die matchBox außerhalb von overlap_poly geschoben wurde
+        # check, if matchBox was moved outside of overlap_poly when moving it to the image grid
         if not matchBox.mapPoly.within(overlapWin.mapPoly):
-            # matchPoly weiter verkleinern # 1 px buffer reicht, weil window nur auf das Grid verschoben wurde
+            # further shrink matchPoly (1 px buffer is enough because the window was only moved to the grid)
             xLarger, yLarger = matchBox.is_larger_DimXY(overlapWin.boundsIm)
-            matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
+            matchBox.buffer_imXY(-1 if xLarger else 0,
+                                 -1 if yLarger else 0)
 
-        # matching_win direkt auf grid2use (Rundungsfehler bei Koordinatentrafo beseitigen)
+        # matching_win directly on grid2use (fix rounding error through coordinate transformation)
         matchBox.imPoly = round_shapelyPoly_coords(matchBox.imPoly, precision=0)
 
-        # Check, ob match Fenster größer als anderes Fenster
-        if not (matchBox.mapPoly.within(otherBox.mapPoly) or matchBox.mapPoly == otherBox.mapPoly):
-            # dann für anderes Fenster kleinstes Fenster finden, das match-Fenster umgibt
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
-                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues
+        # check if matching window larger than the other one or equal
+        if not (matchBox.mapPoly.within(otherBox.mapPoly) or
+                matchBox.mapPoly == otherBox.mapPoly):
+            # if yes, find the smallest 'other window' that encloses the matching window
+            otherBox.boxImYX = \
+                get_smallest_boxImYX_that_contains_boxMapYX(
+                    matchBox.boxMapYX,
+                    otherBox.gt,
+                    tolerance_ndigits=5  # avoids float coordinate rounding issues
+                )
 
-        # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird
+        # in case after enlarging the 'other window', it gets too large for the overlap area
+        # -> shrink match window and recompute smallest possible other window until everything is fine
         t_start = time.time()
         while not otherBox.mapPoly.within(overlapWin.mapPoly):
-            # -> match Fenster verkleinern und neues otherBox berechnen
             xLarger, yLarger = otherBox.is_larger_DimXY(overlapWin.boundsIm)
-            matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
+            matchBox.buffer_imXY(-1 if xLarger else 0,
+                                 -1 if yLarger else 0)
             previous_area = otherBox.mapPoly.area
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
-                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues)
+            otherBox.boxImYX = \
+                get_smallest_boxImYX_that_contains_boxMapYX(
+                    matchBox.boxMapYX,
+                    otherBox.gt,
+                    tolerance_ndigits=5  # avoids float coordinate rounding issues
+                )
 
-            if previous_area == otherBox.mapPoly.area or time.time() - t_start > 1.5:
+            if previous_area == otherBox.mapPoly.area or \
+               time.time() - t_start > 1.5:
                 # happens e.g in case of a triangular footprint
                 # NOTE: first condition is not always fulfilled -> therefore added timeout of 1.5 sec
                 self._handle_error(
@@ -760,7 +798,8 @@ class COREG(object):
 
         # output validation
         for winBox in [matchBox, otherBox]:
-            if winBox.imDimsYX[0] < 16 or winBox.imDimsYX[1] < 16:
+            if winBox.imDimsYX[0] < 16 or \
+               winBox.imDimsYX[1] < 16:
                 self._handle_error(
                     RuntimeError("One of the input images does not have sufficient gray value information "
                                  "(non-no-data values) for placing a matching window at the position %s. "
@@ -769,25 +808,39 @@ class COREG(object):
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
             def within_equal(inner, outer):
-                return inner.within(outer.buffer(1e-5)) or inner.equals(outer)
+                return inner.within(outer.buffer(1e-5)) or \
+                       inner.equals(outer)
 
-            assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
-            assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
+            assert within_equal(matchBox.mapPoly,
+                                otherBox.mapPoly)
+            assert within_equal(otherBox.mapPoly,
+                                overlapWin.mapPoly)
 
-            self.imfft_xgsd = self.ref.xgsd if self.grid2use == 'ref' else self.shift.xgsd
-            self.imfft_ygsd = self.ref.ygsd if self.grid2use == 'ref' else self.shift.ygsd
-            self.ref.win, self.shift.win = (matchBox, otherBox) if self.grid2use == 'ref' else (otherBox, matchBox)
-            self.matchBox, self.otherBox = matchBox, otherBox
+            if self.grid2use == 'ref':
+                self.imfft_xgsd = self.ref.xgsd
+                self.imfft_ygsd = self.ref.ygsd
+                self.ref.win = matchBox
+                self.shift.win = otherBox
+            else:
+                self.imfft_xgsd = self.shift.xgsd
+                self.imfft_ygsd = self.shift.ygsd
+                self.ref.win = otherBox
+                self.shift.win = matchBox
+
+            self.matchBox = matchBox
+            self.otherBox = otherBox
+
             self.ref.win.size_YX = tuple([int(i) for i in self.ref.win.imDimsYX])
             self.shift.win.size_YX = tuple([int(i) for i in self.shift.win.imDimsYX])
             match_win_size_XY = tuple(reversed([int(i) for i in matchBox.imDimsYX]))
 
-            if not self.q and match_win_size_XY != self.win_size_XY:
+            if not self.q and \
+               match_win_size_XY != self.win_size_XY:
                 print('Target window size %s not possible due to too small overlap area or window position too close '
                       'to an image edge. New matching window size: %s.' % (self.win_size_XY, match_win_size_XY))
 
-                # write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
-                # write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
+                # write_shp('matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
+                # write_shp('otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
 
     def _get_image_windows_to_match(self):
         """Read the matching window and the other window as subsets.

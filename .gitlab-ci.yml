@@ -59,7 +59,7 @@ test_arosics_install:
 
     # create arosics environment
     - conda create -y -q -c conda-forge --name arosics_testinstall python=3
-    - source activate arosics_testinstall
+    - conda activate arosics_testinstall
 
      # resolve some requirements with conda
     - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas pykrige pyfftw cartopy
