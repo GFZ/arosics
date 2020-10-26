@@ -11,7 +11,7 @@ pandas
 plotly
 pyfftw
 pykrige
-py_tools_ds>=0.14.28
+py_tools_ds>=0.15.8
 scikit-image
 shapely
 six

@@ -38,6 +38,7 @@ with open("arosics/version.py") as version_file:
     exec(version_file.read(), version)
 
 req = [
+    'cartopy',
     'cmocean',
     'folium>=0.6.0',
     'gdal',
@@ -50,7 +51,7 @@ req = [
     'plotly',
     'pyfftw',
     'pykrige',
-    'py_tools_ds>=0.14.28',
+    'py_tools_ds>=0.15.8',
     'scikit-image',
     'shapely',
     'six',
@@ -61,8 +62,9 @@ req_setup = [
     'setuptools-git'
 ]
 
-# ipython is needed for testing interactive plotting
-req_test = ['coverage', 'nose', 'nose2', 'nose-htmloutput', 'rednose', 'ipython']
+req_intplot = ['holoviews', 'ipython']
+
+req_test = ['coverage', 'nose', 'nose2', 'nose-htmloutput', 'rednose'] + req_intplot
 
 req_doc = ['sphinx-argparse', 'sphinx_rtd_theme', 'sphinx-autodoc-typehints']
 
@@ -89,6 +91,7 @@ setup(
     ],
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     extras_require={
+        "interactive_plotting": req_intplot,
         "doc": req_doc,
         "test": req_test,
         "lint": req_lint,

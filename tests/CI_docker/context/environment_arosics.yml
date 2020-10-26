@@ -6,35 +6,36 @@ channels: &id1
 dependencies:
   - python=3.*.*
   - pip
-  - numpy
-  - gdal
-  - scikit-image
-  - pyproj>2.2.0
-  - geopandas
-  - pandas
-  - ipython # needed to test interactive plotting
-  - shapely
-  - matplotlib
-  - holoviews
-  - pykrige
-  - pyfftw
-  - cmocean
   - cartopy
+  - cmocean
+  - gdal
+  - geoarray>=0.9.0
+  - geopandas
+  - holoviews
+  - ipython  # needed to test interactive plotting
+  - matplotlib
+  - numpy
+  - pandas
+  - pyfftw
+  - pykrige
+  - py_tools_ds>=0.15.8
+  - scikit-image
+  - shapely
 
   - pip:
-    - sphinx-argparse
-    - six
     - folium>=0.6.0
     - geojson
+    - plotly
+    - six
+
+    # doc requirements
+    - coverage
     - flake8
-    - pycodestyle
-    - pylint
-    - pydocstyle
     - nose
     - nose2
     - nose-htmloutput
-    - coverage
+    - pycodestyle
+    - pydocstyle
+    - pylint
     - rednose
-    - plotly
-    - geoarray>=0.9.0
-    - py_tools_ds>=0.15.0
+    - sphinx-argparse
