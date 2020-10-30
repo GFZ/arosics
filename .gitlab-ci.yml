@@ -16,7 +16,7 @@ test_arosics:
     - conda install -c conda-forge cartopy  # FIXME remove as soon as docker container is rebuilt
 
     # update py_tools_ds and geoarray
-    # - pip install "py_tools_ds>=0.15.8"
+    # - pip install "py_tools_ds>=0.15.10"
     - pip install "geoarray>=0.9.0"
 
     # run tests
