@@ -117,6 +117,14 @@ class GeoArray_CoReg(GeoArray):
 
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
+            with warnings.catch_warnings(record=True) as w:
+                _ = self.footprint_poly  # execute getter
+
+            if len(w) > 0 and 'disjunct polygone(s) outside' in str(w[-1].message):
+                warnings.warn('The footprint of the %s contains multiple separate image parts. '
+                              'AROSICS will only process the largest image part.' % self.imName)
+                # FIXME use a convex hull as footprint poly
+
         # validate footprint poly
         if not self.footprint_poly.is_valid:
             self.footprint_poly = self.footprint_poly.buffer(0)
@@ -133,7 +141,7 @@ class GeoArray_CoReg(GeoArray):
 
 
 class COREG(object):
-    """The COREG class detects and corrects global X/Y shifts between a target and refernce image.
+    """The COREG class detects and corrects global X/Y shifts between a target and reference image.
 
     Geometric shifts are calculated at a specific (adjustable) image position. Correction performs a global shifting
     in X- or Y direction.

@@ -848,9 +848,19 @@ class Tie_Point_Refiner(object):
             self.GDF['L1_OUTLIER'] = marked_recs
             self.new_cols.append('L1_OUTLIER')
 
+            n_flagged = len(marked_recs[marked_recs])
+            perc40 = np.percentile(self.GDF.RELIABILITY, 40)
+
+            if n_flagged / len(self.GDF) > .7:
+                warnings.warn(r"More than 70%% of the found tie points have a reliability lower than %s%% and are "
+                              r"therefore marked as false-positives. Consider relaxing the minimum reliability "
+                              r"(parameter 'min_reliability') to avoid that. For example min_reliability=%d would only "
+                              r"flag 40%% of the tie points in case of your input data."
+                              % (self.min_reliability, perc40))
+
             if not self.q:
                 print('%s tie points flagged by level 1 filtering (reliability).'
-                      % (len(marked_recs[marked_recs])))
+                      % n_flagged)
 
         # SSIM filtering
         if level > 1:
