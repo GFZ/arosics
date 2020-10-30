@@ -420,6 +420,7 @@ class Tie_Point_Grid(object):
             TPR = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], **self.outlDetect_settings)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF = GDF.merge(GDF_filt[['POINT_ID'] + new_columns], on='POINT_ID', how="outer")
+
         GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
 
         self.CoRegPoints_table = GDF
@@ -428,7 +429,8 @@ class Tie_Point_Grid(object):
             if GDF.empty:
                 warnings.warn('No valid GCPs could by identified.')
             else:
-                print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
+                if self.tieP_filter_level > 0:
+                    print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
 
         return self.CoRegPoints_table
 

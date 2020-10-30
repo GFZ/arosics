@@ -51,7 +51,7 @@ req = [
     'plotly',
     'pyfftw',
     'pykrige',
-    'py_tools_ds>=0.15.8',
+    'py_tools_ds>=0.15.10',
     'scikit-image',
     'shapely',
     'six',
