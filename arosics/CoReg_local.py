@@ -28,10 +28,7 @@ from six import PY2
 from typing import TYPE_CHECKING
 
 # custom
-try:
-    import gdal
-except ImportError:
-    from osgeo import gdal
+from osgeo import gdal
 try:
     import pyfftw
 except ImportError:

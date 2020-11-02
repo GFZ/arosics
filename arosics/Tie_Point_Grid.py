@@ -28,10 +28,7 @@ import warnings
 import time
 
 # custom
-try:
-    import gdal
-except ImportError:
-    from osgeo import gdal
+from osgeo import gdal
 import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series

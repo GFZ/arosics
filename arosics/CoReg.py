@@ -28,10 +28,7 @@ from copy import copy
 from typing import Iterable, Union, Tuple  # noqa F401
 
 # custom
-try:
-    import gdal
-except ImportError:
-    from osgeo import gdal
+from osgeo import gdal
 import numpy as np
 
 try:
