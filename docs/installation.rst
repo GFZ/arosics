@@ -43,7 +43,7 @@ to resolve the following dependencies before the pip installer is run:
     * pyfftw
     * pykrige
     * pyproj >2.2.0
-    * scikit-image
+    * scikit-image >=0.16.0
     * shapely
 
 Then, the pip installer can be run by:
