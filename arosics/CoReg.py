@@ -52,7 +52,6 @@ from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid, is_coord_
 from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
 from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.geo.map_info import geotransform2mapinfo
-from py_tools_ds.similarity.raster import calc_ssim
 from py_tools_ds.io.vector.writer import write_shp
 
 __author__ = 'Daniel Scheffler'
@@ -310,6 +309,7 @@ class COREG(object):
         self.success = None  # default
         self.deshift_results = None  # set by self.correct_shifts()
 
+        # try:
         gdal.AllRegister()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
@@ -338,6 +338,9 @@ class COREG(object):
                       self.matchBox.mapPoly, self.matchBox.prj)
 
         self.success = False if self.success is False or not self.matchBox.boxMapYX else None
+
+        # except BaseException:
+
         self._coreg_info = None  # private attribute to be filled by self.coreg_info property
 
     def _handle_error(self, error, warn=False, warnMsg=None):
@@ -1212,26 +1215,42 @@ class COREG(object):
         return ds_results['GeoArray_shifted']
 
     def _validate_ssim_improvement(self, v=False):
-        """Compute mean structural similarity index between reference and target image before and after co-regsitration.
+        """Compute mean structural similarity index between reference and target image before and after co-registration.
 
         :param v:   <bool> verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
         :return:    <tuple> SSIM before an after shift correction
         """
+        from skimage.metrics import structural_similarity as ssim  # import here to avoid static TLS import error
+
         assert self.success is not None, \
             'Calculate geometric shifts first before trying to measure image similarity improvement!'
         assert self.success in [True, None], \
             'Since calculation of geometric shifts failed, no image similarity improvement can be measured.'
 
-        # get image dynamic range
-        dr = max(self.matchWin[:].max(), self.otherWin[:].max()) - \
-            min(self.matchWin[:].min(), self.otherWin[:].min())
+        def normalize(array):
+            # type: (np.ndarray) -> np.ndarray
+            minval = np.min(array)
+            maxval = np.max(array)
 
-        # compute SSIM BEFORE shift correction
+            # avoid zerodivision
+            if maxval == minval:
+                maxval += 1e-5
+
+            return ((array - minval) / (maxval - minval)).astype(np.float64)
+
+        # compute SSIM BEFORE shift correction #
+        ########################################
+
         # using gaussian weights could lead to value errors in case of small images when the automatically calulated
         # window size exceeds the image size
-        self.ssim_orig = calc_ssim(self.matchWin[:], self.otherWin[:], dynamic_range=dr)
+        self.ssim_orig = ssim(normalize(np.ma.masked_equal(self.matchWin[:],
+                                                           self.matchWin.nodata)),
+                              normalize(np.ma.masked_equal(self.otherWin[:],
+                                                           self.otherWin.nodata)),
+                              data_range=1)
 
-        # compute SSIM AFTER shift correction
+        # compute SSIM AFTER shift correction #
+        #######################################
 
         # resample otherWin while correcting detected shifts and match geographic bounds of matchWin
         otherWin_deshift_geoArr = self._get_deshifted_otherWin()
@@ -1243,27 +1262,39 @@ class COREG(object):
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
             warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
-            matchFull = self.ref if self.matchWin.imID == 'ref' else self.shift
-            matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
-                                                      rspAlg='cubic', band2get=matchFull.band4match)
+            matchFull = \
+                self.ref if self.matchWin.imID == 'ref' else\
+                self.shift
+            matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds,
+                                                      self.matchWin.prj,
+                                                      rspAlg='cubic',
+                                                      band2get=matchFull.band4match)
             self.matchWin.clip_to_poly(self.matchBox.mapPoly)
 
-            # at the image edges it is possible that the size of the matchBox must be reduced in order to make array
-            # shapes match
+            # at the image edges it is possible that the size of the matchBox must be reduced
+            # in order to make array shapes match
             if not matchWinData.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-                self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))), float(-np.ceil(abs(self.y_shift_px))))
+                self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))),
+                                          float(-np.ceil(abs(self.y_shift_px))))
                 otherWin_deshift_geoArr = self._get_deshifted_otherWin()
-                matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
-                                                          rspAlg='cubic', band2get=matchFull.band4match)
+                matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds,
+                                                          self.matchWin.prj,
+                                                          rspAlg='cubic',
+                                                          band2get=matchFull.band4match)
 
             # output validation
             if not matchWinData.shape == otherWin_deshift_geoArr.shape:
-                warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. SSIM of the '
-                              'de-shifted target image is set to 0.')
+                warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. '
+                              'SSIM of the de-shifted target image is set to 0.')
                 self.ssim_deshifted = 0
+
                 return self.ssim_orig, self.ssim_deshifted
 
-        self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr)
+        self.ssim_deshifted = ssim(normalize(np.ma.masked_equal(otherWin_deshift_geoArr[:],
+                                                                otherWin_deshift_geoArr.nodata)),
+                                   normalize(np.ma.masked_equal(matchWinData,
+                                                                self.matchWin.nodata)),
+                                   data_range=1)
 
         if v:
             GeoArray(matchWinData).show()
