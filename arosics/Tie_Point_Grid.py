@@ -562,10 +562,11 @@ class Tie_Point_Grid(object):
 
     def dump_CoRegPoints_table(self, path_out=None):
         path_out = path_out if path_out else \
-            get_generic_outpath(dir_out=self.dir_out, fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl"
-                                                                % (self.grid_res, self.COREG_obj.win_size_XY[0],
-                                                                   self.COREG_obj.win_size_XY[1], self.shift.basename,
-                                                                   self.ref.basename))
+            get_generic_outpath(dir_out=self.dir_out,
+                                fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl"
+                                          % (self.grid_res, self.COREG_obj.win_size_XY[0],
+                                             self.COREG_obj.win_size_XY[1], self.shift.basename,
+                                             self.ref.basename))
         if not self.q:
             print('Writing %s ...' % path_out)
         self.CoRegPoints_table.to_pickle(path_out)
@@ -599,8 +600,12 @@ class Tie_Point_Grid(object):
             # calculate GCPs
             GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
             GDF['Y_UTM_new'] = GDF.Y_UTM + GDF.Y_SHIFT_M
-            GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_UTM_new, GDF_row.Y_UTM_new, 0,
-                                                            GDF_row.X_IM, GDF_row.Y_IM), axis=1)
+            GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_UTM_new,
+                                                            GDF_row.Y_UTM_new,
+                                                            0,
+                                                            GDF_row.X_IM,
+                                                            GDF_row.Y_IM),
+                                   axis=1)
             self.GCPList = GDF.GCP.tolist()
 
             return self.GCPList
@@ -670,13 +675,21 @@ class Tie_Point_Grid(object):
             "'_tiepoints_grid_to_PointShapefile' is deprecated."  # TODO delete if other method validated
             " 'tiepoints_grid_to_PointShapefile' is much faster."))
         GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
+        GDF2pass = \
+            GDF if not skip_nodata else \
+            GDF[GDF[skip_nodata_col] != self.outFillVal]
         shapely_points = GDF2pass['geometry'].values.tolist()
-        attr_dicts = [collections.OrderedDict(zip(GDF2pass.columns, GDF2pass.loc[i].values)) for i in GDF2pass.index]
+        attr_dicts = [collections.OrderedDict(zip(GDF2pass.columns,
+                                                  GDF2pass.loc[i].values))
+                      for i in GDF2pass.index]
 
-        fName_out = "CoRegPoints_grid%s_ws%s.shp" % (self.grid_res, self.COREG_obj.win_size_XY)
+        fName_out = "CoRegPoints_grid%s_ws%s.shp" \
+                    % (self.grid_res, self.COREG_obj.win_size_XY)
         path_out = os.path.join(self.dir_out, fName_out)
-        write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
+        write_shp(path_out,
+                  shapely_points,
+                  prj=self.COREG_obj.shift.prj,
+                  attrDict=attr_dicts)
 
     def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
         # type: (str, str, str) -> GeoArray
@@ -773,7 +786,10 @@ class Tie_Point_Grid(object):
                 "Kriging__%s__grid%s_ws%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY)
         path_out = get_generic_outpath(dir_out=self.dir_out, fName_out=fName_out)
         # add a half pixel grid points are centered on the output pixels
-        xmin, ymin, xmax, ymax = xmin - grid_res / 2, ymin - grid_res / 2, xmax + grid_res / 2, ymax + grid_res / 2
+        xmin = xmin - grid_res / 2
+        # ymin = ymin - grid_res / 2
+        # xmax = xmax + grid_res / 2
+        ymax = ymax + grid_res / 2
 
         GeoArray(zvalues,
                  geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
@@ -944,7 +960,8 @@ class Tie_Point_Refiner(object):
             if th_checked:
                 th_too_strict = count_inliers < ideal_count  # True if too less inliers remaining
 
-                # calculate new theshold using old increment (but ensure th_new>0 by adjusting increment if needed)
+                # calculate new theshold using old increment
+                # (but ensure th_new>0 by adjusting increment if needed)
                 th_new = 0
                 while th_new <= 0:
                     th_new = th + th_substract if th_too_strict else th - th_substract
@@ -955,27 +972,44 @@ class Tie_Point_Refiner(object):
                 th_already_checked = th_new in th_checked.keys()
 
                 # if yes, decrease increment and recalculate new threshold
-                th_substract = th_substract if not th_already_checked else th_substract / 2
+                th_substract = \
+                    th_substract if not th_already_checked else \
+                    th_substract / 2
                 th = th_new if not th_already_checked else \
-                    (th + th_substract if th_too_strict else th - th_substract)
+                    (th + th_substract if th_too_strict else
+                     th - th_substract)
 
-            # RANSAC call
-            # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
-            if src_coords.size and est_coords.size:
+            ###############
+            # RANSAC call #
+            ###############
+
+            # model_robust, inliers = ransac((src, dst),
+            #                                PolynomialTransform,
+            #                                min_samples=3)
+            if src_coords.size and \
+               est_coords.size and \
+               src_coords.shape[0] > 6:
                 # import here to avoid static TLS ImportError
                 from skimage.measure import ransac
                 from skimage.transform import AffineTransform
 
                 model_robust, inliers = \
-                    ransac((src_coords, est_coords), AffineTransform,
+                    ransac((src_coords, est_coords),
+                           AffineTransform,
                            min_samples=6,
                            residual_threshold=th,
                            max_trials=2000,
-                           stop_sample_num=int((min_inlier_percentage - self.rs_tolerance) / 100 * src_coords.shape[0]),
+                           stop_sample_num=int(
+                               (min_inlier_percentage - self.rs_tolerance) /
+                               100 * src_coords.shape[0]
+                           ),
                            stop_residuals_sum=int(
-                               (self.rs_max_outlier_percentage - self.rs_tolerance) / 100 * src_coords.shape[0])
+                               (self.rs_max_outlier_percentage - self.rs_tolerance) /
+                               100 * src_coords.shape[0])
                            )
             else:
+                warnings.warn('RANSAC filtering could not be applied '
+                              'because there were too few tie points to fit a model.')
                 inliers = np.array([])
                 break
 
@@ -983,30 +1017,41 @@ class Tie_Point_Refiner(object):
 
             th_checked[th] = count_inliers / src_coords.shape[0] * 100
             # print(th,'\t', th_checked[th], )
-            if min_inlier_percentage - self.rs_tolerance < th_checked[th] < min_inlier_percentage + self.rs_tolerance:
+
+            if min_inlier_percentage - self.rs_tolerance <\
+               th_checked[th] <\
+               min_inlier_percentage + self.rs_tolerance:
                 # print('in tolerance')
                 break
-            if count_iter > self.rs_max_iter or time.time() - time_start > self.rs_timeout:
+
+            if count_iter > self.rs_max_iter or \
+               time.time() - time_start > self.rs_timeout:
                 break  # keep last values and break while loop
 
             count_iter += 1
 
         outliers = inliers.__eq__(False) if inliers is not None and inliers.size else np.array([])
 
-        if inGDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
+        if inGDF.empty or outliers is None or \
+           (isinstance(outliers, list) and not outliers) or \
            (isinstance(outliers, np.ndarray) and not outliers.size):
             outseries = Series([False] * len(self.GDF))
+
         elif len(inGDF) < len(self.GDF):
             inGDF['outliers'] = outliers
             fullGDF = GeoDataFrame(self.GDF['POINT_ID'])
-            fullGDF = fullGDF.merge(inGDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
+            fullGDF = fullGDF.merge(inGDF[['POINT_ID', 'outliers']],
+                                    on='POINT_ID',
+                                    how="outer")
             # fullGDF.outliers.copy()[~fullGDF.POINT_ID.isin(GDF.POINT_ID)] = False
             fullGDF = fullGDF.fillna(False)  # NaNs are due to exclude_previous_outliers
             outseries = fullGDF['outliers']
+
         else:
             outseries = Series(outliers)
 
-        assert len(outseries) == len(self.GDF), 'RANSAC output validation failed.'
+        assert len(outseries) == len(self.GDF), \
+            'RANSAC output validation failed.'
 
         self.ransac_model_robust = model_robust
 
