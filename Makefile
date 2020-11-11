@@ -43,13 +43,12 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 clean-test: ## remove test and coverage artifacts
-	## don't include 'coverage erase' lib here because clean-test is also executed during package setup and coverage is
-	## only a test requirement
 	rm -fr .tox/
-	rm -f .coverage
+	rm -fr .coverage
 	rm -fr htmlcov/
 	rm -fr nosetests.html
 	rm -fr nosetests.xml
+	coverage erase
 
 lint: ## check style with flake8
 	flake8 --max-line-length=120 arosics tests > ./tests/linting/flake8.log
