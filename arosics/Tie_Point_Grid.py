@@ -479,6 +479,9 @@ class Tie_Point_Grid(object):
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
 
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Shift distribution cannot be plotted because no tie points were found at all.')
+
         tbl = self.CoRegPoints_table
         tbl = tbl[tbl['ABS_SHIFT'] != self.outFillVal]
         tbl_il = tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
