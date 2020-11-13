@@ -437,6 +437,9 @@ class Tie_Point_Grid(object):
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot compute the RMSE because no tie points were found at all.')
+
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
 
@@ -452,6 +455,9 @@ class Tie_Point_Grid(object):
         :param include_outliers:    whether to include tie points that have been marked as false-positives
         :param after_correction:    whether to compute median SSIM before correction or after
         """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot compute the overall SSIM because no tie points were found at all.')
+
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy()
 
@@ -564,6 +570,9 @@ class Tie_Point_Grid(object):
             return fig, ax
 
     def dump_CoRegPoints_table(self, path_out=None):
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot dump tie points table because it is empty.')
+
         path_out = path_out if path_out else \
             get_generic_outpath(dir_out=self.dir_out,
                                 fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl"
@@ -649,6 +658,9 @@ class Tie_Point_Grid(object):
         :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
                                 identify points where no valid match could be found
         """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
+
         GDF = self.CoRegPoints_table
 
         if skip_nodata:
@@ -677,6 +689,9 @@ class Tie_Point_Grid(object):
         warnings.warn(DeprecationWarning(
             "'_tiepoints_grid_to_PointShapefile' is deprecated."  # TODO delete if other method validated
             " 'tiepoints_grid_to_PointShapefile' is much faster."))
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
+
         GDF = self.CoRegPoints_table
         GDF2pass = \
             GDF if not skip_nodata else \
@@ -710,6 +725,9 @@ class Tie_Point_Grid(object):
                                      "(outputs magnitude and direction)'. Got %s." % mode
         attr_b1 = 'X_SHIFT_M' if mode == 'uv' else 'ABS_SHIFT'
         attr_b2 = 'Y_SHIFT_M' if mode == 'uv' else 'ANGLE'
+
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot save the vector field because no tie points were found at all.')
 
         xshift_arr, gt, prj = points_to_raster(points=self.CoRegPoints_table['geometry'],
                                                values=self.CoRegPoints_table[attr_b1],
