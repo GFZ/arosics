@@ -43,12 +43,13 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 clean-test: ## remove test and coverage artifacts
+	## don't call coverage erase here because make install calls make clean which calls make clean-test
+	## -> since make install should run without the test requirements we can't use coverage erase here
 	rm -fr .tox/
-	rm -fr .coverage
+	rm -fr .coverage.*
 	rm -fr htmlcov/
 	rm -fr nosetests.html
 	rm -fr nosetests.xml
-	coverage erase
 
 lint: ## check style with flake8
 	flake8 --max-line-length=120 arosics tests > ./tests/linting/flake8.log
