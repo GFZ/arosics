@@ -150,9 +150,8 @@ create_github_release:
         - dev
 
 
-rever:
-    stage: deploy
-    dependencies:
-        - deploy_pypi
-    script:
-
+#rever:
+#    stage: deploy
+#    dependencies:
+#        - deploy_pypi
+#    script:
