@@ -131,8 +131,8 @@ def setup(app):
 
 # Add mappings for intersphinx extension (allows to link to the API reference of other sphinx documentations)
 intersphinx_mapping = {
-    'geoarray': ('http://danschef.gitext.gfz-potsdam.de/geoarray/doc/', None),
-    'python': ('http://docs.python.org/3', None),
+    'geoarray': ('https://danschef.gitext-pages.gfz-potsdam.de/geoarray/doc/', None),
+    'python': ('https://docs.python.org/3', None),
 }
 
 

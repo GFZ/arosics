@@ -56,6 +56,9 @@ lint: ## check style with flake8
 	pycodestyle arosics --exclude="*.ipynb,*.ipynb*" --max-line-length=120 > ./tests/linting/pycodestyle.log
 	-pydocstyle arosics > ./tests/linting/pydocstyle.log
 
+urlcheck: ## check for dead URLs
+	urlchecker check . --file-types .py,.rst,.md,.json
+
 test: ## run tests quickly with the default Python
 	python setup.py test
 

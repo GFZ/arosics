@@ -48,6 +48,15 @@ test_styles:
     when: always
 
 
+test_urls:
+  stage: test
+  script:
+    - source /root/miniconda3/bin/activate ci_env
+    - pip install -U urlchecker
+    - make urlcheck
+  when: always
+
+
 test_arosics_install:
   stage: test
   script:
@@ -139,3 +148,11 @@ create_github_release:
         - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
     except:
         - dev
+
+
+rever:
+    stage: deploy
+    dependencies:
+        - deploy_pypi
+    script:
+

@@ -573,7 +573,7 @@ class COREG(object):
                 # view both states
                 print('Matching window before and after correction (above and below): ')
 
-                # get layouts (docs on options: http://build.holoviews.org/Tutorials/Options.html)
+                # get layouts (docs on options: https://holoviews.org/user_guide)
                 layout_before = (hvIm_matchWin + hvIm_matchWin).opts(plot=dict(fig_inches=figsize))
                 layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr).opts(plot=dict(fig_inches=figsize))
 

@@ -39,3 +39,4 @@ dependencies:
     - pylint
     - rednose
     - sphinx-argparse
+    - urlchecker

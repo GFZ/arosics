@@ -121,6 +121,60 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.calculate_spatial_shifts()
 
 
+class Test_Issue70(unittest.TestCase):
+    def test_coreg_local_fullArrays(self):
+        import dill
+        with open('/home/gfz-fe/scheffler/temp/coreg_issue70/kwargs_dump_assertionerror_issue_70b.dill', 'rb') as inF:
+            kw = dill.load(inF)
+
+        kw['r_b4match'] = 1
+        kw['q'] = False
+
+        CRL = COREG_LOCAL(**kw)
+        CRL.calculate_spatial_shifts()
+        CRL.correct_shifts()
+        if CRL.success:
+            CRL.view_CoRegPoints(figsize=(20, 20), backgroundIm='tgt', hide_filtered=False)
+        else:
+            print('Result not co-registered.')
+
+    def test_coreg_local_bandsonly(self):
+        import dill
+        with open('/home/gfz-fe/scheffler/temp/coreg_issue70/kwargs_dump_assertionerror_issue_70.dill', 'rb') as inF:
+            kw = dill.load(inF)
+
+        kw['r_b4match'] = 1
+        kw['q'] = False
+
+        CRL = COREG_LOCAL(**kw)
+        CRL.calculate_spatial_shifts()
+        CRL.correct_shifts()
+        if CRL.success:
+            CRL.view_CoRegPoints(figsize=(20, 20), backgroundIm='tgt', hide_filtered=False)
+        else:
+            print('Result not co-registered.')
+
+
+class Test_Issue47(unittest.TestCase):
+    def test_coreg_local(self):
+        import dill
+        with open('/home/gfz-fe/scheffler/temp/coreg_issue47/kwargs_dump_assertionerror_issue_47.dill', 'rb') as inF:
+            kw = dill.load(inF)
+
+        kw['r_b4match'] = 1
+        kw['q'] = False
+        kw['CPUs'] = 32
+
+        CRL = COREG_LOCAL(**kw)
+        CRL.calculate_spatial_shifts()
+        CRL.correct_shifts()
+        if not CRL.success:
+            print('Result not co-registered.')
+
+        CRL.view_CoRegPoints(backgroundIm='tgt', hide_filtered=False)
+        # CRL.view_CoRegPoints(figsize=(20, 20), backgroundIm='tgt', hide_filtered=False)
+
+
 if __name__ == '__main__':
     import nose2
     nose2.main()

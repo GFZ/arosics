@@ -24,18 +24,6 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
 Status
 ------
 
-.. .. image:: https://img.shields.io/travis/danschef/arosics.svg
-        :target: https://travis-ci.org/danschef/arosics
-
-.. .. image:: https://readthedocs.org/projects/arosics/badge/?version=latest
-        :target: https://arosics.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-.. .. image:: https://pyup.io/repos/github/danschef/arosics/shield.svg
-     :target: https://pyup.io/repos/github/danschef/arosics/
-     :alt: Updates
-
-
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/pipeline.svg
         :target: https://gitext.gfz-potsdam.de/danschef/arosics/commits/master
 .. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
@@ -81,8 +69,7 @@ also allows to align the output image to the reference image coordinate grid if 
 
 Here is an example of a Landsat-8 / Sentinel-2 image pair before and after co-registration using AROSICS:
 
-.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/
-           animation_testcase1_zoom_L8_S2_global_coreg_before_after_900x456.gif
+.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_900x456.gif
 
 
 Local co-registration - for spatially variable shifts but a bit slower
