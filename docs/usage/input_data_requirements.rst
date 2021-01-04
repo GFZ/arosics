@@ -26,7 +26,7 @@ Supported projections
 ~~~~~~~~~~~~~~~~~~~~~
 
 AROSICS provides full support for UTM projections and geographic coordinates. Providing support for other projections
-is currently work in progress (see `here <https://gitext.gfz-potsdam.de/danschef/arosics/-/issues/37>`__ for the
+is currently work in progress (see `here <https://git.gfz-potsdam.de/danschef/arosics/-/issues/37>`__ for the
 status) and may lead to some incompatibities.
 
 

@@ -108,7 +108,7 @@ setup(
     setup_requires=req_setup,
     test_suite='tests',
     tests_require=req + req_test,
-    url='https://gitext.gfz-potsdam.de/danschef/arosics',
+    url='https://git.gfz-potsdam.de/danschef/arosics',
     version=version['__version__'],
     zip_safe=False,
 )

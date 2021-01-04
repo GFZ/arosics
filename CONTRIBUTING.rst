@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://gitext.gfz-potsdam.de/danschef/arosics/issues
+Report bugs at https://git.gfz-potsdam.de/danschef/arosics/issues
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ articles, and such.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://gitext.gfz-potsdam.de/danschef/arosics/issues.
+The best way to send feedback is to file an issue at https://git.gfz-potsdam.de/danschef/arosics/issues.
 
 If you are proposing a feature:
 
@@ -71,7 +71,7 @@ Ready to contribute? Here's how to set up `arosics` for local development.
 
    .. code-block:: bash
 
-      $ git clone https://gitext.gfz-potsdam.de/danschef/arosics.git
+      $ git clone https://git.gfz-potsdam.de/danschef/arosics.git
 
 #. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed,
    this is how you set up your fork for local development:

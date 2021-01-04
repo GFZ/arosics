@@ -1,5 +1,5 @@
-.. figure:: https://danschef.gitext-pages.gfz-potsdam.de/arosics/images/arosics_logo.png
-    :target: https://gitext.gfz-potsdam.de/danschef/arosics
+.. figure:: https://danschef.git-pages.gfz-potsdam.de/arosics/images/arosics_logo.png
+    :target: https://git.gfz-potsdam.de/danschef/arosics
     :align: center
 
 ==================================================================================================
@@ -7,14 +7,14 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
 ==================================================================================================
 
 * Free software: GNU General Public License v3 or later (GPLv3+)
-* **Documentation:** https://danschef.gitext-pages.gfz-potsdam.de/arosics/doc/
+* **Documentation:** https://danschef.git-pages.gfz-potsdam.de/arosics/doc/
 * The (open-access) **paper** corresponding to this software repository can be found here:
   `Scheffler et al. 2017 <http://www.mdpi.com/2072-4292/9/7/676>`__
   (cite as: Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source
   Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676).
 * Information on how to **cite the AROSICS Python package** can be found in the
-  `CITATION <https://gitext.gfz-potsdam.de/danschef/arosics/-/blob/master/CITATION>`__ file.
-* Submit feedback by filing an issue `here <https://gitext.gfz-potsdam.de/danschef/arosics/issues>`__
+  `CITATION <https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/CITATION>`__ file.
+* Submit feedback by filing an issue `here <https://git.gfz-potsdam.de/danschef/arosics/issues>`__
   or join our chat here: |Gitter|
 
 .. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
@@ -24,16 +24,16 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
 Status
 ------
 
-.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/pipeline.svg
-        :target: https://gitext.gfz-potsdam.de/danschef/arosics/commits/master
-.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
-        :target: https://danschef.gitext-pages.gfz-potsdam.de/arosics/coverage/
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/badges/master/pipeline.svg
+        :target: https://git.gfz-potsdam.de/danschef/arosics/commits/master
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
+        :target: https://danschef.git-pages.gfz-potsdam.de/arosics/coverage/
 .. image:: https://img.shields.io/pypi/v/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
 .. image:: https://img.shields.io/conda/vn/conda-forge/arosics.svg
         :target: https://anaconda.org/conda-forge/arosics
 .. image:: https://img.shields.io/pypi/l/arosics.svg
-        :target: https://gitext.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
+        :target: https://git.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
 .. image:: https://img.shields.io/pypi/pyversions/arosics.svg
         :target: https://img.shields.io/pypi/pyversions/arosics.svg
 .. image:: https://img.shields.io/pypi/dm/arosics.svg
@@ -69,7 +69,7 @@ also allows to align the output image to the reference image coordinate grid if 
 
 Here is an example of a Landsat-8 / Sentinel-2 image pair before and after co-registration using AROSICS:
 
-.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_900x456.gif
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_900x456.gif
 
 
 Local co-registration - for spatially variable shifts but a bit slower
@@ -83,10 +83,10 @@ affine transformation. Warping of the target image is done using an appropriate 
 Here is an example of the computed shift vectors after filtering false-positives
 (mainly due to clouds in the target image):
 
-.. image:: https://gitext.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/shift_vectors_testcase1__900x824.gif
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/shift_vectors_testcase1__900x824.gif
 
 
-For further details check out the `documentation <https://danschef.gitext-pages.gfz-potsdam.de/arosics/doc/>`__!
+For further details check out the `documentation <https://danschef.git-pages.gfz-potsdam.de/arosics/doc/>`__!
 
 Credits
 -------
@@ -101,7 +101,7 @@ documentation have been provided by NASA (Landsat-8) and ESA (Sentinel-2).
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
-.. _coverage: https://danschef.gitext-pages.gfz-potsdam.de/arosics/coverage/
-.. _nosetests: https://danschef.gitext-pages.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
+.. _coverage: https://danschef.git-pages.gfz-potsdam.de/arosics/coverage/
+.. _nosetests: https://danschef.git-pages.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
 .. _conda: https://conda.io/docs/
 

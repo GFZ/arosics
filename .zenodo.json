@@ -23,13 +23,13 @@
     "related_identifiers": [
         {
             "scheme": "url",
-            "identifier": "https://gitext.gfz-potsdam.de/danschef/arosics",
+            "identifier": "https://git.gfz-potsdam.de/danschef/arosics",
             "relation": "isSupplementTo",
             "resource_type": "software"
         },
         {
             "scheme": "url",
-            "identifier": "https://danschef.gitext-pages.gfz-potsdam.de/arosics/doc",
+            "identifier": "https://danschef.git-pages.gfz-potsdam.de/arosics/doc",
             "relation": "isDocumentedBy",
             "resource_type": "publication-softwaredocumentation"
         },
