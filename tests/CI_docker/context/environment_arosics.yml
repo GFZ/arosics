@@ -18,7 +18,7 @@ dependencies:
   - pandas
   - pyfftw
   - pykrige
-  - py_tools_ds>=0.15.10
+  - py-tools-ds>=0.15.10
   - scikit-image>=0.16.0
   - shapely
 
