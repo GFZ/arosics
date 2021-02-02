@@ -45,7 +45,7 @@ The input images may have different spatial resolutions. Any needed resampling o
 
 .. attention::
 
-    Please try avoid any spatial resampling of the input images before running AROSICS. It might affect
+    Please try to avoid any spatial resampling of the input images before running AROSICS. It might affect
     the accuracy of the computed misregistration.
 
 

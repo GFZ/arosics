@@ -35,7 +35,7 @@ read -p "Please enter gitlab runner name: " runner_name
 echo "New gitlab runner image will named  ${gitlab_runner}"
 # NOTE: In case of locally stored images (like here), the docker pull policy 'never' must be used
 #       (see https://docs.gitlab.com/runner/executors/docker.html#how-pull-policies-work).
-docker exec -it ${gitlab_runner} /bin/bash -c "\
+docker exec -it ${gitlab_runner} /bin/bash -c    "\
 export RUNNER_EXECUTOR=docker && \
 gitlab-ci-multi-runner register \
   --non-interactive \
