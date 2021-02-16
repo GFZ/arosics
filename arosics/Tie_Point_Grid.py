@@ -670,10 +670,10 @@ class Tie_Point_Grid(object):
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         # replace boolean values (cannot be written)
-        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not bool but np.object
         GDF2pass = GDF2pass.replace(True, 1).copy()
         for col in GDF2pass.columns:
-            if GDF2pass[col].dtype == np.bool:
+            if GDF2pass[col].dtype == bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)
 
         path_out = path_out if path_out else \
