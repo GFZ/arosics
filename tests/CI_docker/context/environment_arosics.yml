@@ -40,4 +40,6 @@ dependencies:
     - pylint
     - rednose
     - sphinx-argparse
+    - sphinx-autodoc-typehints
+    - sphinx_rtd_theme
     - urlchecker

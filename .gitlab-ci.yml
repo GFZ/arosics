@@ -14,15 +14,15 @@ test_arosics:
     - source /root/miniconda3/bin/activate ci_env
 
     # update py_tools_ds and geoarray
-    - conda update -y -q -c conda-forge py-tools-ds
-    - conda update -y -q -c conda-forge geoarray
+    - pip install -U py_tools_ds -q
+    - pip install -U geoarray -q
 
     # run tests
     - make nosetests
 
     # create the docs
-    - pip install sphinx_rtd_theme  # Read-the-docs theme for SPHINX documentation
-    - pip install sphinx-autodoc-typehints
+    - pip install -U sphinx_rtd_theme -q  # TODO remove as soon as CI runner is rebuilt
+    - pip install -U sphinx-autodoc-typehints -q  # TODO remove as soon as CI runner is rebuilt
     - make docs
   artifacts:
     paths:
