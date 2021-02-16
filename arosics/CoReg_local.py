@@ -37,6 +37,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from matplotlib import pyplot as plt  # noqa F401
+    from geopandas import GeoDataFrame  # noqa F401
 
 from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
@@ -311,6 +312,7 @@ class COREG_LOCAL(object):
 
     @property
     def tiepoint_grid(self):
+        # type: () -> Tie_Point_Grid
         if self._tiepoint_grid:
             return self._tiepoint_grid
         else:
@@ -319,6 +321,7 @@ class COREG_LOCAL(object):
 
     @property
     def CoRegPoints_table(self):
+        # type: () -> GeoDataFrame
         """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
 
         Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
