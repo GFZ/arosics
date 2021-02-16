@@ -13,11 +13,9 @@ test_arosics:
   script:
     - source /root/miniconda3/bin/activate ci_env
 
-    - conda install -c conda-forge cartopy  # FIXME remove as soon as docker container is rebuilt
-
     # update py_tools_ds and geoarray
-    - pip install "py_tools_ds>=0.15.10"
-    - pip install "geoarray>=0.9.0"
+    - conda update -y -q -c conda-forge py_tools_ds
+    - conda update -y -q -c conda-forge geoarray
 
     # run tests
     - make nosetests

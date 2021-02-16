@@ -46,7 +46,7 @@ from geoarray import GeoArray
 from py_tools_ds.convenience.object_oriented import alias_property
 from py_tools_ds.geo.coord_calc import get_corner_coordinates
 from py_tools_ds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
-from py_tools_ds.geo.projection import prj_equal, get_proj4info
+from py_tools_ds.geo.projection import prj_equal
 from py_tools_ds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
 from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid, is_coord_grid_equal
 from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
@@ -450,9 +450,15 @@ class COREG(object):
         self.shift = GeoArray_CoReg(self.params, 'shift')
 
         if not prj_equal(self.ref.prj, self.shift.prj):
+            from pyproj import CRS
+
+            def get_prjdesc(proj):
+                crs = CRS.from_user_input(proj)
+                return "%s (EPSG: %d)" % (crs.name, crs.to_epsg())
+
             raise RuntimeError(
-                'Input projections are not equal. Different projections are currently not supported. Got %s / %s.'
-                % (get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj)))
+                'Input projections are not equal. Different projections are currently not supported. '
+                'Got %s / %s.' % (get_prjdesc(self.ref.prj), get_prjdesc(self.shift.prj)))
 
     def _get_overlap_properties(self):
         overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
