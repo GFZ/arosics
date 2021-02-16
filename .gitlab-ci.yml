@@ -14,7 +14,7 @@ test_arosics:
     - source /root/miniconda3/bin/activate ci_env
 
     # update py_tools_ds and geoarray
-    - conda update -y -q -c conda-forge py_tools_ds
+    - conda update -y -q -c conda-forge py-tools-ds
     - conda update -y -q -c conda-forge geoarray
 
     # run tests
