@@ -403,7 +403,7 @@ class Tie_Point_Grid(object):
                                      'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
         # merge DataFrames (dtype must be equal to records.dtypes; We need np.object due to None values)
-        GDF = GDF.astype(np.object).merge(records.astype(np.object), on='POINT_ID', how="inner")
+        GDF = GDF.astype(object).merge(records.astype(object), on='POINT_ID', how="inner")
         GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
         GDF.crs = crs  # gets lost when using GDF.astype(np.object), so we have to reassign that
 
@@ -555,8 +555,8 @@ class Tie_Point_Grid(object):
 
             # set title and adjust tick labels
             ax.set_title(title, fontsize=fontsize)
-            [tick.label.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
-            [tick.label.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
+            [tick.label1.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
+            [tick.label1.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
             plt.xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
             plt.ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
 
