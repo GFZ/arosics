@@ -355,7 +355,7 @@ if __name__ == '__main__':
             '#                            AROSICS v%s                         #' % __version__ + '\n'
             '# An Automated and Robust Open-Source Image Co-Registration Software #\n'
             '#                for Multi-Sensor Satellite Data                     #\n'
-            '#          - python implementation by Daniel Scheffler               #\n'
+            '#          - Python implementation by Daniel Scheffler               #\n'
             '======================================================================\n')
         argparser.print_help()
     else:
