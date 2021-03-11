@@ -24,7 +24,6 @@
 import warnings
 import os
 from copy import copy
-from six import PY2
 from typing import TYPE_CHECKING
 
 # custom
@@ -176,9 +175,6 @@ class COREG_LOCAL(object):
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:
             assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
-        if PY2 and (CPUs is None or (isinstance(CPUs, int) and CPUs > 1)):
-            CPUs = 1
-            warnings.warn('Multiprocessing is currently not supported for Python 2. Using singleprocessing.')
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
