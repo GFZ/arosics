@@ -26,6 +26,7 @@ import multiprocessing
 import os
 import warnings
 import time
+from typing import Optional, Union
 
 # custom
 from osgeo import gdal
@@ -47,8 +48,8 @@ from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
 
 __author__ = 'Daniel Scheffler'
 
-global_shared_imref = None
-global_shared_im2shift = None
+global_shared_imref: Optional[Union[GeoArray, str]] = None
+global_shared_im2shift: Optional[Union[GeoArray, str]] = None
 
 
 def mp_initializer(imref, imtgt):
@@ -74,44 +75,74 @@ class Tie_Point_Grid(object):
     See help(Tie_Point_Grid) for documentation!
     """
 
-    def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
-                 tieP_filter_level=3, outlDetect_settings=None, dir_out=None, CPUs=None, progress=True, v=False,
-                 q=False):
+    def __init__(self,
+                 COREG_obj: COREG,
+                 grid_res: float,
+                 max_points: int = None,
+                 outFillVal: int = -9999,
+                 resamp_alg_calc: str = 'cubic',
+                 tieP_filter_level: int = 3,
+                 outlDetect_settings: dict = None,
+                 dir_out: str = None,
+                 CPUs: int = None,
+                 progress: bool = True,
+                 v: bool = False,
+                 q: bool = False):
         """Get an instance of the 'Tie_Point_Grid' class.
 
-        :param COREG_obj(object):       an instance of COREG class
-        :param grid_res:                grid resolution in pixels of the target image (x-direction)
-        :param max_points(int):         maximum number of points used to find coregistration tie points
-                                        NOTE: Points are selected randomly from the given point grid (specified by
-                                        'grid_res'). If the point does not provide enough points, all available points
-                                        are chosen.
-        :param outFillVal(int):         if given the generated tie points grid is filled with this value in case
-                                        no match could be found during co-registration (default: -9999)
-        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
-                                        of spatial shifts
-                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average,
-                                                           mode, max, min, med, q1, q3)
-                                        default: cubic (highly recommended)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 3).
-                                        NOTE: lower levels are also included if a higher level is chosen
-                                            - Level 0: no tie point filtering
-                                            - Level 1: Reliablity filtering - filter all tie points out that have a low
-                                                reliability according to internal tests
-                                            - Level 2: SSIM filtering - filters all tie points out where shift
-                                                correction does not increase image similarity within matching window
-                                                (measured by mean structural similarity index)
-                                            - Level 3: RANSAC outlier detection
-        :param outlDetect_settings      a dictionary with the settings to be passed to
-                                        arosics.TiePointGrid.Tie_Point_Refiner. Available keys: min_reliability,
-                                        rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
-                                        rs_timeout, q. See documentation there.
-        :param dir_out(str):            output directory to be used for all outputs if nothing else is given
-                                        to the individual methods
-        :param CPUs(int):               number of CPUs to use during calculation of tie points grid
-                                        (default: None, which means 'all CPUs available')
-        :param progress(bool):          show progress bars (default: True)
-        :param v(bool):                 verbose mode (default: False)
-        :param q(bool):                 quiet mode (default: False)
+        :param COREG_obj:
+            an instance of COREG class
+
+        :param grid_res:
+            grid resolution in pixels of the target image (x-direction)
+
+        :param max_points:
+            maximum number of points used to find coregistration tie points
+
+            NOTE: Points are selected randomly from the given point grid (specified by 'grid_res'). If the point does
+            not provide enough points, all available points are chosen.
+
+        :param outFillVal:
+            if given the generated tie points grid is filled with this value in case no match could be found during
+            co-registration (default: -9999)
+
+        :param resamp_alg_calc:
+            the resampling algorithm to be used for all warping processes during calculation of spatial shifts
+            (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
+            default: cubic (highly recommended)
+
+        :param tieP_filter_level:
+            filter tie points used for shift correction in different levels (default: 3).
+            NOTE: lower levels are also included if a higher level is chosen
+
+            - Level 0: no tie point filtering
+            - Level 1: Reliablity filtering
+                       - filter all tie points out that have a low reliability according to internal tests
+            - Level 2: SSIM filtering
+                       - filters all tie points out where shift correction does not increase image similarity within
+                         matching window (measured by mean structural similarity index)
+            - Level 3: RANSAC outlier detection
+
+        :param outlDetect_settings:
+            a dictionary with the settings to be passed to arosics.TiePointGrid.Tie_Point_Refiner.
+            Available keys: min_reliability, rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
+            rs_timeout, q. See documentation there.
+
+        :param dir_out:
+            output directory to be used for all outputs if nothing else is given to the individual methods
+
+        :param CPUs:
+            number of CPUs to use during calculation of tie points grid
+            (default: None, which means 'all CPUs available')
+
+        :param progress:
+            show progress bars (default: True)
+
+        :param v:
+            verbose mode (default: False)
+
+        :param q:
+            quiet mode (default: False)
         """
         if not isinstance(COREG_obj, COREG):
             raise ValueError("'COREG_obj' must be an instance of COREG class.")
@@ -387,7 +418,7 @@ class Tie_Point_Grid(object):
 
             if not self.q:
                 print("Calculating tie point grid (%s points) on 1 CPU core..." % len(GDF))
-            results = np.empty((len(geomPoints), 14), np.object)
+            results = np.empty((len(geomPoints), 14), object)
             bar = ProgressBar(prefix='\tprogress:')
             for i, coreg_kwargs in enumerate(list_coreg_kwargs):
                 if self.progress:
@@ -431,8 +462,7 @@ class Tie_Point_Grid(object):
 
         return self.CoRegPoints_table
 
-    def calc_rmse(self, include_outliers=False):
-        # type: (bool) -> float
+    def calc_rmse(self, include_outliers: bool = False) -> float:
         """Calculate root mean square error of absolute shifts from the tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
@@ -448,8 +478,10 @@ class Tie_Point_Grid(object):
 
         return np.sqrt(sum(shifts_sq) / len(shifts_sq))
 
-    def calc_overall_ssim(self, include_outliers=False, after_correction=True):
-        # type: (bool, bool) -> float
+    def calc_overall_ssim(self,
+                          include_outliers: bool = False,
+                          after_correction: bool = True
+                          ) -> float:
         """Calculate the median value of all SSIM values contained in tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
@@ -466,9 +498,16 @@ class Tie_Point_Grid(object):
 
         return float(np.median(ssim_col))
 
-    def plot_shift_distribution(self, include_outliers=True, unit='m', interactive=False, figsize=None, xlim=None,
-                                ylim=None, fontsize=12, title='shift distribution'):
-        # type: (bool, str, bool, tuple, list, list, int, str) -> tuple
+    def plot_shift_distribution(self,
+                                include_outliers: bool = True,
+                                unit: str = 'm',
+                                interactive: bool = False,
+                                figsize: tuple = None,
+                                xlim: list = None,
+                                ylim: list = None,
+                                fontsize: int = 12,
+                                title: str = 'shift distribution'
+                                ) -> tuple:
         """Create a 2D scatterplot containing the distribution of calculated X/Y-shifts.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
@@ -647,8 +686,11 @@ class Tie_Point_Grid(object):
             lines[i, :] = self.CoRegPoints_table[self.CoRegPoints_table['POINT_ID'] == PID]
         return lines
 
-    def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):
-        # type: (str, bool, str) -> None
+    def to_PointShapefile(self,
+                          path_out: str = None,
+                          skip_nodata: bool = True,
+                          skip_nodata_col: str = 'ABS_SHIFT'
+                          ) -> None:
         """Write the calculated tie points grid to a point shapefile (e.g., for visualization by a GIS software).
 
         NOTE: The shapefile uses Tie_Point_Grid.CoRegPoints_table as attribute table.
@@ -709,17 +751,16 @@ class Tie_Point_Grid(object):
                   prj=self.COREG_obj.shift.prj,
                   attrDict=attr_dicts)
 
-    def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
-        # type: (str, str, str) -> GeoArray
+    def to_vectorfield(self, path_out: str = None, fmt: str = None, mode: str = 'md') -> GeoArray:
         """Save the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield.
 
         NOTE: For example ArcGIS is able to visualize such 2-band raster files as a vectorfield.
 
-        :param path_out:    <str> the output path. If not given, it is automatically defined.
-        :param fmt:         <str> output raster format string
-        :param mode:        <str> The mode how the output is written ('uv' or 'md'; default: 'md')
-                                    'uv': outputs X-/Y shifts
-                                    'md': outputs magnitude and direction
+        :param path_out:    the output path. If not given, it is automatically defined.
+        :param fmt:         output raster format string
+        :param mode:        The mode how the output is written ('uv' or 'md'; default: 'md')
+                            - 'uv': outputs X-/Y shifts
+                            - 'md': outputs magnitude and direction
         """
         assert mode in ['uv', 'md'], "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' " \
                                      "(outputs magnitude and direction)'. Got %s." % mode
@@ -828,23 +869,29 @@ class Tie_Point_Grid(object):
 class Tie_Point_Refiner(object):
     """A class for performing outlier detection."""
 
-    def __init__(self, GDF, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
-                 rs_exclude_previous_outliers=True, rs_timeout=20, q=False):
+    def __init__(self, GDF,
+                 min_reliability=60,
+                 rs_max_outlier: float = 10,
+                 rs_tolerance: float = 2.5,
+                 rs_max_iter: int = 15,
+                 rs_exclude_previous_outliers: bool = True,
+                 rs_timeout: float = 20,
+                 q: bool = False):
         """Get an instance of Tie_Point_Refiner.
 
         :param GDF:                             GeoDataFrame like TiePointGrid.CoRegPoints_table containing all tie
                                                 points to be filtered and the corresponding metadata
-        :param min_reliability:                 <float, int> minimum threshold for previously computed tie X/Y shift
+        :param min_reliability:                 minimum threshold for previously computed tie X/Y shift
                                                 reliability (default: 60%)
-        :param rs_max_outlier:                  <float, int> RANSAC: maximum percentage of outliers to be detected
+        :param rs_max_outlier:                  RANSAC: maximum percentage of outliers to be detected
                                                 (default: 10%)
-        :param rs_tolerance:                    <float, int> RANSAC: percentage tolerance for max_outlier_percentage
+        :param rs_tolerance:                    RANSAC: percentage tolerance for max_outlier_percentage
                                                 (default: 2.5%)
-        :param rs_max_iter:                     <int> RANSAC: maximum iterations for finding the best RANSAC threshold
+        :param rs_max_iter:                     RANSAC: maximum iterations for finding the best RANSAC threshold
                                                 (default: 15)
-        :param rs_exclude_previous_outliers:    <bool> RANSAC: whether to exclude points that have been flagged as
+        :param rs_exclude_previous_outliers:    RANSAC: whether to exclude points that have been flagged as
                                                 outlier by earlier filtering (default:True)
-        :param rs_timeout:                      <float, int> RANSAC: timeout for iteration loop in seconds (default: 20)
+        :param rs_timeout:                      RANSAC: timeout for iteration loop in seconds (default: 20)
 
         :param q:
         """
@@ -864,13 +911,14 @@ class Tie_Point_Refiner(object):
 
         :param level:   tie point filter level (default: 3).
                         NOTE: lower levels are also included if a higher level is chosen
-                            - Level 0: no tie point filtering
-                            - Level 1: Reliablity filtering - filter all tie points out that have a low
-                                reliability according to internal tests
-                            - Level 2: SSIM filtering - filters all tie points out where shift
-                                correction does not increase image similarity within matching window
-                                (measured by mean structural similarity index)
-                            - Level 3: RANSAC outlier detection
+
+                        - Level 0: no tie point filtering
+                        - Level 1: Reliablity filtering
+                                   - filter all tie points out that have a low reliability according to internal tests
+                        - Level 2: SSIM filtering
+                                   - filters all tie points out where shift correction does not increase image
+                                     similarity within matching window (measured by mean structural similarity index)
+                        - Level 3: RANSAC outlier detection
 
         :return:
         """

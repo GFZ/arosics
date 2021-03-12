@@ -24,8 +24,8 @@
 import warnings
 import os
 from copy import copy
-from six import PY2
-from typing import TYPE_CHECKING
+from typing import Tuple, Union, Optional
+from collections import OrderedDict
 
 # custom
 from osgeo import gdal
@@ -35,9 +35,8 @@ except ImportError:
     pyfftw = None
 import numpy as np
 
-if TYPE_CHECKING:
-    from matplotlib import pyplot as plt  # noqa F401
-    from geopandas import GeoDataFrame  # noqa F401
+from matplotlib import pyplot as plt  # noqa F401
+from geopandas import GeoDataFrame  # noqa F401
 
 from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
@@ -60,115 +59,205 @@ class COREG_LOCAL(object):
     See help(COREG_LOCAL) for documentation.
     """
 
-    def __init__(self, im_ref, im_tgt, grid_res, max_points=None, window_size=(256, 256), path_out=None, fmt_out='ENVI',
-                 out_crea_options=None, projectDir=None, r_b4match=1, s_b4match=1, max_iter=5, max_shift=5,
-                 tieP_filter_level=3, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, align_grids=True,
-                 match_gsd=False, out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
-                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
-                 outFillVal=-9999, nodata=(None, None), calc_corners=True, binary_ws=True, force_quadratic_win=True,
-                 mask_baddata_ref=None, mask_baddata_tgt=None, CPUs=None, progress=True, v=False, q=False,
-                 ignore_errors=True):
-        """Get an instance of COREG_LOCAL.
+    def __init__(self,
+                 im_ref: Union[GeoArray, str],
+                 im_tgt: Union[GeoArray, str],
+                 grid_res: float,
+                 max_points: int = None,
+                 window_size: Tuple[int, int] = (256, 256),
+                 path_out: str = None,
+                 fmt_out: str = 'ENVI',
+                 out_crea_options: list = None,
+                 projectDir: str = None,
+                 r_b4match: int = 1,
+                 s_b4match: int = 1,
+                 max_iter: int = 5,
+                 max_shift: int = 5,
+                 tieP_filter_level: int = 3,
+                 min_reliability: float = 60,
+                 rs_max_outlier: float = 10,
+                 rs_tolerance: float = 2.5,
+                 align_grids: bool = True,
+                 match_gsd: bool = False,
+                 out_gsd: float = None,
+                 target_xyGrid=None,
+                 resamp_alg_deshift: str = 'cubic',
+                 resamp_alg_calc: str = 'cubic',
+                 footprint_poly_ref: str = None,
+                 footprint_poly_tgt: str = None,
+                 data_corners_ref: list = None,
+                 data_corners_tgt: list = None,
+                 outFillVal: int = -9999,
+                 nodata: Tuple[int, int] = (None, None),
+                 calc_corners: bool = True,
+                 binary_ws: bool = True,
+                 force_quadratic_win: bool = True,
+                 mask_baddata_ref: Union[GeoArray, str] = None,
+                 mask_baddata_tgt: Union[GeoArray, str] = None,
+                 CPUs: int = None,
+                 progress: bool = True,
+                 v: bool = False,
+                 q: bool = False,
+                 ignore_errors: bool = True
+                 ) -> None:
+        """
+        Get an instance of COREG_LOCAL.
 
-        :param im_ref(str | GeoArray):  source path of reference image (any GDAL compatible image format is supported)
-        :param im_tgt(str | GeoArray):  source path of image to be shifted (any GDAL compatible image format is
-                                        supported)
-        :param grid_res:                tie point grid resolution in pixels of the target image (x-direction)
-        :param max_points(int):         maximum number of points used to find coregistration tie points
-                                        NOTE: Points are selected randomly from the given point grid (specified by
-                                        'grid_res'). If the point does not provide enough points, all available points
-                                        are chosen.
-        :param window_size(tuple):      custom matching window size [pixels] (default: (256,256))
-        :param path_out(str):           target path of the coregistered image
-                                            - if None (default), no output is written to disk
-                                            - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
-        :param fmt_out(str):            raster file format for output file. ignored if path_out is None. Can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to
-                                        http://www.gdal.org/formats_list.html to get a full list of supported formats.
-        :param out_crea_options(list):  GDAL creation options for the output image,
-                                        e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
-        :param projectDir(str):         name of a project directory where to store all the output results. If given,
-                                        name is inserted into all automatically generated output paths.
-        :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
-        :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
-        :param max_iter(int):           maximum number of iterations for matching (default: 5)
-        :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 3).
-                                        NOTE: lower levels are also included if a higher level is chosen
-                                            - Level 0: no tie point filtering
-                                            - Level 1: Reliablity filtering - filter all tie points out that have a low
-                                                reliability according to internal tests
-                                            - Level 2: SSIM filtering - filters all tie points out where shift
-                                                correction does not increase image similarity within matching window
-                                                (measured by mean structural similarity index)
-                                            - Level 3: RANSAC outlier detection
-        :param min_reliability(float):  Tie point filtering: minimum reliability threshold, below which tie points are
-                                        marked as false-positives (default: 60%)
-                                        - accepts values between 0% (no reliability) and 100 % (perfect reliability)
-                                        HINT: decrease this value in case of poor signal-to-noise ratio of your input
-                                              data
-        :param rs_max_outlier(float):   RANSAC tie point filtering: proportion of expected outliers (default: 10%)
-        :param rs_tolerance(float):     RANSAC tie point filtering: percentage tolerance for max_outlier_percentage
-                                                (default: 2.5%)
-        :param out_gsd (float):         output pixel size in units of the reference coordinate system (default = pixel
-                                        size of the input array), given values are overridden by match_gsd=True
-        :param align_grids (bool):      True: align the input coordinate grid to the reference (does not affect the
-                                        output pixel size as long as input and output pixel sizes are compatible
-                                        (5:30 or 10:30 but not 4:30), default = True
-        :param match_gsd (bool):        True: match the input pixel size to the reference pixel size,
-                                        default = False
-        :param target_xyGrid(list):     a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
-                                        This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
-        :param resamp_alg_deshift(str)  the resampling algorithm to be used for shift correction (if neccessary)
-                                        valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average,
-                                                          mode, max, min, med, q1, q3
-                                        default: cubic
-        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
-                                        of spatial shifts
-                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average,
-                                                           mode, max, min, med, q1, q3)
-                                        default: cubic (highly recommended)
-        :param footprint_poly_ref(str): footprint polygon of the reference image (WKT string or
-                                        shapely.geometry.Polygon),
-                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
-                                                        299999 6000000))'
-        :param footprint_poly_tgt(str): footprint polygon of the image to be shifted (WKT string or
-                                        shapely.geometry.Polygon)
-                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
-                                                        299999 6000000))'
-        :param data_corners_ref(list):  map coordinates of data corners within reference image.
-                                        ignored if footprint_poly_ref is given.
-        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted.
-                                        ignored if footprint_poly_tgt is given.
-        :param outFillVal(int):         if given the generated tie point grid is filled with this value in case
-                                        no match could be found during co-registration (default: -9999)
-        :param nodata(tuple):           no data values for reference image and image to be shifted
-        :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
-                                        matching window position within the actual image overlap
-                                        (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are
-                                        given)
-        :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: True)
-        :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
-        :param mask_baddata_ref(str | BadDataMask):
-                                        path to a 2D boolean mask file (or an instance of BadDataMask) for the
-                                        reference image where all bad data pixels (e.g. clouds) are marked with
-                                        True and the remaining pixels with False. Must have the same geographic
-                                        extent and projection like 'im_ref'. The mask is used to check if the
-                                        chosen matching window position is valid in the sense of useful data.
-                                        Otherwise this window position is rejected.
-        :param mask_baddata_tgt(str | BadDataMask):
-                                        path to a 2D boolean mask file (or an instance of BadDataMask) for the
-                                        image to be shifted where all bad data pixels (e.g. clouds) are marked
-                                        with True and the remaining pixels with False. Must have the same
-                                        geographic extent and projection like 'im_ref'. The mask is used to
-                                        check if the chosen matching window position is valid in the sense of
-                                        useful data. Otherwise this window position is rejected.
-        :param CPUs(int):               number of CPUs to use during calculation of tie point grid
-                                        (default: None, which means 'all CPUs available')
-        :param progress(bool):          show progress bars (default: True)
-        :param v(bool):                 verbose mode (default: False)
-        :param q(bool):                 quiet mode (default: False)
-        :param ignore_errors(bool):     Useful for batch processing. (default: False)
+        :param im_ref:
+            source path of reference image (any GDAL compatible image format is supported)
+
+        :param im_tgt:
+            source path of image to be shifted (any GDAL compatible image format is supported)
+
+        :param grid_res:
+            tie point grid resolution in pixels of the target image (x-direction)
+
+        :param max_points:
+            maximum number of points used to find coregistration tie points
+
+            NOTE: Points are selected randomly from the given point grid (specified by 'grid_res').
+                  If the point does not provide enough points, all available points are chosen.
+
+        :param window_size:
+            custom matching window size [pixels] (default: (256,256))
+
+        :param path_out:
+            target path of the coregistered image
+            - if None (default), no output is written to disk
+            - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
+
+        :param fmt_out:
+            raster file format for output file. ignored if path_out is None. Can be any GDAL compatible raster file
+            format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to http://www.gdal.org/formats_list.html to get a full
+            list of supported formats.
+
+        :param out_crea_options:
+            GDAL creation options for the output image, e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
+
+        :param projectDir:
+            name of a project directory where to store all the output results. If given, name is inserted into all
+            automatically generated output paths.
+
+        :param r_b4match:
+            band of reference image to be used for matching (starts with 1; default: 1)
+
+        :param s_b4match:
+            band of shift image to be used for matching (starts with 1; default: 1)
+
+        :param max_iter:
+            maximum number of iterations for matching (default: 5)
+
+        :param max_shift:
+            maximum shift distance in reference image pixel units (default: 5 px)
+
+        :param tieP_filter_level:
+            filter tie points used for shift correction in different levels (default: 3).
+            NOTE: lower levels are also included if a higher level is chosen
+
+            - Level 0: no tie point filtering
+            - Level 1: Reliablity filtering
+                       - filter all tie points out that have a low reliability according to internal tests
+            - Level 2: SSIM filtering
+                       - filters all tie points out where shift correction does not increase image similarity within
+                         matching window (measured by mean structural similarity index)
+            - Level 3: RANSAC outlier detection
+
+        :param min_reliability:
+            Tie point filtering: minimum reliability threshold, below which tie points are marked as false-positives
+            (default: 60%)
+            - accepts values between 0% (no reliability) and 100 % (perfect reliability)
+            HINT: decrease this value in case of poor signal-to-noise ratio of your input data
+
+        :param rs_max_outlier:
+            RANSAC tie point filtering: proportion of expected outliers (default: 10%)
+
+        :param rs_tolerance:
+            RANSAC tie point filtering: percentage tolerance for max_outlier_percentage (default: 2.5%)
+
+        :param align_grids:
+            True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = True
+
+        :param match_gsd:
+            True: match the input pixel size to the reference pixel size,
+            default = False
+
+        :param out_gsd:
+            output pixel size in units of the reference coordinate system (default = pixel size of the input array),
+            given values are overridden by match_gsd=True
+
+        :param target_xyGrid:
+            a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
+            This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
+
+        :param resamp_alg_deshift:
+            the resampling algorithm to be used for shift correction (if neccessary)
+            valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
+            (default: cubic)
+
+        :param resamp_alg_calc:
+            the resampling algorithm to be used for all warping processes during calculation of spatial shifts
+            valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
+            (default: cubic (highly recommended))
+
+        :param footprint_poly_ref:
+            footprint polygon of the reference image (WKT string or shapely.geometry.Polygon),
+            e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000, 299999 6000000))'
+
+        :param footprint_poly_tgt:
+            footprint polygon of the image to be shifted (WKT string or shapely.geometry.Polygon)
+            e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000, 299999 6000000))'
+
+        :param data_corners_ref:
+            map coordinates of data corners within reference image. ignored if footprint_poly_ref is given.
+
+        :param data_corners_tgt:
+            map coordinates of data corners within image to be shifted. ignored if footprint_poly_tgt is given.
+
+        :param outFillVal:
+            if given the generated tie point grid is filled with this value in case no match could be found during
+            co-registration (default: -9999)
+
+        :param nodata:
+            no data values for reference image and image to be shifted
+
+        :param calc_corners:
+            calculate true positions of the dataset corners in order to get a useful matching window position within
+            the actual image overlap
+            (default: True; deactivated if 'data_corners_im0' and 'data_corners_im1' are given)
+
+        :param binary_ws:
+            use binary X/Y dimensions for the matching window (default: True)
+
+        :param force_quadratic_win:
+            force a quadratic matching window (default: 1)
+
+        :param mask_baddata_ref:
+            path to a 2D boolean mask file (or an instance of BadDataMask) for the reference image where all bad data
+            pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
+            geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
+            position is valid in the sense of useful data. Otherwise this window position is rejected.
+
+        :param mask_baddata_tgt:
+            path to a 2D boolean mask file (or an instance of BadDataMask) for the image to be shifted where all bad
+            data pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
+            geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
+            position is valid in the sense of useful data. Otherwise this window position is rejected.
+
+        :param CPUs:
+            number of CPUs to use during calculation of tie point grid (default: None, which means 'all CPUs available')
+
+        :param progress:
+            show progress bars (default: True)
+
+        :param v:
+            verbose mode (default: False)
+
+        :param q:
+            quiet mode (default: False)
+
+        :param ignore_errors:
+            Useful for batch processing. (default: False)
         """
         # assertions / input validation
         assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
@@ -176,9 +265,6 @@ class COREG_LOCAL(object):
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:
             assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
-        if PY2 and (CPUs is None or (isinstance(CPUs, int) and CPUs > 1)):
-            CPUs = 1
-            warnings.warn('Multiprocessing is currently not supported for Python 2. Using singleprocessing.')
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
@@ -274,7 +360,7 @@ class COREG_LOCAL(object):
         self.deshift_results = None  # set by self.correct_shifts()
         self._success = None  # set by self.success property
 
-    def check_if_fftw_works(self):
+    def check_if_fftw_works(self) -> None:
         """Assign the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output."""
         # calculate global shift once in order to check is fftw works
         try:
@@ -293,7 +379,7 @@ class COREG_LOCAL(object):
         self.COREG_obj.v = self.v
 
     @property
-    def projectDir(self):
+    def projectDir(self) -> str:
         if self._projectDir:
             if len(os.path.split(self._projectDir)) == 1:
                 return os.path.abspath(os.path.join(os.path.curdir, self._projectDir))
@@ -311,8 +397,7 @@ class COREG_LOCAL(object):
             return self._projectDir
 
     @property
-    def tiepoint_grid(self):
-        # type: () -> Tie_Point_Grid
+    def tiepoint_grid(self) -> Tie_Point_Grid:
         if self._tiepoint_grid:
             return self._tiepoint_grid
         else:
@@ -320,8 +405,7 @@ class COREG_LOCAL(object):
             return self._tiepoint_grid
 
     @property
-    def CoRegPoints_table(self):
-        # type: () -> GeoDataFrame
+    def CoRegPoints_table(self) -> GeoDataFrame:
         """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
 
         Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
@@ -330,11 +414,11 @@ class COREG_LOCAL(object):
         return self.tiepoint_grid.CoRegPoints_table
 
     @property
-    def success(self):
+    def success(self) -> bool:
         self._success = self.tiepoint_grid.GCPList != []
         return self._success
 
-    def calculate_spatial_shifts(self):
+    def calculate_spatial_shifts(self) -> None:
         self._tiepoint_grid = \
             Tie_Point_Grid(self.COREG_obj, self.grid_res,
                            max_points=self.max_points,
@@ -363,33 +447,43 @@ class COREG_LOCAL(object):
         """
         return self.COREG_obj.show_image_footprints()
 
-    def view_CoRegPoints(self, shapes2plot='points', attribute2plot='ABS_SHIFT', cmap=None, exclude_fillVals=True,
-                         backgroundIm='tgt', hide_filtered=True, figsize=None, title='', vector_scale=1.,
-                         savefigPath='', savefigDPI=96, showFig=True, vmin=None, vmax=None, return_map=False):
-        # type: (str, str, plt.cm, bool, str, bool, tuple, str, float, str, int, bool, float, float, bool) -> ...
+    def view_CoRegPoints(self,
+                         shapes2plot: str = 'points',
+                         attribute2plot: str = 'ABS_SHIFT',
+                         cmap: plt.cm = None,
+                         exclude_fillVals: bool = True,
+                         backgroundIm: str = 'tgt',
+                         hide_filtered: bool = True,
+                         figsize: tuple = None,
+                         title: str = '',
+                         vector_scale: float = 1.,
+                         savefigPath: str = '',
+                         savefigDPI: int = 96,
+                         showFig: bool = True,
+                         vmin: float = None,
+                         vmax: float = None,
+                         return_map: bool = False
+                         ) -> Optional[Tuple]:
         """
         Show a map of the calculated tie point grid with the target image as background.
 
-        :param shapes2plot:         <str> 'points': plot points representing values of 'attribute2plot' onto the map
-                                          'vectors': plot shift vectors onto the map
-        :param attribute2plot:      <str> the attribute of the tie point grid to be shown (default: 'ABS_SHIFT')
-        :param cmap:                <plt.cm.<colormap>> a custom color map to be applied to the plotted grid points
-                                                        (default: 'RdYlGn_r')
-        :param exclude_fillVals:    <bool> whether to exclude those points of the grid where spatial shift detection
-                                    failed
-        :param backgroundIm:        <str> whether to use the target or the reference image as map background. Possible
-                                          options are 'ref' and 'tgt' (default: 'tgt')
-        :param hide_filtered:       <bool> hide all points that have been filtered out according to tie point filter
-                                    level
-        :param figsize:             <tuple> size of the figure to be viewed, e.g. (10, 10)
-        :param title:               <str> plot title
-        :param vector_scale:        <float> scale factor for shift vector length (default: 1 -> no scaling)
+        :param shapes2plot:         'points': plot points representing values of 'attribute2plot' onto the map
+                                    'vectors': plot shift vectors onto the map
+        :param attribute2plot:      the attribute of the tie point grid to be shown (default: 'ABS_SHIFT')
+        :param cmap:                a custom color map to be applied to the plotted grid points (default: 'RdYlGn_r')
+        :param exclude_fillVals:    whether to exclude those points of the grid where spatial shift detection failed
+        :param backgroundIm:        whether to use the target or the reference image as map background. Possible
+                                    options are 'ref' and 'tgt' (default: 'tgt')
+        :param hide_filtered:       hide all points that have been filtered out according to tie point filter level
+        :param figsize:             size of the figure to be viewed, e.g. (10, 10)
+        :param title:               plot title
+        :param vector_scale:        scale factor for shift vector length (default: 1 -> no scaling)
         :param savefigPath:
         :param savefigDPI:
-        :param showFig:             <bool> whether to show or to hide the figure
+        :param showFig:             whether to show or to hide the figure
         :param vmin:
         :param vmax:
-        :param return_map           <bool
+        :param return_map:
         :return:
         """
         from matplotlib import pyplot as plt  # noqa
@@ -563,7 +657,7 @@ class COREG_LOCAL(object):
         else:
             plt.close(fig)
 
-    def view_CoRegPoints_folium(self, attribute2plot='ABS_SHIFT'):
+    def view_CoRegPoints_folium(self, attribute2plot: str = 'ABS_SHIFT'):
         warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
         assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
@@ -604,7 +698,7 @@ class COREG_LOCAL(object):
 
         return map_osm
 
-    def _get_updated_map_info_meanShifts(self):
+    def _get_updated_map_info_meanShifts(self) -> list:
         """Return the updated map info of the target image, shifted on the basis of the mean X/Y shifts."""
         original_map_info = geotransform2mapinfo(self.im2shift.gt, self.im2shift.prj)
         updated_map_info = copy(original_map_info)
@@ -613,7 +707,7 @@ class COREG_LOCAL(object):
         return updated_map_info
 
     @property
-    def coreg_info(self):
+    def coreg_info(self) -> dict:
         """Return a dictionary containing everthing to correct the detected local displacements of the target image."""
         if self._coreg_info:
             return self._coreg_info
@@ -640,14 +734,18 @@ class COREG_LOCAL(object):
             }
             return self.coreg_info
 
-    def correct_shifts(self, max_GCP_count=None, cliptoextent=False, min_points_local_corr=5):
+    def correct_shifts(self,
+                       max_GCP_count: int = None,
+                       cliptoextent: bool = False,
+                       min_points_local_corr: int = 5
+                       ) -> OrderedDict:
         """Perform a local shift correction using all points from the previously calculated tie point grid.
 
         NOTE: Only valid matches are used as GCP points.
 
-        :param max_GCP_count: <int> maximum number of GCPs to use
-        :param cliptoextent:  <bool> whether to clip the output image to its real extent
-        :param min_points_local_corr:   <int> number of valid tie points, below which a global shift correction is
+        :param max_GCP_count: maximum number of GCPs to use
+        :param cliptoextent:  whether to clip the output image to its real extent
+        :param min_points_local_corr:   number of valid tie points, below which a global shift correction is
                                         performed instead of a local correction (global X/Y shift is then computed as
                                         the mean shift of the remaining points)(default: 5 tie points)
         :return:
