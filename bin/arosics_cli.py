@@ -29,7 +29,8 @@ import time
 import sys
 import warnings
 import argparse
-
+from matplotlib import pyplot as plt
+plt.plot
 from arosics import COREG, COREG_LOCAL, __version__
 
 __author__ = "Daniel Scheffler"
