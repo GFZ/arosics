@@ -116,7 +116,7 @@ class COREG_LOCAL(object):
             maximum number of points used to find coregistration tie points
 
             NOTE: Points are selected randomly from the given point grid (specified by 'grid_res').
-                  If the point does not provide enough points, all available points are chosen.
+                  If the point grid does not provide enough points, all available points are chosen.
 
         :param window_size:
             custom matching window size [pixels] (default: (256,256))
