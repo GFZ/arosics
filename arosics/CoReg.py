@@ -562,7 +562,7 @@ class COREG(object):
     def equalize_pixGrids(self) -> None:
         """Equalize image grids and projections of reference and target image (align target to reference)."""
         if not (prj_equal(self.ref.prj, self.shift.prj) and
-                is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs)):
+                is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs, tolerance=1e8)):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
