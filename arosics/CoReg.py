@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2020  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
@@ -1594,16 +1594,33 @@ class COREG(object):
                 self.calculate_spatial_shifts()
 
             self._coreg_info = {
-                'corrected_shifts_px': {'x': self.x_shift_px, 'y': self.y_shift_px},
-                'corrected_shifts_map': {'x': self.x_shift_map, 'y': self.y_shift_map},
-                'original map info': geotransform2mapinfo(self.shift.gt, self.shift.prj),
-                'updated map info': self.updated_map_info,
-                'reference projection': self.ref.prj,
-                'reference geotransform': self.ref.gt,
-                'reference grid': [[self.ref.gt[0], self.ref.gt[0] + self.ref.gt[1]],
-                                   [self.ref.gt[3], self.ref.gt[3] + self.ref.gt[5]]],
-                'reference extent': {'cols': self.ref.xgsd, 'rows': self.ref.ygsd},  # FIXME not needed anymore
-                'success': self.success}
+                'corrected_shifts_px': {
+                    'x': self.x_shift_px,
+                    'y': self.y_shift_px
+                },
+                'corrected_shifts_map': {
+                    'x': self.x_shift_map,
+                    'y': self.y_shift_map
+                },
+                'original map info':
+                    geotransform2mapinfo(self.shift.gt, self.shift.prj),
+                'updated map info':
+                    self.updated_map_info,
+                'reference projection':
+                    self.ref.prj,
+                'reference geotransform':
+                    self.ref.gt,
+                'reference grid': [
+                    [self.ref.gt[0], self.ref.gt[0] + self.ref.gt[1]],
+                    [self.ref.gt[3], self.ref.gt[3] + self.ref.gt[5]]
+                ],
+                'reference extent': {
+                    'cols': self.ref.xgsd,
+                    'rows': self.ref.ygsd
+                },  # FIXME not needed anymore
+                'success':
+                    self.success}
+
             return self._coreg_info
 
     def _get_inverted_coreg_info(self) -> dict:
