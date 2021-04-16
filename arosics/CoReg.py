@@ -955,7 +955,7 @@ class COREG(object):
         match_fullGeoArr = self.ref if self.grid2use == 'ref' else self.shift
         other_fullGeoArr = self.shift if self.grid2use == 'ref' else self.ref
 
-        # matchWin per subset-read einlesen -> self.matchWin.data
+        # read matchWin via subset-read -> self.matchWin.data
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.matchBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= match_fullGeoArr.rows and cE <= match_fullGeoArr.cols, \
@@ -966,7 +966,7 @@ class COREG(object):
                                  nodata=copy(match_fullGeoArr.nodata))
         self.matchWin.imID = match_fullGeoArr.imID
 
-        # otherWin per subset-read einlesen
+        # read otherWin via subset-read
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= other_fullGeoArr.rows and cE <= other_fullGeoArr.cols, \
