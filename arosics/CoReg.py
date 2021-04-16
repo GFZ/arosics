@@ -209,11 +209,11 @@ class COREG(object):
             band of shift image to be used for matching (starts with 1; default: 1)
 
         :param wp:
-            custom matching window position as map values in the same projection like the reference image
+            custom matching window position as (X, Y) map coordinate in the same projection like the reference image
             (default: central position of image overlap)
 
         :param ws:
-            custom matching window size [pixels] (default: (256,256))
+            custom matching window size [pixels] as (X, Y) tuple (default: (256,256))
 
         :param max_iter:
             maximum number of iterations for matching (default: 5)
