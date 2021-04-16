@@ -154,7 +154,7 @@ class COREG(object):
                  out_crea_options: list = None,
                  r_b4match: int = 1,
                  s_b4match: int = 1,
-                 wp: Tuple[int, int] = (None, None),
+                 wp: Tuple[float, float] = (None, None),
                  ws: Tuple[int, int] = (256, 256),
                  max_iter: int = 5,
                  max_shift: int = 5,
