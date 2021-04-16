@@ -692,7 +692,7 @@ class COREG_LOCAL(object):
         folium.GeoJson(points_values).add_to(map_osm)
 
         # add overlap polygon
-        overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.epsg, 4326)
+        overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.prj, 4326)
         gjs = geojson.Feature(geometry=overlapPoly, properties={})
         folium.GeoJson(gjs).add_to(map_osm)
 
