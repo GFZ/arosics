@@ -537,13 +537,10 @@ class COREG(object):
         if not prj_equal(self.ref.prj, self.shift.prj):
             from pyproj import CRS
 
-            def get_prjdesc(proj):
-                crs = CRS.from_user_input(proj)
-                return "%s (EPSG: %d)" % (crs.name, crs.to_epsg())
-
             raise RuntimeError(
                 'Input projections are not equal. Different projections are currently not supported. '
-                'Got %s / %s.' % (get_prjdesc(self.ref.prj), get_prjdesc(self.shift.prj)))
+                'Got %s vs. %s.' % (CRS.from_user_input(self.ref.prj).name,
+                                    CRS.from_user_input(self.shift.prj).name))
 
     def _get_overlap_properties(self) -> None:
         overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
@@ -594,10 +591,10 @@ class COREG(object):
         import folium
         import geojson
 
-        refPoly = reproject_shapelyGeometry(self.ref.poly, self.ref.epsg, 4326)
-        shiftPoly = reproject_shapelyGeometry(self.shift.poly, self.shift.epsg, 4326)
-        overlapPoly = reproject_shapelyGeometry(self.overlap_poly, self.shift.epsg, 4326)
-        matchBoxPoly = reproject_shapelyGeometry(self.matchBox.mapPoly, self.shift.epsg, 4326)
+        refPoly = reproject_shapelyGeometry(self.ref.poly, self.ref.prj, 4326)
+        shiftPoly = reproject_shapelyGeometry(self.shift.poly, self.shift.prj, 4326)
+        overlapPoly = reproject_shapelyGeometry(self.overlap_poly, self.shift.prj, 4326)
+        matchBoxPoly = reproject_shapelyGeometry(self.matchBox.mapPoly, self.shift.prj, 4326)
 
         m = folium.Map(location=tuple(np.array(overlapPoly.centroid.coords.xy).flatten())[::-1])
         for poly in [refPoly, shiftPoly, overlapPoly, matchBoxPoly]:

@@ -408,7 +408,7 @@ class COREG_LOCAL(object):
     def CoRegPoints_table(self) -> GeoDataFrame:
         """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
 
-        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
+        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_MAP','Y_MAP','X_WIN_SIZE', 'Y_WIN_SIZE',
                                      'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE'
         """
         return self.tiepoint_grid.CoRegPoints_table
@@ -692,7 +692,7 @@ class COREG_LOCAL(object):
         folium.GeoJson(points_values).add_to(map_osm)
 
         # add overlap polygon
-        overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.epsg, 4326)
+        overlapPoly = reproject_shapelyGeometry(self.COREG_obj.overlap_poly, self.im2shift.prj, 4326)
         gjs = geojson.Feature(geometry=overlapPoly, properties={})
         folium.GeoJson(gjs).add_to(map_osm)
 

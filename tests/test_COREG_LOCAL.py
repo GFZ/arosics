@@ -119,6 +119,61 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
+        # CRL.view_CoRegPoints()
+
+    def test_calculation_of_tie_point_grid_noepsg(self):
+        """Test local coregistration with a proj. other than LonLat and UTM and a WKT which has no EPSG code (FORCE)."""
+        wkt_noepsg = \
+            """
+            PROJCRS["BU MEaSUREs Lambert Azimuthal Equal Area - SA - V01",
+                BASEGEOGCRS["WGS 84",
+                    DATUM["World Geodetic System 1984",
+                        ELLIPSOID["WGS 84",6378137,298.257223563,
+                            LENGTHUNIT["metre",1]]],
+                    PRIMEM["Greenwich",0,
+                        ANGLEUNIT["degree",0.0174532925199433]],
+                    ID["EPSG",4326]],
+                CONVERSION["unnamed",
+                    METHOD["Lambert Azimuthal Equal Area",
+                        ID["EPSG",9820]],
+                    PARAMETER["Latitude of natural origin",-15,
+                        ANGLEUNIT["degree",0.0174532925199433],
+                        ID["EPSG",8801]],
+                    PARAMETER["Longitude of natural origin",-60,
+                        ANGLEUNIT["degree",0.0174532925199433],
+                        ID["EPSG",8802]],
+                    PARAMETER["False easting",0,
+                        LENGTHUNIT["metre",1],
+                        ID["EPSG",8806]],
+                    PARAMETER["False northing",0,
+                        LENGTHUNIT["metre",1],
+                        ID["EPSG",8807]]],
+                CS[Cartesian,2],
+                    AXIS["easting",east,
+                        ORDER[1],
+                        LENGTHUNIT["metre",1]],
+                    AXIS["northing",north,
+                        ORDER[2],
+                        LENGTHUNIT["metre",1]]]
+            """
+        wkt_noepsg = ' '.join(wkt_noepsg.split())
+
+        # overwrite prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+
+        ref.prj = wkt_noepsg
+        tgt.prj = wkt_noepsg
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+                                           **self.coreg_kwargs))
+        CRL.calculate_spatial_shifts()
+        # CRL.view_CoRegPoints()
 
 
 if __name__ == '__main__':

@@ -37,7 +37,7 @@ from shapely.geometry import Point
 
 # internal modules
 from .CoReg import COREG
-from py_tools_ds.geo.projection import isProjectedOrGeographic, isLocal, get_UTMzone
+from py_tools_ds.geo.projection import isLocal
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
@@ -191,7 +191,7 @@ class Tie_Point_Grid(object):
     def CoRegPoints_table(self):
         """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
 
-        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
+        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_MAP','Y_MAP','X_WIN_SIZE', 'Y_WIN_SIZE',
                                      'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE'
         """
         if self._CoRegPoints_table is not None:
@@ -249,7 +249,7 @@ class Tie_Point_Grid(object):
     def _exclude_bad_XYpos(self, GDF):
         """Exclude all points outside of the image overlap area and where the bad data mask is True (if given).
 
-        :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_UTM' and 'Y_UTM'
+        :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_MAP' and 'Y_MAP'
         :return:
         """
         from skimage.measure import points_in_poly  # import here to avoid static TLS ImportError
@@ -264,7 +264,7 @@ class Tie_Point_Grid(object):
 
         # exclude all points where bad data mask is True (e.g. points on clouds etc.)
         orig_len_GDF = len(GDF)  # length of GDF after dropping all points outside the overlap polygon
-        mapXY = np.array(GDF.loc[:, ['X_UTM', 'Y_UTM']])
+        mapXY = np.array(GDF.loc[:, ['X_MAP', 'Y_MAP']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref.mask_baddata.read_pointData(mapXY) \
             if self.COREG_obj.ref.mask_baddata is not None else False
         GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY) \
@@ -330,30 +330,20 @@ class Tie_Point_Grid(object):
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
-        # create a dataframe containing 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM'
+        # create a dataframe containing 'geometry','POINT_ID','X_IM','Y_IM','X_MAP','Y_MAP'
         # (convert imCoords to mapCoords
         XYarr2PointGeom = np.vectorize(lambda X, Y: Point(X, Y), otypes=[Point])
         geomPoints = np.array(XYarr2PointGeom(self.XY_mapPoints[:, 0], self.XY_mapPoints[:, 1]))
 
-        if isLocal(self.COREG_obj.shift.prj):
-            crs = None
-        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'geographic':
-            crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
-        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'projected':
-            UTMzone = abs(get_UTMzone(prj=self.COREG_obj.shift.prj))
-            south = get_UTMzone(prj=self.COREG_obj.shift.prj) < 0
-            crs = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone, south=south, units='m', no_defs=True)
-            if not south:
-                del crs['south']
-        else:
-            crs = None
+        crs = self.COREG_obj.shift.prj if not isLocal(self.COREG_obj.shift.prj) else None
 
-        GDF = GeoDataFrame(index=range(len(geomPoints)), crs=crs,
-                           columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_UTM', 'Y_UTM'])
+        GDF = GeoDataFrame(index=range(len(geomPoints)),
+                           crs=crs,
+                           columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_MAP', 'Y_MAP'])
         GDF['geometry'] = geomPoints
         GDF['POINT_ID'] = range(len(geomPoints))
         GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
-        GDF.loc[:, ['X_UTM', 'Y_UTM']] = self.XY_mapPoints
+        GDF.loc[:, ['X_MAP', 'Y_MAP']] = self.XY_mapPoints
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
@@ -649,10 +639,10 @@ class Tie_Point_Grid(object):
                               'out of the %s available tie points.' % avail_TP)
 
             # calculate GCPs
-            GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
-            GDF['Y_UTM_new'] = GDF.Y_UTM + GDF.Y_SHIFT_M
-            GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_UTM_new,
-                                                            GDF_row.Y_UTM_new,
+            GDF['X_MAP_new'] = GDF.X_MAP + GDF.X_SHIFT_M
+            GDF['Y_MAP_new'] = GDF.Y_MAP + GDF.Y_SHIFT_M
+            GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_MAP_new,
+                                                            GDF_row.Y_MAP_new,
                                                             0,
                                                             GDF_row.X_IM,
                                                             GDF_row.Y_IM),
@@ -827,7 +817,7 @@ class Tie_Point_Grid(object):
         GDF = self.CoRegPoints_table
         GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
 
-        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_UTM'], GDF2pass['Y_UTM'], GDF2pass[attrName]
+        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_MAP'], GDF2pass['Y_MAP'], GDF2pass[attrName]
 
         xmin, ymin, xmax, ymax = GDF2pass.total_bounds
 
@@ -997,7 +987,7 @@ class Tie_Point_Refiner(object):
         """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm."""
         # from skimage.transform import PolynomialTransform  # import here to avoid static TLS ImportError
 
-        src_coords = np.array(inGDF[['X_UTM', 'Y_UTM']])
+        src_coords = np.array(inGDF[['X_MAP', 'Y_MAP']])
         xyShift = np.array(inGDF[['X_SHIFT_M', 'Y_SHIFT_M']])
         est_coords = src_coords + xyShift
 
