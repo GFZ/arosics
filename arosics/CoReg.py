@@ -539,8 +539,8 @@ class COREG(object):
 
             raise RuntimeError(
                 'Input projections are not equal. Different projections are currently not supported. '
-                'Got %s / %s.' % (CRS.from_user_input(self.ref.prj).name,
-                                  CRS.from_user_input(self.shift.prj).name))
+                'Got %s vs. %s.' % (CRS.from_user_input(self.ref.prj).name,
+                                    CRS.from_user_input(self.shift.prj).name))
 
     def _get_overlap_properties(self) -> None:
         overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
