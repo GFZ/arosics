@@ -61,7 +61,7 @@ lint: ## check style with flake8
 		(cat ./tests/linting/pydocstyle.log && exit 1)
 
 urlcheck: ## check for dead URLs
-	urlchecker check . --file-types .py,.rst,.md,.json
+	urlchecker check . --file-types .py,.rst,.md,.json --timeout 30
 
 test: ## run tests quickly with the default Python
 	python setup.py test
