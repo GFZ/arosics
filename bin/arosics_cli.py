@@ -107,9 +107,9 @@ def run_local_coreg(args):
 
 
 def get_arosics_argparser():
-    """Return argument parser for arosics_cli.py program."""
+    """Return argument parser for arosics console command."""
     parser = argparse.ArgumentParser(
-        prog='arosics_cli.py',
+        prog='arosics',
 
         description='Perform automatic subpixel co-registration of two satellite image datasets based on an image '
                     'matching approach working in the frequency domain, combined with a multistage workflow for '
@@ -257,7 +257,7 @@ def get_arosics_argparser():
                     'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                     'X- or Y direction.',
         help="detect and correct global X/Y shifts (sub argument parser) - "
-             "use '>>> python /path/to/arosics/bin/arosics_cli.py global -h' for documentation and usage hints")
+             "use 'arosics global -h' for documentation and usage hints")
 
     gloArg = parse_coreg_global.add_argument
 
@@ -293,7 +293,7 @@ def get_arosics_argparser():
                     'calculated shifts of each point in the grid as GCPs. Thus this class can be used to correct '
                     'for locally varying geometric distortions of the target image.',
         help="detect and correct local shifts (sub argument parser)"
-             "use '>>> python /path/to/arosics/bin/arosics_cli.py local -h' for documentation and usage hints")
+             "use 'arosics local -h' for documentation and usage hints")
 
     locArg = parse_coreg_local.add_argument
 
@@ -330,7 +330,7 @@ def get_arosics_argparser():
     return parser
 
 
-if __name__ == '__main__':
+def main():
     from socket import gethostname
     from datetime import datetime as dt
     from getpass import getuser
@@ -362,6 +362,10 @@ if __name__ == '__main__':
         parsed_args.func(parsed_args)
         print('\ntotal processing time: %.2fs' % (time.time() - t0))
 
-else:
-    warnings.warn("The script 'arosics_cli.py' provides a command line argument parser for AROSICS and is not to be "
-                  "used as a normal Python module.")
+
+if __name__ == "__main__":
+    if 'arosics_cli.py' in sys.argv[0]:
+        warnings.warn("Starting the AROSICS command line argument parser with 'arosics_cli.py ...' is deprecated and "
+                      "will be removed in future releases. Use 'arosics ...' instead.", DeprecationWarning)
+
+    sys.exit(main())  # pragma: no cover

@@ -88,6 +88,11 @@ setup(
         'Programming Language :: Python :: 3.9',
     ],
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
+    entry_points={
+        'console_scripts': [
+            'arosics=bin.arosics_cli:main',
+        ],
+    },
     extras_require={
         "interactive_plotting": req_intplot,
         "doc": req_doc,
@@ -102,7 +107,7 @@ setup(
     long_description=readme + '\n\n' + history,
     name='arosics',
     packages=find_packages(exclude=['tests*']),
-    scripts=["bin/arosics_cli.py"],
+    scripts=["bin/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
     setup_requires=req_setup,
     test_suite='tests',
     tests_require=req + req_test,

@@ -178,4 +178,4 @@ co-registration would look like this:
 
 .. code-block:: bash
 
-    $ python arosics_cli.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50
+    $ arosics local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50

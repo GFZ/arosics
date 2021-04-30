@@ -202,11 +202,11 @@ The help instructions of the console interface can be accessed like this:
 
 .. code-block:: bash
 
-    $ python arosics_cli.py -h
+    $ arosics -h
 
 Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global
 co-registration would look like this:
 
 .. code-block:: bash
 
-    $ python arosics_cli.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+    $ arosics global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
