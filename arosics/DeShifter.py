@@ -303,7 +303,7 @@ class DESHIFTER(object):
         # snap clipextent to output grid
         # (in case of odd input coords the output coords are moved INSIDE the input array)
         xmin, ymin, xmax, ymax = self.clipextent
-        x_tol, y_tol = float(np.ptp(self.out_grid[0]) / 10000), float(np.ptp(self.out_grid[1]) / 10000)  # 10.000th pix
+        x_tol, y_tol = float(np.ptp(self.out_grid[0]) / 2000), float(np.ptp(self.out_grid[1]) / 2000)  # 2.000th pix
         xmin = find_nearest(self.out_grid[0], xmin, roundAlg='on', extrapolate=True, tolerance=x_tol)
         ymin = find_nearest(self.out_grid[1], ymin, roundAlg='on', extrapolate=True, tolerance=y_tol)
         xmax = find_nearest(self.out_grid[0], xmax, roundAlg='off', extrapolate=True, tolerance=x_tol)
