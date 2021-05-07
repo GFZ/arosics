@@ -110,7 +110,7 @@ class GeoArray_CoReg(GeoArray):
         else:
             # footprint_poly is calculated automatically by GeoArray
             if not CoReg_params['q']:
-                print('Calculating actual data corner coordinates for %s...' % self.imName)
+                print('Calculating footprint polygon and actual data corner coordinates for %s...' % self.imName)
 
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
@@ -543,7 +543,12 @@ class COREG(object):
                                     CRS.from_user_input(self.shift.prj).name))
 
     def _get_overlap_properties(self) -> None:
-        overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
+        with warnings.catch_warnings():
+            # already warned in GeoArray_CoReg.__init__()
+            warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*disjunct.*")
+
+            overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
+
         self.overlap_poly = overlap_tmp['overlap poly']  # has to be in reference projection
         self.overlap_percentage = overlap_tmp['overlap percentage']
         self.overlap_area = overlap_tmp['overlap area']
@@ -1374,7 +1379,7 @@ class COREG(object):
         # get the corresponding matchWin data
         matchWinData = self.matchWin[:]
 
-        # check if shapes of two images are equal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
+        # check if shapes of two images are unequal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
             warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
