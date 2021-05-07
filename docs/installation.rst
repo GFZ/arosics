@@ -20,7 +20,7 @@ Using conda_ (latest version recommended), AROSICS is installed as follows:
 
    .. code-block:: bash
 
-    $ conda install -c conda-forge arosics
+    $ conda install -c conda-forge 'arosics>=1.3.0'
 
 
 This is the preferred method to install AROSICS, as it always installs the most recent stable release and

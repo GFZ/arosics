@@ -43,7 +43,7 @@ req = [
     'folium>=0.6.0,!=0.12.0',
     'gdal',
     'geojson',
-    'geoarray>=0.11.0',
+    'geoarray>=0.12.0',
     'geopandas',
     'matplotlib',
     'numpy',
@@ -52,7 +52,7 @@ req = [
     'pyfftw',
     'pykrige',
     'pyproj>2.2.0',
-    'py_tools_ds>=0.15.10',
+    'py_tools_ds>=0.17.0',
     'scikit-image>=0.16.0',
     'shapely',
 ]
