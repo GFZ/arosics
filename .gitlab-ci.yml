@@ -14,8 +14,8 @@ test_arosics:
     - source /root/miniconda3/bin/activate ci_env
 
     # update py_tools_ds and geoarray
-    - pip install -U py_tools_ds -q
-    - pip install -U geoarray -q
+#    - pip install -U py_tools_ds -q
+#    - pip install -U geoarray -q
 
     # run tests
     - make nosetests
