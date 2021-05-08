@@ -14,8 +14,8 @@ test_arosics:
     - source /root/miniconda3/bin/activate ci_env
 
     # update py_tools_ds and geoarray
-#    - pip install -U py_tools_ds -q
-#    - pip install -U geoarray -q
+    - pip install -U py_tools_ds -q
+    - pip install -U geoarray -q
 
     # run tests
     - make nosetests
@@ -81,8 +81,7 @@ test_arosics_install:
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
   only:
-#    - master
-    - disabled  # FIXME
+    - master
 
 
 pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
