@@ -537,10 +537,15 @@ class COREG(object):
         if not prj_equal(self.ref.prj, self.shift.prj):
             from pyproj import CRS
 
+            crs_ref = CRS.from_user_input(self.ref.prj)
+            crs_shift = CRS.from_user_input(self.shift.prj)
+
+            name_ref, name_shift = \
+                (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
+
             raise RuntimeError(
                 'Input projections are not equal. Different projections are currently not supported. '
-                'Got %s vs. %s.' % (CRS.from_user_input(self.ref.prj).name,
-                                    CRS.from_user_input(self.shift.prj).name))
+                'Got %s vs. %s.' % (name_ref, name_shift))
 
     def _get_overlap_properties(self) -> None:
         with warnings.catch_warnings():
