@@ -81,7 +81,8 @@ test_arosics_install:
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
   only:
-    - master
+#    - master
+    - disabled  # FIXME
 
 
 pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
