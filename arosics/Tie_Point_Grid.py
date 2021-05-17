@@ -228,8 +228,8 @@ class Tie_Point_Grid(object):
         if not self.q:
             print('Initializing tie points grid...')
 
-        Xarr, Yarr = np.meshgrid(np.arange(0, self.shift.shape[1], grid_res),
-                                 np.arange(0, self.shift.shape[0], grid_res))
+        Xarr, Yarr = np.meshgrid(np.arange(0, self.shift.shape[1] + grid_res, grid_res),
+                                 np.arange(0, self.shift.shape[0] + grid_res, grid_res))
 
         mapXarr = np.full_like(Xarr, self.shift.gt[0], dtype=np.float64) + Xarr * self.shift.gt[1]
         mapYarr = np.full_like(Yarr, self.shift.gt[3], dtype=np.float64) - Yarr * abs(self.shift.gt[5])
