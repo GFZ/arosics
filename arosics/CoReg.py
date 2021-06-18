@@ -196,8 +196,8 @@ class COREG(object):
 
         :param fmt_out:
             raster file format for output file. ignored if path_out is None. can be any GDAL compatible raster file
-            format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to http://www.gdal.org/formats_list.html to get a full
-            list of supported formats.
+            format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to https://gdal.org/drivers/raster/index.html to get a
+            full list of supported formats.
 
         :param out_crea_options:
           GDAL creation options for the output image, e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
@@ -260,7 +260,8 @@ class COREG(object):
             map coordinates of data corners within image to be shifted. ignored if footprint_poly_tgt is given.
 
         :param nodata:
-            no data values for reference image and image to be shifted
+            no-data values for reference image and image to be shifted. The default is (None, None) which indicates
+            that there is no specific no-data value for both of the input images.
 
         :param calc_corners:
              calculate true positions of the dataset corners in order to get a useful matching window position within
@@ -1367,7 +1368,7 @@ class COREG(object):
         # compute SSIM BEFORE shift correction #
         ########################################
 
-        # using gaussian weights could lead to value errors in case of small images when the automatically calulated
+        # using gaussian weights could lead to value errors in case of small images when the automatically calculated
         # window size exceeds the image size
         self.ssim_orig = ssim(normalize(np.ma.masked_equal(self.matchWin[:],
                                                            self.matchWin.nodata)),

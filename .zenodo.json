@@ -35,7 +35,7 @@
         },
         {
             "scheme": "url",
-            "identifier": "http://www.mdpi.com/2072-4292/9/7/676",
+            "identifier": "https://www.mdpi.com/2072-4292/9/7/676",
             "relation": "isCitedBy",
             "resource_type": "publication-article"
         }

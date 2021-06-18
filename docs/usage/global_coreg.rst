@@ -144,7 +144,7 @@ numpy array and its corresponding geoinformation.
 
 To write the coregistered image to disk, the :class:`arosics.COREG` class needs to be instanced with a filepath given to
 keyword 'path_out'. The output raster format can be any format supported by GDAL.
-Find a list of supported formats here: http://www.gdal.org/formats_list.html
+Find a list of supported formats here: https://gdal.org/drivers/raster/index.html
 
 
 apply detected shifts to multiple images

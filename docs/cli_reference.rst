@@ -7,7 +7,7 @@ arosics
 At the command line, arosics provides the **arosics** command:
 
 .. argparse::
-   :filename: ./../bin/arosics_cli.py
+   :filename: ./../arosics/arosics_cli.py
    :func: get_arosics_argparser
    :prog: arosics
 

@@ -117,12 +117,12 @@ def get_arosics_argparser():
                     '(daniel.scheffler [at] gfz-potsdam [dot] de). The scientific background is described in the paper '
                     'Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust '
                     'Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017;'
-                    ' 9(7):676." (http://www.mdpi.com/2072-4292/9/7/676)',
+                    ' 9(7):676." (https://www.mdpi.com/2072-4292/9/7/676)',
 
         epilog="DETAILED DESCRIPTION: AROSICS detects and corrects global as well as local misregistrations between "
                "two input images in the subpixel scale, that are often present in satellite imagery. The input images "
-               "can have any GDAL compatible image format (http://www.gdal.org/formats_list.html). Both of them must "
-               "be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
+               "can have any GDAL compatible image format (https://gdal.org/drivers/raster/index.html). Both of them "
+               "must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
                "'coordinate system string' as attributes of their header file. The input images must have a geographic "
                "overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any "
                "spatial resampling of the input images before applying this algorithm. Any needed resampling of the "

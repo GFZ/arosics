@@ -5,7 +5,7 @@ Compatible image formats
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input images can have any GDAL compatible image format. You can find a list here:
-http://www.gdal.org/formats_list.html
+https://gdal.org/drivers/raster/index.html
 
 
 Geocoding

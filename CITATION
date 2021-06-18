@@ -23,7 +23,7 @@ A BibTeX entry for LaTeX users should look like this
   month        = jul,
   year         = 2017,
   note         = {{This is the version as used in Scheffler et al.
-                   (2017): http://www.mdpi.com/2072-4292/9/7/676.}},
+                   (2017): https://www.mdpi.com/2072-4292/9/7/676.}},
   publisher    = {Zenodo},
   version      = {0.2.1},
   doi          = {10.5281/zenodo.3743085},

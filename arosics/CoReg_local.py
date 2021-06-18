@@ -128,8 +128,8 @@ class COREG_LOCAL(object):
 
         :param fmt_out:
             raster file format for output file. ignored if path_out is None. Can be any GDAL compatible raster file
-            format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to http://www.gdal.org/formats_list.html to get a full
-            list of supported formats.
+            format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to https://gdal.org/drivers/raster/index.html to get a
+            full list of supported formats.
 
         :param out_crea_options:
             GDAL creation options for the output image, e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
