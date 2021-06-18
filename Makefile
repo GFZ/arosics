@@ -53,11 +53,11 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr nosetests.xml
 
 lint: ## check style with flake8
-	flake8 --max-line-length=120 arosics tests > ./tests/linting/flake8.log || \
+	flake8 --max-line-length=120 . tests > ./tests/linting/flake8.log || \
 		(cat ./tests/linting/flake8.log && exit 1)
-	pycodestyle arosics --exclude="*.ipynb,*.ipynb*" --max-line-length=120 > ./tests/linting/pycodestyle.log || \
+	pycodestyle . --exclude="*.ipynb,*.ipynb*" --max-line-length=120 > ./tests/linting/pycodestyle.log || \
 		(cat ./tests/linting/pycodestyle.log && exit 1)
-	-pydocstyle arosics > ./tests/linting/pydocstyle.log || \
+	-pydocstyle . > ./tests/linting/pydocstyle.log || \
 		(cat ./tests/linting/pydocstyle.log && exit 1)
 
 urlcheck: ## check for dead URLs
