@@ -184,10 +184,12 @@ class COREG(object):
         """Get an instance of the COREG class.
 
         :param im_ref:
-            source path (any GDAL compatible image format is supported) or GeoArray instance of reference image
+            source path or GeoArray instance of reference image
+            (any GDAL compatible image format is supported)
 
         :param im_tgt:
-            source path (any GDAL compatible image format is supported) or GeoArray instance of image to be shifted
+            source path or GeoArray instance of the target image, i.e., the image to be shifted
+            (any GDAL compatible image format is supported)
 
         :param path_out:
             target path of the coregistered image
@@ -222,14 +224,21 @@ class COREG(object):
             maximum shift distance in reference image pixel units (default: 5 px)
 
         :param align_grids:
-            align the coordinate grids of the image to be and the reference image (default: False)
+            True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+
+            - NOTE: If this is set to False, the mis-registration in the target image is corrected by updating its
+              geocoding information only, i.e., without performing any resampling which preserves the original
+              image values (except that a resampling is needed due to other reasons, e.g., if 'match_gsd',
+              'out_gsd' or 'target_xyGrid' are given).
 
         :param match_gsd:
-            match the output pixel size to pixel size of the reference image (default: False)
+            True: match the input pixel size to the reference pixel size,
+            default = False
 
         :param out_gsd:
-            xgsd ygsd: set the output pixel size in map units
-            (default: original pixel size of the image to be shifted)
+            output pixel size (X/Y) in units of the reference coordinate system (default = pixel size of the target
+            image), given values are overridden by match_gsd=True
 
         :param target_xyGrid:
             a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
@@ -247,7 +256,7 @@ class COREG(object):
 
         :param footprint_poly_ref:
             footprint polygon of the reference image (WKT string or shapely.geometry.Polygon),
-             e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000, 299999 6000000))'
+            e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000, 299999 6000000))'
 
         :param footprint_poly_tgt:
             footprint polygon of the image to be shifted (WKT string or shapely.geometry.Polygon)

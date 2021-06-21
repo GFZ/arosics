@@ -307,6 +307,30 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
             CR.show_matchWin(interactive=True, after_correction=False)
             CR.show_image_footprints()
 
+    def test_correct_shifts_without_resampling(self):
+        kw = self.coreg_kwargs.copy()
+        kw['align_grids'] = False  # =default
+        kw['progress'] = True
+
+        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue(CR.success)
+        self.assertTrue(CR.deshift_results['is shifted'])
+        self.assertFalse(CR.deshift_results['is resampled'])
+        self.assertTrue(np.array_equal(CR.shift[:], CR.deshift_results['arr_shifted']))
+        self.assertFalse(np.array_equal(np.array(CR.shift.gt), np.array(CR.deshift_results['updated geotransform'])))
+
+    def test_correct_shifts_with_resampling(self):
+        kw = self.coreg_kwargs.copy()
+        kw['align_grids'] = True
+        kw['progress'] = True
+
+        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue(CR.success)
+        self.assertTrue(CR.deshift_results['is shifted'])
+        self.assertTrue(CR.deshift_results['is resampled'])
+        self.assertFalse(np.array_equal(CR.shift[:], CR.deshift_results['arr_shifted']))
+        self.assertTrue(np.array_equal(np.array(CR.shift.gt), np.array(CR.deshift_results['updated geotransform'])))
+
 
 if __name__ == '__main__':
     import nose2
