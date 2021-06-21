@@ -173,11 +173,11 @@ class DESHIFTER(object):
             coreg_results['updated map info'] = coreg_results['updated map info means']
 
         # in case of global shift correction -> the updated map info from coreg_results already has the final map info
-        # BUT: this will updated in correct_shifts() if clipextent is given or warping is needed
+        # BUT: this will be updated in correct_shifts() if clipextent is given or warping is needed
         if not self.GCPList:
             mapI = coreg_results['updated map info']
-            self.updated_map_info = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
-            self.updated_gt = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
+            self.updated_map_info = mapI or geotransform2mapinfo(self.shift_gt, self.shift_prj)
+            self.updated_gt = mapinfo2geotransform(self.updated_map_info) or self.shift_gt
             self.original_map_info = coreg_results['original map info']
         self.updated_projection = self.ref_prj
 
@@ -249,8 +249,14 @@ class DESHIFTER(object):
                 # use origin of reference image and gsd of input image
                 out_grid = get_grid(self.ref_gt, self.im2shift.xgsd, self.im2shift.ygsd)
             else:
-                # use input image grid
-                out_grid = get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
+                if not self.GCPList:
+                    # in case of global co-registration:
+                    # -> use the target image grid but update the origin (shift-correction without resampling)
+                    out_grid = get_grid(self.updated_gt, self.im2shift.xgsd, self.im2shift.ygsd)
+                else:
+                    # in case of local co-registration:
+                    # -> use input image grid
+                    out_grid = get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
 
         return out_grid
 
@@ -322,6 +328,11 @@ class DESHIFTER(object):
             self.is_shifted = True
             self.is_resampled = False
             xmin, ymin, xmax, ymax = self._get_out_extent()
+
+            if not self.q:
+                print("NOTE: The detected shift is corrected by updating the map info of the target image only, i.e., "
+                      "without any resampling. Set the 'align_grids' parameter to True if you need the target and the "
+                      "reference coordinate grids to be aligned.")
 
             if self.cliptoextent:
                 # TODO validate results
