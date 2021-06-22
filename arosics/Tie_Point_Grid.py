@@ -396,7 +396,7 @@ class Tie_Point_Grid(object):
                             bar.print_progress(percent=numberDone / len(GDF) * 100)
                         if results.ready():
                             # <= this is the line where multiprocessing can freeze if an exception appears within
-                            # COREG ans is not raised
+                            # COREG and is not raised
                             results = results.get()
                             break
 

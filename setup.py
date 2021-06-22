@@ -52,7 +52,7 @@ req = [
     'pyfftw',
     'pykrige',
     'pyproj>2.2.0',
-    'py_tools_ds>=0.17.0',
+    'py_tools_ds>=0.17.2',
     'scikit-image>=0.16.0',
     'shapely',
 ]
