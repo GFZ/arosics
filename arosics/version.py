@@ -22,5 +22,5 @@
 # with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-__version__ = '1.4.6'
-__versionalias__ = '2021-05-22_01'
+__version__ = '1.4.7'
+__versionalias__ = '2021-07-02_01'
