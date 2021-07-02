@@ -107,6 +107,7 @@ setup(
     long_description=readme + '\n\n' + history,
     name='arosics',
     packages=find_packages(exclude=['tests*']),
+    python_requires='>3.6',
     scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
     setup_requires=req_setup,
     test_suite='tests',
