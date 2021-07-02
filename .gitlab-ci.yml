@@ -1,29 +1,24 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#priority-of-environment-variables
 before_script:
-  - git lfs pull
-
-
+- git lfs pull
 stages:
-  - test
-  - deploy
-  - cleanup
-
-
+- test
+- deploy
+- cleanup
 test_arosics:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
-
-    # update py_tools_ds and geoarray
-    - pip install -U py_tools_ds -q
-    - pip install -U geoarray -q
-
-    # run tests
-    - make nosetests
-
-    # create the docs
-    - pip install -U sphinx_rtd_theme -q  # TODO remove as soon as CI runner is rebuilt
-    - pip install -U sphinx-autodoc-typehints -q  # TODO remove as soon as CI runner is rebuilt
-    - make docs
+  - source /root/miniconda3/bin/activate ci_env
+  - pip install -U py_tools_ds -q
+  - pip install -U geoarray -q
+  - make nosetests
+  - pip install -U sphinx_rtd_theme -q
+  - pip install -U sphinx-autodoc-typehints -q
+  - make docs
   artifacts:
     paths:
     - htmlcov/
@@ -31,125 +26,91 @@ test_arosics:
     - nosetests.html
     - nosetests.xml
     when: always
-
-
 test_styles:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
-    - make lint
+  - source /root/miniconda3/bin/activate ci_env
+  - make lint
   artifacts:
     paths:
     - tests/linting/flake8.log
     - tests/linting/pycodestyle.log
     - tests/linting/pydocstyle.log
     when: always
-
-
 test_urls:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
-    - pip install -U urlchecker
-    - make urlcheck
+  - source /root/miniconda3/bin/activate ci_env
+  - pip install -U urlchecker
+  - make urlcheck
   when: always
-
-
 test_arosics_install:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate
-
-    # update conda and python
-    - conda update -n base -c conda-forge conda
-    # - conda update -c conda-forge python
-
-    # create arosics environment
-    - conda create -y -q -c conda-forge --name arosics_testinstall python=3
-    - conda activate arosics_testinstall
-
-     # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas pykrige pyfftw cartopy
-
-    # run installer
-    - python setup.py install
-
-    # test if its importable
-    - cd ..
-    - pwd
-    - ls
-    - python -c "import arosics; print(arosics)"
-    - python -c "from arosics import COREG, COREG_LOCAL"
+  - source /root/miniconda3/bin/activate
+  - conda update -n base -c conda-forge conda
+  - conda create -y -q -c conda-forge --name arosics_testinstall python=3
+  - conda activate arosics_testinstall
+  - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0'
+    shapely geopandas pandas pykrige pyfftw cartopy
+  - python setup.py install
+  - cd ..
+  - pwd
+  - ls
+  - python -c "import arosics; print(arosics)"
+  - python -c "from arosics import COREG, COREG_LOCAL"
   only:
-    - master
-
-
-pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
+  - master
+pages:
   stage: deploy
   dependencies:
-    - test_arosics
+  - test_arosics
   script:
-    # Create the public directory
-    - rm -rf public
-    - mkdir public
-    - mkdir -p public/doc
-    - mkdir -p public/images/
-    - mkdir -p public/coverage
-    - mkdir -p public/nosetests_reports
-
-    # Copy over the docs
-    - cp -r docs/_build/html/* public/doc/
-    - cp -r docs/images/* public/images/
-
-    # Copy over the coverage reports
-    - cp -r htmlcov/* public/coverage/
-
-    # Copy over the nosetests reports
-    - cp nosetests.* public/nosetests_reports/
-
-    # Check if everything is working great
-    - ls -al public
-    - ls -al public/doc
-    - ls -al public/coverage
-    - ls -al public/nosetests_reports
+  - rm -rf public
+  - mkdir public
+  - mkdir -p public/doc
+  - mkdir -p public/images/
+  - mkdir -p public/coverage
+  - mkdir -p public/nosetests_reports
+  - cp -r docs/_build/html/* public/doc/
+  - cp -r docs/images/* public/images/
+  - cp -r htmlcov/* public/coverage/
+  - cp nosetests.* public/nosetests_reports/
+  - ls -al public
+  - ls -al public/doc
+  - ls -al public/coverage
+  - ls -al public/nosetests_reports
   artifacts:
     paths:
-      - public
+    - public
     expire_in: 30 days
   only:
-    - master
-    - enhancement/improve_docs
-
-
+  - master
+  - enhancement/improve_docs
 deploy_pypi:
   stage: deploy
   dependencies:
-    - test_arosics
+  - test_arosics
   script:
-    - source /root/miniconda3/bin/activate ci_env
-    - pip install -U twine
-    - python setup.py sdist
-    - twine upload dist/*  # requires creds as environment variables
+  - source /root/miniconda3/bin/activate ci_env
+  - pip install -U twine
+  - python setup.py sdist
+  - twine upload dist/*
   only:
-    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+  - "/^v\\d+\\.\\d+\\.\\d+([abc]\\d*)?$/"
   except:
-    - dev
-
-
+  - dev
 create_github_release:
-    stage: deploy
-    dependencies:
-        - test_arosics
-    script:
-        - bash ./.github/create_release_from_gitlab_ci.sh  # uses environment variables set in the UI
-    only:
-        - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
-    except:
-        - dev
-
-
-#rever:
-#    stage: deploy
-#    dependencies:
-#        - deploy_pypi
-#    script:
+  stage: deploy
+  dependencies:
+  - test_arosics
+  script:
+  - bash ./.github/create_release_from_gitlab_ci.sh
+  only:
+  - "/^v\\d+\\.\\d+\\.\\d+([abc]\\d*)?$/"
+  except:
+  - dev
+sast:
+  stage: test
+include:
+- template: Security/SAST.gitlab-ci.yml
