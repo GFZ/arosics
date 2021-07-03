@@ -104,7 +104,7 @@ setup(
     install_requires=req,
     keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
     license="GPL-3.0-or-later",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
     name='arosics',
     packages=find_packages(exclude=['tests*']),
     python_requires='>3.6',

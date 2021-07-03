@@ -39,7 +39,7 @@ Status
 .. image:: https://img.shields.io/pypi/dm/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
 .. image:: https://zenodo.org/badge/253474603.svg
-   :target: https://zenodo.org/badge/latestdoi/253474603
+        :target: https://zenodo.org/badge/latestdoi/253474603
 
 See also the latest coverage_ report and the nosetests_ HTML report.
 
@@ -87,6 +87,14 @@ Here is an example of the computed shift vectors after filtering false-positives
 
 
 For further details check out the `documentation <https://danschef.git-pages.gfz-potsdam.de/arosics/doc/>`__!
+
+
+History / Changelog
+-------------------
+
+You can find the protocol of recent changes in the AROSICS package
+`here <https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/HISTORY.rst>`__.
+
 
 Credits
 -------
