@@ -2,10 +2,11 @@
 History
 =======
 
-1.4.8 (coming soon)
+1.4.8 (2021-07-06)
 -------------------
 
 * Updated HISTORY.rst (closes #46).
+* Updated minimal version of py_tools_ds which fixes #61 (Multiprocessing issue).
 
 
 1.4.7 (2021-07-03)
