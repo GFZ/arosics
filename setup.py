@@ -43,7 +43,7 @@ req = [
     'folium>=0.6.0,!=0.12.0',
     'gdal',
     'geojson',
-    'geoarray>=0.12.1',
+    'geoarray>=0.13.4',
     'geopandas',
     'matplotlib',
     'numpy',

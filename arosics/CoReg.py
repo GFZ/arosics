@@ -971,7 +971,7 @@ class COREG(object):
     def _get_image_windows_to_match(self) -> None:
         """Read the matching window and the other window as subsets.
 
-        Th other window is resampled to the resolution and the pixel grid of the matching window.
+        The other window is resampled to the resolution and the pixel grid of the matching window.
         The result consists of two images with the same dimensions and exactly the same corner coordinates.
         """
         match_fullGeoArr = self.ref if self.grid2use == 'ref' else self.shift

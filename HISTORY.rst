@@ -6,6 +6,7 @@ History
 -------------------
 
 * COREG.show_matchWin() now also works when no valid shift was found yet.
+* Updated minimal version of geoarray to fix a sporadic TypeError when writing the coregistered result.
 
 
 1.4.8 (2021-07-06)
