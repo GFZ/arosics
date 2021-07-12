@@ -639,6 +639,11 @@ class COREG(object):
                                     (default: 98)
         :return:
         """
+        if not self.success and after_correction in [True, None]:
+            warnings.warn('It is only possible to show the matching window before correction of spatial displacements '
+                          'because no valid displacement has been calculated yet.')
+            after_correction = False
+
         if interactive:
             # use Holoviews
             try:
@@ -658,7 +663,7 @@ class COREG(object):
             # renderer = hv.Store.renderers['matplotlib'].instance(fig='svg', holomap='gif')
             # RasterPlot = renderer.plotting_class(hv.Image)
             # RasterPlot.cmap = 'gray'
-            otherWin_corr = self._get_deshifted_otherWin()
+            otherWin_corr = self._get_deshifted_otherWin() if after_correction in [True, None] else None
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
             def get_hv_image(geoArr):
@@ -680,7 +685,7 @@ class COREG(object):
 
             hvIm_matchWin = get_hv_image(self.matchWin)
             hvIm_otherWin_orig = get_hv_image(self.otherWin)
-            hvIm_otherWin_corr = get_hv_image(otherWin_corr)
+            hvIm_otherWin_corr = get_hv_image(otherWin_corr) if after_correction in [True, None] else None
 
             if after_correction is None:
                 # view both states

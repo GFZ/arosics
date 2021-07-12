@@ -2,8 +2,14 @@
 History
 =======
 
-1.4.8 (2021-07-06)
+1.4.9 (coming soon)
 -------------------
+
+* COREG.show_matchWin() now also works when no valid shift was found yet.
+
+
+1.4.8 (2021-07-06)
+------------------
 
 * Updated HISTORY.rst (closes #46).
 * Updated minimal version of py_tools_ds which fixes #61 (Multiprocessing issue).
