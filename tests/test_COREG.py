@@ -167,6 +167,30 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)
 
+    def test_shift_calculation_with_metaRotation(self):
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.gt = [330000, 10, 0.0, 5862000, 0.0, -10]
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        # tgt.gt = [335440, 5.8932, 0.0, 5866490, 0.0, -10.1]
+        tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
+
+        CR = self.run_shift_detection_correction(ref, tgt,
+                                                 **dict(self.coreg_kwargs,
+                                                        # ws=(512, 512),
+                                                        wp=(341500.0, 5861440.0),
+                                                        footprint_poly_ref=None,
+                                                        footprint_poly_tgt=None,
+                                                        max_shift=35))
+        CR.show_matchWin(interactive=False, after_correction=None)
+        self.assertTrue(CR.success)
+
     def test_shift_calculation_inmem_gAs_path_out_auto(self):
         """Test input parameter path_out='auto' in case input reference/ target image are in-memory GeoArrays."""
         ref = GeoArray(np.random.randint(1, 100, (1000, 1000)))

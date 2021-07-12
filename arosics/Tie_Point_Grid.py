@@ -360,6 +360,8 @@ class Tie_Point_Grid(object):
             # NOTE: actually grid res should be also changed here because self.shift.xgsd changes and grid res is
             # connected to that
             self.COREG_obj.equalize_pixGrids()
+            self.ref = self.COREG_obj.ref
+            self.shift = self.COREG_obj.shift
 
         # validate reference and target image inputs
         assert self.ref.footprint_poly  # this also checks for mask_nodata and nodata value

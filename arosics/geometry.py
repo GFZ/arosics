@@ -23,6 +23,8 @@
 
 import warnings
 import sys
+import os
+from typing import Union
 
 # custom
 import numpy as np
@@ -31,6 +33,7 @@ from geopandas import GeoDataFrame
 # internal modules
 from py_tools_ds.geo.coord_calc import calc_FullDataset_corner_positions
 from py_tools_ds.geo.coord_trafo import pixelToMapYX, imYX2mapYX
+from py_tools_ds.geo.raster.reproject import warp_ndarray
 from geoarray import GeoArray
 
 __author__ = 'Daniel Scheffler'
@@ -133,3 +136,23 @@ def get_GeoArrayPosition_from_boxImYX(boxImYX):
     rS, cS = boxImYX[0]  # UL
     rE, cE = boxImYX[2]  # LR
     return rS, rE - 1, cS, cE - 1  # -1 because boxImYX represents outer box and includes the LR corner of LR pixel
+
+
+def has_metaRotation(path_or_geoarray: Union[GeoArray, str]):
+    """Return True if there is a row or column rotation due to the given GDAL GeoTransform tuple."""
+    gt = GeoArray(path_or_geoarray).gt
+
+    return gt[2] or gt[4]
+
+
+def remove_metaRotation(gA_rot: GeoArray, rspAlg='cubic') -> GeoArray:
+    """Remove any metadata rotation (a rotation that only exists in the map info)."""
+    gA = GeoArray(*warp_ndarray(gA_rot[:], gA_rot.gt, gA_rot.prj,
+                                rspAlg=rspAlg,
+                                # out_gsd=(gA_rot.xgsd, gA_rot.ygsd)
+                                ),
+                  nodata=gA_rot.nodata)
+    gA.basename = os.path.basename(gA.basename)
+    gA.meta = gA.meta
+
+    return gA

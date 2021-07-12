@@ -175,6 +175,28 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
 
+    def test_calculation_of_tie_point_grid_with_metaRotation(self):
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.gt = [330000, 10, 0.00001, 5862000, 0.00001, -10]
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        # tgt.gt = [335440, 5.8932, 0.0, 5866490, 0.0, -10.1]
+        tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+                                           **self.coreg_kwargs))
+        CRL.calculate_spatial_shifts()
+        # CRL.view_CoRegPoints()
+
+        self.assertTrue(CRL.success)
+
 
 if __name__ == '__main__':
     import nose2

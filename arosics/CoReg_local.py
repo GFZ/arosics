@@ -41,6 +41,7 @@ from geopandas import GeoDataFrame  # noqa F401
 from .Tie_Point_Grid import Tie_Point_Grid
 from .CoReg import COREG
 from .DeShifter import DESHIFTER
+from .geometry import has_metaRotation, remove_metaRotation
 from py_tools_ds.geo.coord_trafo import transform_any_prj, reproject_shapelyGeometry
 from py_tools_ds.geo.map_info import geotransform2mapinfo
 from geoarray import GeoArray
@@ -268,6 +269,9 @@ class COREG_LOCAL(object):
 
         self.params = dict([x for x in locals().items() if x[0] != "self" and not x[0].startswith('__')])
 
+        # NOTE: self.imref and self.im2shift are handled completely independent from self.COREG_obj.ref and
+        #       self.COREG_obj.shift. self.COREG_obj.ref and self.COREG_obj.shift are used for shift calculation and
+        #       correction is applied to self.im2shift.
         self.imref = GeoArray(im_ref, nodata=nodata[0], progress=progress, q=q)
         self.im2shift = GeoArray(im_tgt, nodata=nodata[1], progress=progress, q=q)
         self.path_out = path_out  # updated by self.set_outpathes
@@ -315,6 +319,9 @@ class COREG_LOCAL(object):
 
         gdal.AllRegister()
 
+        # resample input data in case there is a metadata rotation (not handled by AROSICS)
+        self._check_and_handle_metaRotation()
+
         try:
             # ignore_errors must be False because in case COREG init fails, coregistration for the whole scene fails
             self.COREG_obj = COREG(self.imref, self.im2shift,
@@ -359,6 +366,40 @@ class COREG_LOCAL(object):
         self._coreg_info = None  # set by self.coreg_info
         self.deshift_results = None  # set by self.correct_shifts()
         self._success = None  # set by self.success property
+
+    def _check_and_handle_metaRotation(self):
+        """Check if the provided input data have a metadata rotation and if yes, correct it AND equalize grids.
+
+        In case there is a rotation, the GDAL GeoTransform is not 0 at positions 2 or 4. So far, AROSICS does not
+        handle such rotations, so the resampling is needed to make things work. The pixel grid equalization is also
+        done here to avoid a double-resampling (grid would be equalized by COREG.equalize_pixGrids() otherwise).
+        """
+        grid2use = 'ref' if self.im2shift.xgsd <= self.imref.xgsd else 'shift'
+
+        if has_metaRotation(self.imref) or has_metaRotation(self.im2shift):
+
+            msg = 'The %s image needs to be resampled because it has a row/column rotation in '\
+                  'its map info which is not handled by AROSICS.'
+
+            if grid2use == 'ref':
+                if has_metaRotation(self.imref):
+                    warnings.warn(msg % 'reference')
+                    self.imref = remove_metaRotation(self.imref)
+
+                # resample target to reference image
+                if not self.q:
+                    print('Adapting the target image pixel grid to the one of the reference image for shift detection.')
+                self.im2shift.reproject_to_new_grid(prototype=self.imref, CPUs=self.CPUs)
+
+            else:
+                # remove any metadata rotation (a rotation that only exists in the map info)
+                if has_metaRotation(self.im2shift):
+                    warnings.warn(msg % 'target')
+                    self.im2shift = remove_metaRotation(self.im2shift)
+
+                # resample reference to target image
+                print('Adapting the reference image pixel grid to the one of the target image for shift detection.')
+                self.imref.reproject_to_new_grid(prototype=self.im2shift, CPUs=self.CPUs)
 
     def check_if_fftw_works(self) -> None:
         """Assign the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output."""
@@ -757,7 +798,16 @@ class COREG_LOCAL(object):
             if max_GCP_count:
                 self.coreg_info['GCPList'] = self.coreg_info['GCPList'][:max_GCP_count]
 
-            DS = DESHIFTER(self.im2shift, self.coreg_info,
+            # make sure the correction is applied to the original target image
+            im2shift = GeoArray(self.params['im_tgt'], nodata=self.nodata[1], progress=self.progress, q=self.q)
+
+            if has_metaRotation(im2shift):
+                # resample the target image because (so far) the computed shifts cannot be applied to a dataset with
+                # a metadata rotation (GDAL GeoTransform not 0 at positons 2 and 4)
+                im2shift = remove_metaRotation(im2shift)
+
+            # apply the correction
+            DS = DESHIFTER(im2shift, self.coreg_info,
                            path_out=self.path_out,
                            fmt_out=self.fmt_out,
                            out_crea_options=self.out_creaOpt,

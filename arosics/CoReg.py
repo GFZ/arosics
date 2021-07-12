@@ -407,6 +407,7 @@ class COREG(object):
 
         # try:
         gdal.AllRegister()
+        self._check_and_handle_metaRotation()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
         self.grid2use = 'ref' if self.shift.xgsd <= self.ref.xgsd else 'shift'
@@ -576,26 +577,55 @@ class COREG(object):
         assert px_covered > 16 * 16, \
             'Overlap area covers only %s pixels. At least 16*16 pixels are needed.' % px_covered
 
+    def _check_and_handle_metaRotation(self):
+        """Check if the provided input data have a metadata rotation and if yes, correct it.
+
+        In case there is a rotation, the GDAL GeoTransform is not 0 at positions 2 or 4. So far, AROSICS does not
+        handle such rotations, so the resampling is needed to make things work.
+        """
+        gA_ref = GeoArray(self.params['im_ref'])
+        gA_tgt = GeoArray(self.params['im_tgt'])
+
+        msg = 'The %s image needs to be resampled because it has a row/column rotation in ' \
+              'its map info which is not handled by AROSICS.'
+
+        if GEO.has_metaRotation(gA_ref):
+            warnings.warn(msg % 'reference')
+            self.params['im_ref'] = GEO.remove_metaRotation(gA_ref)
+
+        if GEO.has_metaRotation(gA_tgt):
+            warnings.warn(msg % 'target')
+            self.params['im_tgt'] = GEO.remove_metaRotation(gA_tgt)
+
+    @property
+    def are_pixGrids_equal(self):
+        return prj_equal(self.ref.prj, self.shift.prj) and \
+               is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs, tolerance=1e-8)
+
     def equalize_pixGrids(self) -> None:
-        """Equalize image grids and projections of reference and target image (align target to reference)."""
-        if not (prj_equal(self.ref.prj, self.shift.prj) and
-                is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs, tolerance=1e8)):
+        """Equalize image grids and projections of reference and target image (align target to reference).
+
+        NOTE: This method is only called by COREG_LOCAL to speed up processing during detection of displacements.
+        """
+        if not self.are_pixGrids_equal or GEO.has_metaRotation(self.ref) or GEO.has_metaRotation(self.shift):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
+            def equalize(gA_from: GeoArray, gA_to: GeoArray) -> GeoArray:
+                if gA_from.bands > 1:
+                    gA_from = gA_from.get_subset(zslice=slice(gA_from.band4match, gA_from.band4match + 1))
+                gA_from.reproject_to_new_grid(prototype=gA_to, CPUs=self.CPUs)
+                gA_from.band4match = 0  # after resampling there is only one band in the GeoArray
+
+                return gA_from
+
             if self.grid2use == 'ref':
-                # resample target image to reference image
-                if self.shift.bands > 1:
-                    self.shift = self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
-                self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
-                self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
+                # resample target to reference image
+                self.shift = equalize(gA_from=self.shift, gA_to=self.ref)
 
             else:
-                # resample reference image to target image
-                if self.ref.bands > 1:
-                    self.ref = self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
-                self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
-                self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
+                # resample reference to target image
+                self.ref = equalize(gA_from=self.ref, gA_to=self.shift)
 
             # self.ref.gt = (self.ref.gt[0], 1, self.ref.gt[2], self.ref.gt[3], self.ref.gt[4], -1)
             # self.shift.gt = (self.shift.gt[0], 1, self.shift.gt[2], self.shift.gt[3], self.shift.gt[4], -1)

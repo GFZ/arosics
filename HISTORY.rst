@@ -2,11 +2,13 @@
 History
 =======
 
-1.4.9 (coming soon)
+1.5.0 (2021-07-13)
 -------------------
 
 * COREG.show_matchWin() now also works when no valid shift was found yet.
 * Updated minimal version of geoarray to fix a sporadic TypeError when writing the coregistered result.
+* Added basic compatibility with images that have a rotation in the map info (fixes #60).
+* Fixed incorrect tolerance in COREG.equalize_pixGrids() which speeds up COREG_LOCAL a lot.
 
 
 1.4.8 (2021-07-06)
