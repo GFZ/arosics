@@ -107,6 +107,10 @@ setup(
     long_description=readme,
     name='arosics',
     packages=find_packages(exclude=['tests*']),
+    project_urls={
+        "Bug Tracker": "https://git.gfz-potsdam.de/danschef/arosics/-/issues",
+        "Documentation": "https://danschef.git-pages.gfz-potsdam.de/arosics/doc/",
+    },
     python_requires='>3.6',
     scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
     setup_requires=req_setup,
