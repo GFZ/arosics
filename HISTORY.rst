@@ -2,8 +2,15 @@
 History
 =======
 
-1.5.0 (2021-07-13)
+1.5.1 (coming soon)
 -------------------
+
+* Added project URLs to setup.py.
+* Revised test_arosics_install CI job (now uses mamba).
+
+
+1.5.0 (2021-07-13)
+------------------
 
 * COREG.show_matchWin() now also works when no valid shift was found yet.
 * Updated minimal version of geoarray to fix a sporadic TypeError when writing the coregistered result.

@@ -59,25 +59,20 @@ test_arosics_install:
   stage: test
   script:
     - source /root/miniconda3/bin/activate
+    - conda install -c conda-forge mamba
+    - mamba update -n base -c conda-forge --all
 
-    # update conda and python
-    - conda update -n base -c conda-forge conda
-    # - conda update -c conda-forge python
+    # create enpt environment from environment_arosics.yml
+    - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
+    - conda activate arosics_test
 
-    # create arosics environment
-    - conda create -y -q -c conda-forge --name arosics_testinstall python=3
-    - conda activate arosics_testinstall
-
-     # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas pykrige pyfftw cartopy
-
-    # run installer
-    - python setup.py install
-
-    # test if its importable
+    # install arosics
+    - pip install -e .
     - cd ..
     - pwd
     - ls
+
+    # test importability
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
   only:
