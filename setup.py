@@ -108,8 +108,12 @@ setup(
     name='arosics',
     packages=find_packages(exclude=['tests*']),
     project_urls={
-        "Bug Tracker": "https://git.gfz-potsdam.de/danschef/arosics/-/issues",
+        "Source code": "https://git.gfz-potsdam.de/danschef/arosics",
+        "Issue Tracker": "https://git.gfz-potsdam.de/danschef/arosics/-/issues",
         "Documentation": "https://danschef.git-pages.gfz-potsdam.de/arosics/doc/",
+        "Change log": "https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/HISTORY.rst",
+        "Algorithm paper": "https://www.mdpi.com/2072-4292/9/7/676",
+        "Zenodo": "https://zenodo.org/record/5093940"
     },
     python_requires='>3.6',
     scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
