@@ -2,11 +2,12 @@
 History
 =======
 
-1.5.1 (coming soon)
--------------------
+1.5.1 (2021-08-11)
+------------------
 
 * Added project URLs to setup.py.
 * Revised test_arosics_install CI job (now uses mamba).
+* Updated minimal version of py_tools_ds which fixes #63 (Computing footprint error).
 
 
 1.5.0 (2021-07-13)

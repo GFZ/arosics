@@ -19,7 +19,7 @@ dependencies:
   - pyfftw
   - pykrige
   - pyproj>2.2.0
-  - py-tools-ds>=0.17.3
+  - py-tools-ds>=0.17.8
   - scikit-image>=0.16.0
   - shapely
 

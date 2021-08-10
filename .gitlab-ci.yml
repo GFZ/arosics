@@ -62,7 +62,7 @@ test_arosics_install:
     - conda install -c conda-forge mamba
     - mamba update -n base -c conda-forge --all
 
-    # create enpt environment from environment_arosics.yml
+    # create arosics environment from environment_arosics.yml
     - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
     - conda activate arosics_test
 
