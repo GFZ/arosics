@@ -11,7 +11,7 @@ stages:
 test_arosics:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
 
     # update py_tools_ds and geoarray
     - pip install -U py_tools_ds -q
@@ -21,8 +21,6 @@ test_arosics:
     - make nosetests
 
     # create the docs
-    - pip install -U sphinx_rtd_theme -q  # TODO remove as soon as CI runner is rebuilt
-    - pip install -U sphinx-autodoc-typehints -q  # TODO remove as soon as CI runner is rebuilt
     - make docs
   artifacts:
     paths:
@@ -36,7 +34,7 @@ test_arosics:
 test_styles:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
     - make lint
   artifacts:
     paths:
@@ -49,7 +47,7 @@ test_styles:
 test_urls:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
     - pip install -U urlchecker
     - make urlcheck
   when: always
@@ -58,8 +56,7 @@ test_urls:
 test_arosics_install:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate
-    - conda install -c conda-forge mamba
+    - source /root/mambaforge/bin/activate
     - mamba update -n base -c conda-forge --all
 
     # create arosics environment from environment_arosics.yml
@@ -121,7 +118,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:
-    - source /root/miniconda3/bin/activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
     - pip install -U twine
     - python setup.py sdist
     - twine upload dist/*  # requires creds as environment variables
