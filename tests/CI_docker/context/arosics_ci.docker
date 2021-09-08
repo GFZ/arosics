@@ -4,8 +4,10 @@ FROM ci_base_centos:0.2
 COPY *.yml /root/
 
 # update the ci_env environment (that already contains all packages installed via 'docker_pyenvs' repo)
+# NOTE: The pkgs directory (cache) is deleted because otherwise conda env create takes hours within a docker container.
 RUN /bin/bash -i -c "\
     source /root/mambaforge/bin/activate ; \
     mamba update -n base -c conda-forge --all;\
     conda activate ci_env; \
-    mamba env update -n ci_env -f /root/environment_arosics.yml"
+    mamba env update -n ci_env -f /root/environment_arosics.yml; \
+    rm -rf /root/mambaforge/pkgs"
