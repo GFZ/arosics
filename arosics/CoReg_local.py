@@ -347,7 +347,7 @@ class COREG_LOCAL(object):
                                    q=q,
                                    ignore_errors=False)
         except Exception:
-            warnings.warn('\nFirst attempt to check if functionality of co-registration failed. Check your '
+            warnings.warn('\nFirst attempt to check the functionality of co-registration failed. Check your '
                           'input data and parameters. The following error occurred:', stacklevel=3)
             raise
 
