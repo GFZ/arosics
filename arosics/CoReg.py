@@ -405,12 +405,25 @@ class COREG(object):
         self.success = None  # default
         self.deshift_results = None  # set by self.correct_shifts()
 
-        # try:
         gdal.AllRegister()
-        self._check_and_handle_metaRotation()
-        self._get_image_params()
-        self._set_outpathes(im_ref, im_tgt)
+
+        # TODO: wrap this into an image pre-processor class
+        self.ref = GeoArray(im_ref, nodata=nodata[0], progress=progress)
+        self.shift = GeoArray(im_tgt, nodata=nodata[0], progress=progress)
+        self.ref.band4match = r_b4match - 1
+        self.shift.band4match = s_b4match - 1
         self.grid2use = 'ref' if self.shift.xgsd <= self.ref.xgsd else 'shift'
+
+        self._equalize_projections()
+        self._check_and_handle_metaRotation()
+
+        self.params['im_ref'] = self.ref
+        self.params['im_tgt'] = self.shift
+        self.ref = GeoArray_CoReg(self.params, 'ref')
+        self.shift = GeoArray_CoReg(self.params, 'shift')
+
+        self._set_outpathes(im_ref, im_tgt)
+
         if self.v:
             print('resolutions: ', self.ref.xgsd, self.shift.xgsd)
 
@@ -420,9 +433,6 @@ class COREG(object):
             write_shp(os.path.join(self.path_verbose_out, 'poly_imref.shp'), self.ref.poly, self.ref.prj)
             write_shp(os.path.join(self.path_verbose_out, 'poly_im2shift.shp'), self.shift.poly, self.shift.prj)
             write_shp(os.path.join(self.path_verbose_out, 'overlap_poly.shp'), self.overlap_poly, self.ref.prj)
-
-        # FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection())
-        # FIXME später basteln für den fall, dass projektionen nicht gleich sind
 
         # get_clip_window_properties
         self._get_opt_winpos_winsize()
@@ -435,8 +445,6 @@ class COREG(object):
                       self.matchBox.mapPoly, self.matchBox.prj)
 
         self.success = False if self.success is False or not self.matchBox.boxMapYX else None
-
-        # except BaseException:
 
         self._coreg_info = None  # private attribute to be filled by self.coreg_info property
 
@@ -541,23 +549,6 @@ class COREG(object):
         if self.path_verbose_out and not os.path.isdir(self.path_verbose_out):
             os.makedirs(self.path_verbose_out)
 
-    def _get_image_params(self) -> None:
-        self.ref = GeoArray_CoReg(self.params, 'ref')
-        self.shift = GeoArray_CoReg(self.params, 'shift')
-
-        if not prj_equal(self.ref.prj, self.shift.prj):
-            from pyproj import CRS
-
-            crs_ref = CRS.from_user_input(self.ref.prj)
-            crs_shift = CRS.from_user_input(self.shift.prj)
-
-            name_ref, name_shift = \
-                (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
-
-            raise RuntimeError(
-                'Input projections are not equal. Different projections are currently not supported. '
-                'Got %s vs. %s.' % (name_ref, name_shift))
-
     def _get_overlap_properties(self) -> None:
         with warnings.catch_warnings():
             # already warned in GeoArray_CoReg.__init__()
@@ -577,25 +568,38 @@ class COREG(object):
         assert px_covered > 16 * 16, \
             'Overlap area covers only %s pixels. At least 16*16 pixels are needed.' % px_covered
 
+    def _equalize_projections(self):
+        if not prj_equal(self.ref.prj, self.shift.prj):
+            from pyproj import CRS
+
+            crs_ref = CRS.from_user_input(self.ref.prj)
+            crs_shift = CRS.from_user_input(self.shift.prj)
+
+            name_ref, name_shift = \
+                (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
+
+            if not self.q:
+                print("Projections of reference and target image are unequal (%s vs. %s) "
+                      "and will be equalized at runtime." % (name_ref, name_shift))
+
+            self.equalize_pixGrids()
+
     def _check_and_handle_metaRotation(self):
         """Check if the provided input data have a metadata rotation and if yes, correct it.
 
         In case there is a rotation, the GDAL GeoTransform is not 0 at positions 2 or 4. So far, AROSICS does not
         handle such rotations, so the resampling is needed to make things work.
         """
-        gA_ref = GeoArray(self.params['im_ref'])
-        gA_tgt = GeoArray(self.params['im_tgt'])
-
         msg = 'The %s image needs to be resampled because it has a row/column rotation in ' \
               'its map info which is not handled by AROSICS.'
 
-        if GEO.has_metaRotation(gA_ref):
+        if GEO.has_metaRotation(self.ref):
             warnings.warn(msg % 'reference')
-            self.params['im_ref'] = GEO.remove_metaRotation(gA_ref)
+            self.ref = GEO.remove_metaRotation(self.ref)
 
-        if GEO.has_metaRotation(gA_tgt):
+        if GEO.has_metaRotation(self.shift):
             warnings.warn(msg % 'target')
-            self.params['im_tgt'] = GEO.remove_metaRotation(gA_tgt)
+            self.shift = GEO.remove_metaRotation(self.shift)
 
     @property
     def are_pixGrids_equal(self):
