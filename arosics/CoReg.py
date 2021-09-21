@@ -94,7 +94,7 @@ class GeoArray_CoReg(GeoArray):
         assert self.bands >= self.band4match + 1 >= 1, \
             "The %s has %s %s. So its band number to match must be %s%s. Got %s." \
             % (self.imName, self.bands, 'bands' if self.bands > 1 else
-               'band', 'between 1 and ' if self.bands > 1 else '', self.bands, self.band4match)
+               'band', 'between 1 and ' if self.bands > 1 else '', self.bands, self.band4match + 1)
 
         # set footprint_poly
         given_footprint_poly = CoReg_params['footprint_poly_%s' % ('ref' if imID == 'ref' else 'tgt')]
