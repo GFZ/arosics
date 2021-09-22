@@ -293,7 +293,11 @@ class Tie_Point_Grid(object):
         assert global_shared_im2shift is not None
 
         # run CoReg
-        CR = COREG(global_shared_imref, global_shared_im2shift, CPUs=1, **coreg_kwargs)
+        CR = COREG(global_shared_imref, global_shared_im2shift,
+                   footprint_poly_ref=global_shared_imref.footprint_poly,
+                   footprint_poly_tgt=global_shared_im2shift.footprint_poly,
+                   CPUs=1,
+                   **coreg_kwargs)
         CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
 
@@ -313,8 +317,6 @@ class Tie_Point_Grid(object):
             wp=wp,
             ws=self.COREG_obj.win_size_XY,
             resamp_alg_calc=self.rspAlg_calc,
-            footprint_poly_ref=self.COREG_obj.ref.poly,
-            footprint_poly_tgt=self.COREG_obj.shift.poly,
             r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
             s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
             max_iter=self.COREG_obj.max_iter,
