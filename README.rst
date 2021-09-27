@@ -6,7 +6,7 @@
 An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data
 ==================================================================================================
 
-* Free software: GNU General Public License v3 or later (GPLv3+)
+* Free software: Apache 2.0
 * **Documentation:** https://danschef.git-pages.gfz-potsdam.de/arosics/doc/
 * The (open-access) **paper** corresponding to this software repository can be found here:
   `Scheffler et al. 2017 <https://www.mdpi.com/2072-4292/9/7/676>`__
