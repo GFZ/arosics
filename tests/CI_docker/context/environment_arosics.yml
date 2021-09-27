@@ -9,7 +9,7 @@ dependencies:
   - cartopy
   - cmocean
   - gdal
-  - geoarray>=0.13.4
+  - geoarray>=0.15.0
   - geopandas
   - holoviews
   - ipython  # needed to test interactive plotting
@@ -21,7 +21,7 @@ dependencies:
   - pyfftw
   - pykrige
   - pyproj>2.2.0
-  - py-tools-ds>=0.17.8
+  - py-tools-ds>=0.18.0
   - scikit-image>=0.16.0
   - shapely
 

@@ -2,10 +2,11 @@
 History
 =======
 
-1.5.2 (coming soon)
--------------------
+1.6.0 (2021-09-27)
+------------------
 
 * CI now uses Mambaforge.
+* Switched to Apache 2.0 license.
 
 
 1.5.1 (2021-08-11)
