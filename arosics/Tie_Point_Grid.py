@@ -500,18 +500,26 @@ class Tie_Point_Grid(object):
                                 xlim: list = None,
                                 ylim: list = None,
                                 fontsize: int = 12,
-                                title: str = 'shift distribution'
+                                title: str = 'shift distribution',
+                                savefigPath: str = '',
+                                savefigDPI: int = 96,
+                                showFig: bool = True,
+                                return_fig: bool = False
                                 ) -> tuple:
         """Create a 2D scatterplot containing the distribution of calculated X/Y-shifts.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
         :param unit:                'm' for meters or 'px' for pixels (default: 'm')
-        :param interactive:         interactive mode uses plotly for visualization
+        :param interactive:         whether to use interactive mode (uses plotly for visualization)
         :param figsize:             (xdim, ydim)
         :param xlim:                [xmin, xmax]
         :param ylim:                [ymin, ymax]
         :param fontsize:            size of all used fonts
         :param title:               the title to be plotted above the figure
+        :param savefigPath:         path where to save the figure
+        :param savefigDPI:          DPI resolution of the output figure when saved to disk
+        :param showFig:             whether to show or to hide the figure
+        :param return_fig:          whether to return the figure and axis objects
         """
         from matplotlib import pyplot as plt
 
@@ -598,9 +606,19 @@ class Tie_Point_Grid(object):
             leg = plt.legend(reversed(handles), reversed(labels), fontsize=fontsize, loc='upper right', scatterpoints=3)
             leg.get_frame().set_edgecolor('black')
 
-            plt.show()
+            # remove white space around the figure
+            plt.subplots_adjust(top=.94, bottom=.06, right=.96, left=.09)
 
-            return fig, ax
+            if savefigPath:
+                fig.savefig(savefigPath, dpi=savefigDPI, pad_inches=0.3, bbox_inches='tight')
+
+            if return_fig:
+                return fig, ax
+
+            if showFig and not self.q:
+                plt.show(block=True)
+            else:
+                plt.close(fig)
 
     def dump_CoRegPoints_table(self, path_out=None):
         if self.CoRegPoints_table.empty:

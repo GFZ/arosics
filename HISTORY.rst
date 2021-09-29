@@ -2,6 +2,14 @@
 History
 =======
 
+1.6.2 (2021-09-29)
+------------------
+
+* Fixed 'too many values to unpack' exception in COREG_LOCAL.view_CoRegPoints().
+* Added new parameters to Tie_Point_Grid.plot_shift_distribution().
+* Added documentation to COREG_LOCAL.view_CoRegPoints().
+
+
 1.6.1 (2021-09-29)
 ------------------
 

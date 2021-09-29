@@ -523,13 +523,13 @@ class COREG_LOCAL(object):
         :param figsize_multiplier:  if given, the figure size is multiplied with this value
         :param title:               plot title
         :param vector_scale:        scale factor for shift vector length (default: 1 -> no scaling)
-        :param savefigPath:
-        :param savefigDPI:
-        :param showFig:             whether to show or to hide the figure
-        :param vmin:
-        :param vmax:
-        :param return_map:
-        :return:
+        :param savefigPath:         path where to save the figure
+        :param savefigDPI:          DPI resolution of the output figure when saved to disk (default: 96)
+        :param showFig:             whether to show or to hide the figure (default: True)
+        :param vmin:                minimum value of 'attribute2plot' to be included in the figure
+        :param vmax:                maximum value of 'attribute2plot' to be included in the figure
+        :param return_map:          whether to return the figure and axis objects (default: False)
+        :return:    tuple of figure and axis objects or None in case return_map is set to False
         """
         from matplotlib import pyplot as plt  # noqa
         from matplotlib.offsetbox import AnchoredText
