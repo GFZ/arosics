@@ -14,6 +14,9 @@ API_JSON=$(printf '{"tag_name":"%s",
 AUTH_HEADER="Authorization: token $GITHUB_RELEASE_TOKEN"
 curl $URL_RELEASES --data "$API_JSON" -H "$AUTH_HEADER"
 
+# sleep 5 seconds, otherwise the check below may fail
+sleep 5
+
 # get latest release tag name
 LATEST_RELEASE=$(curl -s "$URL_RELEASES"/latest | grep -oP '"tag_name": "\K(.*)(?=")')
 
