@@ -543,7 +543,7 @@ class COREG_LOCAL(object):
 
         # make sure the output figure has a reasonable size, also if figsize is not given
         if not figsize:
-            r, c = backgroundIm.shape
+            r, c = backgroundIm.shape[:2]
             figsize = (8, r / c * 8) if r > c else (c / r * 8, 8)
 
         # apply figsize multiplier
