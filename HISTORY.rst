@@ -2,6 +2,12 @@
 History
 =======
 
+1.6.1 (2021-09-29)
+------------------
+
+* The output map of COREG_LOCAL.view_CoRegPoints() is now cropped nicely. Added parameter 'figsize_multiplier'.
+
+
 1.6.0 (2021-09-27)
 ------------------
 
