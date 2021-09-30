@@ -2,6 +2,26 @@
 History
 =======
 
+1.7.0 (2021-09-30)
+------------------
+
+* Added method Tie_Point_Grid.calc_overall_stats() + test to compute overall statistics from all tie points found.
+
+
+1.6.2 (2021-09-29)
+------------------
+
+* Fixed 'too many values to unpack' exception in COREG_LOCAL.view_CoRegPoints().
+* Added new parameters to Tie_Point_Grid.plot_shift_distribution().
+* Added documentation to COREG_LOCAL.view_CoRegPoints().
+
+
+1.6.1 (2021-09-29)
+------------------
+
+* The output map of COREG_LOCAL.view_CoRegPoints() is now cropped nicely. Added parameter 'figsize_multiplier'.
+
+
 1.6.0 (2021-09-27)
 ------------------
 

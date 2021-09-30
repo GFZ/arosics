@@ -498,6 +498,7 @@ class COREG_LOCAL(object):
                          backgroundIm: str = 'tgt',
                          hide_filtered: bool = True,
                          figsize: tuple = None,
+                         figsize_multiplier: float = 1,
                          title: str = '',
                          vector_scale: float = 1.,
                          savefigPath: str = '',
@@ -518,35 +519,44 @@ class COREG_LOCAL(object):
         :param backgroundIm:        whether to use the target or the reference image as map background. Possible
                                     options are 'ref' and 'tgt' (default: 'tgt')
         :param hide_filtered:       hide all points that have been filtered out according to tie point filter level
-        :param figsize:             size of the figure to be viewed, e.g. (10, 10)
+        :param figsize:             size of the figure to be viewed, e.g. (10, 10); automatically estimated if not given
+        :param figsize_multiplier:  if given, the figure size is multiplied with this value
         :param title:               plot title
         :param vector_scale:        scale factor for shift vector length (default: 1 -> no scaling)
-        :param savefigPath:
-        :param savefigDPI:
-        :param showFig:             whether to show or to hide the figure
-        :param vmin:
-        :param vmax:
-        :param return_map:
-        :return:
+        :param savefigPath:         path where to save the figure
+        :param savefigDPI:          DPI resolution of the output figure when saved to disk (default: 96)
+        :param showFig:             whether to show or to hide the figure (default: True)
+        :param vmin:                minimum value of 'attribute2plot' to be included in the figure
+        :param vmax:                maximum value of 'attribute2plot' to be included in the figure
+        :param return_map:          whether to return the figure and axis objects (default: False)
+        :return:    tuple of figure and axis objects or None in case return_map is set to False
         """
         from matplotlib import pyplot as plt  # noqa
         from matplotlib.offsetbox import AnchoredText
         from cartopy.crs import PlateCarree
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-        # get a map showing the reference or target image
+        # get background image (reference or target image)
         if backgroundIm not in ['tgt', 'ref']:
             raise ValueError('backgroundIm')
         backgroundIm = self.im2shift if backgroundIm == 'tgt' else self.imref
+
+        # make sure the output figure has a reasonable size, also if figsize is not given
+        if not figsize:
+            r, c = backgroundIm.shape[:2]
+            figsize = (8, r / c * 8) if r > c else (c / r * 8, 8)
+
+        # apply figsize multiplier
+        if figsize_multiplier:
+            if figsize_multiplier < 0:
+                raise ValueError(figsize_multiplier, 'The figure size multiplier must be a positive finite number.')
+            figsize = (figsize[0] * figsize_multiplier, figsize[1] * figsize_multiplier)
+
+        # get a map showing the background image
         fig, ax = backgroundIm.show_map(figsize=figsize,
                                         nodataVal=self.nodata[1],
                                         return_map=True,
                                         band=self.COREG_obj.shift.band4match)
-
-        # make sure the output figure has a reasonable size, also if figsize is not given
-        if not figsize:
-            w, h = fig.get_size_inches()
-            fig.set_size_inches(w * 1.6, h * 1.6)
 
         # set figure title
         dict_attr_title = dict(
@@ -689,8 +699,11 @@ class COREG_LOCAL(object):
             if not self.q:
                 warnings.warn(msg)
 
+        # remove white space around the figure
+        plt.subplots_adjust(top=.95, bottom=.05, right=.95, left=.05)
+
         if savefigPath:
-            fig.savefig(savefigPath, dpi=savefigDPI)
+            fig.savefig(savefigPath, dpi=savefigDPI, pad_inches=0.1, bbox_inches='tight')
 
         if return_map:
             return fig, ax

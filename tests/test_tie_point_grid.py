@@ -80,6 +80,16 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         self.TPG.calc_overall_ssim(include_outliers=False, after_correction=True)
         self.TPG.calc_overall_ssim(include_outliers=True, after_correction=False)
 
+    def test_calc_overall_stats(self):
+        stats_noOL = self.TPG.calc_overall_stats(include_outliers=False)
+        stats_OL = self.TPG.calc_overall_stats(include_outliers=True)
+
+        self.assertTrue(stats_noOL)
+        self.assertTrue(stats_OL)
+        self.assertIsInstance(stats_noOL, dict)
+        self.assertIsInstance(stats_OL, dict)
+        self.assertNotEqual(stats_noOL, stats_OL)
+
     def test_plot_shift_distribution(self):
         with warnings.catch_warnings():
             warnings.filterwarnings(
