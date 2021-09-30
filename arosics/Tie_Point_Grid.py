@@ -492,6 +492,100 @@ class Tie_Point_Grid(object):
 
         return float(np.median(ssim_col))
 
+    def calc_overall_stats(self, include_outliers: bool = False) -> dict:
+        """Calculate statistics like RMSE, MSE, MAE, ... from the tie point grid.
+
+        Full list of returned statistics:
+
+        - N_TP:                 number of tie points
+        - N_VALID_TP:           number of valid tie points
+        - N_INVALID_TP:         number of invalid tie points (false-positives)
+        - PERC_VALID_TP:        percentage of valid tie points
+        - RMSE_M:               root mean squared error of absolute shift vector length in map units
+        - RMSE_X_M:             root mean squared error of shift vector length in x-direction in map units
+        - RMSE_Y_M:             root mean squared error of shift vector length in y-direction in map units
+        - RMSE_X_PX:            root mean squared error of shift vector length in x-direction in pixel units
+        - RMSE_Y_PX:            root mean squared error of shift vector length in y-direction in pixel units
+        - MSE_M:                mean squared error of absolute shift vector length in map units
+        - MSE_X_M:              mean squared error of shift vector length in x-direction in map units
+        - MSE_Y_M:              mean squared error of shift vector length in y-direction in map units
+        - MSE_X_PX:             mean squared error of shift vector length in x-direction in pixel units
+        - MSE_Y_PX:             mean squared error of shift vector length in y-direction in pixel units
+        - MAE_M:                mean absolute error of absolute shift vector length in map units
+        - MAE_X_M:              mean absolute error of shift vector length in x-direction in map units
+        - MAE_Y_M:              mean absolute error of shift vector length in y-direction in map units
+        - MAE_X_PX:             mean absolute error of shift vector length in x-direction in pixel units
+        - MAE_Y_PX:             mean absolute error of shift vector length in y-direction in pixel units
+        - MEAN_ANGLE:           mean direction of the shift vectors in degrees from north
+        - MEDIAN_ANGLE:         median direction of the shift vectors in degrees from north
+        - MEAN_SSIM_BEFORE:     mean structural similatity index within each matching window before co-registration
+        - MEDIAN_SSIM_BEFORE:   median structural similatity index within each matching window before co-registration
+        - MEAN_SSIM_AFTER:      mean structural similatity index within each matching window after co-registration
+        - MEDIAN_RELIABILITY:   median tie point reliability in percent
+        - MEDIAN_SSIM_AFTER:    median structural similatity index within each matching window after co-registration
+        - MEAN_RELIABILITY:     mean tie point reliability in percent
+
+        :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
+        """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot compute overall statistics because no tie points were found at all.')
+
+        tbl = self.CoRegPoints_table
+
+        n_tiepoints = sum(tbl['ABS_SHIFT'] != self.outFillVal)
+        n_outliers = sum(tbl['OUTLIER'] == 1)
+
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl = tbl.copy().replace(self.outFillVal, np.nan)
+
+        def RMSE(vals):
+            vals_sq = vals ** 2
+            return np.sqrt(sum(vals_sq) / len(vals_sq))
+
+        def MSE(vals):
+            vals_sq = vals ** 2
+            return sum(vals_sq) / len(vals_sq)
+
+        def MAE(vals):
+            vals_abs = np.abs(vals)
+            return sum(vals_abs) / len(vals_abs)
+
+        abs_shift, x_shift_m, y_shift_m, x_shift_px, y_shift_px, angle, ssim_before, ssim_after, reliability = \
+            [tbl[k].dropna().values for k in ['ABS_SHIFT', 'X_SHIFT_M', 'Y_SHIFT_M', 'X_SHIFT_PX', 'Y_SHIFT_PX',
+                                              'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER', 'RELIABILITY']]
+
+        stats = dict(
+            N_TP=n_tiepoints,
+            N_VALID_TP=len(abs_shift),
+            N_INVALID_TP=n_outliers,
+            PERC_VALID_TP=(n_tiepoints - n_outliers) / n_tiepoints * 100,
+            RMSE_M=RMSE(abs_shift),
+            RMSE_X_M=RMSE(x_shift_m),
+            RMSE_Y_M=RMSE(y_shift_m),
+            RMSE_X_PX=RMSE(x_shift_px),
+            RMSE_Y_PX=RMSE(y_shift_px),
+            MSE_M=MSE(abs_shift),
+            MSE_X_M=MSE(x_shift_m),
+            MSE_Y_M=MSE(y_shift_m),
+            MSE_X_PX=MSE(x_shift_px),
+            MSE_Y_PX=MSE(y_shift_px),
+            MAE_M=MAE(abs_shift),
+            MAE_X_M=MAE(x_shift_m),
+            MAE_Y_M=MAE(y_shift_m),
+            MAE_X_PX=MAE(x_shift_px),
+            MAE_Y_PX=MAE(y_shift_px),
+            MEAN_ANGLE=np.mean(angle),
+            MEDIAN_ANGLE=np.median(angle),
+            MEAN_SSIM_BEFORE=np.mean(ssim_before),
+            MEDIAN_SSIM_BEFORE=np.median(ssim_before),
+            MEAN_SSIM_AFTER=np.mean(ssim_after),
+            MEDIAN_SSIM_AFTER=np.median(ssim_after),
+            MEAN_RELIABILITY=np.mean(reliability),
+            MEDIAN_RELIABILITY=np.median(reliability)
+        )
+
+        return stats
+
     def plot_shift_distribution(self,
                                 include_outliers: bool = True,
                                 unit: str = 'm',
@@ -703,7 +797,7 @@ class Tie_Point_Grid(object):
                           skip_nodata: bool = True,
                           skip_nodata_col: str = 'ABS_SHIFT'
                           ) -> None:
-        """Write the calculated tie points grid to a point shapefile (e.g., for visualization by a GIS software).
+        """Write the calculated tie point grid to a point shapefile (e.g., for visualization by a GIS software).
 
         NOTE: The shapefile uses Tie_Point_Grid.CoRegPoints_table as attribute table.
 
