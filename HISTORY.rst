@@ -2,6 +2,12 @@
 History
 =======
 
+1.7.1 (2021-10-13)
+------------------
+
+* Added more statistics to Tie_Point_Grid.calc_overall_stats().
+
+
 1.7.0 (2021-09-30)
 ------------------
 
