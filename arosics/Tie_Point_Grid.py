@@ -516,14 +516,53 @@ class Tie_Point_Grid(object):
         - MAE_Y_M:              mean absolute error of shift vector length in y-direction in map units
         - MAE_X_PX:             mean absolute error of shift vector length in x-direction in pixel units
         - MAE_Y_PX:             mean absolute error of shift vector length in y-direction in pixel units
+        - MEAN_ABS_SHIFT:       mean absolute shift vector length in map units
+        - MEAN_X_SHIFT_M:       mean shift vector length in x-direction in map units
+        - MEAN_Y_SHIFT_M:       mean shift vector length in y-direction in map units
+        - MEAN_X_SHIFT_PX:      mean shift vector length in x-direction in pixel units
+        - MEAN_Y_SHIFT_PX:      mean shift vector length in y-direction in pixel units
         - MEAN_ANGLE:           mean direction of the shift vectors in degrees from north
-        - MEDIAN_ANGLE:         median direction of the shift vectors in degrees from north
         - MEAN_SSIM_BEFORE:     mean structural similatity index within each matching window before co-registration
-        - MEDIAN_SSIM_BEFORE:   median structural similatity index within each matching window before co-registration
         - MEAN_SSIM_AFTER:      mean structural similatity index within each matching window after co-registration
-        - MEDIAN_RELIABILITY:   median tie point reliability in percent
-        - MEDIAN_SSIM_AFTER:    median structural similatity index within each matching window after co-registration
         - MEAN_RELIABILITY:     mean tie point reliability in percent
+        - MEDIAN_ABS_SHIFT:     median absolute shift vector length in map units
+        - MEDIAN_X_SHIFT_M:     median shift vector length in x-direction in map units
+        - MEDIAN_Y_SHIFT_M:     median shift vector length in y-direction in map units
+        - MEDIAN_X_SHIFT_PX:    median shift vector length in x-direction in pixel units
+        - MEDIAN_Y_SHIFT_PX:    median shift vector length in y-direction in pixel units
+        - MEDIAN_ANGLE:         median direction of the shift vectors in degrees from north
+        - MEDIAN_SSIM_BEFORE:   median structural similatity index within each matching window before co-registration
+        - MEDIAN_SSIM_AFTER:    median structural similatity index within each matching window after co-registration
+        - MEDIAN_RELIABILITY:   median tie point reliability in percent
+        - STD_ABS_SHIFT:        standard deviation of absolute shift vector length in map units
+        - STD_X_SHIFT_M:        standard deviation of shift vector length in x-direction in map units
+        - STD_Y_SHIFT_M:        standard deviation of shift vector length in y-direction in map units
+        - STD_X_SHIFT_PX:       standard deviation of shift vector length in x-direction in pixel units
+        - STD_Y_SHIFT_PX:       standard deviation of shift vector length in y-direction in pixel units
+        - STD_ANGLE:            standard deviation of direction of the shift vectors in degrees from north
+        - STD_SSIM_BEFORE:      standard deviation of structural similatity index within each matching window before
+                                co-registration
+        - STD_SSIM_AFTER:       standard deviation of structural similatity index within each matching window after
+                                co-registration
+        - STD_RELIABILITY:      standard deviation of tie point reliability in percent
+        - MIN_ABS_SHIFT:        minimal absolute shift vector length in map units
+        - MIN_X_SHIFT_M:        minimal shift vector length in x-direction in map units
+        - MIN_Y_SHIFT_M:        minimal shift vector length in y-direction in map units
+        - MIN_X_SHIFT_PX:       minimal shift vector length in x-direction in pixel units
+        - MIN_Y_SHIFT_PX:       minimal shift vector length in y-direction in pixel units
+        - MIN_ANGLE:            minimal direction of the shift vectors in degrees from north
+        - MIN_SSIM_BEFORE:      minimal structural similatity index within each matching window before co-registration
+        - MIN_SSIM_AFTER:       minimal structural similatity index within each matching window after co-registration
+        - MIN_RELIABILITY:      minimal tie point reliability in percent
+        - MIN_ABS_SHIFT:        maximal absolute shift vector length in map units
+        - MAX_X_SHIFT_M:        maximal shift vector length in x-direction in map units
+        - MAX_Y_SHIFT_M:        maximal shift vector length in y-direction in map units
+        - MAX_X_SHIFT_PX:       maximal shift vector length in x-direction in pixel units
+        - MAX_Y_SHIFT_PX:       maximal shift vector length in y-direction in pixel units
+        - MAX_ANGLE:            maximal direction of the shift vectors in degrees from north
+        - MAX_SSIM_BEFORE:      maximal structural similatity index within each matching window before co-registration
+        - MAX_SSIM_AFTER:       maximal structural similatity index within each matching window after co-registration
+        - MAX_RELIABILITY:      maximal tie point reliability in percent
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
@@ -538,17 +577,17 @@ class Tie_Point_Grid(object):
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
         tbl = tbl.copy().replace(self.outFillVal, np.nan)
 
-        def RMSE(vals):
-            vals_sq = vals ** 2
-            return np.sqrt(sum(vals_sq) / len(vals_sq))
+        def RMSE(shifts):
+            shifts_sq = shifts ** 2
+            return np.sqrt(sum(shifts_sq) / len(shifts_sq))
 
-        def MSE(vals):
-            vals_sq = vals ** 2
-            return sum(vals_sq) / len(vals_sq)
+        def MSE(shifts):
+            shifts_sq = shifts ** 2
+            return sum(shifts_sq) / len(shifts_sq)
 
-        def MAE(vals):
-            vals_abs = np.abs(vals)
-            return sum(vals_abs) / len(vals_abs)
+        def MAE(shifts):
+            shifts_abs = np.abs(shifts)
+            return sum(shifts_abs) / len(shifts_abs)
 
         abs_shift, x_shift_m, y_shift_m, x_shift_px, y_shift_px, angle, ssim_before, ssim_after, reliability = \
             [tbl[k].dropna().values for k in ['ABS_SHIFT', 'X_SHIFT_M', 'Y_SHIFT_M', 'X_SHIFT_PX', 'Y_SHIFT_PX',
@@ -559,30 +598,33 @@ class Tie_Point_Grid(object):
             N_VALID_TP=len(abs_shift),
             N_INVALID_TP=n_outliers,
             PERC_VALID_TP=(n_tiepoints - n_outliers) / n_tiepoints * 100,
+
             RMSE_M=RMSE(abs_shift),
             RMSE_X_M=RMSE(x_shift_m),
             RMSE_Y_M=RMSE(y_shift_m),
             RMSE_X_PX=RMSE(x_shift_px),
             RMSE_Y_PX=RMSE(y_shift_px),
+
             MSE_M=MSE(abs_shift),
             MSE_X_M=MSE(x_shift_m),
             MSE_Y_M=MSE(y_shift_m),
             MSE_X_PX=MSE(x_shift_px),
             MSE_Y_PX=MSE(y_shift_px),
+
             MAE_M=MAE(abs_shift),
             MAE_X_M=MAE(x_shift_m),
             MAE_Y_M=MAE(y_shift_m),
             MAE_X_PX=MAE(x_shift_px),
             MAE_Y_PX=MAE(y_shift_px),
-            MEAN_ANGLE=np.mean(angle),
-            MEDIAN_ANGLE=np.median(angle),
-            MEAN_SSIM_BEFORE=np.mean(ssim_before),
-            MEDIAN_SSIM_BEFORE=np.median(ssim_before),
-            MEAN_SSIM_AFTER=np.mean(ssim_after),
-            MEDIAN_SSIM_AFTER=np.median(ssim_after),
-            MEAN_RELIABILITY=np.mean(reliability),
-            MEDIAN_RELIABILITY=np.median(reliability)
         )
+
+        for stat, func in zip(['mean', 'median', 'std', 'min', 'max'],
+                              [np.mean, np.median, np.std, np.min, np.max]):
+            for n in ['abs_shift', 'x_shift_m', 'y_shift_m', 'x_shift_px', 'y_shift_px',
+                      'angle', 'ssim_before', 'ssim_after', 'reliability']:
+
+                vals = locals()[n]
+                stats[f'{stat}_{n}'.upper()] = func(vals)
 
         return stats
 
