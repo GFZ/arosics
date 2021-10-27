@@ -36,6 +36,7 @@ import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
+from scipy.interpolate import Rbf, RegularGridInterpolator
 
 # internal modules
 from .CoReg import COREG
@@ -171,7 +172,7 @@ class Tie_Point_Grid(object):
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table = None  # set by self.CoRegPoints_table
         self._GCPList = None  # set by self.to_GCPList()
-        self.kriged = None  # set by Raster_using_Kriging()
+        self.kriged = None  # set by to_Raster_using_Kriging()
 
     @property
     def mean_x_shift_px(self):
@@ -942,76 +943,27 @@ class Tie_Point_Grid(object):
 
         return out_GA
 
+    def to_interpolated_raster(self,
+                               metric: str = 'ABS_SHIFT',
+                               method: str = 'Rbf'
+                               ) -> np.ndarray:
+        TPGI = Tie_Point_Grid_Interpolator(self)
+
+        return TPGI.interpolate(metric=metric, method=method)
+
     def to_Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
                                 fName_out=None, tilepos=None, tilesize=500, mp=None):
 
-        mp = False if self.CPUs == 1 else True
-        self._Kriging_sp(attrName, skip_nodata=skip_nodata, skip_nodata_col=skip_nodata_col,
-                         outGridRes=outGridRes, fName_out=fName_out, tilepos=tilepos)
+        TPGI = Tie_Point_Grid_Interpolator(self)
+        self.kriged = TPGI._interpolate_via_kriging(attrName,
+                                                    skip_nodata=skip_nodata,
+                                                    skip_nodata_col=skip_nodata_col,
+                                                    outGridRes=outGridRes,
+                                                    fName_out=fName_out,
+                                                    tilepos=tilepos,
+                                                    CPUs=self.CPUs)
 
-        # if mp:
-        #     tilepositions = UTL.get_image_tileborders([tilesize,tilesize],self.tgt_shape)
-        #     args_kwargs_dicts=[]
-        #     for tp in tilepositions:
-        #         kwargs_dict = {'skip_nodata':skip_nodata,'skip_nodata_col':skip_nodata_col,'outGridRes':outGridRes,
-        #                        'fName_out':fName_out,'tilepos':tp}
-        #         args_kwargs_dicts.append({'args':[attrName],'kwargs':kwargs_dict})
-        #     # self.kriged=[]
-        #     # for i in args_kwargs_dicts:
-        #     #     res = self.Kriging_mp(i)
-        #     #     self.kriged.append(res)
-        #     #     print(res)
-        #
-        #     with multiprocessing.Pool() as pool:
-        #        self.kriged = pool.map(self.Kriging_mp,args_kwargs_dicts)
-        # else:
-        #     self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
-        #                     outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
-        res = self.kriged if mp else None
-        return res
-
-    def _Kriging_sp(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                    fName_out=None, tilepos=None):
-        GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
-
-        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_MAP'], GDF2pass['Y_MAP'], GDF2pass[attrName]
-
-        xmin, ymin, xmax, ymax = GDF2pass.total_bounds
-
-        grid_res = outGridRes if outGridRes else int(min(xmax - xmin, ymax - ymin) / 250)
-        grid_x, grid_y = np.arange(xmin, xmax + grid_res, grid_res), np.arange(ymax, ymin - grid_res, -grid_res)
-
-        # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
-        #            (Cambridge University Press, 1997) 272 p.
-        from pykrige.ok import OrdinaryKriging
-        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical', verbose=False)
-        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y, backend='C', n_closest_points=12)
-
-        if self.CPUs is None or self.CPUs > 1:
-            fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s_%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY, tilepos)
-        else:
-            fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY)
-        path_out = get_generic_outpath(dir_out=self.dir_out, fName_out=fName_out)
-        # add a half pixel grid points are centered on the output pixels
-        xmin = xmin - grid_res / 2
-        # ymin = ymin - grid_res / 2
-        # xmax = xmax + grid_res / 2
-        ymax = ymax + grid_res / 2
-
-        GeoArray(zvalues,
-                 geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
-                 projection=self.COREG_obj.shift.prj).save(path_out)
-
-        return zvalues
-
-    def _Kriging_mp(self, args_kwargs_dict):
-        args = args_kwargs_dict.get('args', [])
-        kwargs = args_kwargs_dict.get('kwargs', [])
-
-        return self._Kriging_sp(*args, **kwargs)
+        return self.kriged
 
 
 class Tie_Point_Refiner(object):
@@ -1273,3 +1225,150 @@ class Tie_Point_Refiner(object):
         self.ransac_model_robust = model_robust
 
         return outseries
+
+
+class Tie_Point_Grid_Interpolator(object):
+    def __init__(self, tiepointgrid: Tie_Point_Grid):
+        self.tpg = tiepointgrid
+
+    def interpolate(self, metric: str, method: str = 'Rbf'):
+        if method not in ['Rbf', 'Kriging']:
+            raise ValueError(method)
+
+        if method == 'Rbf':
+            return self._interpolate_via_rbf(metric=metric, outshape=self.tpg.shift.shape)
+
+        else:
+            raise NotImplementedError()
+
+    def _interpolate_via_rbf(self, metric: str, outshape: tuple):
+        tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
+
+        rows = np.array(tiepoints.Y_IM)
+        cols = np.array(tiepoints.X_IM)
+        data = np.array(tiepoints[metric])
+
+        from time import time
+        t0 = time()
+
+        # https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
+
+        # f = Rbf(cols, rows, data, function='linear')
+        # f = Rbf(cols, rows, data)
+        # data_full = f(*np.meshgrid(np.arange(outshape[1]),
+        #                            np.arange(outshape[0])))
+
+        # rows_lowres = np.arange(0, outshape[0] + 10, 10)
+        # cols_lowres = np.arange(0, outshape[1] + 10, 10)
+        rows_lowres = np.arange(0, outshape[0] + 5, 5)
+        cols_lowres = np.arange(0, outshape[1] + 5, 5)
+        f = Rbf(cols, rows, data)
+        data_interp_lowres = f(*np.meshgrid(cols_lowres, rows_lowres))
+
+        # https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
+        # from sklearn.gaussian_process import GaussianProcess
+        # gp = GaussianProcess(theta0=0.1, thetaL=.001, thetaU=1., nugget=0.01)
+        # gp.fit(X=np.column_stack([rr[vals], cc[vals]]), y=M[vals])
+        # rr_cc_as_cols = np.column_stack([rr.flatten(), cc.flatten()])
+        # interpolated = gp.predict(rr_cc_as_cols).reshape(M.shape)
+
+        RGI = RegularGridInterpolator(points=[cols_lowres, rows_lowres],
+                                      values=data_interp_lowres.T,  # must be in shape [x, y]
+                                      method='linear',
+                                      bounds_error=False)
+        rows_full = np.arange(outshape[0])
+        cols_full = np.arange(outshape[1])
+        data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
+
+        print('interpolation runtime: %.2fs' % (time() - t0))
+
+        # from matplotlib import pyplot as plt
+        # plt.figure()
+        # im = plt.imshow(data_full)
+        # plt.colorbar(im)
+        # plt.scatter(cols, rows, c=data, edgecolors='black')
+        # plt.title(metric)
+        # plt.show()
+
+        return data_full
+
+    def _interpolate_via_kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+                                 fName_out=None, tilepos=None, tilesize=500, CPUs=1):
+
+        CPUs = 1
+        if CPUs == 1:
+            data_full = self._Kriging_sp(attrName, skip_nodata=skip_nodata, skip_nodata_col=skip_nodata_col,
+                                         outGridRes=outGridRes, fName_out=fName_out, tilepos=tilepos)
+
+        else:
+            raise NotImplementedError()
+
+            # tilepositions = UTL.get_image_tileborders([tilesize, tilesize], self.tgt_shape)
+            # args_kwargs_dicts = []
+            # for tp in tilepositions:
+            #     kwargs_dict = {'skip_nodata': skip_nodata,
+            #                    'skip_nodata_col': skip_nodata_col,
+            #                    'outGridRes': outGridRes,
+            #                    'fName_out': fName_out,
+            #                    'tilepos': tp}
+            #     args_kwargs_dicts.append({'args': [attrName], 'kwargs': kwargs_dict})
+            #
+            # # data_full=[]
+            # # for i in args_kwargs_dicts:
+            # #     res = self.Kriging_mp(i)
+            # #     data_full.append(res)
+            # #     print(res)
+            #
+            # with multiprocessing.Pool() as pool:
+            #     data_full = pool.map(self._Kriging_mp, args_kwargs_dicts)
+
+        return data_full
+
+    def _Kriging_sp(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
+                    fName_out=None, tilepos=None):
+        # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
+        #            (Cambridge University Press, 1997) 272 p.
+        from pykrige.ok import OrdinaryKriging
+
+        GDF = self.tpg.CoRegPoints_table
+        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.tpg.outFillVal]
+
+        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_MAP'], GDF2pass['Y_MAP'], GDF2pass[attrName]
+
+        xmin, ymin, xmax, ymax = GDF2pass.total_bounds
+
+        grid_res = outGridRes if outGridRes else int(min(xmax - xmin, ymax - ymin) / 250)
+        grid_x, grid_y = np.arange(xmin, xmax + grid_res, grid_res), np.arange(ymax, ymin - grid_res, -grid_res)
+
+        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical', verbose=False)
+        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y, backend='C', n_closest_points=12)
+
+        # FIXME: revise this save-routine
+        if self.tpg.CPUs is None or self.tpg.CPUs > 1:
+            fName_out = fName_out if fName_out else \
+                "Kriging__%s__grid%s_ws%s_%s.tif" \
+                % (attrName, self.tpg.grid_res, self.tpg.COREG_obj.win_size_XY, tilepos)
+        else:
+            fName_out = fName_out if fName_out else \
+                "Kriging__%s__grid%s_ws%s.tif" \
+                % (attrName, self.tpg.grid_res, self.tpg.COREG_obj.win_size_XY)
+
+        path_out = get_generic_outpath(dir_out=self.tpg.dir_out, fName_out=fName_out)
+
+        # add half a pixel as grid points are centered on the output pixels
+        xmin = xmin - grid_res / 2
+        # ymin = ymin - grid_res / 2
+        # xmax = xmax + grid_res / 2
+        ymax = ymax + grid_res / 2
+
+        GeoArray(zvalues,
+                 geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
+                 projection=self.tpg.COREG_obj.shift.prj).save(path_out)
+
+        return zvalues
+
+    def _Kriging_mp(self, args_kwargs_dict):
+        args = args_kwargs_dict.get('args', [])
+        kwargs = args_kwargs_dict.get('kwargs', [])
+
+        return self._Kriging_sp(*args, **kwargs)

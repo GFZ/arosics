@@ -28,6 +28,7 @@ dependencies:
   - pip:
     - folium>=0.6.0,!=0.12.0
     - geojson
+    - scipy
 
     # doc requirements
     - coverage

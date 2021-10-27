@@ -34,6 +34,8 @@ import shutil
 import warnings
 
 # custom
+import numpy as np
+
 from .cases import test_cases
 from arosics import COREG_LOCAL, Tie_Point_Grid
 
@@ -124,6 +126,11 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             self.assertTrue(os.path.isfile(outpath))
             self.TPG.to_vectorfield(outpath, fmt='ENVI', mode='uv')
             self.assertTrue(os.path.isfile(outpath))
+
+    def test_interpolate_to_raster(self):
+        arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'Rbf')
+
+        self.assertIsInstance(arr_interp, np.ndarray)
 
     def test_to_Raster_using_Kriging(self):
         if find_loader('pykrige.ok'):
