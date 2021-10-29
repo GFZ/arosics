@@ -1337,11 +1337,16 @@ class Tie_Point_Grid_Interpolator(object):
 
         xmin, ymin, xmax, ymax = GDF2pass.total_bounds
 
-        grid_res = outGridRes if outGridRes else int(min(xmax - xmin, ymax - ymin) / 250)
-        grid_x, grid_y = np.arange(xmin, xmax + grid_res, grid_res), np.arange(ymax, ymin - grid_res, -grid_res)
+        grid_res = outGridRes or int(min(xmax - xmin, ymax - ymin) / 250)
+        grid_x = np.arange(xmin, xmax + grid_res, grid_res)
+        grid_y = np.arange(ymax, ymin - grid_res, -grid_res)
 
-        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical', verbose=False)
-        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y, backend='C', n_closest_points=12)
+        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT,
+                             variogram_model='spherical',
+                             verbose=False)
+        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y,
+                                      backend='C',
+                                      n_closest_points=12)
 
         # FIXME: revise this save-routine
         if self.tpg.CPUs is None or self.tpg.CPUs > 1:
