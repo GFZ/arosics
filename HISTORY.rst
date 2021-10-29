@@ -2,6 +2,12 @@
 History
 =======
 
+1.7.2 (coming soon)
+-------------------
+
+* Listed dill in package requirements.
+
+
 1.7.1 (2021-10-13)
 ------------------
 
