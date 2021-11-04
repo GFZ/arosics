@@ -233,7 +233,7 @@ class COREG_LOCAL(object):
             use binary X/Y dimensions for the matching window (default: True)
 
         :param force_quadratic_win:
-            force a quadratic matching window (default: 1)
+            force a quadratic matching window (default: True)
 
         :param mask_baddata_ref:
             path to a 2D boolean mask file (or an instance of BadDataMask) for the reference image where all bad data

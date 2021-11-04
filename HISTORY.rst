@@ -6,6 +6,7 @@ History
 -------------------
 
 * Listed dill in package requirements.
+* Resolved inconsistency in documenting boolean default values.
 
 
 1.7.1 (2021-10-13)
