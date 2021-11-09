@@ -2,8 +2,8 @@
 History
 =======
 
-1.7.2 (coming soon)
--------------------
+1.7.2 (2021-11-09)
+------------------
 
 * Listed dill in package requirements.
 * Resolved inconsistency in documenting boolean default values.
