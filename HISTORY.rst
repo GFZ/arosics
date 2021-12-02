@@ -2,6 +2,12 @@
 History
 =======
 
+1.7.3 (2021-12-02)
+------------------
+
+* Avoid folium 0.12.1 as requirement due to https://github.com/python-visualization/folium/issues/1513.
+
+
 1.7.2 (2021-11-09)
 ------------------
 

@@ -4,7 +4,7 @@ dill
 gdal
 geoarray>=0.15.0
 geojson
-folium>=0.6.0,!=0.12.0
+folium>=0.6.0,!=0.12.0,!=0.12.1
 geopandas
 matplotlib
 numpy
