@@ -41,7 +41,7 @@ Status
 .. image:: https://zenodo.org/badge/253474603.svg
         :target: https://zenodo.org/badge/latestdoi/253474603
 
-See also the latest coverage_ report and the nosetests_ HTML report.
+See also the latest coverage_ report and the pytest_ HTML report.
 
 Feature overview
 ----------------
@@ -110,6 +110,6 @@ documentation have been provided by NASA (Landsat-8) and ESA (Sentinel-2).
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _coverage: https://danschef.git-pages.gfz-potsdam.de/arosics/coverage/
-.. _nosetests: https://danschef.git-pages.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
+.. _pytest: https://danschef.git-pages.gfz-potsdam.de/arosics/test_reports/report.html
 .. _conda: https://conda.io/docs/
 
