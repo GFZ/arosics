@@ -80,13 +80,6 @@ coverage: ## check code coverage quickly with the default Python
 	coverage html
 	#$(BROWSER) htmlcov/index.html
 
-nosetests: clean-test ## Runs nosetests with coverage, xUnit and nose-html-output
-	## - puts the coverage results in the folder 'htmlcov'
-	## - generates 'nosetests.html' (--with-html)
-	## - generates 'nosetests.xml' (--with-xunit) which is currently not visualizable by GitLab
-	nosetests -vv --with-coverage --cover-package=arosics --cover-erase --cover-html --cover-html-dir=htmlcov \
-		--with-html --with-xunit --rednose --force-color
-
 pytest: clean-test ## Runs pytest with coverage and creates coverage and test report
 	## - puts the coverage results in the folder 'htmlcov'
 	## - generates cobertura 'coverage.xml' (needed to show coverage in GitLab MR changes)
