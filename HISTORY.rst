@@ -6,6 +6,8 @@ History
 ------------------
 
 * Migrated test calls from nosetests to pytest and implemented new test report (!24).
+* Removed folium 0.12.1 exclusion due to fix on PyPI and conda-forge.
+* Fixed dead link.
 
 
 1.7.3 (2021-12-02)
