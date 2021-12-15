@@ -31,15 +31,13 @@ dependencies:
     - geojson
 
     # doc requirements
-    - coverage
     - flake8
-    - nose
-    - nose2
-    - nose-htmloutput
     - pycodestyle
     - pydocstyle
     - pylint
-    - rednose
+    - pytest
+    - pytest-cov
+    - pytest-reporter-html1
     - sphinx-argparse
     - sphinx-autodoc-typehints
     - sphinx_rtd_theme
