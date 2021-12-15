@@ -43,7 +43,7 @@ req = [
     'cartopy',
     'cmocean',
     'dill',
-    'folium>=0.6.0,!=0.12.0,!=0.12.1',
+    'folium>=0.6.0,!=0.12.0',
     'gdal',
     'geojson',
     'geoarray>=0.15.0',
