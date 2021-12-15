@@ -2,6 +2,12 @@
 History
 =======
 
+1.7.4 (2021-12-15)
+------------------
+
+* Migrated test calls from nosetests to pytest and implemented new test report (!24).
+
+
 1.7.3 (2021-12-02)
 ------------------
 

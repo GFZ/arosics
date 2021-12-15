@@ -403,6 +403,8 @@ class Tie_Point_Grid(object):
                             # COREG and is not raised
                             results = results.get()
                             break
+                pool.close()  # needed to make coverage work in multiprocessing
+                pool.join()
 
         else:
             # declare global variables needed for self._get_spatial_shifts()
@@ -974,6 +976,8 @@ class Tie_Point_Grid(object):
         #
         #     with multiprocessing.Pool() as pool:
         #        self.kriged = pool.map(self.Kriging_mp,args_kwargs_dicts)
+        #        pool.close()  # needed to make coverage work in multiprocessing
+        #        pool.join()
         # else:
         #     self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
         #                     outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
