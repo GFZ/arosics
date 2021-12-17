@@ -2,27 +2,31 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2019  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import warnings
 import sys
+import os
+from typing import Union
 
 # custom
 import numpy as np
@@ -31,6 +35,7 @@ from geopandas import GeoDataFrame
 # internal modules
 from py_tools_ds.geo.coord_calc import calc_FullDataset_corner_positions
 from py_tools_ds.geo.coord_trafo import pixelToMapYX, imYX2mapYX
+from py_tools_ds.geo.raster.reproject import warp_ndarray
 from geoarray import GeoArray
 
 __author__ = 'Daniel Scheffler'
@@ -133,3 +138,23 @@ def get_GeoArrayPosition_from_boxImYX(boxImYX):
     rS, cS = boxImYX[0]  # UL
     rE, cE = boxImYX[2]  # LR
     return rS, rE - 1, cS, cE - 1  # -1 because boxImYX represents outer box and includes the LR corner of LR pixel
+
+
+def has_metaRotation(path_or_geoarray: Union[GeoArray, str]):
+    """Return True if there is a row or column rotation due to the given GDAL GeoTransform tuple."""
+    gt = GeoArray(path_or_geoarray).gt
+
+    return gt[2] or gt[4]
+
+
+def remove_metaRotation(gA_rot: GeoArray, rspAlg='cubic') -> GeoArray:
+    """Remove any metadata rotation (a rotation that only exists in the map info)."""
+    gA = GeoArray(*warp_ndarray(gA_rot[:], gA_rot.gt, gA_rot.prj,
+                                rspAlg=rspAlg,
+                                # out_gsd=(gA_rot.xgsd, gA_rot.ygsd)
+                                ),
+                  nodata=gA_rot.nodata)
+    gA.basename = os.path.basename(gA.basename)
+    gA.meta = gA.meta
+
+    return gA

@@ -1,7 +1,5 @@
 before_script:
   - git lfs pull
-  - mkdir -p public/images/
-  - cp -r docs/images/* public/images/
 
 
 stages:
@@ -13,33 +11,35 @@ stages:
 test_arosics:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate
-    - source activate ci_env
-    - export GDAL_DATA=/root/miniconda3/envs/ci_env/share/gdal
-    - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-    - pip install "py_tools_ds>=0.14.12"  # FIXME remove as soon as docker runner has been updated
-    - make nosetests
+    - source /root/mambaforge/bin/activate ci_env
+
+    # update py_tools_ds and geoarray
+    - pip install -U py_tools_ds -q
+    - pip install -U geoarray -q
+
+    # run tests
+    - make pytest
+
     # create the docs
-    - pip install sphinx_rtd_theme  # Read-the-docs theme for SPHINX documentation
-    - pip install sphinx-autodoc-typehints
     - make docs
   artifacts:
+    expose_as: 'Test and coverage report'
     paths:
     - htmlcov/
+    - report.html
     - docs/_build/html/
-    - nosetests.html
-    - nosetests.xml
+    reports:
+      cobertura: coverage.xml
+      junit: report.xml
+
+    expire_in: 30 days
     when: always
 
 
 test_styles:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate
-    - source activate ci_env
-    - export GDAL_DATA=/root/miniconda3/envs/ci_env/share/gdal
-    - export PYTHONPATH=$PYTHONPATH:/root  # /root <- directory needed later
-#    - pip install "pycodestyle>=2.0.0,!=2.4.0"  # TODO remove as soon as docker runner is recreated
+    - source /root/mambaforge/bin/activate ci_env
     - make lint
   artifacts:
     paths:
@@ -49,21 +49,32 @@ test_styles:
     when: always
 
 
+test_urls:
+  stage: test
+  script:
+    - source /root/mambaforge/bin/activate ci_env
+    - pip install -U urlchecker
+    - make urlcheck
+  when: always
+
+
 test_arosics_install:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate
-    - conda create -y -q --name arosics_testinstall python=3
-    - source activate arosics_testinstall
-     # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib pyproj rasterio shapely geopandas pyresample>=1.11.0
-    - conda install --yes -q -c conda-forge libgdal ncurses # Fix for libgdal installed from defaults channel causing libkea.so.1.4.7: cannot open shared object file: No such file or directory
-    # run installer
-    - python setup.py install
-    # test if its importable
+    - source /root/mambaforge/bin/activate
+    - mamba update -n base -c conda-forge --all
+
+    # create arosics environment from environment_arosics.yml
+    - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
+    - conda activate arosics_test
+
+    # install arosics
+    - pip install -e .
     - cd ..
     - pwd
     - ls
+
+    # test importability
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
   only:
@@ -81,19 +92,23 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - mkdir -p public/doc
     - mkdir -p public/images/
     - mkdir -p public/coverage
-    - mkdir -p public/nosetests_reports
+    - mkdir -p public/test_reports
+
     # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
     - cp -r docs/images/* public/images/
+
     # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
-    # Copy over the nosetests reports
-    - cp nosetests.* public/nosetests_reports/
+
+    # Copy over the test reports
+    - cp report.html public/test_reports/
+
     # Check if everything is working great
     - ls -al public
     - ls -al public/doc
     - ls -al public/coverage
-    - ls -al public/nosetests_reports
+    - ls -al public/test_reports
   artifacts:
     paths:
       - public
@@ -108,8 +123,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:
-    - source /root/miniconda3/bin/activate
-    - source activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
     - pip install -U twine
     - python setup.py sdist
     - twine upload dist/*  # requires creds as environment variables
@@ -117,3 +131,22 @@ deploy_pypi:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
   except:
     - dev
+
+
+create_github_release:
+    stage: deploy
+    dependencies:
+        - test_arosics
+    script:
+        - bash ./.github/create_release_from_gitlab_ci.sh  # uses environment variables set in the UI
+    only:
+        - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+    except:
+        - dev
+
+
+#rever:
+#    stage: deploy
+#    dependencies:
+#        - deploy_pypi
+#    script:

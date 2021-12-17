@@ -3,30 +3,30 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2019  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """The setup script."""
 
 from setuptools import setup, find_packages
-import warnings
-from pkgutil import find_loader
 
 
 with open('README.rst') as readme_file:
@@ -39,66 +39,91 @@ version = {}
 with open("arosics/version.py") as version_file:
     exec(version_file.read(), version)
 
-requirements = ['numpy', 'gdal', 'shapely', 'scikit-image', 'matplotlib', 'geopandas', 'geoarray>=0.8.17',
-                'py_tools_ds>=0.14.12', 'plotly', 'cmocean', 'six', 'folium>=0.6.0', 'geojson'
-                # 'pykrige'  # conda install --yes -c conda-forge pykrige
-                # 'pyfftw', # conda install --yes -c conda-forge pyfftw=0.10.4 ; \
-                # 'basemap', # conda install --yes -c conda-forge basemap; \
-                # 'pyresample'  # conda install --yes -c conda-forge pyresample>=1.11.0
-                ]
-
-setup_requirements = [
-    'setuptools'
+req = [
+    'cartopy',
+    'cmocean',
+    'dill',
+    'folium>=0.6.0,!=0.12.0',
+    'gdal',
+    'geojson',
+    'geoarray>=0.15.0',
+    'geopandas',
+    'matplotlib',
+    'numpy',
+    'pandas',
+    'plotly',
+    'pyfftw',
+    'pykrige',
+    'pyproj>2.2.0',
+    'py_tools_ds>=0.18.0',
+    'scikit-image>=0.16.0',
+    'shapely',
 ]
 
-test_requirements = requirements + ['coverage', 'nose', 'nose-htmloutput', 'rednose']
+req_setup = [
+    'setuptools',
+    'setuptools-git'
+]
+
+req_intplot = ['holoviews', 'ipython']
+
+req_test = ['pytest', 'pytest-cov', 'pytest-reporter-hmtl1', 'urlchecker'] + req_intplot
+
+req_doc = ['sphinx-argparse', 'sphinx_rtd_theme', 'sphinx-autodoc-typehints']
+
+req_lint = ['flake8', 'pycodestyle', 'pydocstyle']
+
+req_dev = req_setup + req_test + req_doc + req_lint
 
 setup(
-    name='arosics',
-    version=version['__version__'],
-    description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
-    long_description=readme + '\n\n' + history,
     author="Daniel Scheffler",
     author_email='daniel.scheffler@gfz-potsdam.de',
-    url='https://gitext.gfz-potsdam.de/danschef/arosics',
-    packages=find_packages(),
-    include_package_data=True,
-    scripts=["bin/arosics_cli.py"],
-    install_requires=requirements,
-    license="GNU General Public License v3",
-    zip_safe=False,
-    keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering',
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
-        "Programming Language :: Python :: 2",
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
+    description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
+    entry_points={
+        'console_scripts': [
+            'arosics=arosics.arosics_cli:main',
+        ],
+    },
+    extras_require={
+        "interactive_plotting": req_intplot,
+        "doc": req_doc,
+        "test": req_test,
+        "lint": req_lint,
+        "dev": req_dev
+    },
+    include_package_data=True,
+    install_requires=req,
+    keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
+    license="Apache-2.0",
+    long_description=readme,
+    name='arosics',
+    packages=find_packages(exclude=['tests*']),
+    project_urls={
+        "Source code": "https://git.gfz-potsdam.de/danschef/arosics",
+        "Issue Tracker": "https://git.gfz-potsdam.de/danschef/arosics/-/issues",
+        "Documentation": "https://danschef.git-pages.gfz-potsdam.de/arosics/doc/",
+        "Change log": "https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/HISTORY.rst",
+        "Algorithm paper": "https://www.mdpi.com/2072-4292/9/7/676",
+        "Zenodo": "https://zenodo.org/record/5093940"
+    },
+    python_requires='>3.6',
+    scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
+    setup_requires=req_setup,
     test_suite='tests',
-    tests_require=test_requirements,
-    setup_requires=setup_requirements,
+    tests_require=req + req_test,
+    url='https://git.gfz-potsdam.de/danschef/arosics',
+    version=version['__version__'],
+    zip_safe=False,
 )
-
-
-# check for pyfftw
-if not find_loader('pyfftw'):
-    warnings.warn('You need to install pyfftw manually (see https://pypi.python.org/pypi/pyFFTW) for speeding up '
-                  'the computation. It is not automatically installed.')
-
-# check for basemap
-if not find_loader('mpl_toolkits.basemap'):
-    warnings.warn('You need to install basemap manually if you want to plot maps (see www./matplotlib.org/basemap). '
-                  'It is not automatically installed.')
-
-# check for pykrige
-if not find_loader('pykrige'):
-    warnings.warn('You need to install pykrige manually if you want to interpolate tie point grids produced by AROSICS '
-                  '(see https://github.com/bsmurphy/PyKrige). It is not automatically installed.')

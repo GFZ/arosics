@@ -3,31 +3,33 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2019  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """Tests for the local co-registration module of AROSICS."""
 
 import unittest
 import shutil
 import os
-from pkgutil import find_loader
+import warnings
 
 # custom
 from .cases import test_cases
@@ -80,17 +82,17 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # get instance of COREG_LOCAL object
         CRL = COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs)
 
-        # use the getter of the CoRegPoints_table to calculate tie point grid
-        # noinspection PyStatementEffect
-        CRL.CoRegPoints_table
+        # calculate tie point grid
+        CRL.calculate_spatial_shifts()
 
         # test tie point grid visualization
-        if find_loader('mpl_toolkits.basemap'):  # only works if basemap is installed
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
             CRL.view_CoRegPoints(hide_filtered=True)
             CRL.view_CoRegPoints(hide_filtered=False)
             CRL.view_CoRegPoints(shapes2plot='vectors')
-
-        if find_loader('folium') and find_loader('geojson'):
             CRL.view_CoRegPoints_folium()
 
         # test shift correction and output writer
@@ -106,26 +108,98 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         ref = GeoArray(self.ref_path)
         ref.to_mem()
         ref.filePath = None
-        ref.gt = [330000.19999996503, 0.6, 0.0, 5862000.7999997628, 0.0, -0.6]
-        # ref.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
         tgt = GeoArray(self.tgt_path)
         tgt.to_mem()
         tgt.filePath = None
-        tgt.gt = [330000.19999996503, 0.6, 0.0, 5862000.7999997628, 0.0, -0.6]
+
+        ref.gt = [330000.19999996503, 10.00000001, 0.0, 5862000.7999997628, 0.0, -10.00000001]
+        # ref.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
+        tgt.gt = [335440.19999996503, 10.00000001, 0.0, 5866490.7999997628, 0.0, -10.00000001]
+        # tgt.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(**self.coreg_kwargs))
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+                                           **self.coreg_kwargs))
+        CRL.calculate_spatial_shifts()
+        # CRL.view_CoRegPoints()
 
-        # use the getter of the CoRegPoints_table to calculate tie point grid
-        # noinspection PyStatementEffect
-        CRL.CoRegPoints_table
+    def test_calculation_of_tie_point_grid_noepsg(self):
+        """Test local coregistration with a proj. other than LonLat and UTM and a WKT which has no EPSG code (FORCE)."""
+        wkt_noepsg = \
+            """
+            PROJCRS["BU MEaSUREs Lambert Azimuthal Equal Area - SA - V01",
+                BASEGEOGCRS["WGS 84",
+                    DATUM["World Geodetic System 1984",
+                        ELLIPSOID["WGS 84",6378137,298.257223563,
+                            LENGTHUNIT["metre",1]]],
+                    PRIMEM["Greenwich",0,
+                        ANGLEUNIT["degree",0.0174532925199433]],
+                    ID["EPSG",4326]],
+                CONVERSION["unnamed",
+                    METHOD["Lambert Azimuthal Equal Area",
+                        ID["EPSG",9820]],
+                    PARAMETER["Latitude of natural origin",-15,
+                        ANGLEUNIT["degree",0.0174532925199433],
+                        ID["EPSG",8801]],
+                    PARAMETER["Longitude of natural origin",-60,
+                        ANGLEUNIT["degree",0.0174532925199433],
+                        ID["EPSG",8802]],
+                    PARAMETER["False easting",0,
+                        LENGTHUNIT["metre",1],
+                        ID["EPSG",8806]],
+                    PARAMETER["False northing",0,
+                        LENGTHUNIT["metre",1],
+                        ID["EPSG",8807]]],
+                CS[Cartesian,2],
+                    AXIS["easting",east,
+                        ORDER[1],
+                        LENGTHUNIT["metre",1]],
+                    AXIS["northing",north,
+                        ORDER[2],
+                        LENGTHUNIT["metre",1]]]
+            """
+        wkt_noepsg = ' '.join(wkt_noepsg.split())
+
+        # overwrite prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+
+        ref.prj = wkt_noepsg
+        tgt.prj = wkt_noepsg
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+                                           **self.coreg_kwargs))
+        CRL.calculate_spatial_shifts()
+        # CRL.view_CoRegPoints()
+
+    def test_calculation_of_tie_point_grid_with_metaRotation(self):
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.gt = [330000, 10, 0.00001, 5862000, 0.00001, -10]
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        # tgt.gt = [335440, 5.8932, 0.0, 5866490, 0.0, -10.1]
+        tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+                                           **self.coreg_kwargs))
+        CRL.calculate_spatial_shifts()
+        # CRL.view_CoRegPoints()
+
+        self.assertTrue(CRL.success)
 
 
-# if __name__ == '__main__':
-#     unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
-#
-#      suite = unittest.TestLoader().loadTestsFromTestCase(eval("CompleteWorkflow_INTER1_S2A_S2A"))
-#     alltests = unittest.TestSuite(suite)
-#
-#      # Part 2: Saving the results of each testsuite and the query for the job.status in individual variables.
-#      testResult = unittest.TextTestRunner(verbosity=2).run(alltests)
+if __name__ == '__main__':
+    import pytest
+    pytest.main()

@@ -5,7 +5,7 @@ Compatible image formats
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input images can have any GDAL compatible image format. You can find a list here:
-http://www.gdal.org/formats_list.html
+https://gdal.org/drivers/raster/index.html
 
 
 Geocoding
@@ -22,12 +22,24 @@ header file.
     represents the same map coordinate. The computed misregistration is then returned in image coordinate units.
 
 
+Supported projections
+~~~~~~~~~~~~~~~~~~~~~
+
+AROSICS was initially written with support for UTM and geographic coordinates only. Full support for any other
+projection was added in version 1.4.0. However, make sure your input images have the same projection. Different
+projections for the reference and target image are currently not supported.
+
+AROSICS can also be applied to images without any projection and geocoding information. In this case, however,
+the input images need to have the same pixel size and must cover more or less the same spatial area
+(with a shift a few pixels at most).
+
+
 Geographic overlap
 ~~~~~~~~~~~~~~~~~~
 
-The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary.
-The image overlap area is automatically calculated. Thereby, no-data regions within the images are automatically
-respected.
+The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary
+The image overlap area is automatically calculated, given that your input images have valid geocoding and projection
+information). Thereby, no-data regions within the images are automatically respected.
 
 
 Spatial resolution
@@ -37,7 +49,7 @@ The input images may have different spatial resolutions. Any needed resampling o
 
 .. attention::
 
-    Please try avoid any spatial resampling of the input images before running AROSICS. It might affect
+    Please try to avoid any spatial resampling of the input images before running AROSICS. It might affect
     the accuracy of the computed misregistration.
 
 

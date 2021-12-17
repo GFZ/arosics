@@ -1,15 +1,15 @@
 Command line interface reference
 ********************************
 
-arosics_cli.py
---------------
+arosics
+-------
 
-At the command line, arosics provides the **arosics_cli.py** command:
+At the command line, arosics provides the **arosics** command:
 
 .. argparse::
-   :filename: ./../bin/arosics_cli.py
+   :filename: ./../arosics/arosics_cli.py
    :func: get_arosics_argparser
-   :prog: arosics_cli.py
+   :prog: arosics
 
 
 .. note::

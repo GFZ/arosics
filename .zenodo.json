@@ -1,0 +1,50 @@
+{
+    "title": "AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
+    "description": "<p>AROSICS is a python package to perform automatic subpixel co-registration of two satellite image datasets based on an image matching approach working in the frequency domain, combined with a multistage workflow for effective detection of false-positives.</p>\n\n<p>It detects and corrects local as well as global misregistrations between two input images in the subpixel scale, that are often present in satellite imagery. The algorithm is robust against the typical difficulties of multi-sensoral / multi-temporal images. Clouds are automatically handled by the implemented outlier detection algorithms. The user may provide user-defined masks to exclude certain image areas from tie point creation. The image overlap area is automatically detected. AROSICS supports a wide range of input data formats and can be used from the command line (without any Python experience) or as a normal Python package.</p>",
+    "license": "Apache-2.0",
+    "upload_type": "software",
+    "keywords": [
+        "AROSICS",
+        "image co-registration",
+        "geometric pre-processing",
+        "remote sensing",
+        "sensor fusion"
+    ],
+    "creators": [
+        {
+            "name": "Scheffler, Daniel",
+            "affiliation": "Helmholtz Centre Potsdam German Research Centre for Geosciences GFZ, Section 1.4 - Remote Sensing and Geoinformatics",
+            "orcid": "0000-0003-4106-8928"
+        }
+    ],
+    "references": [
+        "Scheffler, D.; Hollstein, A.; Diedrich, H.; Segl, K.; Hostert, P. AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sens. 2017, 9, 676. doi:https://doi.org/10.3390/rs9070676"
+    ],
+    "related_identifiers": [
+        {
+            "scheme": "url",
+            "identifier": "https://git.gfz-potsdam.de/danschef/arosics",
+            "relation": "isSupplementTo",
+            "resource_type": "software"
+        },
+        {
+            "scheme": "url",
+            "identifier": "https://danschef.git-pages.gfz-potsdam.de/arosics/doc",
+            "relation": "isDocumentedBy",
+            "resource_type": "publication-softwaredocumentation"
+        },
+        {
+            "scheme": "url",
+            "identifier": "https://www.mdpi.com/2072-4292/9/7/676",
+            "relation": "isCitedBy",
+            "resource_type": "publication-article"
+        }
+    ],
+    "grants": [
+        {
+            "code": "01 IS 14 010 A-C",
+            "funder": "German Federal Ministry of Education and Research",
+            "title": "GeoMultiSens"
+        }
+    ]
+}

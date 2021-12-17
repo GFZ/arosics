@@ -2,47 +2,44 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2019  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import collections
 import multiprocessing
 import os
 import warnings
 import time
+from typing import Optional, Union
 
 # custom
-try:
-    import gdal
-except ImportError:
-    from osgeo import gdal
+from osgeo import gdal
 import numpy as np
-from matplotlib import pyplot as plt
-from geopandas import GeoDataFrame, GeoSeries
+from geopandas import GeoDataFrame
+from pandas import DataFrame, Series
 from shapely.geometry import Point
-from skimage.measure import points_in_poly, ransac
-from skimage.transform import AffineTransform
-# from skimage.transform import PolynomialTransform
 
 # internal modules
 from .CoReg import COREG
-from py_tools_ds.geo.projection import isProjectedOrGeographic, isLocal, get_UTMzone, dict_to_proj4, proj4_to_WKT
+from py_tools_ds.geo.projection import isLocal
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
@@ -53,8 +50,8 @@ from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
 
 __author__ = 'Daniel Scheffler'
 
-global_shared_imref = None
-global_shared_im2shift = None
+global_shared_imref: Optional[Union[GeoArray, str]] = None
+global_shared_im2shift: Optional[Union[GeoArray, str]] = None
 
 
 def mp_initializer(imref, imtgt):
@@ -80,44 +77,74 @@ class Tie_Point_Grid(object):
     See help(Tie_Point_Grid) for documentation!
     """
 
-    def __init__(self, COREG_obj, grid_res, max_points=None, outFillVal=-9999, resamp_alg_calc='cubic',
-                 tieP_filter_level=3, outlDetect_settings=None, dir_out=None, CPUs=None, progress=True, v=False,
-                 q=False):
+    def __init__(self,
+                 COREG_obj: COREG,
+                 grid_res: float,
+                 max_points: int = None,
+                 outFillVal: int = -9999,
+                 resamp_alg_calc: str = 'cubic',
+                 tieP_filter_level: int = 3,
+                 outlDetect_settings: dict = None,
+                 dir_out: str = None,
+                 CPUs: int = None,
+                 progress: bool = True,
+                 v: bool = False,
+                 q: bool = False):
         """Get an instance of the 'Tie_Point_Grid' class.
 
-        :param COREG_obj(object):       an instance of COREG class
-        :param grid_res:                grid resolution in pixels of the target image (x-direction)
-        :param max_points(int):         maximum number of points used to find coregistration tie points
-                                        NOTE: Points are selected randomly from the given point grid (specified by
-                                        'grid_res'). If the point does not provide enough points, all available points
-                                        are chosen.
-        :param outFillVal(int):         if given the generated tie points grid is filled with this value in case
-                                        no match could be found during co-registration (default: -9999)
-        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
-                                        of spatial shifts
-                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average,
-                                                           mode, max, min, med, q1, q3)
-                                        default: cubic (highly recommended)
-        :param tieP_filter_level(int):  filter tie points used for shift correction in different levels (default: 3).
-                                        NOTE: lower levels are also included if a higher level is chosen
-                                            - Level 0: no tie point filtering
-                                            - Level 1: Reliablity filtering - filter all tie points out that have a low
-                                                reliability according to internal tests
-                                            - Level 2: SSIM filtering - filters all tie points out where shift
-                                                correction does not increase image similarity within matching window
-                                                (measured by mean structural similarity index)
-                                            - Level 3: RANSAC outlier detection
-        :param outlDetect_settings      a dictionary with the settings to be passed to
-                                        arosics.TiePointGrid.Tie_Point_Refiner. Available keys: min_reliability,
-                                        rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
-                                        rs_timeout, q. See documentation there.
-        :param dir_out(str):            output directory to be used for all outputs if nothing else is given
-                                        to the individual methods
-        :param CPUs(int):               number of CPUs to use during calculation of tie points grid
-                                        (default: None, which means 'all CPUs available')
-        :param progress(bool):          show progress bars (default: True)
-        :param v(bool):                 verbose mode (default: False)
-        :param q(bool):                 quiet mode (default: False)
+        :param COREG_obj:
+            an instance of COREG class
+
+        :param grid_res:
+            grid resolution in pixels of the target image (x-direction)
+
+        :param max_points:
+            maximum number of points used to find coregistration tie points
+
+            NOTE: Points are selected randomly from the given point grid (specified by 'grid_res'). If the point does
+            not provide enough points, all available points are chosen.
+
+        :param outFillVal:
+            if given the generated tie points grid is filled with this value in case no match could be found during
+            co-registration (default: -9999)
+
+        :param resamp_alg_calc:
+            the resampling algorithm to be used for all warping processes during calculation of spatial shifts
+            (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
+            default: cubic (highly recommended)
+
+        :param tieP_filter_level:
+            filter tie points used for shift correction in different levels (default: 3).
+            NOTE: lower levels are also included if a higher level is chosen
+
+            - Level 0: no tie point filtering
+            - Level 1: Reliablity filtering
+                       - filter all tie points out that have a low reliability according to internal tests
+            - Level 2: SSIM filtering
+                       - filters all tie points out where shift correction does not increase image similarity within
+                         matching window (measured by mean structural similarity index)
+            - Level 3: RANSAC outlier detection
+
+        :param outlDetect_settings:
+            a dictionary with the settings to be passed to arosics.TiePointGrid.Tie_Point_Refiner.
+            Available keys: min_reliability, rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
+            rs_timeout, q. See documentation there.
+
+        :param dir_out:
+            output directory to be used for all outputs if nothing else is given to the individual methods
+
+        :param CPUs:
+            number of CPUs to use during calculation of tie points grid
+            (default: None, which means 'all CPUs available')
+
+        :param progress:
+            show progress bars (default: True)
+
+        :param v:
+            verbose mode (default: False)
+
+        :param q:
+            quiet mode (default: False)
         """
         if not isinstance(COREG_obj, COREG):
             raise ValueError("'COREG_obj' must be an instance of COREG class.")
@@ -128,12 +155,15 @@ class Tie_Point_Grid(object):
         self.outFillVal = outFillVal
         self.rspAlg_calc = resamp_alg_calc
         self.tieP_filter_level = tieP_filter_level
-        self.outlDetect_settings = outlDetect_settings if outlDetect_settings else dict(q=q)
+        self.outlDetect_settings = outlDetect_settings or dict()
         self.dir_out = dir_out
         self.CPUs = CPUs
         self.v = v
         self.q = q if not v else False  # overridden by v
         self.progress = progress if not q else False  # overridden by q
+
+        if 'q' not in self.outlDetect_settings:
+            self.outlDetect_settings['q'] = self.q
 
         self.ref = self.COREG_obj.ref  # type: GeoArray_CoReg
         self.shift = self.COREG_obj.shift  # type: GeoArray_CoReg
@@ -163,7 +193,7 @@ class Tie_Point_Grid(object):
     def CoRegPoints_table(self):
         """Return a GeoDataFrame containing all the results from coregistration for all points in the tie point grid.
 
-        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM','X_WIN_SIZE', 'Y_WIN_SIZE',
+        Columns of the GeoDataFrame: 'geometry','POINT_ID','X_IM','Y_IM','X_MAP','Y_MAP','X_WIN_SIZE', 'Y_WIN_SIZE',
                                      'X_SHIFT_PX','Y_SHIFT_PX', 'X_SHIFT_M', 'Y_SHIFT_M', 'ABS_SHIFT' and 'ANGLE'
         """
         if self._CoRegPoints_table is not None:
@@ -200,8 +230,8 @@ class Tie_Point_Grid(object):
         if not self.q:
             print('Initializing tie points grid...')
 
-        Xarr, Yarr = np.meshgrid(np.arange(0, self.shift.shape[1], grid_res),
-                                 np.arange(0, self.shift.shape[0], grid_res))
+        Xarr, Yarr = np.meshgrid(np.arange(0, self.shift.shape[1] + grid_res, grid_res),
+                                 np.arange(0, self.shift.shape[0] + grid_res, grid_res))
 
         mapXarr = np.full_like(Xarr, self.shift.gt[0], dtype=np.float64) + Xarr * self.shift.gt[1]
         mapYarr = np.full_like(Yarr, self.shift.gt[3], dtype=np.float64) - Yarr * abs(self.shift.gt[5])
@@ -221,21 +251,22 @@ class Tie_Point_Grid(object):
     def _exclude_bad_XYpos(self, GDF):
         """Exclude all points outside of the image overlap area and where the bad data mask is True (if given).
 
-        :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_UTM' and 'Y_UTM'
+        :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_MAP' and 'Y_MAP'
         :return:
         """
+        from skimage.measure import points_in_poly  # import here to avoid static TLS ImportError
+
         # exclude all points outside of overlap area
         inliers = points_in_poly(self.XY_mapPoints,
                                  np.swapaxes(np.array(self.COREG_obj.overlap_poly.exterior.coords.xy), 0, 1))
         GDF = GDF[inliers].copy()
         # GDF = GDF[GDF['geometry'].within(self.COREG_obj.overlap_poly.simplify(tolerance=15))] # works but much slower
 
-        # FIXME track that
         assert not GDF.empty, 'No coregistration point could be placed within the overlap area. Check your input data!'
 
-        # exclude all point where bad data mask is True (e.g. points on clouds etc.)
+        # exclude all points where bad data mask is True (e.g. points on clouds etc.)
         orig_len_GDF = len(GDF)  # length of GDF after dropping all points outside the overlap polygon
-        mapXY = np.array(GDF.loc[:, ['X_UTM', 'Y_UTM']])
+        mapXY = np.array(GDF.loc[:, ['X_MAP', 'Y_MAP']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref.mask_baddata.read_pointData(mapXY) \
             if self.COREG_obj.ref.mask_baddata is not None else False
         GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY) \
@@ -243,8 +274,12 @@ class Tie_Point_Grid(object):
         GDF = GDF[(~GDF['REF_BADDATA']) & (~GDF['TGT_BADDATA'])]
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
             if not self.q:
-                print('According to the provided bad data mask(s) %s points of initially %s have been excluded.'
-                      % (orig_len_GDF - len(GDF), orig_len_GDF))
+                if not GDF.empty:
+                    print('With respect to the provided bad data mask(s) %s points of initially %s have been excluded.'
+                          % (orig_len_GDF - len(GDF), orig_len_GDF))
+                else:
+                    warnings.warn('With respect to the provided bad data mask(s) no coregistration point could be '
+                                  'placed within an image area usable for coregistration.')
 
         return GDF
 
@@ -297,30 +332,20 @@ class Tie_Point_Grid(object):
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
 
-        # create a dataframe containing 'geometry','POINT_ID','X_IM','Y_IM','X_UTM','Y_UTM'
+        # create a dataframe containing 'geometry','POINT_ID','X_IM','Y_IM','X_MAP','Y_MAP'
         # (convert imCoords to mapCoords
         XYarr2PointGeom = np.vectorize(lambda X, Y: Point(X, Y), otypes=[Point])
         geomPoints = np.array(XYarr2PointGeom(self.XY_mapPoints[:, 0], self.XY_mapPoints[:, 1]))
 
-        if isLocal(self.COREG_obj.shift.prj):
-            crs = None
-        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'geographic':
-            crs = dict(ellps='WGS84', datum='WGS84', proj='longlat')
-        elif isProjectedOrGeographic(self.COREG_obj.shift.prj) == 'projected':
-            UTMzone = abs(get_UTMzone(prj=self.COREG_obj.shift.prj))
-            south = get_UTMzone(prj=self.COREG_obj.shift.prj) < 0
-            crs = dict(ellps='WGS84', datum='WGS84', proj='utm', zone=UTMzone, south=south, units='m', no_defs=True)
-            if not south:
-                del crs['south']
-        else:
-            crs = None
+        crs = self.COREG_obj.shift.prj if not isLocal(self.COREG_obj.shift.prj) else None
 
-        GDF = GeoDataFrame(index=range(len(geomPoints)), crs=crs,
-                           columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_UTM', 'Y_UTM'])
+        GDF = GeoDataFrame(index=range(len(geomPoints)),
+                           crs=crs,
+                           columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_MAP', 'Y_MAP'])
         GDF['geometry'] = geomPoints
         GDF['POINT_ID'] = range(len(geomPoints))
         GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
-        GDF.loc[:, ['X_UTM', 'Y_UTM']] = self.XY_mapPoints
+        GDF.loc[:, ['X_MAP', 'Y_MAP']] = self.XY_mapPoints
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
@@ -337,6 +362,8 @@ class Tie_Point_Grid(object):
             # NOTE: actually grid res should be also changed here because self.shift.xgsd changes and grid res is
             # connected to that
             self.COREG_obj.equalize_pixGrids()
+            self.ref = self.COREG_obj.ref
+            self.shift = self.COREG_obj.shift
 
         # validate reference and target image inputs
         assert self.ref.footprint_poly  # this also checks for mask_nodata and nodata value
@@ -373,9 +400,11 @@ class Tie_Point_Grid(object):
                             bar.print_progress(percent=numberDone / len(GDF) * 100)
                         if results.ready():
                             # <= this is the line where multiprocessing can freeze if an exception appears within
-                            # COREG ans is not raised
+                            # COREG and is not raised
                             results = results.get()
                             break
+                pool.close()  # needed to make coverage work in multiprocessing
+                pool.join()
 
         else:
             # declare global variables needed for self._get_spatial_shifts()
@@ -384,8 +413,8 @@ class Tie_Point_Grid(object):
             global_shared_im2shift = self.shift
 
             if not self.q:
-                print("Calculating tie point grid (%s points) 1 CPU core..." % len(GDF))
-            results = np.empty((len(geomPoints), 14), np.object)
+                print("Calculating tie point grid (%s points) on 1 CPU core..." % len(GDF))
+            results = np.empty((len(geomPoints), 14), object)
             bar = ProgressBar(prefix='\tprogress:')
             for i, coreg_kwargs in enumerate(list_coreg_kwargs):
                 if self.progress:
@@ -393,14 +422,17 @@ class Tie_Point_Grid(object):
                 results[i, :] = self._get_spatial_shifts(coreg_kwargs)
 
         # merge results with GDF
-        records = GeoDataFrame(results,
-                               columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
-                                        'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
-                                        'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
+        # NOTE: We use a pandas.DataFrame here because the geometry column is missing.
+        #       GDF.astype(...) fails with geopandas>0.6.0 if the geometry columns is missing.
+        records = DataFrame(results,
+                            columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
+                                     'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
+                                     'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
         # merge DataFrames (dtype must be equal to records.dtypes; We need np.object due to None values)
-        GDF = GDF.astype(np.object).merge(records.astype(np.object), on='POINT_ID', how="inner")
-        GDF = GDF.fillna(int(self.outFillVal))
+        GDF = GDF.astype(object).merge(records.astype(object), on='POINT_ID', how="inner")
+        GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
+        GDF.crs = crs  # gets lost when using GDF.astype(np.object), so we have to reassign that
 
         if not self.q:
             print("Found %s matches." % len(GDF[GDF.LAST_ERR == int(self.outFillVal)]))
@@ -412,57 +444,238 @@ class Tie_Point_Grid(object):
             TPR = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], **self.outlDetect_settings)
             GDF_filt, new_columns = TPR.run_filtering(level=self.tieP_filter_level)
             GDF = GDF.merge(GDF_filt[['POINT_ID'] + new_columns], on='POINT_ID', how="outer")
-        GDF = GDF.fillna(int(self.outFillVal))
+
+        GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
 
         self.CoRegPoints_table = GDF
 
+        if not self.q:
+            if GDF.empty:
+                warnings.warn('No valid GCPs could by identified.')
+            else:
+                if self.tieP_filter_level > 0:
+                    print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
+
         return self.CoRegPoints_table
 
-    def calc_rmse(self, include_outliers=False):
-        # type: (bool) -> float
+    def calc_rmse(self, include_outliers: bool = False) -> float:
         """Calculate root mean square error of absolute shifts from the tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot compute the RMSE because no tie points were found at all.')
+
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
+
+        if not include_outliers and tbl.empty:
+            raise RuntimeError('Cannot compute the RMSE because all tie points are flagged as false-positives.')
 
         shifts = np.array(tbl['ABS_SHIFT'])
         shifts_sq = [i * i for i in shifts if i != self.outFillVal]
 
         return np.sqrt(sum(shifts_sq) / len(shifts_sq))
 
-    def calc_overall_ssim(self, include_outliers=False, after_correction=True):
-        # type: (bool, bool) -> float
+    def calc_overall_ssim(self,
+                          include_outliers: bool = False,
+                          after_correction: bool = True
+                          ) -> float:
         """Calculate the median value of all SSIM values contained in tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
         :param after_correction:    whether to compute median SSIM before correction or after
         """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot compute the overall SSIM because no tie points were found at all.')
+
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy()
+
+        if not include_outliers and tbl.empty:
+            raise RuntimeError('Cannot compute the overall SSIM because all tie points are flagged as false-positives.')
 
         ssim_col = np.array(tbl['SSIM_AFTER' if after_correction else 'SSIM_BEFORE'])
         ssim_col = [i * i for i in ssim_col if i != self.outFillVal]
 
         return float(np.median(ssim_col))
 
-    def plot_shift_distribution(self, include_outliers=True, unit='m', interactive=False, figsize=None, xlim=None,
-                                ylim=None, fontsize=12, title='shift distribution'):
-        # type: (bool, str, bool, tuple, list, list, int, str) -> tuple
+    def calc_overall_stats(self, include_outliers: bool = False) -> dict:
+        """Calculate statistics like RMSE, MSE, MAE, ... from the tie point grid.
+
+        Full list of returned statistics:
+
+        - N_TP:                 number of tie points
+        - N_VALID_TP:           number of valid tie points
+        - N_INVALID_TP:         number of invalid tie points (false-positives)
+        - PERC_VALID_TP:        percentage of valid tie points
+        - RMSE_M:               root mean squared error of absolute shift vector length in map units
+        - RMSE_X_M:             root mean squared error of shift vector length in x-direction in map units
+        - RMSE_Y_M:             root mean squared error of shift vector length in y-direction in map units
+        - RMSE_X_PX:            root mean squared error of shift vector length in x-direction in pixel units
+        - RMSE_Y_PX:            root mean squared error of shift vector length in y-direction in pixel units
+        - MSE_M:                mean squared error of absolute shift vector length in map units
+        - MSE_X_M:              mean squared error of shift vector length in x-direction in map units
+        - MSE_Y_M:              mean squared error of shift vector length in y-direction in map units
+        - MSE_X_PX:             mean squared error of shift vector length in x-direction in pixel units
+        - MSE_Y_PX:             mean squared error of shift vector length in y-direction in pixel units
+        - MAE_M:                mean absolute error of absolute shift vector length in map units
+        - MAE_X_M:              mean absolute error of shift vector length in x-direction in map units
+        - MAE_Y_M:              mean absolute error of shift vector length in y-direction in map units
+        - MAE_X_PX:             mean absolute error of shift vector length in x-direction in pixel units
+        - MAE_Y_PX:             mean absolute error of shift vector length in y-direction in pixel units
+        - MEAN_ABS_SHIFT:       mean absolute shift vector length in map units
+        - MEAN_X_SHIFT_M:       mean shift vector length in x-direction in map units
+        - MEAN_Y_SHIFT_M:       mean shift vector length in y-direction in map units
+        - MEAN_X_SHIFT_PX:      mean shift vector length in x-direction in pixel units
+        - MEAN_Y_SHIFT_PX:      mean shift vector length in y-direction in pixel units
+        - MEAN_ANGLE:           mean direction of the shift vectors in degrees from north
+        - MEAN_SSIM_BEFORE:     mean structural similatity index within each matching window before co-registration
+        - MEAN_SSIM_AFTER:      mean structural similatity index within each matching window after co-registration
+        - MEAN_RELIABILITY:     mean tie point reliability in percent
+        - MEDIAN_ABS_SHIFT:     median absolute shift vector length in map units
+        - MEDIAN_X_SHIFT_M:     median shift vector length in x-direction in map units
+        - MEDIAN_Y_SHIFT_M:     median shift vector length in y-direction in map units
+        - MEDIAN_X_SHIFT_PX:    median shift vector length in x-direction in pixel units
+        - MEDIAN_Y_SHIFT_PX:    median shift vector length in y-direction in pixel units
+        - MEDIAN_ANGLE:         median direction of the shift vectors in degrees from north
+        - MEDIAN_SSIM_BEFORE:   median structural similatity index within each matching window before co-registration
+        - MEDIAN_SSIM_AFTER:    median structural similatity index within each matching window after co-registration
+        - MEDIAN_RELIABILITY:   median tie point reliability in percent
+        - STD_ABS_SHIFT:        standard deviation of absolute shift vector length in map units
+        - STD_X_SHIFT_M:        standard deviation of shift vector length in x-direction in map units
+        - STD_Y_SHIFT_M:        standard deviation of shift vector length in y-direction in map units
+        - STD_X_SHIFT_PX:       standard deviation of shift vector length in x-direction in pixel units
+        - STD_Y_SHIFT_PX:       standard deviation of shift vector length in y-direction in pixel units
+        - STD_ANGLE:            standard deviation of direction of the shift vectors in degrees from north
+        - STD_SSIM_BEFORE:      standard deviation of structural similatity index within each matching window before
+                                co-registration
+        - STD_SSIM_AFTER:       standard deviation of structural similatity index within each matching window after
+                                co-registration
+        - STD_RELIABILITY:      standard deviation of tie point reliability in percent
+        - MIN_ABS_SHIFT:        minimal absolute shift vector length in map units
+        - MIN_X_SHIFT_M:        minimal shift vector length in x-direction in map units
+        - MIN_Y_SHIFT_M:        minimal shift vector length in y-direction in map units
+        - MIN_X_SHIFT_PX:       minimal shift vector length in x-direction in pixel units
+        - MIN_Y_SHIFT_PX:       minimal shift vector length in y-direction in pixel units
+        - MIN_ANGLE:            minimal direction of the shift vectors in degrees from north
+        - MIN_SSIM_BEFORE:      minimal structural similatity index within each matching window before co-registration
+        - MIN_SSIM_AFTER:       minimal structural similatity index within each matching window after co-registration
+        - MIN_RELIABILITY:      minimal tie point reliability in percent
+        - MIN_ABS_SHIFT:        maximal absolute shift vector length in map units
+        - MAX_X_SHIFT_M:        maximal shift vector length in x-direction in map units
+        - MAX_Y_SHIFT_M:        maximal shift vector length in y-direction in map units
+        - MAX_X_SHIFT_PX:       maximal shift vector length in x-direction in pixel units
+        - MAX_Y_SHIFT_PX:       maximal shift vector length in y-direction in pixel units
+        - MAX_ANGLE:            maximal direction of the shift vectors in degrees from north
+        - MAX_SSIM_BEFORE:      maximal structural similatity index within each matching window before co-registration
+        - MAX_SSIM_AFTER:       maximal structural similatity index within each matching window after co-registration
+        - MAX_RELIABILITY:      maximal tie point reliability in percent
+
+        :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
+        """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot compute overall statistics because no tie points were found at all.')
+
+        tbl = self.CoRegPoints_table
+
+        n_tiepoints = sum(tbl['ABS_SHIFT'] != self.outFillVal)
+        n_outliers = sum(tbl['OUTLIER'] == 1)
+
+        tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
+        tbl = tbl.copy().replace(self.outFillVal, np.nan)
+
+        if not include_outliers and tbl.empty:
+            raise RuntimeError('Cannot compute overall statistics '
+                               'because all tie points are flagged as false-positives.')
+
+        def RMSE(shifts):
+            shifts_sq = shifts ** 2
+            return np.sqrt(sum(shifts_sq) / len(shifts_sq))
+
+        def MSE(shifts):
+            shifts_sq = shifts ** 2
+            return sum(shifts_sq) / len(shifts_sq)
+
+        def MAE(shifts):
+            shifts_abs = np.abs(shifts)
+            return sum(shifts_abs) / len(shifts_abs)
+
+        abs_shift, x_shift_m, y_shift_m, x_shift_px, y_shift_px, angle, ssim_before, ssim_after, reliability = \
+            [tbl[k].dropna().values for k in ['ABS_SHIFT', 'X_SHIFT_M', 'Y_SHIFT_M', 'X_SHIFT_PX', 'Y_SHIFT_PX',
+                                              'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER', 'RELIABILITY']]
+
+        stats = dict(
+            N_TP=n_tiepoints,
+            N_VALID_TP=len(abs_shift),
+            N_INVALID_TP=n_outliers,
+            PERC_VALID_TP=(n_tiepoints - n_outliers) / n_tiepoints * 100,
+
+            RMSE_M=RMSE(abs_shift),
+            RMSE_X_M=RMSE(x_shift_m),
+            RMSE_Y_M=RMSE(y_shift_m),
+            RMSE_X_PX=RMSE(x_shift_px),
+            RMSE_Y_PX=RMSE(y_shift_px),
+
+            MSE_M=MSE(abs_shift),
+            MSE_X_M=MSE(x_shift_m),
+            MSE_Y_M=MSE(y_shift_m),
+            MSE_X_PX=MSE(x_shift_px),
+            MSE_Y_PX=MSE(y_shift_px),
+
+            MAE_M=MAE(abs_shift),
+            MAE_X_M=MAE(x_shift_m),
+            MAE_Y_M=MAE(y_shift_m),
+            MAE_X_PX=MAE(x_shift_px),
+            MAE_Y_PX=MAE(y_shift_px),
+        )
+
+        for stat, func in zip(['mean', 'median', 'std', 'min', 'max'],
+                              [np.mean, np.median, np.std, np.min, np.max]):
+            for n in ['abs_shift', 'x_shift_m', 'y_shift_m', 'x_shift_px', 'y_shift_px',
+                      'angle', 'ssim_before', 'ssim_after', 'reliability']:
+
+                vals = locals()[n]
+                stats[f'{stat}_{n}'.upper()] = func(vals)
+
+        return stats
+
+    def plot_shift_distribution(self,
+                                include_outliers: bool = True,
+                                unit: str = 'm',
+                                interactive: bool = False,
+                                figsize: tuple = None,
+                                xlim: list = None,
+                                ylim: list = None,
+                                fontsize: int = 12,
+                                title: str = 'shift distribution',
+                                savefigPath: str = '',
+                                savefigDPI: int = 96,
+                                showFig: bool = True,
+                                return_fig: bool = False
+                                ) -> tuple:
         """Create a 2D scatterplot containing the distribution of calculated X/Y-shifts.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives
         :param unit:                'm' for meters or 'px' for pixels (default: 'm')
-        :param interactive:         interactive mode uses plotly for visualization
+        :param interactive:         whether to use interactive mode (uses plotly for visualization)
         :param figsize:             (xdim, ydim)
         :param xlim:                [xmin, xmax]
         :param ylim:                [ymin, ymax]
         :param fontsize:            size of all used fonts
         :param title:               the title to be plotted above the figure
+        :param savefigPath:         path where to save the figure
+        :param savefigDPI:          DPI resolution of the output figure when saved to disk
+        :param showFig:             whether to show or to hide the figure
+        :param return_fig:          whether to return the figure and axis objects
         """
+        from matplotlib import pyplot as plt
+
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
+
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Shift distribution cannot be plotted because no tie points were found at all.')
 
         tbl = self.CoRegPoints_table
         tbl = tbl[tbl['ABS_SHIFT'] != self.outFillVal]
@@ -531,8 +744,8 @@ class Tie_Point_Grid(object):
 
             # set title and adjust tick labels
             ax.set_title(title, fontsize=fontsize)
-            [tick.label.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
-            [tick.label.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
+            [tick.label1.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
+            [tick.label1.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
             plt.xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
             plt.ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
 
@@ -541,16 +754,30 @@ class Tie_Point_Grid(object):
             leg = plt.legend(reversed(handles), reversed(labels), fontsize=fontsize, loc='upper right', scatterpoints=3)
             leg.get_frame().set_edgecolor('black')
 
-            plt.show()
+            # remove white space around the figure
+            plt.subplots_adjust(top=.94, bottom=.06, right=.96, left=.09)
 
-            return fig, ax
+            if savefigPath:
+                fig.savefig(savefigPath, dpi=savefigDPI, pad_inches=0.3, bbox_inches='tight')
+
+            if return_fig:
+                return fig, ax
+
+            if showFig and not self.q:
+                plt.show(block=True)
+            else:
+                plt.close(fig)
 
     def dump_CoRegPoints_table(self, path_out=None):
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot dump tie points table because it is empty.')
+
         path_out = path_out if path_out else \
-            get_generic_outpath(dir_out=self.dir_out, fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl"
-                                                                % (self.grid_res, self.COREG_obj.win_size_XY[0],
-                                                                   self.COREG_obj.win_size_XY[1], self.shift.basename,
-                                                                   self.ref.basename))
+            get_generic_outpath(dir_out=self.dir_out,
+                                fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl"
+                                          % (self.grid_res, self.COREG_obj.win_size_XY[0],
+                                             self.COREG_obj.win_size_XY[1], self.shift.basename,
+                                             self.ref.basename))
         if not self.q:
             print('Writing %s ...' % path_out)
         self.CoRegPoints_table.to_pickle(path_out)
@@ -582,14 +809,15 @@ class Tie_Point_Grid(object):
                               'out of the %s available tie points.' % avail_TP)
 
             # calculate GCPs
-            GDF['X_UTM_new'] = GDF.X_UTM + GDF.X_SHIFT_M
-            GDF['Y_UTM_new'] = GDF.Y_UTM + GDF.Y_SHIFT_M
-            GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_UTM_new, GDF_row.Y_UTM_new, 0,
-                                                            GDF_row.X_IM, GDF_row.Y_IM), axis=1)
+            GDF['X_MAP_new'] = GDF.X_MAP + GDF.X_SHIFT_M
+            GDF['Y_MAP_new'] = GDF.Y_MAP + GDF.Y_SHIFT_M
+            GDF['GCP'] = GDF.apply(lambda GDF_row: gdal.GCP(GDF_row.X_MAP_new,
+                                                            GDF_row.Y_MAP_new,
+                                                            0,
+                                                            GDF_row.X_IM,
+                                                            GDF_row.Y_IM),
+                                   axis=1)
             self.GCPList = GDF.GCP.tolist()
-
-            if not self.q:
-                print('Found %s valid tie points.' % len(self.GCPList))
 
             return self.GCPList
 
@@ -618,9 +846,12 @@ class Tie_Point_Grid(object):
             lines[i, :] = self.CoRegPoints_table[self.CoRegPoints_table['POINT_ID'] == PID]
         return lines
 
-    def to_PointShapefile(self, path_out=None, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):
-        # type: (str, bool, str) -> None
-        """Write the calculated tie points grid to a point shapefile (e.g., for visualization by a GIS software).
+    def to_PointShapefile(self,
+                          path_out: str = None,
+                          skip_nodata: bool = True,
+                          skip_nodata_col: str = 'ABS_SHIFT'
+                          ) -> None:
+        """Write the calculated tie point grid to a point shapefile (e.g., for visualization by a GIS software).
 
         NOTE: The shapefile uses Tie_Point_Grid.CoRegPoints_table as attribute table.
 
@@ -629,6 +860,9 @@ class Tie_Point_Grid(object):
         :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
                                 identify points where no valid match could be found
         """
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
+
         GDF = self.CoRegPoints_table
 
         if skip_nodata:
@@ -638,10 +872,10 @@ class Tie_Point_Grid(object):
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         # replace boolean values (cannot be written)
-        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not np.bool but np.object
+        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not bool but np.object
         GDF2pass = GDF2pass.replace(True, 1).copy()
         for col in GDF2pass.columns:
-            if GDF2pass[col].dtype == np.bool:
+            if GDF2pass[col].dtype == bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)
 
         path_out = path_out if path_out else \
@@ -657,42 +891,55 @@ class Tie_Point_Grid(object):
         warnings.warn(DeprecationWarning(
             "'_tiepoints_grid_to_PointShapefile' is deprecated."  # TODO delete if other method validated
             " 'tiepoints_grid_to_PointShapefile' is much faster."))
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
+
         GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
+        GDF2pass = \
+            GDF if not skip_nodata else \
+            GDF[GDF[skip_nodata_col] != self.outFillVal]
         shapely_points = GDF2pass['geometry'].values.tolist()
-        attr_dicts = [collections.OrderedDict(zip(GDF2pass.columns, GDF2pass.loc[i].values)) for i in GDF2pass.index]
+        attr_dicts = [collections.OrderedDict(zip(GDF2pass.columns,
+                                                  GDF2pass.loc[i].values))
+                      for i in GDF2pass.index]
 
-        fName_out = "CoRegPoints_grid%s_ws%s.shp" % (self.grid_res, self.COREG_obj.win_size_XY)
+        fName_out = "CoRegPoints_grid%s_ws%s.shp" \
+                    % (self.grid_res, self.COREG_obj.win_size_XY)
         path_out = os.path.join(self.dir_out, fName_out)
-        write_shp(path_out, shapely_points, prj=self.COREG_obj.shift.prj, attrDict=attr_dicts)
+        write_shp(path_out,
+                  shapely_points,
+                  prj=self.COREG_obj.shift.prj,
+                  attrDict=attr_dicts)
 
-    def to_vectorfield(self, path_out=None, fmt=None, mode='md'):
-        # type: (str, str, str) -> GeoArray
+    def to_vectorfield(self, path_out: str = None, fmt: str = None, mode: str = 'md') -> GeoArray:
         """Save the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield.
 
         NOTE: For example ArcGIS is able to visualize such 2-band raster files as a vectorfield.
 
-        :param path_out:    <str> the output path. If not given, it is automatically defined.
-        :param fmt:         <str> output raster format string
-        :param mode:        <str> The mode how the output is written ('uv' or 'md'; default: 'md')
-                                    'uv': outputs X-/Y shifts
-                                    'md': outputs magnitude and direction
+        :param path_out:    the output path. If not given, it is automatically defined.
+        :param fmt:         output raster format string
+        :param mode:        The mode how the output is written ('uv' or 'md'; default: 'md')
+                            - 'uv': outputs X-/Y shifts
+                            - 'md': outputs magnitude and direction
         """
         assert mode in ['uv', 'md'], "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' " \
                                      "(outputs magnitude and direction)'. Got %s." % mode
         attr_b1 = 'X_SHIFT_M' if mode == 'uv' else 'ABS_SHIFT'
         attr_b2 = 'Y_SHIFT_M' if mode == 'uv' else 'ANGLE'
 
+        if self.CoRegPoints_table.empty:
+            raise RuntimeError('Cannot save the vector field because no tie points were found at all.')
+
         xshift_arr, gt, prj = points_to_raster(points=self.CoRegPoints_table['geometry'],
                                                values=self.CoRegPoints_table[attr_b1],
                                                tgt_res=self.shift.xgsd * self.grid_res,
-                                               prj=proj4_to_WKT(dict_to_proj4(self.CoRegPoints_table.crs)),
+                                               prj=self.CoRegPoints_table.crs.to_wkt(),
                                                fillVal=self.outFillVal)
 
         yshift_arr, gt, prj = points_to_raster(points=self.CoRegPoints_table['geometry'],
                                                values=self.CoRegPoints_table[attr_b2],
                                                tgt_res=self.shift.xgsd * self.grid_res,
-                                               prj=proj4_to_WKT(dict_to_proj4(self.CoRegPoints_table.crs)),
+                                               prj=self.CoRegPoints_table.crs.to_wkt(),
                                                fillVal=self.outFillVal)
 
         out_GA = GeoArray(np.dstack([xshift_arr, yshift_arr]), gt, prj, nodata=self.outFillVal)
@@ -729,6 +976,8 @@ class Tie_Point_Grid(object):
         #
         #     with multiprocessing.Pool() as pool:
         #        self.kriged = pool.map(self.Kriging_mp,args_kwargs_dicts)
+        #        pool.close()  # needed to make coverage work in multiprocessing
+        #        pool.join()
         # else:
         #     self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
         #                     outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
@@ -740,7 +989,7 @@ class Tie_Point_Grid(object):
         GDF = self.CoRegPoints_table
         GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
 
-        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_UTM'], GDF2pass['Y_UTM'], GDF2pass[attrName]
+        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_MAP'], GDF2pass['Y_MAP'], GDF2pass[attrName]
 
         xmin, ymin, xmax, ymax = GDF2pass.total_bounds
 
@@ -761,7 +1010,10 @@ class Tie_Point_Grid(object):
                 "Kriging__%s__grid%s_ws%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY)
         path_out = get_generic_outpath(dir_out=self.dir_out, fName_out=fName_out)
         # add a half pixel grid points are centered on the output pixels
-        xmin, ymin, xmax, ymax = xmin - grid_res / 2, ymin - grid_res / 2, xmax + grid_res / 2, ymax + grid_res / 2
+        xmin = xmin - grid_res / 2
+        # ymin = ymin - grid_res / 2
+        # xmax = xmax + grid_res / 2
+        ymax = ymax + grid_res / 2
 
         GeoArray(zvalues,
                  geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
@@ -779,23 +1031,29 @@ class Tie_Point_Grid(object):
 class Tie_Point_Refiner(object):
     """A class for performing outlier detection."""
 
-    def __init__(self, GDF, min_reliability=60, rs_max_outlier=10, rs_tolerance=2.5, rs_max_iter=15,
-                 rs_exclude_previous_outliers=True, rs_timeout=20, q=False):
+    def __init__(self, GDF,
+                 min_reliability=60,
+                 rs_max_outlier: float = 10,
+                 rs_tolerance: float = 2.5,
+                 rs_max_iter: int = 15,
+                 rs_exclude_previous_outliers: bool = True,
+                 rs_timeout: float = 20,
+                 q: bool = False):
         """Get an instance of Tie_Point_Refiner.
 
         :param GDF:                             GeoDataFrame like TiePointGrid.CoRegPoints_table containing all tie
                                                 points to be filtered and the corresponding metadata
-        :param min_reliability:                 <float, int> minimum threshold for previously computed tie X/Y shift
+        :param min_reliability:                 minimum threshold for previously computed tie X/Y shift
                                                 reliability (default: 60%)
-        :param rs_max_outlier:                  <float, int> RANSAC: maximum percentage of outliers to be detected
+        :param rs_max_outlier:                  RANSAC: maximum percentage of outliers to be detected
                                                 (default: 10%)
-        :param rs_tolerance:                    <float, int> RANSAC: percentage tolerance for max_outlier_percentage
+        :param rs_tolerance:                    RANSAC: percentage tolerance for max_outlier_percentage
                                                 (default: 2.5%)
-        :param rs_max_iter:                     <int> RANSAC: maximum iterations for finding the best RANSAC threshold
+        :param rs_max_iter:                     RANSAC: maximum iterations for finding the best RANSAC threshold
                                                 (default: 15)
-        :param rs_exclude_previous_outliers:    <bool> RANSAC: whether to exclude points that have been flagged as
+        :param rs_exclude_previous_outliers:    RANSAC: whether to exclude points that have been flagged as
                                                 outlier by earlier filtering (default:True)
-        :param rs_timeout:                      <float, int> RANSAC: timeout for iteration loop in seconds (default: 20)
+        :param rs_timeout:                      RANSAC: timeout for iteration loop in seconds (default: 20)
 
         :param q:
         """
@@ -815,13 +1073,14 @@ class Tie_Point_Refiner(object):
 
         :param level:   tie point filter level (default: 3).
                         NOTE: lower levels are also included if a higher level is chosen
-                            - Level 0: no tie point filtering
-                            - Level 1: Reliablity filtering - filter all tie points out that have a low
-                                reliability according to internal tests
-                            - Level 2: SSIM filtering - filters all tie points out where shift
-                                correction does not increase image similarity within matching window
-                                (measured by mean structural similarity index)
-                            - Level 3: RANSAC outlier detection
+
+                        - Level 0: no tie point filtering
+                        - Level 1: Reliablity filtering
+                                   - filter all tie points out that have a low reliability according to internal tests
+                        - Level 2: SSIM filtering
+                                   - filters all tie points out where shift correction does not increase image
+                                     similarity within matching window (measured by mean structural similarity index)
+                        - Level 3: RANSAC outlier detection
 
         :return:
         """
@@ -829,18 +1088,28 @@ class Tie_Point_Refiner(object):
 
         # RELIABILITY filtering
         if level > 0:
-            marked_recs = GeoSeries(self._reliability_thresholding())
+            marked_recs = self._reliability_thresholding()  # type: Series
             self.GDF['L1_OUTLIER'] = marked_recs
             self.new_cols.append('L1_OUTLIER')
 
+            n_flagged = len(marked_recs[marked_recs])
+            perc40 = np.percentile(self.GDF.RELIABILITY, 40)
+
+            if n_flagged / len(self.GDF) > .7:
+                warnings.warn(r"More than 70%% of the found tie points have a reliability lower than %s%% and are "
+                              r"therefore marked as false-positives. Consider relaxing the minimum reliability "
+                              r"(parameter 'min_reliability') to avoid that. For example min_reliability=%d would only "
+                              r"flag 40%% of the tie points in case of your input data."
+                              % (self.min_reliability, perc40))
+
             if not self.q:
                 print('%s tie points flagged by level 1 filtering (reliability).'
-                      % (len(marked_recs[marked_recs])))
+                      % n_flagged)
 
         # SSIM filtering
         if level > 1:
-            marked_recs = GeoSeries(self._SSIM_filtering())
-            self.GDF['L2_OUTLIER'] = marked_recs
+            marked_recs = self._SSIM_filtering()
+            self.GDF['L2_OUTLIER'] = marked_recs  # type: Series
             self.new_cols.append('L2_OUTLIER')
 
             if not self.q:
@@ -855,7 +1124,7 @@ class Tie_Point_Refiner(object):
             if len(ransacInGDF) > 4:
                 # running RANSAC with less than four tie points makes no sense
 
-                marked_recs = GeoSeries(self._RANSAC_outlier_detection(ransacInGDF))
+                marked_recs = self._RANSAC_outlier_detection(ransacInGDF)  # type: Series
                 # we need to join a list here because otherwise it's merged by the 'index' column
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist()
 
@@ -888,7 +1157,9 @@ class Tie_Point_Refiner(object):
 
     def _RANSAC_outlier_detection(self, inGDF):
         """Detect geometric outliers between point cloud of source and estimated coordinates using RANSAC algorithm."""
-        src_coords = np.array(inGDF[['X_UTM', 'Y_UTM']])
+        # from skimage.transform import PolynomialTransform  # import here to avoid static TLS ImportError
+
+        src_coords = np.array(inGDF[['X_MAP', 'Y_MAP']])
         xyShift = np.array(inGDF[['X_SHIFT_M', 'Y_SHIFT_M']])
         est_coords = src_coords + xyShift
 
@@ -920,7 +1191,8 @@ class Tie_Point_Refiner(object):
             if th_checked:
                 th_too_strict = count_inliers < ideal_count  # True if too less inliers remaining
 
-                # calculate new theshold using old increment (but ensure th_new>0 by adjusting increment if needed)
+                # calculate new theshold using old increment
+                # (but ensure th_new>0 by adjusting increment if needed)
                 th_new = 0
                 while th_new <= 0:
                     th_new = th + th_substract if th_too_strict else th - th_substract
@@ -931,23 +1203,44 @@ class Tie_Point_Refiner(object):
                 th_already_checked = th_new in th_checked.keys()
 
                 # if yes, decrease increment and recalculate new threshold
-                th_substract = th_substract if not th_already_checked else th_substract / 2
+                th_substract = \
+                    th_substract if not th_already_checked else \
+                    th_substract / 2
                 th = th_new if not th_already_checked else \
-                    (th + th_substract if th_too_strict else th - th_substract)
+                    (th + th_substract if th_too_strict else
+                     th - th_substract)
 
-            # RANSAC call
-            # model_robust, inliers = ransac((src, dst), PolynomialTransform, min_samples=3,
-            if src_coords.size and est_coords.size:
+            ###############
+            # RANSAC call #
+            ###############
+
+            # model_robust, inliers = ransac((src, dst),
+            #                                PolynomialTransform,
+            #                                min_samples=3)
+            if src_coords.size and \
+               est_coords.size and \
+               src_coords.shape[0] > 6:
+                # import here to avoid static TLS ImportError
+                from skimage.measure import ransac
+                from skimage.transform import AffineTransform
+
                 model_robust, inliers = \
-                    ransac((src_coords, est_coords), AffineTransform,
+                    ransac((src_coords, est_coords),
+                           AffineTransform,
                            min_samples=6,
                            residual_threshold=th,
                            max_trials=2000,
-                           stop_sample_num=int((min_inlier_percentage - self.rs_tolerance) / 100 * src_coords.shape[0]),
+                           stop_sample_num=int(
+                               (min_inlier_percentage - self.rs_tolerance) /
+                               100 * src_coords.shape[0]
+                           ),
                            stop_residuals_sum=int(
-                               (self.rs_max_outlier_percentage - self.rs_tolerance) / 100 * src_coords.shape[0])
+                               (self.rs_max_outlier_percentage - self.rs_tolerance) /
+                               100 * src_coords.shape[0])
                            )
             else:
+                warnings.warn('RANSAC filtering could not be applied '
+                              'because there were too few tie points to fit a model.')
                 inliers = np.array([])
                 break
 
@@ -955,31 +1248,42 @@ class Tie_Point_Refiner(object):
 
             th_checked[th] = count_inliers / src_coords.shape[0] * 100
             # print(th,'\t', th_checked[th], )
-            if min_inlier_percentage - self.rs_tolerance < th_checked[th] < min_inlier_percentage + self.rs_tolerance:
+
+            if min_inlier_percentage - self.rs_tolerance <\
+               th_checked[th] <\
+               min_inlier_percentage + self.rs_tolerance:
                 # print('in tolerance')
                 break
-            if count_iter > self.rs_max_iter or time.time() - time_start > self.rs_timeout:
+
+            if count_iter > self.rs_max_iter or \
+               time.time() - time_start > self.rs_timeout:
                 break  # keep last values and break while loop
 
             count_iter += 1
 
         outliers = inliers.__eq__(False) if inliers is not None and inliers.size else np.array([])
 
-        if inGDF.empty or outliers is None or (isinstance(outliers, list) and not outliers) or \
+        if inGDF.empty or outliers is None or \
+           (isinstance(outliers, list) and not outliers) or \
            (isinstance(outliers, np.ndarray) and not outliers.size):
-            gs = GeoSeries([False] * len(self.GDF))
+            outseries = Series([False] * len(self.GDF))
+
         elif len(inGDF) < len(self.GDF):
             inGDF['outliers'] = outliers
             fullGDF = GeoDataFrame(self.GDF['POINT_ID'])
-            fullGDF = fullGDF.merge(inGDF[['POINT_ID', 'outliers']], on='POINT_ID', how="outer")
+            fullGDF = fullGDF.merge(inGDF[['POINT_ID', 'outliers']],
+                                    on='POINT_ID',
+                                    how="outer")
             # fullGDF.outliers.copy()[~fullGDF.POINT_ID.isin(GDF.POINT_ID)] = False
             fullGDF = fullGDF.fillna(False)  # NaNs are due to exclude_previous_outliers
-            gs = fullGDF['outliers']
-        else:
-            gs = GeoSeries(outliers)
+            outseries = fullGDF['outliers']
 
-        assert len(gs) == len(self.GDF), 'RANSAC output validation failed.'
+        else:
+            outseries = Series(outliers)
+
+        assert len(outseries) == len(self.GDF), \
+            'RANSAC output validation failed.'
 
         self.ransac_model_robust = model_robust
 
-        return gs
+        return outseries

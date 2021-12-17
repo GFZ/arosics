@@ -1,0 +1,38 @@
+You are welcome to use and modify the `arosics` project.
+See the README.rst and LICENSE files for details.
+
+If you use this software for research we would appreciate appropriate citation.
+This may be prepared using the bibliographic metadata contained in our DOI, accessible through the DOI system and at
+https://doi.org/10.5281/zenodo.3742909
+
+To cite the `arosics` Python package in your publication, please use (modify the version number if needed):
+
+  Daniel Scheffler. (2017, July 3). AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data (Version 0.2.1). Zenodo. https://doi.org/10.5281/zenodo.3742909
+
+This may need modification for the citation style of your publication.
+You are encouraged to include the version number of the software.
+
+A BibTeX entry for LaTeX users should look like this
+(find the one for the latest version here: https://zenodo.org/record/3743085/export/hx):
+
+@software{daniel_scheffler_2017_3743085,
+  author       = {Daniel Scheffler},
+  title        = {{AROSICS: An Automated and Robust Open-Source Image
+                   Co-Registration Software for Multi-Sensor
+                   Satellite Data}},
+  month        = jul,
+  year         = 2017,
+  note         = {{This is the version as used in Scheffler et al.
+                   (2017): https://www.mdpi.com/2072-4292/9/7/676.}},
+  publisher    = {Zenodo},
+  version      = {0.2.1},
+  doi          = {10.5281/zenodo.3743085},
+  url          = {https://doi.org/10.5281/zenodo.3743085}
+}
+
+For information on citing software products generally, see the
+FORCE11 document [*].
+
+
+[*] FORCE11 Software Citation Working Group (2016), "Software Citation Principles", (Editors: Arfon M. Smith, Daniel S. Katz, Kyle E. Niemeyer).
+    Accessed 2017-08-08 at https://www.force11.org/sites/default/files/shared-documents/software-citation-principles.pdf
