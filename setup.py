@@ -42,6 +42,7 @@ with open("arosics/version.py") as version_file:
 req = [
     'cartopy',
     'cmocean',
+    'dill',
     'folium>=0.6.0,!=0.12.0',
     'gdal',
     'geojson',
@@ -66,7 +67,7 @@ req_setup = [
 
 req_intplot = ['holoviews', 'ipython']
 
-req_test = ['coverage', 'nose', 'nose2', 'nose-htmloutput', 'rednose', 'urlchecker'] + req_intplot
+req_test = ['pytest', 'pytest-cov', 'pytest-reporter-hmtl1', 'urlchecker'] + req_intplot
 
 req_doc = ['sphinx-argparse', 'sphinx_rtd_theme', 'sphinx-autodoc-typehints']
 

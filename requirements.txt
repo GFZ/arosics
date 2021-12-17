@@ -1,5 +1,6 @@
 cartopy
 cmocean
+dill
 gdal
 geoarray>=0.15.0
 geojson

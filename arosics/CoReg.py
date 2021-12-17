@@ -276,10 +276,10 @@ class COREG(object):
 
         :param calc_corners:
              calculate true positions of the dataset corners in order to get a useful matching window position within
-             the actual image overlap (default: 1; deactivated if '-cor0' and '-cor1' are given
+             the actual image overlap (default: True; deactivated if '-cor0' and '-cor1' are given
 
         :param binary_ws:
-            use binary X/Y dimensions for the matching window (default: 1)
+            use binary X/Y dimensions for the matching window (default: True)
 
         :param mask_baddata_ref:
             path to a 2D boolean mask file (or an instance of GeoArray) for the reference image where all bad data
@@ -297,7 +297,7 @@ class COREG(object):
             number of CPUs to use during pixel grid equalization (default: None, which means 'all CPUs available')
 
         :param force_quadratic_win:
-            force a quadratic matching window (default: 1)
+            force a quadratic matching window (default: True)
 
         :param progress:
             show progress bars (default: True)

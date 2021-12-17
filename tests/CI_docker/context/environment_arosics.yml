@@ -14,7 +14,7 @@ dependencies:
   - holoviews
   - ipython  # needed to test interactive plotting
   - matplotlib
-  - nbformat  # optianal dependency of plotly, needed to test interactive plotting
+  - nbformat  # optional dependency of plotly, needed to test interactive plotting
   - numpy
   - pandas
   - plotly
@@ -26,19 +26,18 @@ dependencies:
   - shapely
 
   - pip:
+    - dill
     - folium>=0.6.0,!=0.12.0
     - geojson
 
     # doc requirements
-    - coverage
     - flake8
-    - nose
-    - nose2
-    - nose-htmloutput
     - pycodestyle
     - pydocstyle
     - pylint
-    - rednose
+    - pytest
+    - pytest-cov
+    - pytest-reporter-html1
     - sphinx-argparse
     - sphinx-autodoc-typehints
     - sphinx_rtd_theme

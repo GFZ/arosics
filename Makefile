@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help nosetests
+.PHONY: clean clean-test clean-pyc clean-build docs help pytest
 .DEFAULT_GOAL := help
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
@@ -49,8 +49,11 @@ clean-test: ## remove test and coverage artifacts
 	rm -f .coverage
 	rm -fr .coverage.*
 	rm -fr htmlcov/
-	rm -fr nosetests.html
-	rm -fr nosetests.xml
+	rm -fr report.html
+	rm -fr report.xml
+	rm -fr coverage.xml
+	rm -fr .pytest_cache
+
 
 lint: ## check style with flake8
 	flake8 --max-line-length=120 . tests > ./tests/linting/flake8.log || \
@@ -77,12 +80,22 @@ coverage: ## check code coverage quickly with the default Python
 	coverage html
 	#$(BROWSER) htmlcov/index.html
 
-nosetests: clean-test ## Runs nosetests with coverage, xUnit and nose-html-output
+pytest: clean-test ## Runs pytest with coverage and creates coverage and test report
 	## - puts the coverage results in the folder 'htmlcov'
-	## - generates 'nosetests.html' (--with-html)
-	## - generates 'nosetests.xml' (--with-xunit) which is currently not visualizable by GitLab
-	nosetests -vv --with-coverage --cover-package=arosics --cover-erase --cover-html --cover-html-dir=htmlcov \
-		--with-html --with-xunit --rednose --force-color
+	## - generates cobertura 'coverage.xml' (needed to show coverage in GitLab MR changes)
+	## - generates 'report.html' based on pytest-reporter-html1
+	## - generates JUnit 'report.xml' to show the test report as a new tab in a GitLab MR
+	## NOTE: additional options pytest and coverage (plugin pytest-cov) are defined in .pytest.ini and .coveragerc
+	pytest tests \
+		--verbosity=3 \
+		--color=yes \
+		--tb=short \
+		--cov=arosics \
+		--cov-report html:htmlcov \
+    	--cov-report term-missing \
+    	--cov-report xml:coverage.xml \
+    	--template=html1/index.html --report=report.html \
+    	--junitxml report.xml
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -f docs/arosics.rst

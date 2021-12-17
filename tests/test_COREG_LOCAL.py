@@ -201,5 +201,5 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import nose2
-    nose2.main()
+    import pytest
+    pytest.main()
