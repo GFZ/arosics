@@ -141,5 +141,5 @@ class Test_Tie_Point_Grid(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import nose2
-    nose2.main()
+    import pytest
+    pytest.main()
