@@ -11,30 +11,35 @@ stages:
 test_arosics:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
-    - pip install "py_tools_ds>=0.14.28"  # FIXME remove as soon as docker runner has been updated
-    - pip install "geoarray>=0.8.30"  # FIXME remove as soon as docker runner has been updated
+    - source /root/mambaforge/bin/activate ci_env
+
+    # update py_tools_ds and geoarray
+    - pip install -U py_tools_ds -q
+    - pip install -U geoarray -q
 
     # run tests
-    - make nosetests
+    - make pytest
 
     # create the docs
-    - pip install sphinx_rtd_theme  # Read-the-docs theme for SPHINX documentation
-    - pip install sphinx-autodoc-typehints
     - make docs
   artifacts:
+    expose_as: 'Test and coverage report'
     paths:
     - htmlcov/
+    - report.html
     - docs/_build/html/
-    - nosetests.html
-    - nosetests.xml
+    reports:
+      cobertura: coverage.xml
+      junit: report.xml
+
+    expire_in: 30 days
     when: always
 
 
 test_styles:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
     - make lint
   artifacts:
     paths:
@@ -44,29 +49,32 @@ test_styles:
     when: always
 
 
+test_urls:
+  stage: test
+  script:
+    - source /root/mambaforge/bin/activate ci_env
+    - pip install -U urlchecker
+    - make urlcheck
+  when: always
+
+
 test_arosics_install:
   stage: test
   script:
-    - source /root/miniconda3/bin/activate
+    - source /root/mambaforge/bin/activate
+    - mamba update -n base -c conda-forge --all
 
-    # update conda and python
-    - conda update -n base -c defaults conda
-    # - conda update -c conda-forge python
+    # create arosics environment from environment_arosics.yml
+    - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
+    - conda activate arosics_test
 
-    # create arosics environment
-    - conda create -y -q -c conda-forge --name arosics_testinstall python=3
-    - source activate arosics_testinstall
-
-     # resolve some requirements with conda
-    - conda install --yes -q -c conda-forge numpy gdal scikit-image matplotlib 'pyproj>2.2.0' shapely geopandas pandas
-
-    # run installer
-    - python setup.py install
-
-    # test if its importable
+    # install arosics
+    - pip install -e .
     - cd ..
     - pwd
     - ls
+
+    # test importability
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
   only:
@@ -84,7 +92,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - mkdir -p public/doc
     - mkdir -p public/images/
     - mkdir -p public/coverage
-    - mkdir -p public/nosetests_reports
+    - mkdir -p public/test_reports
 
     # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
@@ -93,14 +101,14 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
 
-    # Copy over the nosetests reports
-    - cp nosetests.* public/nosetests_reports/
+    # Copy over the test reports
+    - cp report.html public/test_reports/
 
     # Check if everything is working great
     - ls -al public
     - ls -al public/doc
     - ls -al public/coverage
-    - ls -al public/nosetests_reports
+    - ls -al public/test_reports
   artifacts:
     paths:
       - public
@@ -115,7 +123,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:
-    - source /root/miniconda3/bin/activate ci_env
+    - source /root/mambaforge/bin/activate ci_env
     - pip install -U twine
     - python setup.py sdist
     - twine upload dist/*  # requires creds as environment variables
@@ -135,3 +143,10 @@ create_github_release:
         - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
     except:
         - dev
+
+
+#rever:
+#    stage: deploy
+#    dependencies:
+#        - deploy_pypi
+#    script:

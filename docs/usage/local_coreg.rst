@@ -2,7 +2,7 @@ Local image co-registration
 ***************************
 
 This local co-registration module of AROSICS has been designed to detect and correct geometric shifts present locally
-in your input image. The class :class:`~arosics.COREG_LOCAL` calculates a grid of spatial shifts with points spread
+in your input image. The class :class:`arosics.COREG_LOCAL` calculates a grid of spatial shifts with points spread
 over the whole overlap area of the input images. Based on this grid a correction of local shifts can be performed.
 
 
@@ -178,4 +178,4 @@ co-registration would look like this:
 
 .. code-block:: bash
 
-    $ python arosics_cli.py local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50
+    $ arosics local /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq 50

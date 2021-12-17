@@ -1,49 +1,44 @@
 name: arosics
 
 channels: &id1
-  - http://conda.anaconda.org/conda-forge
+  - conda-forge
 
 dependencies:
   - python=3.*.*
-  - pyqt
-  - numpy
-  - gdal
-  - conda-forge::libgdal  # force to use conda-forge for libgdal to avoid package version incompatiblies due to mixed channels
-  - scikit-image
-  - pyproj>2.2.0
-  - geopandas
-  - pandas
-  - ipython
-  - shapely
-  - matplotlib
-  - basemap
-  - holoviews
-  - bokeh
-  - pykrige
+  - pip
+  - cartopy
   - cmocean
+  - gdal
+  - geoarray>=0.15.0
+  - geopandas
+  - holoviews
+  - ipython  # needed to test interactive plotting
+  - matplotlib
+  - nbformat  # optional dependency of plotly, needed to test interactive plotting
+  - numpy
+  - pandas
+  - plotly
+  - pyfftw
+  - pykrige
+  - pyproj>2.2.0
+  - py-tools-ds>=0.18.0
+  - scikit-image>=0.16.0
+  - shapely
+
   - pip:
-    - dicttoxml
-    - jsmin
-    - cerberus
-    - pyprind
-    - pint
-    - iso8601
-    - tqdm
-    - mpld3
-    - sphinx-argparse
-    - six
-    - spectral
-    - folium>=0.6.0
+    - dill
+    - folium>=0.6.0,!=0.12.0
     - geojson
+
+    # doc requirements
     - flake8
     - pycodestyle
-    - pylint
     - pydocstyle
-    - nose
-    - nose2
-    - nose-htmloutput
-    - coverage
-    - rednose
-    - plotly
-    - geoarray>=0.8.30
-    - py_tools_ds>=0.15.0
+    - pylint
+    - pytest
+    - pytest-cov
+    - pytest-reporter-html1
+    - sphinx-argparse
+    - sphinx-autodoc-typehints
+    - sphinx_rtd_theme
+    - urlchecker

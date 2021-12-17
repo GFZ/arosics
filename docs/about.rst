@@ -19,11 +19,11 @@ is automatically calculated.
 For detailed algorithm description and use cases refer to the corresponding (open-access) paper that can be found here:
 `Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source Image
 Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676
-<http://www.mdpi.com/2072-4292/9/7/676>`__.
+<https://www.mdpi.com/2072-4292/9/7/676>`__.
 
 
-* GitLab Repository: https://gitext.gfz-potsdam.de/danschef/arosics/
-* Documentation: http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+* GitLab Repository: https://git.gfz-potsdam.de/danschef/arosics/
+* Documentation: https://danschef.git-pages.gfz-potsdam.de/arosics/doc/
 
 
 

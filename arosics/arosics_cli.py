@@ -1,26 +1,29 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # unicode_literals cause GDAL not to work properly
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2020  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from __future__ import (division, print_function, absolute_import, unicode_literals)
 
@@ -28,7 +31,6 @@ import time
 import sys
 import warnings
 import argparse
-
 from arosics import COREG, COREG_LOCAL, __version__
 
 __author__ = "Daniel Scheffler"
@@ -107,9 +109,9 @@ def run_local_coreg(args):
 
 
 def get_arosics_argparser():
-    """Return argument parser for arosics_cli.py program."""
+    """Return argument parser for arosics console command."""
     parser = argparse.ArgumentParser(
-        prog='arosics_cli.py',
+        prog='arosics',
 
         description='Perform automatic subpixel co-registration of two satellite image datasets based on an image '
                     'matching approach working in the frequency domain, combined with a multistage workflow for '
@@ -117,12 +119,12 @@ def get_arosics_argparser():
                     '(daniel.scheffler [at] gfz-potsdam [dot] de). The scientific background is described in the paper '
                     'Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust '
                     'Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017;'
-                    ' 9(7):676." (http://www.mdpi.com/2072-4292/9/7/676)',
+                    ' 9(7):676." (https://www.mdpi.com/2072-4292/9/7/676)',
 
         epilog="DETAILED DESCRIPTION: AROSICS detects and corrects global as well as local misregistrations between "
                "two input images in the subpixel scale, that are often present in satellite imagery. The input images "
-               "can have any GDAL compatible image format (http://www.gdal.org/formats_list.html). Both of them must "
-               "be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
+               "can have any GDAL compatible image format (https://gdal.org/drivers/raster/index.html). Both of them "
+               "must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
                "'coordinate system string' as attributes of their header file. The input images must have a geographic "
                "overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any "
                "spatial resampling of the input images before applying this algorithm. Any needed resampling of the "
@@ -257,7 +259,7 @@ def get_arosics_argparser():
                     'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                     'X- or Y direction.',
         help="detect and correct global X/Y shifts (sub argument parser) - "
-             "use '>>> python /path/to/arosics/bin/arosics_cli.py global -h' for documentation and usage hints")
+             "use 'arosics global -h' for documentation and usage hints")
 
     gloArg = parse_coreg_global.add_argument
 
@@ -293,7 +295,7 @@ def get_arosics_argparser():
                     'calculated shifts of each point in the grid as GCPs. Thus this class can be used to correct '
                     'for locally varying geometric distortions of the target image.',
         help="detect and correct local shifts (sub argument parser)"
-             "use '>>> python /path/to/arosics/bin/arosics_cli.py local -h' for documentation and usage hints")
+             "use 'arosics local -h' for documentation and usage hints")
 
     locArg = parse_coreg_local.add_argument
 
@@ -330,7 +332,7 @@ def get_arosics_argparser():
     return parser
 
 
-if __name__ == '__main__':
+def main():
     from socket import gethostname
     from datetime import datetime as dt
     from getpass import getuser
@@ -354,7 +356,7 @@ if __name__ == '__main__':
             '#                            AROSICS v%s                         #' % __version__ + '\n'
             '# An Automated and Robust Open-Source Image Co-Registration Software #\n'
             '#                for Multi-Sensor Satellite Data                     #\n'
-            '#          - python implementation by Daniel Scheffler               #\n'
+            '#          - Python implementation by Daniel Scheffler               #\n'
             '======================================================================\n')
         argparser.print_help()
     else:
@@ -362,6 +364,10 @@ if __name__ == '__main__':
         parsed_args.func(parsed_args)
         print('\ntotal processing time: %.2fs' % (time.time() - t0))
 
-else:
-    warnings.warn("The script 'arosics_cli.py' provides a command line argument parser for AROSICS and is not to be "
-                  "used as a normal Python module.")
+
+if __name__ == "__main__":
+    if 'arosics_cli.py' in sys.argv[0]:
+        warnings.warn("Starting the AROSICS command line argument parser with 'arosics_cli.py ...' is deprecated and "
+                      "will be removed in future releases. Use 'arosics ...' instead.", DeprecationWarning)
+
+    sys.exit(main())  # pragma: no cover

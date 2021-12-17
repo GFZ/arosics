@@ -31,7 +31,7 @@ project_root = os.path.dirname(cwd)
 # version is used.
 sys.path.insert(0, project_root)
 
-import arosics
+import arosics  # noqa E402
 
 # -- General configuration ---------------------------------------------
 
@@ -65,7 +65,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'arosics'
-copyright = u"2017-2020, Daniel Scheffler"
+copyright = u"2017-2021, Daniel Scheffler"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -126,13 +126,13 @@ todo_include_todos = True
 
 # Apply custom sphinx styles (e.g., increase content width of generated docs)
 def setup(app):
-    app.add_stylesheet('custom.css')
+    app.add_css_file('custom.css')
 
 
 # Add mappings for intersphinx extension (allows to link to the API reference of other sphinx documentations)
 intersphinx_mapping = {
-    'geoarray': ('http://danschef.gitext.gfz-potsdam.de/geoarray/doc/', None),
-    'python': ('http://docs.python.org/3', None),
+    'geoarray': ('https://danschef.git-pages.gfz-potsdam.de/geoarray/doc/', None),
+    'python': ('https://docs.python.org/3', None),
 }
 
 

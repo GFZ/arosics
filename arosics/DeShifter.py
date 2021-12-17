@@ -2,29 +2,32 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2020  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import collections
 import time
 import warnings
 import numpy as np
+from typing import Union
 
 # internal modules
 from geoarray import GeoArray
@@ -49,74 +52,78 @@ class DESHIFTER(object):
     See help(DESHIFTER) for documentation.
     """
 
-    def __init__(self, im2shift, coreg_results, **kwargs):
+    def __init__(self,
+                 im2shift: Union[GeoArray, str],
+                 coreg_results: dict,
+                 **kwargs
+                 ) -> None:
         """Get an instance of DESHIFTER.
 
-        :param (str, GeoArray) im2shift:
+        :param im2shift:
             path of an image to be de-shifted or alternatively a GeoArray object
 
-        :param (dict) coreg_results :
+        :param dict coreg_results:
             the results of the co-registration as given by COREG.coreg_info or COREG_LOCAL.coreg_info
 
-        :key (int) path_out:
+        :keyword int path_out:
              /output/directory/filename for coregistered results
 
-        :key (str) fmt_out:
+        :keyword str fmt_out:
             raster file format for output file. ignored if path_out is None. can be any GDAL
             compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI)
 
-        :key (list) out_crea_options:
+        :keyword list out_crea_options:
             GDAL creation options for the output image, e.g., ["QUALITY=20", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
 
-        :key (int) band2process:
+        :keyword int band2process:
             The index of the band to be processed within the given array (starts with 1),
             default = None (all bands are processed)
 
-        :key (int, float) nodata:
+        :keyword float nodata:
             no data value of the image to be de-shifted
 
-        :key (float) out_gsd:
+        :keyword float out_gsd:
             output pixel size in units of the reference coordinate system (default = pixel size of the input array),
             given values are overridden by match_gsd=True
 
-        :key (bool) align_grids:
+        :keyword bool align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
             input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
 
-        :key (bool) match_gsd:
+        :keyword bool match_gsd:
             True: match the input pixel size to the reference pixel size, default = False
 
-        :key (list) target_xyGrid:
+        :keyword list target_xyGrid:
             a list with an x-grid and a y-grid like [[15,45], [15,45]].
             This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
 
-        :key (int) min_points_local_corr:
+        :keyword int min_points_local_corr:
             number of valid tie points, below which a global shift correction is performed instead of a local
             correction (global X/Y shift is then computed as the mean shift of the remaining points)
             (default: 5 tie points)
 
-        :key (str) resamp_alg:
+        :keyword str resamp_alg:
             the resampling algorithm to be used if neccessary
             (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
 
-        :key (bool) cliptoextent:
+        :keyword bool cliptoextent:
             True: clip the input image to its actual bounds while deleting possible no data areas outside of the actual
             bounds, default = False
 
-        :key (list) clipextent:
+        :keyword list clipextent:
             xmin, ymin, xmax, ymax - if given the calculation of the actual bounds is skipped.
             The given coordinates are automatically snapped to the output grid.
 
-        :key (int) CPUs:
+        :keyword int CPUs:
             number of CPUs to use (default: None, which means 'all CPUs available')
 
-        :key (bool) progress:
+        :keyword bool progress:
             show progress bars (default: True)
 
-        :key (bool) v:
+        :keyword bool v:
             verbose mode (default: False)
 
-        :key (bool) q:
+        :keyword bool q:
             quiet mode (default: False)
         """
         # private attributes
@@ -168,11 +175,11 @@ class DESHIFTER(object):
             coreg_results['updated map info'] = coreg_results['updated map info means']
 
         # in case of global shift correction -> the updated map info from coreg_results already has the final map info
-        # BUT: this will updated in correct_shifts() if clipextent is given or warping is needed
+        # BUT: this will be updated in correct_shifts() if clipextent is given or warping is needed
         if not self.GCPList:
             mapI = coreg_results['updated map info']
-            self.updated_map_info = mapI if mapI else geotransform2mapinfo(self.shift_gt, self.shift_prj)
-            self.updated_gt = mapinfo2geotransform(self.updated_map_info) if mapI else self.shift_gt
+            self.updated_map_info = mapI or geotransform2mapinfo(self.shift_gt, self.shift_prj)
+            self.updated_gt = mapinfo2geotransform(self.updated_map_info) or self.shift_gt
             self.original_map_info = coreg_results['original map info']
         self.updated_projection = self.ref_prj
 
@@ -244,8 +251,14 @@ class DESHIFTER(object):
                 # use origin of reference image and gsd of input image
                 out_grid = get_grid(self.ref_gt, self.im2shift.xgsd, self.im2shift.ygsd)
             else:
-                # use input image grid
-                out_grid = get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
+                if not self.GCPList:
+                    # in case of global co-registration:
+                    # -> use the target image grid but update the origin (shift-correction without resampling)
+                    out_grid = get_grid(self.updated_gt, self.im2shift.xgsd, self.im2shift.ygsd)
+                else:
+                    # in case of local co-registration:
+                    # -> use input image grid
+                    out_grid = get_grid(self.im2shift.geotransform, self.im2shift.xgsd, self.im2shift.ygsd)
 
         return out_grid
 
@@ -298,16 +311,14 @@ class DESHIFTER(object):
         # snap clipextent to output grid
         # (in case of odd input coords the output coords are moved INSIDE the input array)
         xmin, ymin, xmax, ymax = self.clipextent
-        x_tol, y_tol = float(np.ptp(self.out_grid[0]) / 10000), float(np.ptp(self.out_grid[1]) / 10000)  # 10.000th pix
+        x_tol, y_tol = float(np.ptp(self.out_grid[0]) / 2000), float(np.ptp(self.out_grid[1]) / 2000)  # 2.000th pix
         xmin = find_nearest(self.out_grid[0], xmin, roundAlg='on', extrapolate=True, tolerance=x_tol)
         ymin = find_nearest(self.out_grid[1], ymin, roundAlg='on', extrapolate=True, tolerance=y_tol)
         xmax = find_nearest(self.out_grid[0], xmax, roundAlg='off', extrapolate=True, tolerance=x_tol)
         ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True, tolerance=y_tol)
         return xmin, ymin, xmax, ymax
 
-    def correct_shifts(self):
-        # type: () -> collections.OrderedDict
-
+    def correct_shifts(self) -> collections.OrderedDict:
         if not self.q:
             print('Correcting geometric shifts...')
 
@@ -319,6 +330,11 @@ class DESHIFTER(object):
             self.is_shifted = True
             self.is_resampled = False
             xmin, ymin, xmax, ymax = self._get_out_extent()
+
+            if not self.q:
+                print("NOTE: The detected shift is corrected by updating the map info of the target image only, i.e., "
+                      "without any resampling. Set the 'align_grids' parameter to True if you need the target and the "
+                      "reference coordinate grids to be aligned.")
 
             if self.cliptoextent:
                 # TODO validate results
@@ -424,14 +440,18 @@ class DESHIFTER(object):
         return deshift_results
 
 
-def deshift_image_using_coreg_info(im2shift, coreg_results, path_out=None, fmt_out='ENVI', q=False):
+def deshift_image_using_coreg_info(im2shift: Union[GeoArray, str],
+                                   coreg_results: dict,
+                                   path_out: str = None,
+                                   fmt_out: str = 'ENVI',
+                                   q: bool = False):
     """Correct a geometrically distorted image using previously calculated coregistration info.
 
     This function can be used for example to correct spatial shifts of mask files using the same transformation
     parameters that have been used to correct their source images.
 
-    :param im2shift:      <path,GeoArray> path of an image to be de-shifted or alternatively a GeoArray object
-    :param coreg_results: <dict> the results of the co-registration as given by COREG.coreg_info or
+    :param im2shift:      path of an image to be de-shifted or alternatively a GeoArray object
+    :param coreg_results: the results of the co-registration as given by COREG.coreg_info or
                           COREG_LOCAL.coreg_info respectively
     :param path_out:      /output/directory/filename for coregistered results. If None, no output is written - only
                           the shift corrected results are returned.

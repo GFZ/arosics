@@ -2,36 +2,35 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2020  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import time
 import warnings
 from copy import copy
-from typing import Iterable, Union, Tuple  # noqa F401
+from typing import Iterable, Union, Tuple, List, Optional  # noqa F401
 
 # custom
-try:
-    import gdal
-except ImportError:
-    from osgeo import gdal
+from osgeo import gdal
 import numpy as np
 
 try:
@@ -39,7 +38,6 @@ try:
 except ImportError:
     pyfftw = None
 from shapely.geometry import Point, Polygon
-from skimage.exposure import rescale_intensity
 
 # internal modules
 from .DeShifter import DESHIFTER, _dict_rspAlg_rsp_Int
@@ -50,22 +48,22 @@ from geoarray import GeoArray
 from py_tools_ds.convenience.object_oriented import alias_property
 from py_tools_ds.geo.coord_calc import get_corner_coordinates
 from py_tools_ds.geo.vector.topology import get_overlap_polygon, get_smallest_boxImYX_that_contains_boxMapYX
-from py_tools_ds.geo.projection import prj_equal, get_proj4info
+from py_tools_ds.geo.projection import prj_equal
 from py_tools_ds.geo.vector.geometry import boxObj, round_shapelyPoly_coords
 from py_tools_ds.geo.coord_grid import move_shapelyPoly_to_image_grid, is_coord_grid_equal
 from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry, mapXY2imXY, imXY2mapXY
 from py_tools_ds.geo.raster.reproject import warp_ndarray
 from py_tools_ds.geo.map_info import geotransform2mapinfo
-from py_tools_ds.similarity.raster import calc_ssim
 from py_tools_ds.io.vector.writer import write_shp
 
 __author__ = 'Daniel Scheffler'
 
 
 class GeoArray_CoReg(GeoArray):
-    def __init__(self, CoReg_params, imID):
-        # type: (dict, str) -> None
-
+    def __init__(self,
+                 CoReg_params: dict,
+                 imID: str
+                 ) -> None:
         assert imID in ['ref', 'shift']
 
         # run GeoArray init
@@ -114,9 +112,17 @@ class GeoArray_CoReg(GeoArray):
         else:
             # footprint_poly is calculated automatically by GeoArray
             if not CoReg_params['q']:
-                print('Calculating actual data corner coordinates for %s...' % self.imName)
+                print('Calculating footprint polygon and actual data corner coordinates for %s...' % self.imName)
 
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
+
+            with warnings.catch_warnings(record=True) as w:
+                _ = self.footprint_poly  # execute getter
+
+            if len(w) > 0 and 'disjunct polygone(s) outside' in str(w[-1].message):
+                warnings.warn('The footprint of the %s contains multiple separate image parts. '
+                              'AROSICS will only process the largest image part.' % self.imName)
+                # FIXME use a convex hull as footprint poly
 
         # validate footprint poly
         if not self.footprint_poly.is_valid:
@@ -134,7 +140,7 @@ class GeoArray_CoReg(GeoArray):
 
 
 class COREG(object):
-    """The COREG class detects and corrects global X/Y shifts between a target and refernce image.
+    """The COREG class detects and corrects global X/Y shifts between a target and reference image.
 
     Geometric shifts are calculated at a specific (adjustable) image position. Correction performs a global shifting
     in X- or Y direction.
@@ -142,109 +148,204 @@ class COREG(object):
     See help(COREG) for documentation!
     """
 
-    def __init__(self, im_ref, im_tgt, path_out=None, fmt_out='ENVI', out_crea_options=None, r_b4match=1, s_b4match=1,
-                 wp=(None, None), ws=(256, 256), max_iter=5, max_shift=5, align_grids=False, match_gsd=False,
-                 out_gsd=None, target_xyGrid=None, resamp_alg_deshift='cubic', resamp_alg_calc='cubic',
-                 footprint_poly_ref=None, footprint_poly_tgt=None, data_corners_ref=None, data_corners_tgt=None,
-                 nodata=(None, None), calc_corners=True, binary_ws=True, mask_baddata_ref=None, mask_baddata_tgt=None,
-                 CPUs=None, force_quadratic_win=True, progress=True, v=False, path_verbose_out=None, q=False,
-                 ignore_errors=False):
+    def __init__(self,
+                 im_ref: Union[GeoArray, str],
+                 im_tgt: Union[GeoArray, str],
+                 path_out: str = None,
+                 fmt_out: str = 'ENVI',
+                 out_crea_options: list = None,
+                 r_b4match: int = 1,
+                 s_b4match: int = 1,
+                 wp: Tuple[float, float] = (None, None),
+                 ws: Tuple[int, int] = (256, 256),
+                 max_iter: int = 5,
+                 max_shift: int = 5,
+                 align_grids: bool = False,
+                 match_gsd: bool = False,
+                 out_gsd: Tuple[float] = None,
+                 target_xyGrid: List[List] = None,
+                 resamp_alg_deshift: str = 'cubic',
+                 resamp_alg_calc: str = 'cubic',
+                 footprint_poly_ref: str = None,
+                 footprint_poly_tgt: str = None,
+                 data_corners_ref: list = None,
+                 data_corners_tgt: list = None,
+                 nodata: Tuple = (None, None),
+                 calc_corners: bool = True,
+                 binary_ws: bool = True,
+                 mask_baddata_ref: Union[GeoArray, str] = None,
+                 mask_baddata_tgt: Union[GeoArray, str] = None,
+                 CPUs: int = None,
+                 force_quadratic_win: bool = True,
+                 progress: bool = True,
+                 v: bool = False,
+                 path_verbose_out: str = None,
+                 q: bool = False,
+                 ignore_errors: bool = False
+                 ) -> None:
         """Get an instance of the COREG class.
 
-        :param im_ref(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
-                                        of reference image
-        :param im_tgt(str, GeoArray):   source path (any GDAL compatible image format is supported) or GeoArray instance
-                                        of image to be shifted
-        :param path_out(str):           target path of the coregistered image
-                                            - if None (default), the method correct_shifts() does not write to disk
-                                            - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
-        :param fmt_out(str):            raster file format for output file. ignored if path_out is None. can be any GDAL
-                                        compatible raster file format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to
-                                        http://www.gdal.org/formats_list.html to get a full list of supported formats.
-        :param out_crea_options(list):  GDAL creation options for the output image,
-                                        e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
-        :param r_b4match(int):          band of reference image to be used for matching (starts with 1; default: 1)
-        :param s_b4match(int):          band of shift image to be used for matching (starts with 1; default: 1)
-        :param wp(tuple):               custom matching window position as map values in the same projection like the
-                                        reference image (default: central position of image overlap)
-        :param ws(tuple):               custom matching window size [pixels] (default: (256,256))
-        :param max_iter(int):           maximum number of iterations for matching (default: 5)
-        :param max_shift(int):          maximum shift distance in reference image pixel units (default: 5 px)
-        :param align_grids(bool):       align the coordinate grids of the image to be and the reference image
-                                        (default: 0)
-        :param match_gsd(bool):         match the output pixel size to pixel size of the reference image (default: 0)
-        :param out_gsd(tuple):          xgsd ygsd: set the output pixel size in map units
-                                        (default: original pixel size of the image to be shifted)
-        :param target_xyGrid(list):     a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
-                                        This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
-        :param resamp_alg_deshift(str)  the resampling algorithm to be used for shift correction (if neccessary)
-                                        valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average,
-                                                          mode, max, min, med, q1, q3
-                                        default: cubic
-        :param resamp_alg_calc(str)     the resampling algorithm to be used for all warping processes during calculation
-                                        of spatial shifts
-                                        (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average,
-                                                           mode, max, min, med, q1, q3)
-                                        default: cubic (highly recommended)
-        :param footprint_poly_ref(str): footprint polygon of the reference image (WKT string or
-                                        shapely.geometry.Polygon),
-                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
-                                                        299999 6000000))'
-        :param footprint_poly_tgt(str): footprint polygon of the image to be shifted (WKT string or
-                                        shapely.geometry.Polygon)
-                                        e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000,
-                                                        299999 6000000))'
-        :param data_corners_ref(list):  map coordinates of data corners within reference image.
-                                        ignored if footprint_poly_ref is given.
-        :param data_corners_tgt(list):  map coordinates of data corners within image to be shifted.
-                                        ignored if footprint_poly_tgt is given.
-        :param nodata(tuple):           no data values for reference image and image to be shifted
-        :param calc_corners(bool):      calculate true positions of the dataset corners in order to get a useful
-                                        matching window position within the actual image overlap
-                                        (default: 1; deactivated if '-cor0' and '-cor1' are given
-        :param binary_ws(bool):         use binary X/Y dimensions for the matching window (default: 1)
-        :param mask_baddata_ref(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
-                                                reference image where all bad data pixels (e.g. clouds) are marked with
-                                                True and the remaining pixels with False. Must have the same geographic
-                                                extent and projection like 'im_ref'. The mask is used to check if the
-                                                chosen matching window position is valid in the sense of useful data.
-                                                Otherwise this window position is rejected.
-        :param mask_baddata_tgt(str, GeoArray): path to a 2D boolean mask file (or an instance of GeoArray) for the
-                                                image to be shifted where all bad data pixels (e.g. clouds) are marked
-                                                with True and the remaining pixels with False. Must have the same
-                                                geographic extent and projection like 'im_ref'. The mask is used to
-                                                check if the chosen matching window position is valid in the sense of
-                                                useful data. Otherwise this window position is rejected.
-        :param CPUs(int):               number of CPUs to use during pixel grid equalization
-                                        (default: None, which means 'all CPUs available')
-        :param force_quadratic_win(bool):   force a quadratic matching window (default: 1)
-        :param progress(bool):          show progress bars (default: True)
-        :param v(bool):                 verbose mode (default: False)
-        :param path_verbose_out(str):   an optional output directory for intermediate results
-                                        (if not given, no intermediate results are written to disk)
-        :param q(bool):                 quiet mode (default: False)
-        :param ignore_errors(bool):     Useful for batch processing. (default: False)
-                                        In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px
-                                        is None
+        :param im_ref:
+            source path or GeoArray instance of reference image
+            (any GDAL compatible image format is supported)
+
+        :param im_tgt:
+            source path or GeoArray instance of the target image, i.e., the image to be shifted
+            (any GDAL compatible image format is supported)
+
+        :param path_out:
+            target path of the coregistered image
+            - if None (default), the method correct_shifts() does not write to disk
+            - if 'auto': /dir/of/im1/<im1>__shifted_to__<im0>.bsq
+
+        :param fmt_out:
+            raster file format for output file. ignored if path_out is None. can be any GDAL compatible raster file
+            format (e.g. 'ENVI', 'GTIFF'; default: ENVI). Refer to https://gdal.org/drivers/raster/index.html to get a
+            full list of supported formats.
+
+        :param out_crea_options:
+          GDAL creation options for the output image, e.g. ["QUALITY=80", "REVERSIBLE=YES", "WRITE_METADATA=YES"]
+
+        :param r_b4match:
+            band of reference image to be used for matching (starts with 1; default: 1)
+
+        :param s_b4match:
+            band of shift image to be used for matching (starts with 1; default: 1)
+
+        :param wp:
+            custom matching window position as (X, Y) map coordinate in the same projection like the reference image
+            (default: central position of image overlap)
+
+        :param ws:
+            custom matching window size [pixels] as (X, Y) tuple (default: (256,256))
+
+        :param max_iter:
+            maximum number of iterations for matching (default: 5)
+
+        :param max_shift:
+            maximum shift distance in reference image pixel units (default: 5 px)
+
+        :param align_grids:
+            True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+
+            - NOTE: If this is set to False, the mis-registration in the target image is corrected by updating its
+              geocoding information only, i.e., without performing any resampling which preserves the original
+              image values (except that a resampling is needed due to other reasons, e.g., if 'match_gsd',
+              'out_gsd' or 'target_xyGrid' are given).
+
+        :param match_gsd:
+            True: match the input pixel size to the reference pixel size,
+            default = False
+
+        :param out_gsd:
+            output pixel size (X/Y) in units of the reference coordinate system (default = pixel size of the target
+            image), given values are overridden by match_gsd=True
+
+        :param target_xyGrid:
+            a list with a target x-grid and a target y-grid like [[15,45], [15,45]]
+            This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
+
+        :param resamp_alg_deshift:
+            the resampling algorithm to be used for shift correction (if neccessary)
+            - valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
+            - default: cubic
+
+        :param resamp_alg_calc:
+            the resampling algorithm to be used for all warping processes during calculatio of spatial shift
+            - valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
+            - default: cubic (highly recommended)
+
+        :param footprint_poly_ref:
+            footprint polygon of the reference image (WKT string or shapely.geometry.Polygon),
+            e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000, 299999 6000000))'
+
+        :param footprint_poly_tgt:
+            footprint polygon of the image to be shifted (WKT string or shapely.geometry.Polygon)
+            e.g. 'POLYGON ((299999 6000000, 299999 5890200, 409799 5890200, 409799 6000000, 299999 6000000))'
+
+        :param data_corners_ref:
+            map coordinates of data corners within reference image. ignored if footprint_poly_ref is given.
+
+        :param data_corners_tgt:
+            map coordinates of data corners within image to be shifted. ignored if footprint_poly_tgt is given.
+
+        :param nodata:
+            no-data values for reference image and image to be shifted. The default is (None, None) which indicates
+            that there is no specific no-data value for both of the input images.
+
+        :param calc_corners:
+             calculate true positions of the dataset corners in order to get a useful matching window position within
+             the actual image overlap (default: True; deactivated if '-cor0' and '-cor1' are given
+
+        :param binary_ws:
+            use binary X/Y dimensions for the matching window (default: True)
+
+        :param mask_baddata_ref:
+            path to a 2D boolean mask file (or an instance of GeoArray) for the reference image where all bad data
+            pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
+            geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
+            position is valid in the sense of useful data. Otherwise this window position is rejected.
+
+        :param mask_baddata_tgt:
+            path to a 2D boolean mask file (or an instance of GeoArray) for the image to be shifted where all bad data
+            pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
+            geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
+            position is valid in the sense of useful data. Otherwise this window position is rejected.
+
+        :param CPUs:
+            number of CPUs to use during pixel grid equalization (default: None, which means 'all CPUs available')
+
+        :param force_quadratic_win:
+            force a quadratic matching window (default: True)
+
+        :param progress:
+            show progress bars (default: True)
+
+        :param v:
+            verbose mode (default: False)
+
+        :param path_verbose_out:
+            an optional output directory for intermediate results
+            (if not given, no intermediate results are written to disk)
+
+        :param q:
+            quiet mode (default: False)
+
+        :param ignore_errors:
+            Useful for batch processing. (default: False)
+            In case of error COREG.success == False and COREG.x_shift_px/COREG.y_shift_px is None
         """
         self.params = dict([x for x in locals().items() if x[0] != "self"])
 
-        # assertions
-        assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
+        # input validation
+        if gdal.GetDriverByName(fmt_out) is None:
+            raise ValueError(fmt_out, "'%s' is not a supported GDAL driver." % fmt_out)
+
         if match_gsd and out_gsd:
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
-        if out_gsd:
-            assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
-        if data_corners_ref and not isinstance(data_corners_ref[0],
-                                               list):  # group if not [[x,y],[x,y]..] but [x,y,x,y,]
-            data_corners_ref = [data_corners_ref[i:i + 2] for i in range(0, len(data_corners_ref), 2)]
-        if data_corners_tgt and not isinstance(data_corners_tgt[0], list):  # group if not [[x,y],[x,y]..]
-            data_corners_tgt = [data_corners_tgt[i:i + 2] for i in range(0, len(data_corners_tgt), 2)]
-        if nodata:
-            assert isinstance(nodata, Iterable) and len(nodata) == 2, \
-                "'nodata' must be an iterable with two values. Got %s with length %s." % (type(nodata), len(nodata))
+
+        if out_gsd and (not isinstance(out_gsd, list) or len(out_gsd) != 2):
+            raise ValueError(out_gsd, 'out_gsd must be a list with two values.')
+
+        if data_corners_ref and not isinstance(data_corners_ref[0], list):
+            # group if not [[x,y],[x,y]..] but [x,y,x,y,]
+            data_corners_ref = [data_corners_ref[i:i + 2]
+                                for i in range(0, len(data_corners_ref), 2)]
+
+        if data_corners_tgt and not isinstance(data_corners_tgt[0], list):
+            # group if not [[x,y],[x,y]..]
+            data_corners_tgt = [data_corners_tgt[i:i + 2]
+                                for i in range(0, len(data_corners_tgt), 2)]
+
+        if nodata and (not isinstance(nodata, Iterable) or len(nodata) != 2):
+            raise ValueError(nodata, "'nodata' must be an iterable with two values. "
+                                     "Got %s with length %s." % (type(nodata), len(nodata)))
+
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
-            assert rspAlg in _dict_rspAlg_rsp_Int.keys(), "'%s' is not a supported resampling algorithm." % rspAlg
+            if rspAlg not in _dict_rspAlg_rsp_Int.keys():
+                raise ValueError("'%s' is not a supported resampling algorithm." % rspAlg)
+
         if resamp_alg_calc in ['average', 5] and (v or not q):
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
                           "affect the precision of the calculated spatial shifts! It is highly recommended to "
@@ -276,12 +377,12 @@ class COREG(object):
 
         self.ignErr = ignore_errors
         self.max_win_sz_changes = 3  # TODO: änderung der window size, falls nach max_iter kein valider match gefunden
-        self.ref = None  # type: GeoArray_CoReg # set by self.get_image_params
-        self.shift = None  # type: GeoArray_CoReg # set by self.get_image_params
-        self.matchBox = None  # type: boxObj # set by self.get_clip_window_properties()
-        self.otherBox = None  # type: boxObj # set by self.get_clip_window_properties()
-        self.matchWin = None  # type: GeoArray # set by self._get_image_windows_to_match()
-        self.otherWin = None  # type: GeoArray # set by self._get_image_windows_to_match()
+        self.ref: Optional[GeoArray_CoReg] = None  # set by self.get_image_params
+        self.shift: Optional[GeoArray_CoReg] = None  # set by self.get_image_params
+        self.matchBox: Optional[boxObj] = None  # set by self.get_clip_window_properties()
+        self.otherBox: Optional[boxObj] = None  # set by self.get_clip_window_properties()
+        self.matchWin: Optional[GeoArray] = None  # set by self._get_image_windows_to_match()
+        self.otherWin: Optional[GeoArray] = None  # set by self._get_image_windows_to_match()
         self.overlap_poly = None  # set by self._get_overlap_properties()
         self.overlap_percentage = None  # set by self._get_overlap_properties()
         self.overlap_area = None  # set by self._get_overlap_properties()
@@ -306,7 +407,9 @@ class COREG(object):
         self.success = None  # default
         self.deshift_results = None  # set by self.correct_shifts()
 
+        # try:
         gdal.AllRegister()
+        self._check_and_handle_metaRotation()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
         self.grid2use = 'ref' if self.shift.xgsd <= self.ref.xgsd else 'shift'
@@ -334,6 +437,9 @@ class COREG(object):
                       self.matchBox.mapPoly, self.matchBox.prj)
 
         self.success = False if self.success is False or not self.matchBox.boxMapYX else None
+
+        # except BaseException:
+
         self._coreg_info = None  # private attribute to be filled by self.coreg_info property
 
     def _handle_error(self, error, warn=False, warnMsg=None):
@@ -358,11 +464,10 @@ class COREG(object):
         if not self.ignErr:
             raise error
 
-    def _set_outpathes(self, im_ref, im_tgt):
-        assert isinstance(im_ref, (GeoArray, str)) and isinstance(im_tgt, (GeoArray, str)), \
-            'COREG._set_outpathes() expects two file pathes (string) or two instances of the ' \
-            'GeoArray class. Received %s and %s.' % (type(im_ref), type(im_tgt))
-
+    def _set_outpathes(self,
+                       im_ref: Union[(GeoArray, str)],
+                       im_tgt: Union[(GeoArray, str)]
+                       ) -> None:
         def get_baseN(path):
             return os.path.splitext(os.path.basename(path))[0]
 
@@ -438,17 +543,30 @@ class COREG(object):
         if self.path_verbose_out and not os.path.isdir(self.path_verbose_out):
             os.makedirs(self.path_verbose_out)
 
-    def _get_image_params(self):
+    def _get_image_params(self) -> None:
         self.ref = GeoArray_CoReg(self.params, 'ref')
         self.shift = GeoArray_CoReg(self.params, 'shift')
 
         if not prj_equal(self.ref.prj, self.shift.prj):
-            raise RuntimeError(
-                'Input projections are not equal. Different projections are currently not supported. Got %s / %s.'
-                % (get_proj4info(proj=self.ref.prj), get_proj4info(proj=self.shift.prj)))
+            from pyproj import CRS
 
-    def _get_overlap_properties(self):
-        overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
+            crs_ref = CRS.from_user_input(self.ref.prj)
+            crs_shift = CRS.from_user_input(self.shift.prj)
+
+            name_ref, name_shift = \
+                (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
+
+            raise RuntimeError(
+                'Input projections are not equal. Different projections are currently not supported. '
+                'Got %s vs. %s.' % (name_ref, name_shift))
+
+    def _get_overlap_properties(self) -> None:
+        with warnings.catch_warnings():
+            # already warned in GeoArray_CoReg.__init__()
+            warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*disjunct.*")
+
+            overlap_tmp = get_overlap_polygon(self.ref.poly, self.shift.poly, self.v)
+
         self.overlap_poly = overlap_tmp['overlap poly']  # has to be in reference projection
         self.overlap_percentage = overlap_tmp['overlap percentage']
         self.overlap_area = overlap_tmp['overlap area']
@@ -461,26 +579,55 @@ class COREG(object):
         assert px_covered > 16 * 16, \
             'Overlap area covers only %s pixels. At least 16*16 pixels are needed.' % px_covered
 
-    def equalize_pixGrids(self):
-        """Equalize image grids and projections of reference and target image (align target to reference)."""
-        if not (prj_equal(self.ref.prj, self.shift.prj) and
-                is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs)):
+    def _check_and_handle_metaRotation(self):
+        """Check if the provided input data have a metadata rotation and if yes, correct it.
+
+        In case there is a rotation, the GDAL GeoTransform is not 0 at positions 2 or 4. So far, AROSICS does not
+        handle such rotations, so the resampling is needed to make things work.
+        """
+        gA_ref = GeoArray(self.params['im_ref'])
+        gA_tgt = GeoArray(self.params['im_tgt'])
+
+        msg = 'The %s image needs to be resampled because it has a row/column rotation in ' \
+              'its map info which is not handled by AROSICS.'
+
+        if GEO.has_metaRotation(gA_ref):
+            warnings.warn(msg % 'reference')
+            self.params['im_ref'] = GEO.remove_metaRotation(gA_ref)
+
+        if GEO.has_metaRotation(gA_tgt):
+            warnings.warn(msg % 'target')
+            self.params['im_tgt'] = GEO.remove_metaRotation(gA_tgt)
+
+    @property
+    def are_pixGrids_equal(self):
+        return prj_equal(self.ref.prj, self.shift.prj) and \
+               is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs, tolerance=1e-8)
+
+    def equalize_pixGrids(self) -> None:
+        """Equalize image grids and projections of reference and target image (align target to reference).
+
+        NOTE: This method is only called by COREG_LOCAL to speed up processing during detection of displacements.
+        """
+        if not self.are_pixGrids_equal or GEO.has_metaRotation(self.ref) or GEO.has_metaRotation(self.shift):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
+            def equalize(gA_from: GeoArray, gA_to: GeoArray) -> GeoArray:
+                if gA_from.bands > 1:
+                    gA_from = gA_from.get_subset(zslice=slice(gA_from.band4match, gA_from.band4match + 1))
+                gA_from.reproject_to_new_grid(prototype=gA_to, CPUs=self.CPUs)
+                gA_from.band4match = 0  # after resampling there is only one band in the GeoArray
+
+                return gA_from
+
             if self.grid2use == 'ref':
-                # resample target image to reference image
-                if self.shift.bands > 1:
-                    self.shift = self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
-                self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
-                self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
+                # resample target to reference image
+                self.shift = equalize(gA_from=self.shift, gA_to=self.ref)
 
             else:
-                # resample reference image to target image
-                if self.ref.bands > 1:
-                    self.ref = self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
-                self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
-                self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
+                # resample reference to target image
+                self.ref = equalize(gA_from=self.ref, gA_to=self.shift)
 
             # self.ref.gt = (self.ref.gt[0], 1, self.ref.gt[2], self.ref.gt[3], self.ref.gt[4], -1)
             # self.shift.gt = (self.shift.gt[0], 1, self.shift.gt[2], self.shift.gt[3], self.shift.gt[4], -1)
@@ -496,10 +643,10 @@ class COREG(object):
         import folium
         import geojson
 
-        refPoly = reproject_shapelyGeometry(self.ref.poly, self.ref.epsg, 4326)
-        shiftPoly = reproject_shapelyGeometry(self.shift.poly, self.shift.epsg, 4326)
-        overlapPoly = reproject_shapelyGeometry(self.overlap_poly, self.shift.epsg, 4326)
-        matchBoxPoly = reproject_shapelyGeometry(self.matchBox.mapPoly, self.shift.epsg, 4326)
+        refPoly = reproject_shapelyGeometry(self.ref.poly, self.ref.prj, 4326)
+        shiftPoly = reproject_shapelyGeometry(self.shift.poly, self.shift.prj, 4326)
+        overlapPoly = reproject_shapelyGeometry(self.overlap_poly, self.shift.prj, 4326)
+        matchBoxPoly = reproject_shapelyGeometry(self.matchBox.mapPoly, self.shift.prj, 4326)
 
         m = folium.Map(location=tuple(np.array(overlapPoly.centroid.coords.xy).flatten())[::-1])
         for poly in [refPoly, shiftPoly, overlapPoly, matchBoxPoly]:
@@ -507,11 +654,16 @@ class COREG(object):
             folium.GeoJson(gjs).add_to(m)
         return m
 
-    def show_matchWin(self, figsize=(15, 15), interactive=True, after_correction=None, pmin=2, pmax=98):
+    def show_matchWin(self,
+                      figsize: tuple = (15, 15),
+                      interactive: bool = True,
+                      after_correction: bool = None,
+                      pmin=2,
+                      pmax=98):
         """Show the image content within the matching window.
 
-        :param figsize:             <tuple> figure size
-        :param interactive:         <bool> whether to return an interactive figure based on 'holoviews' library
+        :param figsize:             figure size
+        :param interactive:         whether to return an interactive figure based on 'holoviews' library
         :param after_correction:    True/False: show the image content AFTER shift correction or before
                                     None: show both states - before and after correction (default)
         :param pmin:                percentage to be used for excluding the darkest pixels from stretching (default: 2)
@@ -519,6 +671,11 @@ class COREG(object):
                                     (default: 98)
         :return:
         """
+        if not self.success and after_correction in [True, None]:
+            warnings.warn('It is only possible to show the matching window before correction of spatial displacements '
+                          'because no valid displacement has been calculated yet.')
+            after_correction = False
+
         if interactive:
             # use Holoviews
             try:
@@ -528,7 +685,7 @@ class COREG(object):
             if not hv:
                 raise ImportError(
                     "This method requires the library 'holoviews'. It can be installed for Anaconda with "
-                    "the shell command 'conda install -c ioam holoviews bokeh'.")
+                    "the shell command 'conda install -c conda-forge holoviews bokeh'.")
 
             hv.notebook_extension('matplotlib')
             hv.Store.add_style_opts(hv.Image, ['vmin', 'vmax'])
@@ -538,10 +695,12 @@ class COREG(object):
             # renderer = hv.Store.renderers['matplotlib'].instance(fig='svg', holomap='gif')
             # RasterPlot = renderer.plotting_class(hv.Image)
             # RasterPlot.cmap = 'gray'
-            otherWin_corr = self._get_deshifted_otherWin()
+            otherWin_corr = self._get_deshifted_otherWin() if after_correction in [True, None] else None
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
             def get_hv_image(geoArr):
+                from skimage.exposure import rescale_intensity  # import here to avoid static TLS ImportError
+
                 arr_masked = np.ma.masked_equal(geoArr[:], geoArr.nodata)
                 vmin = np.nanpercentile(arr_masked.compressed(), pmin)
                 vmax = np.nanpercentile(arr_masked.compressed(), pmax)
@@ -558,13 +717,13 @@ class COREG(object):
 
             hvIm_matchWin = get_hv_image(self.matchWin)
             hvIm_otherWin_orig = get_hv_image(self.otherWin)
-            hvIm_otherWin_corr = get_hv_image(otherWin_corr)
+            hvIm_otherWin_corr = get_hv_image(otherWin_corr) if after_correction in [True, None] else None
 
             if after_correction is None:
                 # view both states
                 print('Matching window before and after correction (above and below): ')
 
-                # get layouts (docs on options: http://build.holoviews.org/Tutorials/Options.html)
+                # get layouts (docs on options: https://holoviews.org/user_guide)
                 layout_before = (hvIm_matchWin + hvIm_matchWin).opts(plot=dict(fig_inches=figsize))
                 layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr).opts(plot=dict(fig_inches=figsize))
 
@@ -594,7 +753,7 @@ class COREG(object):
             else:
                 self.otherWin.show(figsize=figsize, pmin=pmin, pmax=pmax)
 
-    def show_cross_power_spectrum(self, interactive=False):
+    def show_cross_power_spectrum(self, interactive: bool = False) -> None:
         """Show a 3D surface of the cross power spectrum.
 
         NOTE: The cross power spectrum is the result from phase correlating the reference and target
@@ -629,7 +788,7 @@ class COREG(object):
             scps = self._calc_shifted_cross_power_spectrum()
             PLT.subplot_3dsurface(scps.astype(np.float32))
 
-    def _get_opt_winpos_winsize(self):
+    def _get_opt_winpos_winsize(self) -> None:
         """Calculate optimal window position and size in reference image units.
 
         NOTE: The returned values are computed according to DGM, cloud_mask and trueCornerLonLat.
@@ -683,7 +842,7 @@ class COREG(object):
         self.win_pos_XY = wp
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512, 512)
 
-    def _get_clip_window_properties(self):
+    def _get_clip_window_properties(self) -> None:
         """Calculate all properties of the matching window and the other window.
 
         These windows are used to read the corresponding image positions in the reference and the target image.
@@ -694,13 +853,30 @@ class COREG(object):
 
         wpX, wpY = self.win_pos_XY
         wsX, wsY = self.win_size_XY
-        ref_wsX, ref_wsY = (wsX * self.ref.xgsd, wsY * self.ref.ygsd)  # image units -> map units
-        shift_wsX, shift_wsY = (wsX * self.shift.xgsd, wsY * self.shift.ygsd)  # image units -> map units
-        ref_box_kwargs = {'wp': (wpX, wpY), 'ws': (ref_wsX, ref_wsY), 'gt': self.ref.gt}
-        shift_box_kwargs = {'wp': (wpX, wpY), 'ws': (shift_wsX, shift_wsY), 'gt': self.shift.gt}
-        matchBox = boxObj(**ref_box_kwargs) if self.grid2use == 'ref' else boxObj(**shift_box_kwargs)
-        otherBox = boxObj(**shift_box_kwargs) if self.grid2use == 'ref' else boxObj(**ref_box_kwargs)
-        overlapWin = boxObj(mapPoly=self.overlap_poly, gt=self.ref.gt)
+
+        # image units -> map units
+        ref_wsX = wsX * self.ref.xgsd
+        ref_wsY = wsY * self.ref.ygsd
+        shift_wsX = wsX * self.shift.xgsd
+        shift_wsY = wsY * self.shift.ygsd
+
+        ref_box_kwargs = \
+            dict(wp=(wpX, wpY),
+                 ws=(ref_wsX, ref_wsY),
+                 gt=self.ref.gt)
+        shift_box_kwargs = \
+            dict(wp=(wpX, wpY),
+                 ws=(shift_wsX, shift_wsY),
+                 gt=self.shift.gt)
+        matchBox =\
+            boxObj(**ref_box_kwargs) if self.grid2use == 'ref' else \
+            boxObj(**shift_box_kwargs)
+        otherBox = \
+            boxObj(**shift_box_kwargs) if self.grid2use == 'ref' else \
+            boxObj(**ref_box_kwargs)
+        overlapWin = \
+            boxObj(mapPoly=self.overlap_poly,
+                   gt=self.ref.gt)
 
         # clip matching window to overlap area
         matchBox.mapPoly = matchBox.mapPoly.intersection(overlapWin.mapPoly)
@@ -708,8 +884,13 @@ class COREG(object):
         # check if matchBox extent touches no data area of the image -> if yes: shrink it
         overlapPoly_within_matchWin = matchBox.mapPoly.intersection(self.overlap_poly)
         if overlapPoly_within_matchWin.area < matchBox.mapPoly.area:
-            wsX_start, wsY_start = 1 if wsX >= wsY else wsX / wsY, 1 if wsY >= wsX else wsY / wsX
-            box = boxObj(**dict(wp=(wpX, wpY), ws=(wsX_start, wsY_start), gt=matchBox.gt))
+            wsX_start, wsY_start = \
+                1 if wsX >= wsY else \
+                wsX / wsY, 1 if wsY >= wsX else \
+                wsY / wsX
+            box = boxObj(**dict(wp=(wpX, wpY),
+                                ws=(wsX_start, wsY_start),
+                                gt=matchBox.gt))
             while True:
                 box.buffer_imXY(1, 1)
                 if not box.mapPoly.within(overlapPoly_within_matchWin):
@@ -718,36 +899,52 @@ class COREG(object):
                     break
 
         # move matching window to imref grid or im2shift grid
-        mW_rows, mW_cols = (self.ref.rows, self.ref.cols) if self.grid2use == 'ref' else \
+        mW_rows, mW_cols = \
+            (self.ref.rows, self.ref.cols) if self.grid2use == 'ref' else \
             (self.shift.rows, self.shift.cols)
-        matchBox.mapPoly = move_shapelyPoly_to_image_grid(matchBox.mapPoly, matchBox.gt, mW_rows, mW_cols, 'NW')
+        matchBox.mapPoly = move_shapelyPoly_to_image_grid(matchBox.mapPoly,
+                                                          matchBox.gt, mW_rows,
+                                                          mW_cols,
+                                                          'NW')
 
-        # check, ob durch Verschiebung auf Grid die matchBox außerhalb von overlap_poly geschoben wurde
+        # check, if matchBox was moved outside of overlap_poly when moving it to the image grid
         if not matchBox.mapPoly.within(overlapWin.mapPoly):
-            # matchPoly weiter verkleinern # 1 px buffer reicht, weil window nur auf das Grid verschoben wurde
+            # further shrink matchPoly (1 px buffer is enough because the window was only moved to the grid)
             xLarger, yLarger = matchBox.is_larger_DimXY(overlapWin.boundsIm)
-            matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
+            matchBox.buffer_imXY(-1 if xLarger else 0,
+                                 -1 if yLarger else 0)
 
-        # matching_win direkt auf grid2use (Rundungsfehler bei Koordinatentrafo beseitigen)
+        # matching_win directly on grid2use (fix rounding error through coordinate transformation)
         matchBox.imPoly = round_shapelyPoly_coords(matchBox.imPoly, precision=0)
 
-        # Check, ob match Fenster größer als anderes Fenster
-        if not (matchBox.mapPoly.within(otherBox.mapPoly) or matchBox.mapPoly == otherBox.mapPoly):
-            # dann für anderes Fenster kleinstes Fenster finden, das match-Fenster umgibt
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
-                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues
+        # check if matching window larger than the other one or equal
+        if not (matchBox.mapPoly.within(otherBox.mapPoly) or
+                matchBox.mapPoly == otherBox.mapPoly):
+            # if yes, find the smallest 'other window' that encloses the matching window
+            otherBox.boxImYX = \
+                get_smallest_boxImYX_that_contains_boxMapYX(
+                    matchBox.boxMapYX,
+                    otherBox.gt,
+                    tolerance_ndigits=5  # avoids float coordinate rounding issues
+                )
 
-        # evtl. kann es sein, dass bei Shift-Fenster-Vergrößerung das shift-Fenster zu groß für den overlap wird
+        # in case after enlarging the 'other window', it gets too large for the overlap area
+        # -> shrink match window and recompute smallest possible other window until everything is fine
         t_start = time.time()
         while not otherBox.mapPoly.within(overlapWin.mapPoly):
-            # -> match Fenster verkleinern und neues otherBox berechnen
             xLarger, yLarger = otherBox.is_larger_DimXY(overlapWin.boundsIm)
-            matchBox.buffer_imXY(-1 if xLarger else 0, -1 if yLarger else 0)
+            matchBox.buffer_imXY(-1 if xLarger else 0,
+                                 -1 if yLarger else 0)
             previous_area = otherBox.mapPoly.area
-            otherBox.boxImYX = get_smallest_boxImYX_that_contains_boxMapYX(
-                matchBox.boxMapYX, otherBox.gt, tolerance_ndigits=5)  # avoids float coordinate rounding issues)
+            otherBox.boxImYX = \
+                get_smallest_boxImYX_that_contains_boxMapYX(
+                    matchBox.boxMapYX,
+                    otherBox.gt,
+                    tolerance_ndigits=5  # avoids float coordinate rounding issues
+                )
 
-            if previous_area == otherBox.mapPoly.area or time.time() - t_start > 1.5:
+            if previous_area == otherBox.mapPoly.area or \
+               time.time() - t_start > 1.5:
                 # happens e.g in case of a triangular footprint
                 # NOTE: first condition is not always fulfilled -> therefore added timeout of 1.5 sec
                 self._handle_error(
@@ -759,7 +956,8 @@ class COREG(object):
 
         # output validation
         for winBox in [matchBox, otherBox]:
-            if winBox.imDimsYX[0] < 16 or winBox.imDimsYX[1] < 16:
+            if winBox.imDimsYX[0] < 16 or \
+               winBox.imDimsYX[1] < 16:
                 self._handle_error(
                     RuntimeError("One of the input images does not have sufficient gray value information "
                                  "(non-no-data values) for placing a matching window at the position %s. "
@@ -768,36 +966,50 @@ class COREG(object):
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
             def within_equal(inner, outer):
-                return inner.within(outer.buffer(1e-5)) or inner.equals(outer)
+                return inner.within(outer.buffer(1e-5)) or \
+                       inner.equals(outer)
 
-            assert within_equal(matchBox.mapPoly, otherBox.mapPoly)
-            assert within_equal(otherBox.mapPoly, overlapWin.mapPoly)
+            assert within_equal(matchBox.mapPoly,
+                                otherBox.mapPoly)
+            assert within_equal(otherBox.mapPoly,
+                                overlapWin.mapPoly)
 
-            self.imfft_xgsd = self.ref.xgsd if self.grid2use == 'ref' else self.shift.xgsd
-            self.imfft_ygsd = self.ref.ygsd if self.grid2use == 'ref' else self.shift.ygsd
-            self.ref.win, self.shift.win = (matchBox, otherBox) if self.grid2use == 'ref' else (otherBox, matchBox)
-            self.matchBox, self.otherBox = matchBox, otherBox
+            if self.grid2use == 'ref':
+                self.imfft_xgsd = self.ref.xgsd
+                self.imfft_ygsd = self.ref.ygsd
+                self.ref.win = matchBox
+                self.shift.win = otherBox
+            else:
+                self.imfft_xgsd = self.shift.xgsd
+                self.imfft_ygsd = self.shift.ygsd
+                self.ref.win = otherBox
+                self.shift.win = matchBox
+
+            self.matchBox = matchBox
+            self.otherBox = otherBox
+
             self.ref.win.size_YX = tuple([int(i) for i in self.ref.win.imDimsYX])
             self.shift.win.size_YX = tuple([int(i) for i in self.shift.win.imDimsYX])
             match_win_size_XY = tuple(reversed([int(i) for i in matchBox.imDimsYX]))
 
-            if not self.q and match_win_size_XY != self.win_size_XY:
+            if not self.q and \
+               match_win_size_XY != self.win_size_XY:
                 print('Target window size %s not possible due to too small overlap area or window position too close '
                       'to an image edge. New matching window size: %s.' % (self.win_size_XY, match_win_size_XY))
 
-                # write_shp('/misc/hy5/scheffler/Temp/matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
-                # write_shp('/misc/hy5/scheffler/Temp/otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
+                # write_shp('matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
+                # write_shp('otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
 
-    def _get_image_windows_to_match(self):
+    def _get_image_windows_to_match(self) -> None:
         """Read the matching window and the other window as subsets.
 
-        Th other window is resampled to the resolution and the pixel grid of the matching window.
+        The other window is resampled to the resolution and the pixel grid of the matching window.
         The result consists of two images with the same dimensions and exactly the same corner coordinates.
         """
         match_fullGeoArr = self.ref if self.grid2use == 'ref' else self.shift
         other_fullGeoArr = self.shift if self.grid2use == 'ref' else self.ref
 
-        # matchWin per subset-read einlesen -> self.matchWin.data
+        # read matchWin via subset-read -> self.matchWin.data
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.matchBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= match_fullGeoArr.rows and cE <= match_fullGeoArr.cols, \
@@ -808,7 +1020,7 @@ class COREG(object):
                                  nodata=copy(match_fullGeoArr.nodata))
         self.matchWin.imID = match_fullGeoArr.imID
 
-        # otherWin per subset-read einlesen
+        # read otherWin via subset-read
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= other_fullGeoArr.rows and cE <= other_fullGeoArr.cols, \
@@ -866,14 +1078,15 @@ class COREG(object):
         assert self.matchWin.arr is not None and self.otherWin.arr is not None, 'Creation of matching windows failed.'
 
     @staticmethod
-    def _shrink_winsize_to_binarySize(win_shape_YX, target_size=None):
-        # type: (tuple, tuple) -> Union[Tuple[int, int], None]
+    def _shrink_winsize_to_binarySize(win_shape_YX: tuple,
+                                      target_size: tuple = None
+                                      ) -> Optional[Tuple[int, int]]:
         """Shrink a given window size to the closest binary window size (a power of 2).
 
         NOTE: X- and Y-dimension are handled separately.
 
-        :param win_shape_YX:    <tuple> source window shape as pixel units (rows,colums)
-        :param target_size:     <tuple> source window shape as pixel units (rows,colums)
+        :param win_shape_YX:    source window shape as pixel units (rows,colums)
+        :param target_size:     source window shape as pixel units (rows,colums)
         """
         binarySizes = [2 ** i for i in range(3, 14)]  # [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
         possibSizes_X = [i for i in binarySizes if i <= win_shape_YX[1]]
@@ -886,7 +1099,11 @@ class COREG(object):
         else:
             return None
 
-    def _calc_shifted_cross_power_spectrum(self, im0=None, im1=None, precision=np.complex64):
+    def _calc_shifted_cross_power_spectrum(self,
+                                           im0=None,
+                                           im1=None,
+                                           precision=np.complex64
+                                           ) -> np.ndarray:
         """Calculate the shifted cross power spectrum for quantifying X/Y-shifts.
 
         :param im0:         reference image
@@ -981,17 +1198,19 @@ class COREG(object):
         return scps
 
     @staticmethod
-    def _get_peakpos(scps):
+    def _get_peakpos(scps: np.ndarray) -> np.ndarray:
         """Return the row/column position of the peak within the given cross power spectrum.
 
-        :param scps: <np.ndarray> shifted cross power spectrum
-        :return:     <np.ndarray> [row, column]
+        :param scps: shifted cross power spectrum
+        :return:     [row, column]
         """
         max_flat_idx = np.argmax(scps)
         return np.array(np.unravel_index(max_flat_idx, scps.shape))
 
     @staticmethod
-    def _get_shifts_from_peakpos(peakpos, arr_shape):
+    def _get_shifts_from_peakpos(peakpos: np.array,
+                                 arr_shape: tuple
+                                 ) -> (float, float):
         y_shift = peakpos[0] - arr_shape[0] // 2
         x_shift = peakpos[1] - arr_shape[1] // 2
         return x_shift, y_shift
@@ -1000,10 +1219,14 @@ class COREG(object):
     def _clip_image(im, center_YX, winSzYX):  # TODO this is also implemented in GeoArray
 
         def get_bounds(YX, wsY, wsX):
-            return int(YX[1] - (wsX / 2)), int(YX[1] + (wsX / 2)), int(YX[0] - (wsY / 2)), int(YX[0] + (wsY / 2))
+            return int(YX[1] - (wsX / 2)),\
+                   int(YX[1] + (wsX / 2)),\
+                   int(YX[0] - (wsY / 2)),\
+                   int(YX[0] + (wsY / 2))
 
         wsY, wsX = winSzYX
         xmin, xmax, ymin, ymax = get_bounds(center_YX, wsY, wsX)
+
         return im[ymin:ymax, xmin:xmax]
 
     def _get_grossly_deshifted_images(self, im0, im1, x_intshift, y_intshift):
@@ -1012,7 +1235,8 @@ class COREG(object):
         #       it into nodata-area
         # get_grossly_deshifted_im0
         old_center_YX = np.array(im0.shape) / 2
-        new_center_YX = [old_center_YX[0] + y_intshift, old_center_YX[1] + x_intshift]
+        new_center_YX = [old_center_YX[0] + y_intshift,
+                         old_center_YX[1] + x_intshift]
 
         x_left = new_center_YX[1]
         x_right = im0.shape[1] - new_center_YX[1]
@@ -1020,6 +1244,7 @@ class COREG(object):
         y_below = im0.shape[0] - new_center_YX[0]
         maxposs_winsz_x = 2 * min(x_left, x_right)
         maxposs_winsz_y = 2 * min(y_above, y_below)
+
         if self.force_quadratic_win:
             maxposs_winsz_x = maxposs_winsz_y = min([maxposs_winsz_x, maxposs_winsz_y])
 
@@ -1030,8 +1255,12 @@ class COREG(object):
 
         if self.v:
             PLT.subplot_imshow([self._clip_image(im0, old_center_YX, gdsh_im0.shape), crsp_im1],
-                               titles=['reference original', 'target'], grid=True)
-            PLT.subplot_imshow([gdsh_im0, crsp_im1], titles=['reference virtually shifted', 'target'], grid=True)
+                               titles=['reference original', 'target'],
+                               grid=True)
+            PLT.subplot_imshow([gdsh_im0, crsp_im1],
+                               titles=['reference virtually shifted', 'target'],
+                               grid=True)
+
         return gdsh_im0, crsp_im1
 
     def _find_side_maximum(self, scps):
@@ -1059,15 +1288,16 @@ class COREG(object):
 
         return sidemax_lr, sidemax_ab
 
-    def _calc_integer_shifts(self, scps):
+    def _calc_integer_shifts(self, scps: np.ndarray) -> (int, int):
         peakpos = self._get_peakpos(scps)
         x_intshift, y_intshift = self._get_shifts_from_peakpos(peakpos, scps.shape)
+
         return x_intshift, y_intshift
 
-    def _calc_shift_reliability(self, scps):
+    def _calc_shift_reliability(self, scps: np.ndarray):
         """Calculate a confidence percentage to be used as an assessment for reliability of the calculated shifts.
 
-        :param scps:    <np.ndarray> shifted cross power spectrum
+        :param scps:    shifted cross power spectrum
         :return:
         """
         # calculate mean power at peak
@@ -1115,17 +1345,21 @@ class COREG(object):
         else:
             return 'valid', 0, 0, None
 
-    def _calc_subpixel_shifts(self, scps):
+    def _calc_subpixel_shifts(self, scps: np.ndarray):
         sidemax_lr, sidemax_ab = self._find_side_maximum(scps)
         x_subshift = (sidemax_lr['direction_factor'] * sidemax_lr['value']) / (np.max(scps) + sidemax_lr['value'])
         y_subshift = (sidemax_ab['direction_factor'] * sidemax_ab['value']) / (np.max(scps) + sidemax_ab['value'])
+
         return x_subshift, y_subshift
 
     @staticmethod
-    def _get_total_shifts(x_intshift, y_intshift, x_subshift, y_subshift):
+    def _get_total_shifts(x_intshift: int,
+                          y_intshift: int,
+                          x_subshift: float,
+                          y_subshift: float):
         return x_intshift + x_subshift, y_intshift + y_subshift
 
-    def _get_deshifted_otherWin(self):
+    def _get_deshifted_otherWin(self) -> GeoArray:
         """Return a de-shifted version of self.otherWin as a GeoArray instance.
 
         The output dimensions and geographic bounds are equal to those of self.matchWin and geometric shifts are
@@ -1152,27 +1386,44 @@ class COREG(object):
                                ).correct_shifts()
         return ds_results['GeoArray_shifted']
 
-    def _validate_ssim_improvement(self, v=False):
-        """Compute mean structural similarity index between reference and target image before and after co-regsitration.
+    def _validate_ssim_improvement(self,
+                                   v: bool = False
+                                   ) -> (float, float):
+        """Compute mean structural similarity index between reference and target image before and after co-registration.
 
-        :param v:   <bool> verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
-        :return:    <tuple> SSIM before an after shift correction
+        :param v:   verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
+        :return:    SSIM before an after shift correction
         """
+        from skimage.metrics import structural_similarity as ssim  # import here to avoid static TLS import error
+
         assert self.success is not None, \
             'Calculate geometric shifts first before trying to measure image similarity improvement!'
         assert self.success in [True, None], \
             'Since calculation of geometric shifts failed, no image similarity improvement can be measured.'
 
-        # get image dynamic range
-        dr = max(self.matchWin[:].max(), self.otherWin[:].max()) - \
-            min(self.matchWin[:].min(), self.otherWin[:].min())
+        def normalize(array: np.ndarray) -> np.ndarray:
+            minval = np.min(array)
+            maxval = np.max(array)
 
-        # compute SSIM BEFORE shift correction
-        # using gaussian weights could lead to value errors in case of small images when the automatically calulated
+            # avoid zerodivision
+            if maxval == minval:
+                maxval += 1e-5
+
+            return ((array - minval) / (maxval - minval)).astype(np.float64)
+
+        # compute SSIM BEFORE shift correction #
+        ########################################
+
+        # using gaussian weights could lead to value errors in case of small images when the automatically calculated
         # window size exceeds the image size
-        self.ssim_orig = calc_ssim(self.matchWin[:], self.otherWin[:], dynamic_range=dr)
+        self.ssim_orig = ssim(normalize(np.ma.masked_equal(self.matchWin[:],
+                                                           self.matchWin.nodata)),
+                              normalize(np.ma.masked_equal(self.otherWin[:],
+                                                           self.otherWin.nodata)),
+                              data_range=1)
 
-        # compute SSIM AFTER shift correction
+        # compute SSIM AFTER shift correction #
+        #######################################
 
         # resample otherWin while correcting detected shifts and match geographic bounds of matchWin
         otherWin_deshift_geoArr = self._get_deshifted_otherWin()
@@ -1180,31 +1431,43 @@ class COREG(object):
         # get the corresponding matchWin data
         matchWinData = self.matchWin[:]
 
-        # check if shapes of two images are equal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
+        # check if shapes of two images are unequal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
             warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
-            matchFull = self.ref if self.matchWin.imID == 'ref' else self.shift
-            matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
-                                                      rspAlg='cubic', band2get=matchFull.band4match)
+            matchFull = \
+                self.ref if self.matchWin.imID == 'ref' else\
+                self.shift
+            matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds,
+                                                      self.matchWin.prj,
+                                                      rspAlg='cubic',
+                                                      band2get=matchFull.band4match)
             self.matchWin.clip_to_poly(self.matchBox.mapPoly)
 
-            # at the image edges it is possible that the size of the matchBox must be reduced in order to make array
-            # shapes match
+            # at the image edges it is possible that the size of the matchBox must be reduced
+            # in order to make array shapes match
             if not matchWinData.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-                self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))), float(-np.ceil(abs(self.y_shift_px))))
+                self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))),
+                                          float(-np.ceil(abs(self.y_shift_px))))
                 otherWin_deshift_geoArr = self._get_deshifted_otherWin()
-                matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds, self.matchWin.prj,
-                                                          rspAlg='cubic', band2get=matchFull.band4match)
+                matchWinData, _, _ = matchFull.get_mapPos(self.matchBox.mapPoly.bounds,
+                                                          self.matchWin.prj,
+                                                          rspAlg='cubic',
+                                                          band2get=matchFull.band4match)
 
             # output validation
             if not matchWinData.shape == otherWin_deshift_geoArr.shape:
-                warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. SSIM of the '
-                              'de-shifted target image is set to 0.')
+                warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. '
+                              'SSIM of the de-shifted target image is set to 0.')
                 self.ssim_deshifted = 0
+
                 return self.ssim_orig, self.ssim_deshifted
 
-        self.ssim_deshifted = calc_ssim(otherWin_deshift_geoArr[:], matchWinData, dynamic_range=dr)
+        self.ssim_deshifted = ssim(normalize(np.ma.masked_equal(otherWin_deshift_geoArr[:],
+                                                                otherWin_deshift_geoArr.nodata)),
+                                   normalize(np.ma.masked_equal(matchWinData,
+                                                                self.matchWin.nodata)),
+                                   data_range=1)
 
         if v:
             GeoArray(matchWinData).show()
@@ -1230,20 +1493,20 @@ class COREG(object):
         return self.ssim_orig, self.ssim_deshifted
 
     @property
-    def ssim_improved(self):
+    def ssim_improved(self) -> bool:
         """Return True if image similarity within the matching window has been improved by co-registration."""
         if self.success is True:
             if self._ssim_improved is None:
                 ssim_orig, ssim_deshifted = self._validate_ssim_improvement()
                 self._ssim_improved = ssim_orig <= ssim_deshifted
+
             return self._ssim_improved
 
     @ssim_improved.setter
-    def ssim_improved(self, has_improved):
+    def ssim_improved(self, has_improved: bool):
         self._ssim_improved = has_improved
 
-    def calculate_spatial_shifts(self):
-        # type: (COREG) -> str
+    def calculate_spatial_shifts(self) -> str:
         """Compute the global X/Y shift between reference and the target image within the matching window.
 
         :return: 'success' or 'fail'
@@ -1364,37 +1627,57 @@ class COREG(object):
 
         return 'success'
 
-    def _get_updated_map_info(self):
+    def _get_updated_map_info(self) -> None:
         original_map_info = geotransform2mapinfo(self.shift.gt, self.shift.prj)
         self.updated_map_info = copy(original_map_info)
         self.updated_map_info[3] = str(float(original_map_info[3]) + self.x_shift_map)
         self.updated_map_info[4] = str(float(original_map_info[4]) + self.y_shift_map)
+
         if not self.q:
             print('Original map info:', original_map_info)
             print('Updated map info: ', self.updated_map_info)
 
     @property
-    def coreg_info(self):
+    def coreg_info(self) -> dict:
         """Return a dictionary containing everything to correct the detected global X/Y shift of the target image."""
         if self._coreg_info:
             return self._coreg_info
+
         else:
             if self.success is None:
                 self.calculate_spatial_shifts()
+
             self._coreg_info = {
-                'corrected_shifts_px': {'x': self.x_shift_px, 'y': self.y_shift_px},
-                'corrected_shifts_map': {'x': self.x_shift_map, 'y': self.y_shift_map},
-                'original map info': geotransform2mapinfo(self.shift.gt, self.shift.prj),
-                'updated map info': self.updated_map_info,
-                'reference projection': self.ref.prj,
-                'reference geotransform': self.ref.gt,
-                'reference grid': [[self.ref.gt[0], self.ref.gt[0] + self.ref.gt[1]],
-                                   [self.ref.gt[3], self.ref.gt[3] + self.ref.gt[5]]],
-                'reference extent': {'cols': self.ref.xgsd, 'rows': self.ref.ygsd},  # FIXME not needed anymore
-                'success': self.success}
+                'corrected_shifts_px': {
+                    'x': self.x_shift_px,
+                    'y': self.y_shift_px
+                },
+                'corrected_shifts_map': {
+                    'x': self.x_shift_map,
+                    'y': self.y_shift_map
+                },
+                'original map info':
+                    geotransform2mapinfo(self.shift.gt, self.shift.prj),
+                'updated map info':
+                    self.updated_map_info,
+                'reference projection':
+                    self.ref.prj,
+                'reference geotransform':
+                    self.ref.gt,
+                'reference grid': [
+                    [self.ref.gt[0], self.ref.gt[0] + self.ref.gt[1]],
+                    [self.ref.gt[3], self.ref.gt[3] + self.ref.gt[5]]
+                ],
+                'reference extent': {
+                    'cols': self.ref.xgsd,
+                    'rows': self.ref.ygsd
+                },  # FIXME not needed anymore
+                'success':
+                    self.success}
+
             return self._coreg_info
 
-    def _get_inverted_coreg_info(self):
+    def _get_inverted_coreg_info(self) -> dict:
         """Return an inverted dictionary of coreg_info.
 
         This dictionary can be passed to DESHIFTER in order to fit the REFERENCE image onto the TARGET image.
@@ -1417,8 +1700,7 @@ class COREG(object):
 
         return inv_coreg_info
 
-    def correct_shifts(self):
-        # type: (COREG) -> dict
+    def correct_shifts(self) -> dict:
         """Correct the already calculated X/Y shift of the target image.
 
         :return: COREG.deshift_results (dictionary)
@@ -1437,5 +1719,7 @@ class COREG(object):
                        progress=self.progress,
                        v=self.v,
                        q=self.q)
+
         self.deshift_results = DS.correct_shifts()
+
         return self.deshift_results

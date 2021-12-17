@@ -144,7 +144,7 @@ numpy array and its corresponding geoinformation.
 
 To write the coregistered image to disk, the :class:`arosics.COREG` class needs to be instanced with a filepath given to
 keyword 'path_out'. The output raster format can be any format supported by GDAL.
-Find a list of supported formats here: http://www.gdal.org/formats_list.html
+Find a list of supported formats here: https://gdal.org/drivers/raster/index.html
 
 
 apply detected shifts to multiple images
@@ -202,11 +202,11 @@ The help instructions of the console interface can be accessed like this:
 
 .. code-block:: bash
 
-    $ python arosics_cli.py -h
+    $ arosics -h
 
 Follow these instructions to run AROSICS from a shell console. For example, the most simple call for a global
 co-registration would look like this:
 
 .. code-block:: bash
 
-    $ python arosics_cli.py global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq
+    $ arosics global /path/to/your/ref_image.bsq /path/to/your/tgt_image.bsq

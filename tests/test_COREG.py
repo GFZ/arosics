@@ -3,24 +3,26 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2020  Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# Copyright (C) 2017-2021
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
 # (project grant code: 01 IS 14 010 A-C).
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-# details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU Lesser General Public License along
-# with this program.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """Tests for the global co-registration module of AROSICS."""
 
@@ -28,6 +30,7 @@ import unittest
 import shutil
 import os
 import numpy as np
+import warnings
 
 # custom
 from .cases import test_cases
@@ -166,6 +169,30 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                         footprint_poly_tgt=None))
         self.assertTrue(CR.success)
 
+    def test_shift_calculation_with_metaRotation(self):
+        """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
+
+        # overwrite gt and prj
+        ref = GeoArray(self.ref_path)
+        ref.to_mem()
+        ref.filePath = None
+        ref.gt = [330000, 10, 0.0, 5862000, 0.0, -10]
+        tgt = GeoArray(self.tgt_path)
+        tgt.to_mem()
+        tgt.filePath = None
+        # tgt.gt = [335440, 5.8932, 0.0, 5866490, 0.0, -10.1]
+        tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
+
+        CR = self.run_shift_detection_correction(ref, tgt,
+                                                 **dict(self.coreg_kwargs,
+                                                        # ws=(512, 512),
+                                                        wp=(341500.0, 5861440.0),
+                                                        footprint_poly_ref=None,
+                                                        footprint_poly_tgt=None,
+                                                        max_shift=35))
+        CR.show_matchWin(interactive=False, after_correction=None)
+        self.assertTrue(CR.success)
+
     def test_shift_calculation_inmem_gAs_path_out_auto(self):
         """Test input parameter path_out='auto' in case input reference/ target image are in-memory GeoArrays."""
         ref = GeoArray(np.random.randint(1, 100, (1000, 1000)))
@@ -181,10 +208,13 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     # @unittest.SkipTest
     def test_shift_calculation_verboseMode(self):
         """Test the verbose mode - runs the functions of the plotting submodule."""
-
-        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
-                                                 **dict(self.coreg_kwargs, v=True))
-        self.assertTrue(CR.success)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
+            CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
+                                                     **dict(self.coreg_kwargs, v=True))
+            self.assertTrue(CR.success)
 
     def test_shift_calculation_windowCoveringNodata(self):
         """Test shift detection in case the given matching window (defined by 'wp' and 'ws' covers the nodata area
@@ -289,15 +319,45 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(CR.success)
 
         # test all the visualization functions
-        CR.show_cross_power_spectrum()
-        CR.show_cross_power_spectrum(interactive=True)
-        CR.show_matchWin(interactive=False, after_correction=None)
-        CR.show_matchWin(interactive=False, after_correction=True)
-        CR.show_matchWin(interactive=False, after_correction=False)
-        CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
-        CR.show_matchWin(interactive=True, after_correction=True)
-        CR.show_matchWin(interactive=True, after_correction=False)
-        CR.show_image_footprints()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                        'which is a non-GUI backend, so cannot show the figure.')
+            CR.show_cross_power_spectrum()
+            CR.show_cross_power_spectrum(interactive=True)
+            CR.show_matchWin(interactive=False, after_correction=None)
+            CR.show_matchWin(interactive=False, after_correction=True)
+            CR.show_matchWin(interactive=False, after_correction=False)
+            CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
+            CR.show_matchWin(interactive=True, after_correction=True)
+            CR.show_matchWin(interactive=True, after_correction=False)
+            CR.show_image_footprints()
 
-# if __name__ == '__main__':
-#    unittest.main(argv=['first-arg-is-ignored'],exit=False, verbosity=2)
+    def test_correct_shifts_without_resampling(self):
+        kw = self.coreg_kwargs.copy()
+        kw['align_grids'] = False  # =default
+        kw['progress'] = True
+
+        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue(CR.success)
+        self.assertTrue(CR.deshift_results['is shifted'])
+        self.assertFalse(CR.deshift_results['is resampled'])
+        self.assertTrue(np.array_equal(CR.shift[:], CR.deshift_results['arr_shifted']))
+        self.assertFalse(np.array_equal(np.array(CR.shift.gt), np.array(CR.deshift_results['updated geotransform'])))
+
+    def test_correct_shifts_with_resampling(self):
+        kw = self.coreg_kwargs.copy()
+        kw['align_grids'] = True
+        kw['progress'] = True
+
+        CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue(CR.success)
+        self.assertTrue(CR.deshift_results['is shifted'])
+        self.assertTrue(CR.deshift_results['is resampled'])
+        self.assertFalse(np.array_equal(CR.shift[:], CR.deshift_results['arr_shifted']))
+        self.assertTrue(np.array_equal(np.array(CR.shift.gt), np.array(CR.deshift_results['updated geotransform'])))
+
+
+if __name__ == '__main__':
+    import pytest
+    pytest.main()
