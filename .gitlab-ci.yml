@@ -20,16 +20,21 @@ test_arosics:
     - pip install scipy  # TODO remove as soon as CI runner is rebuilt
 
     # run tests
-    - make nosetests
+    - make pytest
 
     # create the docs
     - make docs
   artifacts:
+    expose_as: 'Test and coverage report'
     paths:
     - htmlcov/
+    - report.html
     - docs/_build/html/
-    - nosetests.html
-    - nosetests.xml
+    reports:
+      cobertura: coverage.xml
+      junit: report.xml
+
+    expire_in: 30 days
     when: always
 
 
@@ -89,7 +94,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - mkdir -p public/doc
     - mkdir -p public/images/
     - mkdir -p public/coverage
-    - mkdir -p public/nosetests_reports
+    - mkdir -p public/test_reports
 
     # Copy over the docs
     - cp -r docs/_build/html/* public/doc/
@@ -98,14 +103,14 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
 
-    # Copy over the nosetests reports
-    - cp nosetests.* public/nosetests_reports/
+    # Copy over the test reports
+    - cp report.html public/test_reports/
 
     # Check if everything is working great
     - ls -al public
     - ls -al public/doc
     - ls -al public/coverage
-    - ls -al public/nosetests_reports
+    - ls -al public/test_reports
   artifacts:
     paths:
       - public

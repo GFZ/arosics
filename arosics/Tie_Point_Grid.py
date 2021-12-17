@@ -404,6 +404,8 @@ class Tie_Point_Grid(object):
                             # COREG and is not raised
                             results = results.get()
                             break
+                pool.close()  # needed to make coverage work in multiprocessing
+                pool.join()
 
         else:
             # declare global variables needed for self._get_spatial_shifts()
@@ -468,6 +470,9 @@ class Tie_Point_Grid(object):
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
 
+        if not include_outliers and tbl.empty:
+            raise RuntimeError('Cannot compute the RMSE because all tie points are flagged as false-positives.')
+
         shifts = np.array(tbl['ABS_SHIFT'])
         shifts_sq = [i * i for i in shifts if i != self.outFillVal]
 
@@ -487,6 +492,9 @@ class Tie_Point_Grid(object):
 
         tbl = self.CoRegPoints_table
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy()
+
+        if not include_outliers and tbl.empty:
+            raise RuntimeError('Cannot compute the overall SSIM because all tie points are flagged as false-positives.')
 
         ssim_col = np.array(tbl['SSIM_AFTER' if after_correction else 'SSIM_BEFORE'])
         ssim_col = [i * i for i in ssim_col if i != self.outFillVal]
@@ -577,6 +585,10 @@ class Tie_Point_Grid(object):
 
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
         tbl = tbl.copy().replace(self.outFillVal, np.nan)
+
+        if not include_outliers and tbl.empty:
+            raise RuntimeError('Cannot compute overall statistics '
+                               'because all tie points are flagged as false-positives.')
 
         def RMSE(shifts):
             shifts_sq = shifts ** 2
@@ -1321,6 +1333,8 @@ class Tie_Point_Grid_Interpolator(object):
             #
             # with multiprocessing.Pool() as pool:
             #     data_full = pool.map(self._Kriging_mp, args_kwargs_dicts)
+            #     pool.close()  # needed to make coverage work in multiprocessing
+            #     pool.join()
 
         return data_full
 

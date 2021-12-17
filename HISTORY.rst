@@ -2,10 +2,26 @@
 History
 =======
 
-1.7.2 (coming soon)
--------------------
+1.7.4 (2021-12-15)
+------------------
+
+* Migrated test calls from nosetests to pytest and implemented new test report (!24).
+* Removed folium 0.12.1 exclusion due to fix on PyPI and conda-forge.
+* Fixed dead link.
+
+
+1.7.3 (2021-12-02)
+------------------
+
+* Avoid folium 0.12.1 as requirement due to https://github.com/python-visualization/folium/issues/1513.
+
+
+1.7.2 (2021-11-09)
+------------------
 
 * Listed dill in package requirements.
+* Resolved inconsistency in documenting boolean default values.
+* Improved error message when trying to compute statistics and all tie points are flagged as false-positives.
 
 
 1.7.1 (2021-10-13)

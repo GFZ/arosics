@@ -41,7 +41,7 @@ Status
 .. image:: https://zenodo.org/badge/253474603.svg
         :target: https://zenodo.org/badge/latestdoi/253474603
 
-See also the latest coverage_ report and the nosetests_ HTML report.
+See also the latest coverage_ report and the pytest_ HTML report.
 
 Feature overview
 ----------------
@@ -100,7 +100,7 @@ Credits
 -------
 
 AROSICS was developed by Daniel Scheffler (German Research Centre of Geosciences) within the context of the
-`GeoMultiSens <http://www.geomultisens.de/>`__ project funded by the German Federal Ministry of Education and Research
+`GeoMultiSens <http://www.geomultisens.gfz-potsdam.de/>`__ project funded by the German Federal Ministry of Education and Research
 (project grant code: 01 IS 14 010 A-C).
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
@@ -110,6 +110,6 @@ documentation have been provided by NASA (Landsat-8) and ESA (Sentinel-2).
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _coverage: https://danschef.git-pages.gfz-potsdam.de/arosics/coverage/
-.. _nosetests: https://danschef.git-pages.gfz-potsdam.de/arosics/nosetests_reports/nosetests.html
+.. _pytest: https://danschef.git-pages.gfz-potsdam.de/arosics/test_reports/report.html
 .. _conda: https://conda.io/docs/
 
