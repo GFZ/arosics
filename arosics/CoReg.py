@@ -1141,23 +1141,28 @@ class COREG(object):
                 PLT.subplot_imshow([np.real(in_arr0).astype(np.float32), np.real(in_arr1).astype(np.float32)],
                                    ['FFTin ' + self.ref.title, 'FFTin ' + self.shift.title], grid=True)
 
+            fft_arr0, fft_arr1 = None, None
             if pyfftw and self.fftw_works is not False:  # if module is installed and working
-                fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
-                fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
+                try:
+                    fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
+                    fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
 
-                # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
-                # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array in_arr0 is
-                #    overwritten with zeros (maybe this is a bug in pyFFTW?)
-                if self.fftw_works in [None, True] and (np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0):
+                    # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
+                    # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array
+                    #    in_arr0 is overwritten with zeros (maybe this is a bug in pyFFTW?)
+                    if np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0:
+                        raise RuntimeError('FFTW result is unexpectedly empty.')
+
+                    self.fftw_works = True
+
+                except RuntimeError:
                     self.fftw_works = False
+
                     # recreate input arrays and use numpy fft as fallback
                     in_arr0 = im0[ymin:ymax, xmin:xmax].astype(precision)
                     in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
-                    fft_arr0 = np.fft.fft2(in_arr0)
-                    fft_arr1 = np.fft.fft2(in_arr1)
-                else:
-                    self.fftw_works = True
-            else:
+
+            if self.fftw_works is False or fft_arr0 is None or fft_arr1 is None:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)
 
