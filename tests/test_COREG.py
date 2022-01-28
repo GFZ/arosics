@@ -324,13 +324,17 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                 'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
                                                         'which is a non-GUI backend, so cannot show the figure.')
             CR.show_cross_power_spectrum()
-            CR.show_cross_power_spectrum(interactive=True)
             CR.show_matchWin(interactive=False, after_correction=None)
             CR.show_matchWin(interactive=False, after_correction=True)
             CR.show_matchWin(interactive=False, after_correction=False)
-            CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
-            CR.show_matchWin(interactive=True, after_correction=True)
-            CR.show_matchWin(interactive=True, after_correction=False)
+            try:
+                __IPYTHON__  # noqa
+                CR.show_cross_power_spectrum(interactive=True)
+                CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
+                CR.show_matchWin(interactive=True, after_correction=True)
+                CR.show_matchWin(interactive=True, after_correction=False)
+            except NameError:
+                pass
             CR.show_image_footprints()
 
     def test_correct_shifts_without_resampling(self):
