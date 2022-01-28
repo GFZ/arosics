@@ -2,6 +2,13 @@
 History
 =======
 
+1.7.5 (2021-01-28)
+------------------
+
+* Implemented a workaround for #71 (pyFFTW RuntimeError: Undefined plan with nthreads. This is a bug).
+  Pin pyFFTW to <0.13.0. (!25)
+
+
 1.7.4 (2021-12-15)
 ------------------
 
