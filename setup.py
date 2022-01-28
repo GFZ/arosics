@@ -52,7 +52,7 @@ req = [
     'numpy',
     'pandas',
     'plotly',
-    'pyfftw',
+    'pyfftw<0.13.0',  # https://github.com/pyFFTW/pyFFTW/issues/294
     'pykrige',
     'pyproj>2.2.0',
     'py_tools_ds>=0.18.0',

@@ -2,6 +2,13 @@
 History
 =======
 
+1.7.5 (2021-01-28)
+------------------
+
+* Implemented a workaround for #71 (pyFFTW RuntimeError: Undefined plan with nthreads. This is a bug).
+  Pin pyFFTW to <0.13.0. (!25)
+
+
 1.7.4 (2021-12-15)
 ------------------
 
@@ -653,7 +660,7 @@ History
 0.8.3 (2018-03-07)
 ------------------
 
-* Fixed ValueError as reported in https://gitext.gfz-potsdam.de/EnMAP/sicor/issues/22.
+* Fixed ValueError as reported in https://git.gfz-potsdam.de/EnMAP/sicor/issues/22.
 
 
 0.8.2 (2018-01-23)
