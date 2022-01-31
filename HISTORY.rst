@@ -2,7 +2,13 @@
 History
 =======
 
-1.7.5 (2021-01-28)
+1.7.6 (2022-01-31)
+------------------
+
+* Fixed typo in requirements.
+
+
+1.7.5 (2022-01-28)
 ------------------
 
 * Implemented a workaround for #71 (pyFFTW RuntimeError: Undefined plan with nthreads. This is a bug).

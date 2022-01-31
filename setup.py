@@ -67,7 +67,7 @@ req_setup = [
 
 req_intplot = ['holoviews', 'ipython']
 
-req_test = ['pytest', 'pytest-cov', 'pytest-reporter-hmtl1', 'urlchecker'] + req_intplot
+req_test = ['pytest', 'pytest-cov', 'pytest-reporter-html1', 'urlchecker'] + req_intplot
 
 req_doc = ['sphinx-argparse', 'sphinx_rtd_theme', 'sphinx-autodoc-typehints']
 
