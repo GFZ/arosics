@@ -10,6 +10,7 @@ stages:
 
 test_arosics:
   stage: test
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
   script:
     - source /root/mambaforge/bin/activate ci_env
 
@@ -29,7 +30,9 @@ test_arosics:
     - report.html
     - docs/_build/html/
     reports:
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
       junit: report.xml
 
     expire_in: 30 days
