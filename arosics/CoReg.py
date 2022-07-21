@@ -101,7 +101,7 @@ class GeoArray_CoReg(GeoArray):
         # compute nodata mask and validate that it is not completely filled with nodata
         self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
-        if np.std(self.mask_nodata) == 0 and np.mean(self.mask_nodata) == 0:
+        if True not in self.mask_nodata[:]:
             raise RuntimeError(f'The {self.imName} passed to AROSICS only contains nodata values.')
 
         # set footprint_poly
