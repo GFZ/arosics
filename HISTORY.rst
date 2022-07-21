@@ -2,6 +2,12 @@
 History
 =======
 
+1.7.7 (coming soon)
+-------------------
+
+* Added a validation to reject images that only contain nodata values.
+
+
 1.7.6 (2022-01-31)
 ------------------
 

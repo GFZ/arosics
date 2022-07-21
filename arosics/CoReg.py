@@ -98,6 +98,12 @@ class GeoArray_CoReg(GeoArray):
             % (self.imName, self.bands, 'bands' if self.bands > 1 else
                'band', 'between 1 and ' if self.bands > 1 else '', self.bands, self.band4match)
 
+        # compute nodata mask and validate that it is not completely filled with nodata
+        self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
+
+        if np.std(self.mask_nodata) == 0 and np.mean(self.mask_nodata) == 0:
+            raise RuntimeError(f'The {self.imName} passed to AROSICS only contains nodata values.')
+
         # set footprint_poly
         given_footprint_poly = CoReg_params['footprint_poly_%s' % ('ref' if imID == 'ref' else 'tgt')]
         given_corner_coord = CoReg_params['data_corners_%s' % ('ref' if imID == 'ref' else 'tgt')]
@@ -113,8 +119,6 @@ class GeoArray_CoReg(GeoArray):
             # footprint_poly is calculated automatically by GeoArray
             if not CoReg_params['q']:
                 print('Calculating footprint polygon and actual data corner coordinates for %s...' % self.imName)
-
-            self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
             with warnings.catch_warnings(record=True) as w:
                 _ = self.footprint_poly  # execute getter

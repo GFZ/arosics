@@ -63,6 +63,22 @@ class COREG_GLOBAL_init(unittest.TestCase):
         # get instance of COREG_LOCAL object
         self.CRL = COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
 
+    def test_empty_image(self):
+        # get GeoArray instances
+        self.ref_gA = GeoArray(self.ref_path)
+        self.tgt_gA = GeoArray(self.tgt_path)
+
+        # assure the raster data are in-memory
+        self.ref_gA.to_mem()
+        self.tgt_gA.to_mem()
+
+        # fill the reference image with nodata
+        self.ref_gA[:] = self.ref_gA.nodata
+
+        # get instance of COREG_LOCAL object
+        with self.assertRaises(RuntimeError, msg='.contains only nodata.'):
+            COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
+
 
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     """Test case for the complete workflow of global co-registration based on two Sentinel-2 datasets, one with
