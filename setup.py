@@ -85,10 +85,10 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10'
     ],
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     entry_points={
@@ -118,7 +118,7 @@ setup(
         "Algorithm paper": "https://www.mdpi.com/2072-4292/9/7/676",
         "Zenodo": "https://zenodo.org/record/5093940"
     },
-    python_requires='>3.6',
+    python_requires='>3.7',
     scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
     setup_requires=req_setup,
     test_suite='tests',
