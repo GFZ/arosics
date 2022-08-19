@@ -123,7 +123,7 @@ class GeoArray_CoReg(GeoArray):
             with warnings.catch_warnings(record=True) as w:
                 _ = self.footprint_poly  # execute getter
 
-            if len(w) > 0 and 'disjunct polygone(s) outside' in str(w[-1].message):
+            if len(w) > 0 and 'disjunct polygon(s) outside' in str(w[-1].message):
                 warnings.warn('The footprint of the %s contains multiple separate image parts. '
                               'AROSICS will only process the largest image part.' % self.imName)
                 # FIXME use a convex hull as footprint poly

@@ -159,8 +159,7 @@ html_theme_options = {
     'sticky_navigation': True,
     'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': False,
-    'set_type_checking_flag': True  # option of sphinx_autodoc_typehints extension
+    'titles_only': False
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
