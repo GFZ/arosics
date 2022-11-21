@@ -40,7 +40,7 @@ to resolve the following dependencies before the pip installer is run:
     * matplotlib
     * numpy
     * pandas
-    * pyfftw <0.13.0
+    * pyfftw <0.13.0|=0.13.0=*0
     * pykrige
     * pyproj >2.2.0
     * scikit-image >=0.16.0
