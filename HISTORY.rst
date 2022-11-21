@@ -7,11 +7,6 @@ History
 
 * Allow pyfftw=0.13.0=*0 (!28).
 * Replaced deprecated URL (!28).
-
-
-1.7.8 (2022-08-19)
-------------------
-
 * Updated copyright (!29).
 
 
