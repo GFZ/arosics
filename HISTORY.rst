@@ -12,6 +12,12 @@ History
 1.7.8 (2022-08-19)
 ------------------
 
+* Updated copyright (!29).
+
+
+1.7.8 (2022-08-19)
+------------------
+
 * Fixed missing grid and frame lines of Tie_Point_Grid.plot_shift_distribution() (!27).
 * Remove deprecated sphinx_autodoc_typehints option.
 
