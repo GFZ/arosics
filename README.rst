@@ -111,5 +111,5 @@ documentation have been provided by NASA (Landsat-8) and ESA (Sentinel-2).
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _coverage: https://danschef.git-pages.gfz-potsdam.de/arosics/coverage/
 .. _pytest: https://danschef.git-pages.gfz-potsdam.de/arosics/test_reports/report.html
-.. _conda: https://conda.io/docs/
+.. _conda: https://docs.conda.io/
 

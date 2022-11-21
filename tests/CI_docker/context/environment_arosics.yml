@@ -18,7 +18,7 @@ dependencies:
   - numpy
   - pandas
   - plotly
-  - pyfftw<0.13.0
+  - pyfftw<0.13.0|=0.13.0=*0  # https://github.com/pyFFTW/pyFFTW/issues/294
   - pykrige
   - pyproj>2.2.0
   - py-tools-ds>=0.18.0
