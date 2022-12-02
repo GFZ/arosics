@@ -50,6 +50,7 @@ req = [
     'geopandas',
     'matplotlib',
     'numpy',
+    'packaging',
     'pandas',
     'plotly',
     'pyfftw',
