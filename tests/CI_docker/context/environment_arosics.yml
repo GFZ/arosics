@@ -4,7 +4,7 @@ channels: &id1
   - conda-forge
 
 dependencies:
-  - python=3.*.*
+  - python>=3.8
   - pip
   - cartopy
   - cmocean
@@ -18,7 +18,7 @@ dependencies:
   - numpy
   - pandas
   - plotly
-  - pyfftw<0.13.0|=0.13.0=*0  # https://github.com/pyFFTW/pyFFTW/issues/294
+  - pyfftw  # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
   - pykrige
   - pyproj>2.2.0
   - py-tools-ds>=0.18.0
@@ -29,6 +29,7 @@ dependencies:
     - dill
     - folium>=0.6.0,!=0.12.0
     - geojson
+    - packaging
 
     # doc requirements
     - flake8

@@ -344,8 +344,8 @@ class Tie_Point_Grid(object):
                            columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_MAP', 'Y_MAP'])
         GDF['geometry'] = geomPoints
         GDF['POINT_ID'] = range(len(geomPoints))
-        GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
-        GDF.loc[:, ['X_MAP', 'Y_MAP']] = self.XY_mapPoints
+        GDF[['X_IM', 'Y_IM']] = self.XY_points
+        GDF[['X_MAP', 'Y_MAP']] = self.XY_mapPoints
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
@@ -732,7 +732,7 @@ class Tie_Point_Grid(object):
                     ha='right', va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
 
             # add grid and increase linewidth of middle line
-            ax.grid(b=True)
+            ax.grid(visible=True)
             ax.spines["right"].set_visible(True)
             ax.spines["top"].set_visible(True)
             xgl = ax.get_xgridlines()

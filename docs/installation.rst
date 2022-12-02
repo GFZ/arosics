@@ -40,7 +40,7 @@ to resolve the following dependencies before the pip installer is run:
     * matplotlib
     * numpy
     * pandas
-    * pyfftw <0.13.0|=0.13.0=*0
+    * pyfftw
     * pykrige
     * pyproj >2.2.0
     * scikit-image >=0.16.0
@@ -59,8 +59,8 @@ you through the process.
 
 .. note::
 
-    AROSICS has been tested with Python 3.7+. It should be fully compatible to all Python versions
-    from 3.7 onwards. Python 2.7 support was dropped in AROSICS 1.3 due to its end of life status.
+    AROSICS has been tested with Python 3.8+. It should be fully compatible to all Python versions
+    from 3.8 onwards. Python 2.7 support was dropped in AROSICS 1.3 due to its end of life status.
 
 
 .. _pip: https://pip.pypa.io
