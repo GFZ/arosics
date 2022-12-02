@@ -600,7 +600,7 @@ class COREG_LOCAL(object):
             GDF['Lon'], GDF['Lat'] = lon, lat
 
             # get colors for all points
-            palette = cmap if cmap is not None else plt.cm.get_cmap('RdYlGn_r')
+            palette = cmap if cmap is not None else plt.colormaps.get_cmap('RdYlGn_r')
             if cmap is None and attribute2plot == 'ANGLE':
                 import cmocean
                 palette = getattr(cmocean.cm, 'delta')
