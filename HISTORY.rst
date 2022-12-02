@@ -2,13 +2,14 @@
 History
 =======
 
-1.8.0 (coming soon)
--------------------
+1.8.0 (2022-12-02)
+------------------
 
 * Replaced CentOS CI container with an Ubuntu-based one (!31).
 * Removed version pinning of pyfftw. AROSICS now uses numpy instead of pyfftw>=0.13.0 (!30).
 * Added Python 3.11 classifiers and dropped support for Python 3.7 due to near EOL status (!30).
 * Fixed DeprecationWarnings (2x matplotlib, 1x pandas) (!30).
+* Dropped deprecated 'arosics_cli.py' entry point.
 
 
 1.7.9 (2022-11-21)
