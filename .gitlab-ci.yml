@@ -64,7 +64,7 @@ test_urls:
 test_arosics_install:
   stage: test
   script:
-    - source /root/mambaforge/bin/activate
+    - source /opt/conda/bin/activate
     - mamba update -n base -c conda-forge --all
 
     # create arosics environment from environment_arosics.yml
