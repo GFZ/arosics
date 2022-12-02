@@ -29,7 +29,6 @@ from __future__ import (division, print_function, absolute_import, unicode_liter
 
 import time
 import sys
-import warnings
 import argparse
 from arosics import COREG, COREG_LOCAL, __version__
 
