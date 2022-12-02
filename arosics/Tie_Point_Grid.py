@@ -732,7 +732,7 @@ class Tie_Point_Grid(object):
                     ha='right', va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
 
             # add grid and increase linewidth of middle line
-            ax.grid(b=True)
+            ax.grid(visible=True)
             ax.spines["right"].set_visible(True)
             ax.spines["top"].set_visible(True)
             xgl = ax.get_xgridlines()
