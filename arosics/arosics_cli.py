@@ -366,8 +366,4 @@ def main():
 
 
 if __name__ == "__main__":
-    if 'arosics_cli.py' in sys.argv[0]:
-        warnings.warn("Starting the AROSICS command line argument parser with 'arosics_cli.py ...' is deprecated and "
-                      "will be removed in future releases. Use 'arosics ...' instead.", DeprecationWarning)
-
     sys.exit(main())  # pragma: no cover

@@ -120,7 +120,6 @@ setup(
         "Zenodo": "https://zenodo.org/record/5093940"
     },
     python_requires='>3.8',
-    scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
     setup_requires=req_setup,
     test_suite='tests',
     tests_require=req + req_test,
