@@ -12,7 +12,7 @@ test_arosics:
   stage: test
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
   script:
-    - source /root/mambaforge/bin/activate ci_env
+    - source /opt/conda/bin/activate ci_env
 
     # update py_tools_ds and geoarray
     - pip install -U py_tools_ds -q
@@ -42,7 +42,7 @@ test_arosics:
 test_styles:
   stage: test
   script:
-    - source /root/mambaforge/bin/activate ci_env
+    - source /opt/conda/bin/activate ci_env
     - make lint
   artifacts:
     paths:
@@ -55,7 +55,7 @@ test_styles:
 test_urls:
   stage: test
   script:
-    - source /root/mambaforge/bin/activate ci_env
+    - source /opt/conda/bin/activate ci_env
     - pip install -U urlchecker
     - make urlcheck
   when: always
@@ -126,7 +126,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:
-    - source /root/mambaforge/bin/activate ci_env
+    - source /opt/conda/bin/activate ci_env
     - pip install -U twine
     - python setup.py sdist
     - twine upload dist/*  # requires creds as environment variables
