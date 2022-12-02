@@ -344,8 +344,8 @@ class Tie_Point_Grid(object):
                            columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_MAP', 'Y_MAP'])
         GDF['geometry'] = geomPoints
         GDF['POINT_ID'] = range(len(geomPoints))
-        GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
-        GDF.loc[:, ['X_MAP', 'Y_MAP']] = self.XY_mapPoints
+        GDF[['X_IM', 'Y_IM']] = self.XY_points
+        GDF[['X_MAP', 'Y_MAP']] = self.XY_mapPoints
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
