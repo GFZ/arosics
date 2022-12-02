@@ -4,7 +4,7 @@ channels: &id1
   - conda-forge
 
 dependencies:
-  - python=3.*.*
+  - python>=3.8
   - pip
   - cartopy
   - cmocean
