@@ -2,6 +2,12 @@
 History
 =======
 
+1.8.1 (2023-03-10)
+------------------
+
+* Fixed https://github.com/GFZ/arosics/issues/20 (out_crea_options has no effect).
+
+
 1.8.0 (2022-12-02)
 ------------------
 
