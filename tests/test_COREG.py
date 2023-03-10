@@ -3,7 +3,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -36,6 +36,7 @@ import warnings
 from .cases import test_cases
 from arosics import COREG
 from geoarray import GeoArray
+from osgeo import gdal
 from py_tools_ds.geo.projection import EPSG2WKT
 
 
@@ -62,6 +63,22 @@ class COREG_GLOBAL_init(unittest.TestCase):
 
         # get instance of COREG_LOCAL object
         self.CRL = COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
+
+    def test_empty_image(self):
+        # get GeoArray instances
+        self.ref_gA = GeoArray(self.ref_path)
+        self.tgt_gA = GeoArray(self.tgt_path)
+
+        # assure the raster data are in-memory
+        self.ref_gA.to_mem()
+        self.tgt_gA.to_mem()
+
+        # fill the reference image with nodata
+        self.ref_gA[:] = self.ref_gA.nodata
+
+        # get instance of COREG_LOCAL object
+        with self.assertRaises(RuntimeError, msg='.contains only nodata.'):
+            COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
 
 
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
@@ -324,13 +341,17 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                 'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
                                                         'which is a non-GUI backend, so cannot show the figure.')
             CR.show_cross_power_spectrum()
-            CR.show_cross_power_spectrum(interactive=True)
             CR.show_matchWin(interactive=False, after_correction=None)
             CR.show_matchWin(interactive=False, after_correction=True)
             CR.show_matchWin(interactive=False, after_correction=False)
-            CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
-            CR.show_matchWin(interactive=True, after_correction=True)
-            CR.show_matchWin(interactive=True, after_correction=False)
+            try:
+                __IPYTHON__  # noqa
+                CR.show_cross_power_spectrum(interactive=True)
+                CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
+                CR.show_matchWin(interactive=True, after_correction=True)
+                CR.show_matchWin(interactive=True, after_correction=False)
+            except NameError:
+                pass
             CR.show_image_footprints()
 
     def test_correct_shifts_without_resampling(self):
@@ -356,6 +377,21 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertTrue(CR.deshift_results['is resampled'])
         self.assertFalse(np.array_equal(CR.shift[:], CR.deshift_results['arr_shifted']))
         self.assertTrue(np.array_equal(np.array(CR.shift.gt), np.array(CR.deshift_results['updated geotransform'])))
+
+    def test_correct_shifts_gdal_creation_options(self):
+        """Test if the out_crea_options parameter works."""
+        kw = self.coreg_kwargs.copy()
+        kw['fmt_out'] = "GTiff"
+        kw['out_crea_options'] = ["COMPRESS=DEFLATE", "BIGTIFF=YES", "ZLEVEL=9", "BLOCKXSIZE=512", "BLOCKYSIZE=512"]
+
+        # in case the output data is not resampled
+        self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue('COMPRESSION=DEFLATE' in gdal.Info(kw['path_out']))
+
+        # in case the output data is resampled
+        kw['align_grids'] = True
+        self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue('COMPRESSION=DEFLATE' in gdal.Info(kw['path_out']))
 
 
 if __name__ == '__main__':

@@ -2,6 +2,57 @@
 History
 =======
 
+1.8.1 (2023-03-10)
+------------------
+
+* Fixed https://github.com/GFZ/arosics/issues/20 (out_crea_options has no effect) (!32).
+* Updated copyright (!33).
+
+
+1.8.0 (2022-12-02)
+------------------
+
+* Replaced CentOS CI container with an Ubuntu-based one (!31).
+* Removed version pinning of pyfftw. AROSICS now uses numpy instead of pyfftw>=0.13.0 (!30).
+* Added Python 3.11 classifiers and dropped support for Python 3.7 due to near EOL status (!30).
+* Fixed DeprecationWarnings (2x matplotlib, 1x pandas) (!30).
+* Dropped deprecated 'arosics_cli.py' entry point.
+
+
+1.7.9 (2022-11-21)
+------------------
+
+* Allow pyfftw=0.13.0=*0 (!28).
+* Replaced deprecated URL (!28).
+* Updated copyright (!29).
+
+
+1.7.8 (2022-08-19)
+------------------
+
+* Fixed missing grid and frame lines of Tie_Point_Grid.plot_shift_distribution() (!27).
+* Remove deprecated sphinx_autodoc_typehints option.
+
+
+1.7.7 (2022-07-21)
+------------------
+
+* Added a validation to reject images that only contain nodata values.
+
+
+1.7.6 (2022-01-31)
+------------------
+
+* Fixed typo in requirements.
+
+
+1.7.5 (2022-01-28)
+------------------
+
+* Implemented a workaround for #71 (pyFFTW RuntimeError: Undefined plan with nthreads. This is a bug).
+  Pin pyFFTW to <0.13.0. (!25)
+
+
 1.7.4 (2021-12-15)
 ------------------
 
@@ -653,7 +704,7 @@ History
 0.8.3 (2018-03-07)
 ------------------
 
-* Fixed ValueError as reported in https://gitext.gfz-potsdam.de/EnMAP/sicor/issues/22.
+* Fixed ValueError as reported in https://git.gfz-potsdam.de/EnMAP/sicor/issues/22.
 
 
 0.8.2 (2018-01-23)

@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -72,7 +72,7 @@ class Tie_Point_Grid(object):
 
     Spatial shifts are calculated for each point in grid of which the parameters can be adjusted using keyword
     arguments. Shift correction performs a polynomial transformation using te calculated shifts of each point in the
-    grid as GCPs. Thus 'Tie_Point_Grid' can be used to correct for locally varying geometric distortions of the target
+    grid as GCPs. Thus, 'Tie_Point_Grid' can be used to correct for locally varying geometric distortions of the target
     image.
 
     See help(Tie_Point_Grid) for documentation!
@@ -345,8 +345,8 @@ class Tie_Point_Grid(object):
                            columns=['geometry', 'POINT_ID', 'X_IM', 'Y_IM', 'X_MAP', 'Y_MAP'])
         GDF['geometry'] = geomPoints
         GDF['POINT_ID'] = range(len(geomPoints))
-        GDF.loc[:, ['X_IM', 'Y_IM']] = self.XY_points
-        GDF.loc[:, ['X_MAP', 'Y_MAP']] = self.XY_mapPoints
+        GDF[['X_IM', 'Y_IM']] = self.XY_points
+        GDF[['X_MAP', 'Y_MAP']] = self.XY_mapPoints
 
         # exclude offsite points and points on bad data mask
         GDF = self._exclude_bad_XYpos(GDF)
@@ -728,12 +728,14 @@ class Tie_Point_Grid(object):
 
             # add text box containing RMSE of plotted shifts
             xlim, ylim = ax.get_xlim(), ax.get_ylim()
-            plt.text(xlim[1] - (xlim[1] / 20), -ylim[1] + (ylim[1] / 20),
-                     'RMSE:  %s m / %s px' % (np.round(rmse, 2), np.round(rmse / self.shift.xgsd, 2)),
-                     ha='right', va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
+            ax.text(xlim[1] - (xlim[1] / 20), -ylim[1] + (ylim[1] / 20),
+                    'RMSE:  %s m / %s px' % (np.round(rmse, 2), np.round(rmse / self.shift.xgsd, 2)),
+                    ha='right', va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
 
             # add grid and increase linewidth of middle line
-            plt.grid()
+            ax.grid(visible=True)
+            ax.spines["right"].set_visible(True)
+            ax.spines["top"].set_visible(True)
             xgl = ax.get_xgridlines()
             middle_xgl = xgl[int(np.median(np.array(range(len(xgl)))))]
             middle_xgl.set_linewidth(2)
@@ -747,8 +749,8 @@ class Tie_Point_Grid(object):
             ax.set_title(title, fontsize=fontsize)
             [tick.label1.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
             [tick.label1.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
-            plt.xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
-            plt.ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
+            ax.set_xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
+            ax.set_ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
 
             # add legend with labels in the right order
             handles, labels = ax.get_legend_handles_labels()
@@ -756,7 +758,7 @@ class Tie_Point_Grid(object):
             leg.get_frame().set_edgecolor('black')
 
             # remove white space around the figure
-            plt.subplots_adjust(top=.94, bottom=.06, right=.96, left=.09)
+            fig.subplots_adjust(top=.94, bottom=.06, right=.96, left=.09)
 
             if savefigPath:
                 fig.savefig(savefigPath, dpi=savefigDPI, pad_inches=0.3, bbox_inches='tight')

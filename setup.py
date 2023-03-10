@@ -3,7 +3,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -50,6 +50,7 @@ req = [
     'geopandas',
     'matplotlib',
     'numpy',
+    'packaging',
     'pandas',
     'plotly',
     'pyfftw',
@@ -68,7 +69,7 @@ req_setup = [
 
 req_intplot = ['holoviews', 'ipython']
 
-req_test = ['pytest', 'pytest-cov', 'pytest-reporter-hmtl1', 'urlchecker'] + req_intplot
+req_test = ['pytest', 'pytest-cov', 'pytest-reporter-html1', 'urlchecker'] + req_intplot
 
 req_doc = ['sphinx-argparse', 'sphinx_rtd_theme', 'sphinx-autodoc-typehints']
 
@@ -86,10 +87,10 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11'
     ],
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     entry_points={
@@ -119,8 +120,7 @@ setup(
         "Algorithm paper": "https://www.mdpi.com/2072-4292/9/7/676",
         "Zenodo": "https://zenodo.org/record/5093940"
     },
-    python_requires='>3.6',
-    scripts=["arosics/arosics_cli.py"],  # TODO Deprecated in 1.4.1. Remove in future.
+    python_requires='>3.8',
     setup_requires=req_setup,
     test_suite='tests',
     tests_require=req + req_test,

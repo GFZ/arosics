@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -31,8 +31,12 @@ from collections import OrderedDict
 
 # custom
 from osgeo import gdal
+from packaging.version import parse as parse_version
 try:
     import pyfftw
+    # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
+    if parse_version(pyfftw.__version__) >= parse_version('0.13.0'):
+        pyfftw = None
 except ImportError:
     pyfftw = None
 import numpy as np
@@ -596,7 +600,7 @@ class COREG_LOCAL(object):
             GDF['Lon'], GDF['Lat'] = lon, lat
 
             # get colors for all points
-            palette = cmap if cmap is not None else plt.cm.get_cmap('RdYlGn_r')
+            palette = cmap if cmap is not None else plt.colormaps.get_cmap('RdYlGn_r')
             if cmap is None and attribute2plot == 'ANGLE':
                 import cmocean
                 palette = getattr(cmocean.cm, 'delta')
