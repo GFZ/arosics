@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -24,5 +24,5 @@
 # limitations under the License.
 
 
-__version__ = '1.7.4'
-__versionalias__ = '2021-12-15_01'
+__version__ = '1.8.1'
+__versionalias__ = '2023-03-10_01'

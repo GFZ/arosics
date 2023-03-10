@@ -65,7 +65,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'arosics'
-copyright = u"2017-2021, Daniel Scheffler"
+copyright = u"2017-2023, Daniel Scheffler"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -159,8 +159,7 @@ html_theme_options = {
     'sticky_navigation': True,
     'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': False,
-    'set_type_checking_flag': True  # option of sphinx_autodoc_typehints extension
+    'titles_only': False
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

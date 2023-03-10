@@ -4,7 +4,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -29,7 +29,6 @@ from __future__ import (division, print_function, absolute_import, unicode_liter
 
 import time
 import sys
-import warnings
 import argparse
 from arosics import COREG, COREG_LOCAL, __version__
 
@@ -366,8 +365,4 @@ def main():
 
 
 if __name__ == "__main__":
-    if 'arosics_cli.py' in sys.argv[0]:
-        warnings.warn("Starting the AROSICS command line argument parser with 'arosics_cli.py ...' is deprecated and "
-                      "will be removed in future releases. Use 'arosics ...' instead.", DeprecationWarning)
-
     sys.exit(main())  # pragma: no cover

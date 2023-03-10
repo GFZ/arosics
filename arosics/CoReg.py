@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2021
+# Copyright (C) 2017-2023
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -33,8 +33,12 @@ from typing import Iterable, Union, Tuple, List, Optional  # noqa F401
 from osgeo import gdal
 import numpy as np
 
+from packaging.version import parse as parse_version
 try:
     import pyfftw
+    # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
+    if parse_version(pyfftw.__version__) >= parse_version('0.13.0'):
+        pyfftw = None
 except ImportError:
     pyfftw = None
 from shapely.geometry import Point, Polygon
@@ -98,6 +102,12 @@ class GeoArray_CoReg(GeoArray):
             % (self.imName, self.bands, 'bands' if self.bands > 1 else
                'band', 'between 1 and ' if self.bands > 1 else '', self.bands, self.band4match + 1)
 
+        # compute nodata mask and validate that it is not completely filled with nodata
+        self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
+
+        if True not in self.mask_nodata[:]:
+            raise RuntimeError(f'The {self.imName} passed to AROSICS only contains nodata values.')
+
         # set footprint_poly
         given_footprint_poly = CoReg_params['footprint_poly_%s' % ('ref' if imID == 'ref' else 'tgt')]
         given_corner_coord = CoReg_params['data_corners_%s' % ('ref' if imID == 'ref' else 'tgt')]
@@ -114,12 +124,10 @@ class GeoArray_CoReg(GeoArray):
             if not CoReg_params['q']:
                 print('Calculating footprint polygon and actual data corner coordinates for %s...' % self.imName)
 
-            self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
-
             with warnings.catch_warnings(record=True) as w:
                 _ = self.footprint_poly  # execute getter
 
-            if len(w) > 0 and 'disjunct polygone(s) outside' in str(w[-1].message):
+            if len(w) > 0 and 'disjunct polygon(s) outside' in str(w[-1].message):
                 warnings.warn('The footprint of the %s contains multiple separate image parts. '
                               'AROSICS will only process the largest image part.' % self.imName)
                 # FIXME use a convex hull as footprint poly
@@ -1145,23 +1153,28 @@ class COREG(object):
                 PLT.subplot_imshow([np.real(in_arr0).astype(np.float32), np.real(in_arr1).astype(np.float32)],
                                    ['FFTin ' + self.ref.title, 'FFTin ' + self.shift.title], grid=True)
 
+            fft_arr0, fft_arr1 = None, None
             if pyfftw and self.fftw_works is not False:  # if module is installed and working
-                fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
-                fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
+                try:
+                    fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
+                    fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
 
-                # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
-                # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array in_arr0 is
-                #    overwritten with zeros (maybe this is a bug in pyFFTW?)
-                if self.fftw_works in [None, True] and (np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0):
+                    # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
+                    # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array
+                    #    in_arr0 is overwritten with zeros (maybe this is a bug in pyFFTW?)
+                    if np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0:
+                        raise RuntimeError('FFTW result is unexpectedly empty.')
+
+                    self.fftw_works = True
+
+                except RuntimeError:
                     self.fftw_works = False
+
                     # recreate input arrays and use numpy fft as fallback
                     in_arr0 = im0[ymin:ymax, xmin:xmax].astype(precision)
                     in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
-                    fft_arr0 = np.fft.fft2(in_arr0)
-                    fft_arr1 = np.fft.fft2(in_arr1)
-                else:
-                    self.fftw_works = True
-            else:
+
+            if self.fftw_works is False or fft_arr0 is None or fft_arr1 is None:
                 fft_arr0 = np.fft.fft2(in_arr0)
                 fft_arr1 = np.fft.fft2(in_arr1)
 
