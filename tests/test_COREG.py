@@ -36,6 +36,7 @@ import warnings
 from .cases import test_cases
 from arosics import COREG
 from geoarray import GeoArray
+from osgeo import gdal
 from py_tools_ds.geo.projection import EPSG2WKT
 
 
