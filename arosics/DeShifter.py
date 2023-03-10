@@ -364,9 +364,6 @@ class DESHIFTER(object):
 
             self.GeoArray_shifted = out_geoArr
 
-            if self.path_out:
-                out_geoArr.save(self.path_out, fmt=self.fmt_out)
-
         else:  # FIXME equal_prj==False ist noch NICHT implementiert
             """RESAMPLING NEEDED"""
             # FIXME avoid reading the whole band if clip_extent is passed
@@ -411,8 +408,8 @@ class DESHIFTER(object):
             self.is_shifted = True
             self.is_resampled = True
 
-            if self.path_out:
-                out_geoArr.save(self.path_out, fmt=self.fmt_out, creationOptions=self.out_creaOpt)
+        if self.path_out:
+            out_geoArr.save(self.path_out, fmt=self.fmt_out, creationOptions=self.out_creaOpt)
 
         # validation
         if not is_coord_grid_equal(self.updated_gt, *self.out_grid, tolerance=1.e8):
