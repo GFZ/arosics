@@ -378,6 +378,21 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         self.assertFalse(np.array_equal(CR.shift[:], CR.deshift_results['arr_shifted']))
         self.assertTrue(np.array_equal(np.array(CR.shift.gt), np.array(CR.deshift_results['updated geotransform'])))
 
+    def test_correct_shifts_gdal_creation_options(self):
+        """Test if the out_crea_options parameter works."""
+        kw = self.coreg_kwargs.copy()
+        kw['fmt_out'] = "GTiff"
+        kw['out_crea_options'] = ["COMPRESS=DEFLATE", "BIGTIFF=YES", "ZLEVEL=9", "BLOCKXSIZE=512", "BLOCKYSIZE=512"]
+
+        # in case the output data is not resampled
+        self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue('COMPRESSION=DEFLATE' in gdal.Info(kw['path_out']))
+
+        # in case the output data is resampled
+        kw['align_grids'] = True
+        self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
+        self.assertTrue('COMPRESSION=DEFLATE' in gdal.Info(kw['path_out']))
+
 
 if __name__ == '__main__':
     import pytest
