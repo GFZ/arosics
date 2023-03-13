@@ -81,7 +81,7 @@ test_arosics_install:
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
   only:
-    - master
+    - main
 
 
 pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
@@ -117,7 +117,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
       - public
     expire_in: 30 days
   only:
-    - master
+    - main
     - enhancement/improve_docs
 
 

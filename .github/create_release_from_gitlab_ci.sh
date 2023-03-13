@@ -6,7 +6,7 @@ URL_RELEASES=https://api.github.com/repos/$GITHUB_USER/$GITHUB_REPONAME/releases
 
 # create the release
 API_JSON=$(printf '{"tag_name":"%s",
-                    "target_commitish":"master",
+                    "target_commitish":"main",
                     "name":"%s",
                     "body":"",
                     "draft":false,
