@@ -13,7 +13,7 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
   (cite as: Scheffler D, Hollstein A, Diedrich H, Segl K, Hostert P. AROSICS: An Automated and Robust Open-Source
   Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676).
 * Information on how to **cite the AROSICS Python package** can be found in the
-  `CITATION <https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/CITATION>`__ file.
+  `CITATION <https://git.gfz-potsdam.de/danschef/arosics/-/blob/main/CITATION>`__ file.
 * Submit feedback by filing an issue `here <https://git.gfz-potsdam.de/danschef/arosics/issues>`__
   or join our chat here: |Gitter|
 
@@ -24,16 +24,16 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
 Status
 ------
 
-.. image:: https://git.gfz-potsdam.de/danschef/arosics/badges/master/pipeline.svg
-        :target: https://git.gfz-potsdam.de/danschef/arosics/commits/master
-.. image:: https://git.gfz-potsdam.de/danschef/arosics/badges/master/coverage.svg
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/badges/main/pipeline.svg
+        :target: https://git.gfz-potsdam.de/danschef/arosics/commits/main
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/badges/main/coverage.svg
         :target: https://danschef.git-pages.gfz-potsdam.de/arosics/coverage/
 .. image:: https://img.shields.io/pypi/v/arosics.svg
         :target: https://pypi.python.org/pypi/arosics
 .. image:: https://img.shields.io/conda/vn/conda-forge/arosics.svg
         :target: https://anaconda.org/conda-forge/arosics
 .. image:: https://img.shields.io/pypi/l/arosics.svg
-        :target: https://git.gfz-potsdam.de/danschef/arosics/blob/master/LICENSE
+        :target: https://git.gfz-potsdam.de/danschef/arosics/blob/main/LICENSE
 .. image:: https://img.shields.io/pypi/pyversions/arosics.svg
         :target: https://img.shields.io/pypi/pyversions/arosics.svg
 .. image:: https://img.shields.io/pypi/dm/arosics.svg
@@ -69,7 +69,7 @@ also allows to align the output image to the reference image coordinate grid if 
 
 Here is an example of a Landsat-8 / Sentinel-2 image pair before and after co-registration using AROSICS:
 
-.. image:: https://git.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_900x456.gif
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/raw/main/docs/images/animation_testcase1_zoom_L8_S2_global_coreg_before_after_900x456.gif
 
 
 Local co-registration - for spatially variable shifts but a bit slower
@@ -83,7 +83,7 @@ affine transformation. Warping of the target image is done using an appropriate 
 Here is an example of the computed shift vectors after filtering false-positives
 (mainly due to clouds in the target image):
 
-.. image:: https://git.gfz-potsdam.de/danschef/arosics/raw/master/docs/images/shift_vectors_testcase1__900x824.gif
+.. image:: https://git.gfz-potsdam.de/danschef/arosics/raw/main/docs/images/shift_vectors_testcase1__900x824.gif
 
 
 For further details check out the `documentation <https://danschef.git-pages.gfz-potsdam.de/arosics/doc/>`__!
@@ -93,7 +93,7 @@ History / Changelog
 -------------------
 
 You can find the protocol of recent changes in the AROSICS package
-`here <https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/HISTORY.rst>`__.
+`here <https://git.gfz-potsdam.de/danschef/arosics/-/blob/main/HISTORY.rst>`__.
 
 
 Credits
