@@ -1236,12 +1236,28 @@ class Tie_Point_Grid_Interpolator(object):
         self.v = v
 
     def interpolate(self, metric: str, method: str = 'Rbf'):
+        t0 = time()
+
+        rows, cols, data = self._get_pointdata(metric)
+        rows_lowres = np.arange(0, self.tpg.shift.shape[0] + 5, 5)
+        cols_lowres = np.arange(0, self.tpg.shift.shape[1] + 5, 5)
+
         if method == 'Rbf':
-            return self._interpolate_via_rbf(metric=metric, outshape=self.tpg.shift.shape)
+            data_full = self._interpolate_via_rbf(rows, cols, data, rows_lowres, cols_lowres)
         elif method == 'Kriging':
-            return self._interpolate_via_kriging(metric=metric, outshape=self.tpg.shift.shape)
+            data_full = self._interpolate_via_kriging(rows, cols, data, rows_lowres, cols_lowres)
         else:
             raise ValueError(method)
+
+        rows_full = np.arange(self.tpg.shift.shape[0])
+        cols_full = np.arange(self.tpg.shift.shape[1])
+        data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_full, rows_full, cols_full)
+
+        if self.v:
+            print('interpolation runtime: %.2fs' % (time() - t0))
+            self._plot_interpolation_result(data_full, rows, cols, data, metric)
+
+        return data_full
 
     def _get_pointdata(self, metric: str):
         tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
@@ -1274,7 +1290,7 @@ class Tie_Point_Grid_Interpolator(object):
                             cols: np.ndarray,
                             data: np.ndarray,
                             rows_full: np.ndarray,
-                            cols_full: np.ndarray,
+                            cols_full: np.ndarray
                             ):
         RGI = RegularGridInterpolator(points=[cols, rows],
                                       values=data.T,  # must be in shape [x, y]
@@ -1283,10 +1299,13 @@ class Tie_Point_Grid_Interpolator(object):
         data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
         return data_full
 
-    def _interpolate_via_rbf(self, metric: str, outshape: tuple):
-        rows, cols, data = self._get_pointdata(metric)
-        t0 = time()
-
+    @staticmethod
+    def _interpolate_via_rbf(rows: np.ndarray,
+                             cols: np.ndarray,
+                             data: np.ndarray,
+                             rows_full: np.ndarray,
+                             cols_full: np.ndarray
+                             ):
         # https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
 
         # f = Rbf(cols, rows, data, function='linear')
@@ -1294,10 +1313,8 @@ class Tie_Point_Grid_Interpolator(object):
         # data_full = f(*np.meshgrid(np.arange(outshape[1]),
         #                            np.arange(outshape[0])))
 
-        rows_lowres = np.arange(0, outshape[0] + 5, 5)
-        cols_lowres = np.arange(0, outshape[1] + 5, 5)
         f = Rbf(cols, rows, data)
-        data_interp_lowres = f(*np.meshgrid(cols_lowres, rows_lowres))
+        data_full = f(*np.meshgrid(cols_full, rows_full))
 
         # https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
         # from sklearn.gaussian_process import GaussianProcess
@@ -1306,41 +1323,28 @@ class Tie_Point_Grid_Interpolator(object):
         # rr_cc_as_cols = np.column_stack([rr.flatten(), cc.flatten()])
         # interpolated = gp.predict(rr_cc_as_cols).reshape(M.shape)
 
-        data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_interp_lowres,
-                                             np.arange(outshape[0]), np.arange(outshape[1]))
-
-        if self.v:
-            print('interpolation runtime: %.2fs' % (time() - t0))
-            self._plot_interpolation_result(data_full, rows, cols, data, metric)
-
         return data_full
 
-    def _interpolate_via_kriging(self, metric, outshape: tuple):
+    @staticmethod
+    def _interpolate_via_kriging(rows: np.ndarray,
+                                 cols: np.ndarray,
+                                 data: np.ndarray,
+                                 rows_full: np.ndarray,
+                                 cols_full: np.ndarray
+                                 ):
         # Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
-        rows, cols, data = self._get_pointdata(metric)
-        t0 = time()
-
         from pykrige.ok import OrdinaryKriging
 
         OK = OrdinaryKriging(cols.astype(float), rows.astype(float), data.astype(float),
                              variogram_model='spherical',
                              verbose=False)
-        rows_lowres = np.arange(0, outshape[0] + 5, 5)
-        cols_lowres = np.arange(0, outshape[1] + 5, 5)
 
-        data_interp_lowres, sigmasq = \
+        data_full, sigmasq = \
             OK.execute('grid',
-                       cols_lowres.astype(float),
-                       rows_lowres.astype(float),
+                       cols_full.astype(float),
+                       rows_full.astype(float),
                        backend='C',
                        n_closest_points=12)
-
-        data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_interp_lowres,
-                                             np.arange(outshape[0]), np.arange(outshape[1]))
-
-        if self.v:
-            print('interpolation runtime: %.2fs' % (time() - t0))
-            self._plot_interpolation_result(data_full, rows, cols, data, metric)
 
         return data_full
