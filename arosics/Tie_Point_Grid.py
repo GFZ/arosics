@@ -1243,7 +1243,7 @@ class Tie_Point_Grid_Interpolator(object):
         else:
             raise ValueError(method)
 
-    def _get_inputdata(self, metric: str):
+    def _get_pointdata(self, metric: str):
         tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
 
         rows = np.array(tiepoints.Y_IM)
@@ -1284,7 +1284,7 @@ class Tie_Point_Grid_Interpolator(object):
         return data_full
 
     def _interpolate_via_rbf(self, metric: str, outshape: tuple):
-        rows, cols, data = self._get_inputdata(metric)
+        rows, cols, data = self._get_pointdata(metric)
         t0 = time()
 
         # https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
@@ -1318,7 +1318,7 @@ class Tie_Point_Grid_Interpolator(object):
     def _interpolate_via_kriging(self, metric, outshape: tuple):
         # Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
-        rows, cols, data = self._get_inputdata(metric)
+        rows, cols, data = self._get_pointdata(metric)
         t0 = time()
 
         from pykrige.ok import OrdinaryKriging
