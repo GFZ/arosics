@@ -967,7 +967,8 @@ class Tie_Point_Grid(object):
 
         return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result)
 
-    def to_Raster_using_Kriging(self, *args, **kwargs):
+    @staticmethod
+    def to_Raster_using_Kriging(*args, **kwargs):
         raise NotImplementedError('This method was removed in arosics version 1.8.2. To interpolate tie points into '
                                   'space, you may now use Tie_Point_Grid.to_interpolated_raster() instead.')
 
