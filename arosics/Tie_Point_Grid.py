@@ -960,11 +960,12 @@ class Tie_Point_Grid(object):
     def to_interpolated_raster(self,
                                metric: str = 'ABS_SHIFT',
                                method: str = 'Rbf',
-                               plot_result: bool = False
+                               plot_result: bool = False,
+                               v: bool = False
                                ) -> np.ndarray:
-        TPGI = Tie_Point_Grid_Interpolator(self, v=plot_result)
+        TPGI = Tie_Point_Grid_Interpolator(self, v=v)
 
-        return TPGI.interpolate(metric=metric, method=method)
+        return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result)
 
     def to_Raster_using_Kriging(self, *args, **kwargs):
         raise NotImplementedError('This method was removed in arosics version 1.8.2. To interpolate tie points into '
@@ -1237,7 +1238,7 @@ class Tie_Point_Grid_Interpolator(object):
         self.tpg = tiepointgrid
         self.v = v
 
-    def interpolate(self, metric: str, method: str = 'Rbf'):
+    def interpolate(self, metric: str, method: str = 'Rbf', plot_result: bool = False):
         t0 = time()
 
         rows, cols, data = self._get_pointdata(metric)
@@ -1258,6 +1259,7 @@ class Tie_Point_Grid_Interpolator(object):
 
         if self.v:
             print('interpolation runtime: %.2fs' % (time() - t0))
+        if plot_result:
             self._plot_interpolation_result(data_full, rows, cols, data, metric)
 
         return data_full
