@@ -27,7 +27,7 @@ import collections
 import multiprocessing
 import os
 import warnings
-import time
+from time import time, sleep
 from typing import Optional, Union
 
 # custom
@@ -391,7 +391,7 @@ class Tie_Point_Grid(object):
                     results = pool.map_async(self._get_spatial_shifts, list_coreg_kwargs, chunksize=1)
                     bar = ProgressBar(prefix='\tprogress:')
                     while True:
-                        time.sleep(.1)
+                        sleep(.1)
                         # this does not really represent the remaining tasks but the remaining chunks
                         # -> thus chunksize=1
                         # noinspection PyProtectedMember
@@ -1124,7 +1124,7 @@ class Tie_Point_Refiner(object):
         th_checked = {}  # dict of thresholds that already have been tried + calculated inlier percentage
         th_substract = 2
         count_iter = 0
-        time_start = time.time()
+        time_start = time()
         ideal_count = min_inlier_percentage * src_coords.shape[0] / 100
 
         # optimize RANSAC threshold so that it marks not much more or less than the given outlier percentage
@@ -1197,7 +1197,7 @@ class Tie_Point_Refiner(object):
                 break
 
             if count_iter > self.rs_max_iter or \
-               time.time() - time_start > self.rs_timeout:
+                time() - time_start > self.rs_timeout:
                 break  # keep last values and break while loop
 
             count_iter += 1
@@ -1231,8 +1231,9 @@ class Tie_Point_Refiner(object):
 
 
 class Tie_Point_Grid_Interpolator(object):
-    def __init__(self, tiepointgrid: Tie_Point_Grid):
+    def __init__(self, tiepointgrid: Tie_Point_Grid, v: bool = False):
         self.tpg = tiepointgrid
+        self.v = v
 
     def interpolate(self, metric: str, method: str = 'Rbf'):
         if method == 'Rbf':
@@ -1242,7 +1243,7 @@ class Tie_Point_Grid_Interpolator(object):
         else:
             raise ValueError(method)
 
-    def _get_inputdata(metric: str):
+    def _get_inputdata(self, metric: str):
         tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
 
         rows = np.array(tiepoints.Y_IM)
@@ -1251,6 +1252,7 @@ class Tie_Point_Grid_Interpolator(object):
 
         return rows, cols, data
 
+    @staticmethod
     def _plot_interpolation_result(data_full: np.ndarray,
                                    rows: np.ndarray,
                                    cols: np.ndarray,
@@ -1267,10 +1269,22 @@ class Tie_Point_Grid_Interpolator(object):
         plt.title(metric)
         plt.show()
 
+    @staticmethod
+    def _interpolate_linear(rows: np.ndarray,
+                            cols: np.ndarray,
+                            data: np.ndarray,
+                            rows_full: np.ndarray,
+                            cols_full: np.ndarray,
+                            ):
+        RGI = RegularGridInterpolator(points=[cols, rows],
+                                      values=data.T,  # must be in shape [x, y]
+                                      method='linear',
+                                      bounds_error=False)
+        data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
+        return data_full
+
     def _interpolate_via_rbf(self, metric: str, outshape: tuple):
         rows, cols, data = self._get_inputdata(metric)
-
-        from time import time
         t0 = time()
 
         # https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
@@ -1292,24 +1306,19 @@ class Tie_Point_Grid_Interpolator(object):
         # rr_cc_as_cols = np.column_stack([rr.flatten(), cc.flatten()])
         # interpolated = gp.predict(rr_cc_as_cols).reshape(M.shape)
 
-        RGI = RegularGridInterpolator(points=[cols_lowres, rows_lowres],
-                                      values=data_interp_lowres.T,  # must be in shape [x, y]
-                                      method='linear',
-                                      bounds_error=False)
-        rows_full = np.arange(outshape[0])
-        cols_full = np.arange(outshape[1])
-        data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
+        data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_interp_lowres,
+                                             np.arange(outshape[0]), np.arange(outshape[1]))
 
-        print('interpolation runtime: %.2fs' % (time() - t0))
+        if self.v:
+            print('interpolation runtime: %.2fs' % (time() - t0))
+            self._plot_interpolation_result(data_full, rows, cols, data, metric)
 
         return data_full
 
     def _interpolate_via_kriging(self, metric, outshape: tuple):
-        # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
+        # Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
         rows, cols, data = self._get_inputdata(metric)
-
-        from time import time
         t0 = time()
 
         from pykrige.ok import OrdinaryKriging
@@ -1327,16 +1336,11 @@ class Tie_Point_Grid_Interpolator(object):
                        backend='C',
                        n_closest_points=12)
 
-        print('kriging runtime: %.2fs' % (time() - t0))
+        data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_interp_lowres,
+                                             np.arange(outshape[0]), np.arange(outshape[1]))
 
-        RGI = RegularGridInterpolator(points=[cols_lowres, rows_lowres],
-                                      values=data_interp_lowres.T,  # must be in shape [x, y]
-                                      method='linear',
-                                      bounds_error=False)
-        rows_full = np.arange(outshape[0])
-        cols_full = np.arange(outshape[1])
-        data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
-
-        print('overall interpolation runtime: %.2fs' % (time() - t0))
+        if self.v:
+            print('interpolation runtime: %.2fs' % (time() - t0))
+            self._plot_interpolation_result(data_full, rows, cols, data, metric)
 
         return data_full
