@@ -1242,12 +1242,33 @@ class Tie_Point_Grid_Interpolator(object):
         else:
             raise ValueError(method)
 
-    def _interpolate_via_rbf(self, metric: str, outshape: tuple):
+    def _get_inputdata(metric: str):
         tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
 
         rows = np.array(tiepoints.Y_IM)
         cols = np.array(tiepoints.X_IM)
         data = np.array(tiepoints[metric])
+
+        return rows, cols, data
+
+    def _plot_interpolation_result(data_full: np.ndarray,
+                                   rows: np.ndarray,
+                                   cols: np.ndarray,
+                                   data: np.ndarray,
+                                   metric: str
+                                   ):
+        from matplotlib import pyplot as plt
+        from matplotlib import use
+        use('TkAgg')
+        plt.figure()
+        im = plt.imshow(data_full)
+        plt.colorbar(im)
+        plt.scatter(cols, rows, c=data, edgecolors='black')
+        plt.title(metric)
+        plt.show()
+
+    def _interpolate_via_rbf(self, metric: str, outshape: tuple):
+        rows, cols, data = self._get_inputdata(metric)
 
         from time import time
         t0 = time()
@@ -1259,8 +1280,6 @@ class Tie_Point_Grid_Interpolator(object):
         # data_full = f(*np.meshgrid(np.arange(outshape[1]),
         #                            np.arange(outshape[0])))
 
-        # rows_lowres = np.arange(0, outshape[0] + 10, 10)
-        # cols_lowres = np.arange(0, outshape[1] + 10, 10)
         rows_lowres = np.arange(0, outshape[0] + 5, 5)
         cols_lowres = np.arange(0, outshape[1] + 5, 5)
         f = Rbf(cols, rows, data)
@@ -1283,26 +1302,12 @@ class Tie_Point_Grid_Interpolator(object):
 
         print('interpolation runtime: %.2fs' % (time() - t0))
 
-        from matplotlib import pyplot as plt
-        from matplotlib import use
-        use('TkAgg')
-        plt.figure()
-        im = plt.imshow(data_full)
-        plt.colorbar(im)
-        plt.scatter(cols, rows, c=data, edgecolors='black')
-        plt.title(metric)
-        plt.show()
-
         return data_full
 
     def _interpolate_via_kriging(self, metric, outshape: tuple):
         # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
-        tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
-
-        rows = np.array(tiepoints.Y_IM)
-        cols = np.array(tiepoints.X_IM)
-        data = np.array(tiepoints[metric])
+        rows, cols, data = self._get_inputdata(metric)
 
         from time import time
         t0 = time()
@@ -1333,15 +1338,5 @@ class Tie_Point_Grid_Interpolator(object):
         data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
 
         print('overall interpolation runtime: %.2fs' % (time() - t0))
-
-        from matplotlib import pyplot as plt
-        from matplotlib import use
-        use('TkAgg')
-        plt.figure()
-        im = plt.imshow(data_full)
-        plt.colorbar(im)
-        plt.scatter(cols, rows, c=data, edgecolors='black')
-        plt.title(metric)
-        plt.show()
 
         return data_full
