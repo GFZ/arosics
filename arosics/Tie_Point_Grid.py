@@ -172,7 +172,6 @@ class Tie_Point_Grid(object):
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table = None  # set by self.CoRegPoints_table
         self._GCPList = None  # set by self.to_GCPList()
-        self.kriged = None  # set by to_Raster_using_Kriging()
 
     @property
     def mean_x_shift_px(self):
@@ -965,19 +964,9 @@ class Tie_Point_Grid(object):
 
         return TPGI.interpolate(metric=metric, method=method)
 
-    def to_Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                                fName_out=None, tilepos=None, tilesize=500, mp=None):
-
-        TPGI = Tie_Point_Grid_Interpolator(self)
-        self.kriged = TPGI._interpolate_via_kriging(attrName,
-                                                    skip_nodata=skip_nodata,
-                                                    skip_nodata_col=skip_nodata_col,
-                                                    outGridRes=outGridRes,
-                                                    fName_out=fName_out,
-                                                    tilepos=tilepos,
-                                                    CPUs=self.CPUs)
-
-        return self.kriged
+    def to_Raster_using_Kriging(self, *args, **kwargs):
+        raise NotImplementedError('This method was removed in arosics version 1.8.2. To interpolate tie points into '
+                                  'space, you may now use Tie_Point_Grid.to_interpolated_raster() instead.')
 
 
 class Tie_Point_Refiner(object):
@@ -1246,14 +1235,12 @@ class Tie_Point_Grid_Interpolator(object):
         self.tpg = tiepointgrid
 
     def interpolate(self, metric: str, method: str = 'Rbf'):
-        if method not in ['Rbf', 'Kriging']:
-            raise ValueError(method)
-
         if method == 'Rbf':
             return self._interpolate_via_rbf(metric=metric, outshape=self.tpg.shift.shape)
-
+        elif method == 'Kriging':
+            return self._interpolate_via_kriging(metric=metric, outshape=self.tpg.shift.shape)
         else:
-            raise NotImplementedError()
+            raise ValueError(method)
 
     def _interpolate_via_rbf(self, metric: str, outshape: tuple):
         tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
@@ -1296,100 +1283,65 @@ class Tie_Point_Grid_Interpolator(object):
 
         print('interpolation runtime: %.2fs' % (time() - t0))
 
-        # from matplotlib import pyplot as plt
-        # plt.figure()
-        # im = plt.imshow(data_full)
-        # plt.colorbar(im)
-        # plt.scatter(cols, rows, c=data, edgecolors='black')
-        # plt.title(metric)
-        # plt.show()
+        from matplotlib import pyplot as plt
+        from matplotlib import use
+        use('TkAgg')
+        plt.figure()
+        im = plt.imshow(data_full)
+        plt.colorbar(im)
+        plt.scatter(cols, rows, c=data, edgecolors='black')
+        plt.title(metric)
+        plt.show()
 
         return data_full
 
-    def _interpolate_via_kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                                 fName_out=None, tilepos=None, tilesize=500, CPUs=1):
-
-        CPUs = 1
-        if CPUs == 1:
-            data_full = self._Kriging_sp(attrName, skip_nodata=skip_nodata, skip_nodata_col=skip_nodata_col,
-                                         outGridRes=outGridRes, fName_out=fName_out, tilepos=tilepos)
-
-        else:
-            raise NotImplementedError()
-
-            # tilepositions = UTL.get_image_tileborders([tilesize, tilesize], self.tgt_shape)
-            # args_kwargs_dicts = []
-            # for tp in tilepositions:
-            #     kwargs_dict = {'skip_nodata': skip_nodata,
-            #                    'skip_nodata_col': skip_nodata_col,
-            #                    'outGridRes': outGridRes,
-            #                    'fName_out': fName_out,
-            #                    'tilepos': tp}
-            #     args_kwargs_dicts.append({'args': [attrName], 'kwargs': kwargs_dict})
-            #
-            # # data_full=[]
-            # # for i in args_kwargs_dicts:
-            # #     res = self.Kriging_mp(i)
-            # #     data_full.append(res)
-            # #     print(res)
-            #
-            # with multiprocessing.Pool() as pool:
-            #     data_full = pool.map(self._Kriging_mp, args_kwargs_dicts)
-            #     pool.close()  # needed to make coverage work in multiprocessing
-            #     pool.join()
-
-        return data_full
-
-    def _Kriging_sp(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                    fName_out=None, tilepos=None):
+    def _interpolate_via_kriging(self, metric, outshape: tuple):
         # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
         #            (Cambridge University Press, 1997) 272 p.
+        tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
+
+        rows = np.array(tiepoints.Y_IM)
+        cols = np.array(tiepoints.X_IM)
+        data = np.array(tiepoints[metric])
+
+        from time import time
+        t0 = time()
+
         from pykrige.ok import OrdinaryKriging
 
-        GDF = self.tpg.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.tpg.outFillVal]
-
-        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_MAP'], GDF2pass['Y_MAP'], GDF2pass[attrName]
-
-        xmin, ymin, xmax, ymax = GDF2pass.total_bounds
-
-        grid_res = outGridRes or int(min(xmax - xmin, ymax - ymin) / 250)
-        grid_x = np.arange(xmin, xmax + grid_res, grid_res)
-        grid_y = np.arange(ymax, ymin - grid_res, -grid_res)
-
-        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT,
+        OK = OrdinaryKriging(cols.astype(float), rows.astype(float), data.astype(float),
                              variogram_model='spherical',
                              verbose=False)
-        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y,
-                                      backend='C',
-                                      n_closest_points=12)
+        rows_lowres = np.arange(0, outshape[0] + 5, 5)
+        cols_lowres = np.arange(0, outshape[1] + 5, 5)
 
-        # FIXME: revise this save-routine
-        if self.tpg.CPUs is None or self.tpg.CPUs > 1:
-            fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s_%s.tif" \
-                % (attrName, self.tpg.grid_res, self.tpg.COREG_obj.win_size_XY, tilepos)
-        else:
-            fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s.tif" \
-                % (attrName, self.tpg.grid_res, self.tpg.COREG_obj.win_size_XY)
+        data_interp_lowres, sigmasq = \
+            OK.execute('grid',
+                       cols_lowres.astype(float),
+                       rows_lowres.astype(float),
+                       backend='C',
+                       n_closest_points=12)
 
-        path_out = get_generic_outpath(dir_out=self.tpg.dir_out, fName_out=fName_out)
+        print('kriging runtime: %.2fs' % (time() - t0))
 
-        # add half a pixel as grid points are centered on the output pixels
-        xmin = xmin - grid_res / 2
-        # ymin = ymin - grid_res / 2
-        # xmax = xmax + grid_res / 2
-        ymax = ymax + grid_res / 2
+        RGI = RegularGridInterpolator(points=[cols_lowres, rows_lowres],
+                                      values=data_interp_lowres.T,  # must be in shape [x, y]
+                                      method='linear',
+                                      bounds_error=False)
+        rows_full = np.arange(outshape[0])
+        cols_full = np.arange(outshape[1])
+        data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
 
-        GeoArray(zvalues,
-                 geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
-                 projection=self.tpg.COREG_obj.shift.prj).save(path_out)
+        print('overall interpolation runtime: %.2fs' % (time() - t0))
 
-        return zvalues
+        from matplotlib import pyplot as plt
+        from matplotlib import use
+        use('TkAgg')
+        plt.figure()
+        im = plt.imshow(data_full)
+        plt.colorbar(im)
+        plt.scatter(cols, rows, c=data, edgecolors='black')
+        plt.title(metric)
+        plt.show()
 
-    def _Kriging_mp(self, args_kwargs_dict):
-        args = args_kwargs_dict.get('args', [])
-        kwargs = args_kwargs_dict.get('kwargs', [])
-
-        return self._Kriging_sp(*args, **kwargs)
+        return data_full
