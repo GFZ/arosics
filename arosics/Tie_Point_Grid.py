@@ -36,6 +36,7 @@ import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
+from matplotlib import pyplot as plt
 from scipy.interpolate import Rbf, RegularGridInterpolator
 
 # internal modules
@@ -958,9 +959,10 @@ class Tie_Point_Grid(object):
 
     def to_interpolated_raster(self,
                                metric: str = 'ABS_SHIFT',
-                               method: str = 'Rbf'
+                               method: str = 'Rbf',
+                               plot_result: bool = False
                                ) -> np.ndarray:
-        TPGI = Tie_Point_Grid_Interpolator(self)
+        TPGI = Tie_Point_Grid_Interpolator(self, v=plot_result)
 
         return TPGI.interpolate(metric=metric, method=method)
 
@@ -1239,8 +1241,9 @@ class Tie_Point_Grid_Interpolator(object):
         t0 = time()
 
         rows, cols, data = self._get_pointdata(metric)
-        rows_lowres = np.arange(0, self.tpg.shift.shape[0] + 5, 5)
-        cols_lowres = np.arange(0, self.tpg.shift.shape[1] + 5, 5)
+        nrows_out, ncols_out = self.tpg.shift.shape[:2]
+        rows_lowres = np.arange(0, nrows_out + 5, 5)
+        cols_lowres = np.arange(0, ncols_out + 5, 5)
 
         if method == 'Rbf':
             data_full = self._interpolate_via_rbf(rows, cols, data, rows_lowres, cols_lowres)
@@ -1249,8 +1252,8 @@ class Tie_Point_Grid_Interpolator(object):
         else:
             raise ValueError(method)
 
-        rows_full = np.arange(self.tpg.shift.shape[0])
-        cols_full = np.arange(self.tpg.shift.shape[1])
+        rows_full = np.arange(nrows_out)
+        cols_full = np.arange(ncols_out)
         data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_full, rows_full, cols_full)
 
         if self.v:
@@ -1275,9 +1278,6 @@ class Tie_Point_Grid_Interpolator(object):
                                    data: np.ndarray,
                                    metric: str
                                    ):
-        from matplotlib import pyplot as plt
-        from matplotlib import use
-        use('TkAgg')
         plt.figure()
         im = plt.imshow(data_full)
         plt.colorbar(im)
