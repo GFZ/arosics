@@ -1201,7 +1201,7 @@ class Tie_Point_Refiner(object):
                 break
 
             if count_iter > self.rs_max_iter or \
-                time() - time_start > self.rs_timeout:
+               time() - time_start > self.rs_timeout:
                 break  # keep last values and break while loop
 
             count_iter += 1
