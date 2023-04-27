@@ -1314,14 +1314,23 @@ class Tie_Point_Grid_Interpolator(object):
         # f = Rbf(cols, rows, data, function='linear')
         data_full = f(*np.meshgrid(cols_full, rows_full))
 
-        # https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
-        # from sklearn.gaussian_process import GaussianProcess
-        # gp = GaussianProcess(theta0=0.1, thetaL=.001, thetaU=1., nugget=0.01)
-        # gp.fit(X=np.column_stack([rr[vals], cc[vals]]), y=M[vals])
-        # rr_cc_as_cols = np.column_stack([rr.flatten(), cc.flatten()])
-        # interpolated = gp.predict(rr_cc_as_cols).reshape(M.shape)
-
         return data_full
+
+    # @staticmethod
+    # def _interpolate_via_gaussianprocess(rows: np.ndarray,
+    #                                      cols: np.ndarray,
+    #                                      data: np.ndarray,
+    #                                      rows_full: np.ndarray,
+    #                                      cols_full: np.ndarray
+    #                                      ):
+    #     # https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
+    #     from sklearn.gaussian_process import GaussianProcess
+    #     gp = GaussianProcess(theta0=0.1, thetaL=.001, thetaU=1., nugget=0.01)
+    #     gp.fit(X=np.column_stack([rr[vals], cc[vals]]), y=M[vals])
+    #     rr_cc_as_cols = np.column_stack([rr.flatten(), cc.flatten()])
+    #     data_full = gp.predict(rr_cc_as_cols).reshape(M.shape)
+    #
+    #     return data_full
 
     @staticmethod
     def _interpolate_via_kriging(rows: np.ndarray,
