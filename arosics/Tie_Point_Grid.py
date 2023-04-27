@@ -1310,13 +1310,8 @@ class Tie_Point_Grid_Interpolator(object):
                              cols_full: np.ndarray
                              ):
         # https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
-
-        # f = Rbf(cols, rows, data, function='linear')
-        # f = Rbf(cols, rows, data)
-        # data_full = f(*np.meshgrid(np.arange(outshape[1]),
-        #                            np.arange(outshape[0])))
-
         f = Rbf(cols, rows, data)
+        # f = Rbf(cols, rows, data, function='linear')
         data_full = f(*np.meshgrid(cols_full, rows_full))
 
         # https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
