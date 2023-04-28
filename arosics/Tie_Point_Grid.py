@@ -963,6 +963,18 @@ class Tie_Point_Grid(object):
                                plot_result: bool = False,
                                v: bool = False
                                ) -> np.ndarray:
+        """Interpolate the point data of the given metric into space.
+
+        :param metric:      metric name to interpolate, i.e., one of the column names of
+                            Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
+        :param method:      interpolation algorithm -
+                            - 'linear'
+                            - 'Rbf' (Radial Basis Function)
+                            - 'Kriging' (Ordinary Kriging based on pykrige)
+        :param plot_result: plot the result to assess the interpolation quality
+        :param v:           enable verbose mode
+        :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
+        """
         TPGI = Tie_Point_Grid_Interpolator(self, v=v)
 
         return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result)
@@ -1235,22 +1247,43 @@ class Tie_Point_Refiner(object):
 
 
 class Tie_Point_Grid_Interpolator(object):
-    def __init__(self, tiepointgrid: Tie_Point_Grid, v: bool = False):
+    """Class to interpolate tie point data into space."""
+
+    def __init__(self, tiepointgrid: Tie_Point_Grid, v: bool = False) -> None:
+        """Get an instance of Tie_Point_Grid_Interpolator.
+
+        :param tiepointgrid:    instance of Tie_Point_Grid after computing spatial shifts
+        :param v:               enable verbose mode
+        """
         self.tpg = tiepointgrid
         self.v = v
 
-    def interpolate(self, metric: str, method: str = 'Rbf', plot_result: bool = False):
+    def interpolate(self, metric: str, method: str = 'Rbf', plot_result: bool = False) -> np.array:
+        """Interpolate the point data of the given metric into space.
+
+        :param metric:      metric name to interpolate, i.e., one of the column names of
+                            Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
+        :param method:      interpolation algorithm -
+                            - 'linear'
+                            - 'Rbf' (Radial Basis Function)
+                            - 'Kriging' (Ordinary Kriging based on pykrige)
+        :param plot_result: plot the result to assess the interpolation quality
+        :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
+        """
         t0 = time()
 
         rows, cols, data = self._get_pointdata(metric)
         nrows_out, ncols_out = self.tpg.shift.shape[:2]
         rows_lowres = np.arange(0, nrows_out + 5, 5)
         cols_lowres = np.arange(0, ncols_out + 5, 5)
+        args = rows, cols, data, rows_lowres, cols_lowres
 
-        if method == 'Rbf':
-            data_full = self._interpolate_via_rbf(rows, cols, data, rows_lowres, cols_lowres)
+        if method == 'linear':
+            data_full = self._interpolate_linear(*args)
+        elif method == 'Rbf':
+            data_full = self._interpolate_via_rbf(*args)
         elif method == 'Kriging':
-            data_full = self._interpolate_via_kriging(rows, cols, data, rows_lowres, cols_lowres)
+            data_full = self._interpolate_via_kriging(*args)
         else:
             raise ValueError(method)
 
@@ -1266,6 +1299,7 @@ class Tie_Point_Grid_Interpolator(object):
         return data_full
 
     def _get_pointdata(self, metric: str):
+        """Get the point data for the given metric from Tie_Point_Grid.CoRegPoints_table while ignoring outliers."""
         tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
 
         rows = np.array(tiepoints.Y_IM)
@@ -1281,6 +1315,7 @@ class Tie_Point_Grid_Interpolator(object):
                                    data: np.ndarray,
                                    metric: str
                                    ):
+        """Plot the interpolation result together with the input point data."""
         plt.figure()
         im = plt.imshow(data_full)
         plt.colorbar(im)
@@ -1295,6 +1330,7 @@ class Tie_Point_Grid_Interpolator(object):
                             rows_full: np.ndarray,
                             cols_full: np.ndarray
                             ):
+        """Run linear interpolation."""
         RGI = RegularGridInterpolator(points=[cols, rows],
                                       values=data.T,  # must be in shape [x, y]
                                       method='linear',
@@ -1309,7 +1345,10 @@ class Tie_Point_Grid_Interpolator(object):
                              rows_full: np.ndarray,
                              cols_full: np.ndarray
                              ):
-        # https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
+        """Run Radial Basis Function (RbF) interpolation.
+
+        -> https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
+        """
         f = Rbf(cols, rows, data)
         # f = Rbf(cols, rows, data, function='linear')
         data_full = f(*np.meshgrid(cols_full, rows_full))
@@ -1339,8 +1378,11 @@ class Tie_Point_Grid_Interpolator(object):
                                  rows_full: np.ndarray,
                                  cols_full: np.ndarray
                                  ):
-        # Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
-        #            (Cambridge University Press, 1997) 272 p.
+        """Run Ordinary Kriging interpolation based on pykrige.
+
+        Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
+                   (Cambridge University Press, 1997) 272 p.
+        """
         from pykrige.ok import OrdinaryKriging
 
         OK = OrdinaryKriging(cols.astype(float), rows.astype(float), data.astype(float),
