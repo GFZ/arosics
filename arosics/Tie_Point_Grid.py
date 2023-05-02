@@ -37,7 +37,7 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
 from matplotlib import pyplot as plt
-from scipy.interpolate import Rbf, RegularGridInterpolator, LinearNDInterpolator
+from scipy.interpolate import Rbf, RegularGridInterpolator
 
 # internal modules
 from .CoReg import COREG
