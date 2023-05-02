@@ -1370,7 +1370,7 @@ class Tie_Point_Grid_Interpolator(object):
         -> https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
         """
         try:
-            import sklearn
+            import sklearn  # noqa F401
         except ModuleNotFoundError:
             raise ModuleNotFoundError(
                 "GPR interpolation requires the optional package 'scikit-learn' to be installed. You may install it "
@@ -1406,7 +1406,7 @@ class Tie_Point_Grid_Interpolator(object):
                    (Cambridge University Press, 1997) 272 p.
         """
         try:
-            import pykrige
+            import pykrige  # noqa F401
         except ModuleNotFoundError:
             raise ModuleNotFoundError(
                 "Ordinary Kriging requires the optional package 'pykrige' to be installed. You may install it with "
