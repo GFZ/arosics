@@ -969,7 +969,8 @@ class Tie_Point_Grid(object):
                             Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
         :param method:      interpolation algorithm -
                             - 'linear'
-                            - 'Rbf' (Radial Basis Function)
+                            - 'RBF' (Radial Basis Function)
+                            - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
                             - 'Kriging' (Ordinary Kriging based on pykrige)
         :param plot_result: plot the result to assess the interpolation quality
         :param v:           enable verbose mode
