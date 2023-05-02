@@ -959,7 +959,7 @@ class Tie_Point_Grid(object):
 
     def to_interpolated_raster(self,
                                metric: str = 'ABS_SHIFT',
-                               method: str = 'Rbf',
+                               method: str = 'RBF',
                                plot_result: bool = False,
                                v: bool = False
                                ) -> np.ndarray:
