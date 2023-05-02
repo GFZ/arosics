@@ -1399,7 +1399,7 @@ class Tie_Point_Grid_Interpolator(object):
         gp = GaussianProcessRegressor(
             normalize_y=False,
             alpha=0.001,  # Larger values imply more input noise and result in smoother grids; default: 1e-10
-            kernel=RBF(length_scale=1000))
+            kernel=RBF(length_scale=100))
         gp.fit(np.column_stack([cols, rows]), data.T)
 
         cols_grid, rows_grid = np.meshgrid(cols_full, rows_full)
