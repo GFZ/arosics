@@ -1198,8 +1198,7 @@ class Tie_Point_Refiner(object):
                            ),
                            stop_residuals_sum=int(
                                (self.rs_max_outlier_percentage - self.rs_tolerance) /
-                               100 * src_coords.shape[0]),
-                           random_state=0
+                               100 * src_coords.shape[0])
                            )
             else:
                 warnings.warn('RANSAC filtering could not be applied '
