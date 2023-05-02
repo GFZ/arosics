@@ -961,24 +961,29 @@ class Tie_Point_Grid(object):
                                metric: str = 'ABS_SHIFT',
                                method: str = 'RBF',
                                plot_result: bool = False,
+                               lowres_spacing: int = 5,
                                v: bool = False
                                ) -> np.ndarray:
         """Interpolate the point data of the given metric into space.
 
-        :param metric:      metric name to interpolate, i.e., one of the column names of
-                            Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
-        :param method:      interpolation algorithm -
-                            - 'linear'
-                            - 'RBF' (Radial Basis Function)
-                            - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
-                            - 'Kriging' (Ordinary Kriging based on pykrige)
-        :param plot_result: plot the result to assess the interpolation quality
-        :param v:           enable verbose mode
+        :param metric:          metric name to interpolate, i.e., one of the column names of
+                                Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
+        :param method:          interpolation algorithm -
+                                - 'linear'
+                                - 'RBF' (Radial Basis Function)
+                                - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
+                                - 'Kriging' (Ordinary Kriging based on pykrige)
+        :param plot_result:     plot the result to assess the interpolation quality
+        :param lowres_spacing:  by default, RBF, GPR, and Kriging run a lower resolution which is then linearly
+                                interpolated to the full output image resolution. lowres_spacing defines the number of
+                                pixels between the low resolution grid points
+                                (higher values are faster but less accurate, default: 5)
+        :param v:               enable verbose mode
         :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
         """
         TPGI = Tie_Point_Grid_Interpolator(self, v=v)
 
-        return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result)
+        return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result, lowres_spacing=lowres_spacing)
 
     @staticmethod
     def to_Raster_using_Kriging(*args, **kwargs):
@@ -1259,41 +1264,57 @@ class Tie_Point_Grid_Interpolator(object):
         self.tpg = tiepointgrid
         self.v = v
 
-    def interpolate(self, metric: str, method: str = 'Rbf', plot_result: bool = False) -> np.array:
+    def interpolate(self,
+                    metric: str,
+                    method: str = 'RBF',
+                    plot_result: bool = False,
+                    lowres_spacing: int = 5
+                    ) -> np.array:
         """Interpolate the point data of the given metric into space.
 
-        :param metric:      metric name to interpolate, i.e., one of the column names of
-                            Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
-        :param method:      interpolation algorithm -
-                            - 'linear'
-                            - 'RBF' (Radial Basis Function)
-                            - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
-                            - 'Kriging' (Ordinary Kriging based on pykrige)
-        :param plot_result: plot the result to assess the interpolation quality
+        :param metric:          metric name to interpolate, i.e., one of the column names of
+                                Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
+        :param method:          interpolation algorithm -
+                                - 'linear'
+                                - 'RBF' (Radial Basis Function)
+                                - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
+                                - 'Kriging' (Ordinary Kriging based on pykrige)
+        :param plot_result:     plot the result to assess the interpolation quality
+        :param lowres_spacing:  by default, RBF, GPR, and Kriging run a lower resolution which is then linearly
+                                interpolated to the full output image resolution. lowres_spacing defines the number of
+                                pixels between the low resolution grid points
+                                (higher values are faster but less accurate, default: 5)
         :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
         """
         t0 = time()
 
         rows, cols, data = self._get_pointdata(metric)
         nrows_out, ncols_out = self.tpg.shift.shape[:2]
-        rows_lowres = np.arange(0, nrows_out + 5, 5)
-        cols_lowres = np.arange(0, ncols_out + 5, 5)
-        args = rows, cols, data, rows_lowres, cols_lowres
-
-        if method == 'linear':
-            data_full = self._interpolate_linear(*args)
-        elif method == 'RBF':
-            data_full = self._interpolate_via_rbf(*args)
-        elif method == 'GPR':
-            data_full = self._interpolate_via_gpr(*args)
-        elif method == 'Kriging':
-            data_full = self._interpolate_via_kriging(*args)
-        else:
-            raise ValueError(method)
-
         rows_full = np.arange(nrows_out)
         cols_full = np.arange(ncols_out)
-        data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_full, rows_full, cols_full)
+
+        if method == 'linear':
+            args = rows, cols, data, rows_full, cols_full
+            data_full = self._interpolate_linear(*args)
+
+        else:
+            rows_lowres = np.arange(0, nrows_out + lowres_spacing, lowres_spacing)
+            cols_lowres = np.arange(0, ncols_out + lowres_spacing, lowres_spacing)
+            args = rows, cols, data, rows_lowres, cols_lowres
+
+            if method == 'RBF':
+                data_lowres = self._interpolate_via_rbf(*args)
+            elif method == 'GPR':
+                data_lowres = self._interpolate_via_gpr(*args)
+            elif method == 'Kriging':
+                data_lowres = self._interpolate_via_kriging(*args)
+            else:
+                raise ValueError(method)
+
+            if lowres_spacing > 1:
+                data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_lowres, rows_full, cols_full)
+            else:
+                data_full = data_lowres
 
         if self.v:
             print('interpolation runtime: %.2fs' % (time() - t0))
