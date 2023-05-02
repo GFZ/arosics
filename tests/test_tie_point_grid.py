@@ -129,9 +129,15 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             self.assertTrue(os.path.isfile(outpath))
 
     def test_interpolate_to_raster_rbf(self):
-        arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'Rbf', plot_result=True)
+        arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'RBF', plot_result=True)
 
         self.assertIsInstance(arr_interp, np.ndarray)
+
+    def test_interpolate_to_raster_gpr(self):
+        if find_loader('sklearn'):
+            arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'GPR', plot_result=True)
+
+            self.assertIsInstance(arr_interp, np.ndarray)
 
     def test_interpolate_to_raster_kriging(self):
         if find_loader('pykrige.ok'):

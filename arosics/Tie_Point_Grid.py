@@ -1265,7 +1265,8 @@ class Tie_Point_Grid_Interpolator(object):
                             Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
         :param method:      interpolation algorithm -
                             - 'linear'
-                            - 'Rbf' (Radial Basis Function)
+                            - 'RBF' (Radial Basis Function)
+                            - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
                             - 'Kriging' (Ordinary Kriging based on pykrige)
         :param plot_result: plot the result to assess the interpolation quality
         :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
@@ -1280,8 +1281,10 @@ class Tie_Point_Grid_Interpolator(object):
 
         if method == 'linear':
             data_full = self._interpolate_linear(*args)
-        elif method == 'Rbf':
+        elif method == 'RBF':
             data_full = self._interpolate_via_rbf(*args)
+        elif method == 'GPR':
+            data_full = self._interpolate_via_gpr(*args)
         elif method == 'Kriging':
             data_full = self._interpolate_via_kriging(*args)
         else:
@@ -1345,7 +1348,7 @@ class Tie_Point_Grid_Interpolator(object):
                              rows_full: np.ndarray,
                              cols_full: np.ndarray
                              ):
-        """Run Radial Basis Function (RbF) interpolation.
+        """Run Radial Basis Function (RBF) interpolation.
 
         -> https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
         """
@@ -1355,21 +1358,40 @@ class Tie_Point_Grid_Interpolator(object):
 
         return data_full
 
-    # @staticmethod
-    # def _interpolate_via_gaussianprocess(rows: np.ndarray,
-    #                                      cols: np.ndarray,
-    #                                      data: np.ndarray,
-    #                                      rows_full: np.ndarray,
-    #                                      cols_full: np.ndarray
-    #                                      ):
-    #     # https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
-    #     from sklearn.gaussian_process import GaussianProcess
-    #     gp = GaussianProcess(theta0=0.1, thetaL=.001, thetaU=1., nugget=0.01)
-    #     gp.fit(X=np.column_stack([rr[vals], cc[vals]]), y=M[vals])
-    #     rr_cc_as_cols = np.column_stack([rr.flatten(), cc.flatten()])
-    #     data_full = gp.predict(rr_cc_as_cols).reshape(M.shape)
-    #
-    #     return data_full
+    @staticmethod
+    def _interpolate_via_gpr(rows: np.ndarray,
+                             cols: np.ndarray,
+                             data: np.ndarray,
+                             rows_full: np.ndarray,
+                             cols_full: np.ndarray
+                             ):
+        """Run Gaussian Process Regression (GPR) interpolation.
+
+        -> https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
+        """
+        try:
+            import sklearn
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "GPR interpolation requires the optional package 'scikit-learn' to be installed. You may install it "
+                "with Conda (conda install -c conda-forge scikit-learn) or Pip (pip install scikit-learn)."
+            )
+
+        from sklearn.gaussian_process.kernels import RBF
+        from sklearn.gaussian_process import GaussianProcessRegressor
+
+        gp = GaussianProcessRegressor(
+            normalize_y=False,
+            alpha=0.001,  # Larger values imply more input noise and result in smoother grids; default: 1e-10
+            kernel=RBF(length_scale=1000))
+        gp.fit(np.column_stack([cols, rows]), data.T)
+
+        cols_grid, rows_grid = np.meshgrid(cols_full, rows_full)
+        data_full = \
+            gp.predict(np.column_stack([cols_grid.flat, rows_grid.flat]))\
+            .reshape(rows_grid.shape)
+
+        return data_full
 
     @staticmethod
     def _interpolate_via_kriging(rows: np.ndarray,
