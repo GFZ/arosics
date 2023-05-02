@@ -37,7 +37,7 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
 from matplotlib import pyplot as plt
-from scipy.interpolate import Rbf, RegularGridInterpolator
+from scipy.interpolate import Rbf, RegularGridInterpolator, LinearNDInterpolator
 
 # internal modules
 from .CoReg import COREG
@@ -968,8 +968,7 @@ class Tie_Point_Grid(object):
 
         :param metric:          metric name to interpolate, i.e., one of the column names of
                                 Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
-        :param method:          interpolation algorithm -
-                                - 'linear'
+        :param method:          interpolation algorithm
                                 - 'RBF' (Radial Basis Function)
                                 - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
                                 - 'Kriging' (Ordinary Kriging based on pykrige)
@@ -1199,7 +1198,8 @@ class Tie_Point_Refiner(object):
                            ),
                            stop_residuals_sum=int(
                                (self.rs_max_outlier_percentage - self.rs_tolerance) /
-                               100 * src_coords.shape[0])
+                               100 * src_coords.shape[0]),
+                           random_state=0
                            )
             else:
                 warnings.warn('RANSAC filtering could not be applied '
@@ -1274,8 +1274,7 @@ class Tie_Point_Grid_Interpolator(object):
 
         :param metric:          metric name to interpolate, i.e., one of the column names of
                                 Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
-        :param method:          interpolation algorithm -
-                                - 'linear'
+        :param method:          interpolation algorithm
                                 - 'RBF' (Radial Basis Function)
                                 - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
                                 - 'Kriging' (Ordinary Kriging based on pykrige)
@@ -1290,31 +1289,26 @@ class Tie_Point_Grid_Interpolator(object):
 
         rows, cols, data = self._get_pointdata(metric)
         nrows_out, ncols_out = self.tpg.shift.shape[:2]
-        rows_full = np.arange(nrows_out)
-        cols_full = np.arange(ncols_out)
 
-        if method == 'linear':
-            args = rows, cols, data, rows_full, cols_full
-            data_full = self._interpolate_linear(*args)
+        rows_lowres = np.arange(0, nrows_out + lowres_spacing, lowres_spacing)
+        cols_lowres = np.arange(0, ncols_out + lowres_spacing, lowres_spacing)
+        args = rows, cols, data, rows_lowres, cols_lowres
 
+        if method == 'RBF':
+            data_lowres = self._interpolate_via_rbf(*args)
+        elif method == 'GPR':
+            data_lowres = self._interpolate_via_gpr(*args)
+        elif method == 'Kriging':
+            data_lowres = self._interpolate_via_kriging(*args)
         else:
-            rows_lowres = np.arange(0, nrows_out + lowres_spacing, lowres_spacing)
-            cols_lowres = np.arange(0, ncols_out + lowres_spacing, lowres_spacing)
-            args = rows, cols, data, rows_lowres, cols_lowres
+            raise ValueError(method)
 
-            if method == 'RBF':
-                data_lowres = self._interpolate_via_rbf(*args)
-            elif method == 'GPR':
-                data_lowres = self._interpolate_via_gpr(*args)
-            elif method == 'Kriging':
-                data_lowres = self._interpolate_via_kriging(*args)
-            else:
-                raise ValueError(method)
-
-            if lowres_spacing > 1:
-                data_full = self._interpolate_linear(rows_lowres, cols_lowres, data_lowres, rows_full, cols_full)
-            else:
-                data_full = data_lowres
+        if lowres_spacing > 1:
+            rows_full = np.arange(nrows_out)
+            cols_full = np.arange(ncols_out)
+            data_full = self._interpolate_regulargrid(rows_lowres, cols_lowres, data_lowres, rows_full, cols_full)
+        else:
+            data_full = data_lowres
 
         if self.v:
             print('interpolation runtime: %.2fs' % (time() - t0))
@@ -1341,7 +1335,7 @@ class Tie_Point_Grid_Interpolator(object):
                                    metric: str
                                    ):
         """Plot the interpolation result together with the input point data."""
-        plt.figure()
+        plt.figure(figsize=(7, 7))
         im = plt.imshow(data_full)
         plt.colorbar(im)
         plt.scatter(cols, rows, c=data, edgecolors='black')
@@ -1349,13 +1343,13 @@ class Tie_Point_Grid_Interpolator(object):
         plt.show()
 
     @staticmethod
-    def _interpolate_linear(rows: np.ndarray,
-                            cols: np.ndarray,
-                            data: np.ndarray,
-                            rows_full: np.ndarray,
-                            cols_full: np.ndarray
-                            ):
-        """Run linear interpolation."""
+    def _interpolate_regulargrid(rows: np.ndarray,
+                                 cols: np.ndarray,
+                                 data: np.ndarray,
+                                 rows_full: np.ndarray,
+                                 cols_full: np.ndarray
+                                 ):
+        """Run linear regular grid interpolation."""
         RGI = RegularGridInterpolator(points=[cols, rows],
                                       values=data.T,  # must be in shape [x, y]
                                       method='linear',
