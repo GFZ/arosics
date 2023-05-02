@@ -1405,6 +1405,14 @@ class Tie_Point_Grid_Interpolator(object):
         Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
                    (Cambridge University Press, 1997) 272 p.
         """
+        try:
+            import pykrige
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "Ordinary Kriging requires the optional package 'pykrige' to be installed. You may install it with "
+                "Conda (conda install -c conda-forge pykrige) or Pip (pip install pykrige)."
+            )
+
         from pykrige.ok import OrdinaryKriging
 
         OK = OrdinaryKriging(cols.astype(float), rows.astype(float), data.astype(float),
