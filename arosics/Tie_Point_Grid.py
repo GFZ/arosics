@@ -1446,6 +1446,7 @@ class Tie_Point_Grid_Interpolator(object):
                        cols_full.astype(float),
                        rows_full.astype(float),
                        backend='C',
-                       n_closest_points=12)
+                       # n_closest_points=12
+                       )
 
         return data_full
