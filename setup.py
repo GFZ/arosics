@@ -58,7 +58,7 @@ req = [
     'pyproj>2.2.0',
     'py_tools_ds>=0.18.0',
     'scikit-image>=0.16.0',
-    'scikit-learn'
+    'scikit-learn',
     'scipy',
     'shapely',
 ]
