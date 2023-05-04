@@ -2,6 +2,15 @@
 History
 =======
 
+1.9.0 (2023-05-04)
+------------------
+
+* Re-implemented interpolation of tie point attributes into space (!23).
+  Three techniques are now supported: RBF, GPR, and Ordinary Kriging. Added scikit-learn to dependencies.
+* Fixed GDAL warning related to PROJ_DATA/PROJ_LIB environment variables (!34).
+* Added parameter 'rs_random_state' (RANSAC random state) and set it to 0 by default (!35).
+
+
 1.8.1 (2023-03-10)
 ------------------
 

@@ -58,6 +58,8 @@ req = [
     'pyproj>2.2.0',
     'py_tools_ds>=0.18.0',
     'scikit-image>=0.16.0',
+    'scikit-learn',
+    'scipy',
     'shapely',
 ]
 
@@ -115,7 +117,7 @@ setup(
         "Source code": "https://git.gfz-potsdam.de/danschef/arosics",
         "Issue Tracker": "https://git.gfz-potsdam.de/danschef/arosics/-/issues",
         "Documentation": "https://danschef.git-pages.gfz-potsdam.de/arosics/doc/",
-        "Change log": "https://git.gfz-potsdam.de/danschef/arosics/-/blob/master/HISTORY.rst",
+        "Change log": "https://git.gfz-potsdam.de/danschef/arosics/-/blob/main/HISTORY.rst",
         "Algorithm paper": "https://www.mdpi.com/2072-4292/9/7/676",
         "Zenodo": "https://zenodo.org/record/5093940"
     },
