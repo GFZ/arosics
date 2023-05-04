@@ -2,8 +2,8 @@
 History
 =======
 
-1.9.0 (coming soon)
--------------------
+1.9.0 (2023-05-04)
+------------------
 
 * Re-implemented interpolation of tie point attributes into space (!23).
   Three techniques are now supported: RBF, GPR, and Ordinary Kriging. Added scikit-learn to dependencies.
