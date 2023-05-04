@@ -67,7 +67,7 @@ test_arosics_install:
   stage: test
   script:
     - source /opt/conda/bin/activate
-    - mamba update -n base -c conda-forge --all
+    - mamba update -n base mamba conda
 
     # create arosics environment from environment_arosics.yml
     - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
