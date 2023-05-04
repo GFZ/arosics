@@ -84,6 +84,7 @@ class COREG_LOCAL(object):
                  min_reliability: float = 60,
                  rs_max_outlier: float = 10,
                  rs_tolerance: float = 2.5,
+                 rs_random_state: Optional[int] = 0,
                  align_grids: bool = True,
                  match_gsd: bool = False,
                  out_gsd: float = None,
@@ -180,6 +181,9 @@ class COREG_LOCAL(object):
 
         :param rs_tolerance:
             RANSAC tie point filtering: percentage tolerance for max_outlier_percentage (default: 2.5%)
+
+        :param rs_random_state:
+            RANSAC random state (an integer corresponds to a fixed/pseudo-random state, None randomizes the result)
 
         :param align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
@@ -293,6 +297,7 @@ class COREG_LOCAL(object):
         self.min_reliability = min_reliability
         self.rs_max_outlier = rs_max_outlier
         self.rs_tolerance = rs_tolerance
+        self.rs_random_state = rs_random_state
         self.align_grids = align_grids
         self.match_gsd = match_gsd
         self.out_gsd = out_gsd
@@ -475,7 +480,8 @@ class COREG_LOCAL(object):
                            outlDetect_settings=dict(
                                min_reliability=self.min_reliability,
                                rs_max_outlier=self.rs_max_outlier,
-                               rs_tolerance=self.rs_tolerance),
+                               rs_tolerance=self.rs_tolerance,
+                               rs_random_state=self.rs_random_state),
                            dir_out=self.projectDir,
                            CPUs=self.CPUs,
                            progress=self.progress,
