@@ -7,6 +7,7 @@ History
 
 * Re-implemented interpolation of tie point attributes into space (!23).
   Three techniques are now supported: RBF, GPR, and Ordinary Kriging. Added scikit-learn to dependencies.
+* Fixed GDAL warning related to PROJ_DATA/PROJ_LIB environment variables (!34).
 
 
 1.8.1 (2023-03-10)
