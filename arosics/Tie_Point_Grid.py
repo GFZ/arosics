@@ -130,7 +130,7 @@ class Tie_Point_Grid(object):
         :param outlDetect_settings:
             a dictionary with the settings to be passed to arosics.TiePointGrid.Tie_Point_Refiner.
             Available keys: min_reliability, rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
-            rs_timeout, q. See documentation there.
+            rs_timeout, rs_random_state, q. See documentation there.
 
         :param dir_out:
             output directory to be used for all outputs if nothing else is given to the individual methods
@@ -1000,6 +1000,7 @@ class Tie_Point_Refiner(object):
                  rs_max_iter: int = 15,
                  rs_exclude_previous_outliers: bool = True,
                  rs_timeout: float = 20,
+                 rs_random_state: Optional[int] = 0,
                  q: bool = False):
         """Get an instance of Tie_Point_Refiner.
 
@@ -1016,6 +1017,8 @@ class Tie_Point_Refiner(object):
         :param rs_exclude_previous_outliers:    RANSAC: whether to exclude points that have been flagged as
                                                 outlier by earlier filtering (default:True)
         :param rs_timeout:                      RANSAC: timeout for iteration loop in seconds (default: 20)
+        :param rs_random_state:                 RANSAC random state (an integer corresponds to a fixed/pseudo-random
+                                                state, None randomizes the result)
 
         :param q:
         """
@@ -1026,6 +1029,7 @@ class Tie_Point_Refiner(object):
         self.rs_max_iter = rs_max_iter
         self.rs_exclude_previous_outliers = rs_exclude_previous_outliers
         self.rs_timeout = rs_timeout
+        self.rs_random_state = rs_random_state
         self.q = q
         self.new_cols = []
         self.ransac_model_robust = None
@@ -1198,7 +1202,8 @@ class Tie_Point_Refiner(object):
                            ),
                            stop_residuals_sum=int(
                                (self.rs_max_outlier_percentage - self.rs_tolerance) /
-                               100 * src_coords.shape[0])
+                               100 * src_coords.shape[0]),
+                           random_state=self.rs_random_state
                            )
             else:
                 warnings.warn('RANSAC filtering could not be applied '
