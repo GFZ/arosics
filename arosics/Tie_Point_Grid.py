@@ -37,7 +37,7 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
 from matplotlib import pyplot as plt
-from scipy.interpolate import Rbf, RegularGridInterpolator
+from scipy.interpolate import RBFInterpolator, RegularGridInterpolator
 
 # internal modules
 from .CoReg import COREG
@@ -1366,10 +1366,17 @@ class Tie_Point_Grid_Interpolator(object):
         """Run Radial Basis Function (RBF) interpolation.
 
         -> https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
+        -> documents the legacy scipy.interpolate.Rbf
         """
-        f = Rbf(cols, rows, data)
-        # f = Rbf(cols, rows, data, function='linear')
-        data_full = f(*np.meshgrid(cols_full, rows_full))
+        rbf = RBFInterpolator(
+            np.column_stack([cols, rows]), data,
+            kernel="linear",
+            # kernel="thin_plate_spline",
+        )
+        cols_grid, rows_grid = np.meshgrid(cols_full, rows_full)
+        data_full = \
+            rbf(np.column_stack([cols_grid.flat, rows_grid.flat]))\
+            .reshape(rows_grid.shape)
 
         return data_full
 
