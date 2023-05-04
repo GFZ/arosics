@@ -1,32 +1,28 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
+# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
+# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 before_script:
-  - git lfs pull
-
-
+- git lfs pull
 stages:
-  - test
-  - deploy
-  - cleanup
-
-
+- test
+- deploy
+- cleanup
 test_arosics:
   stage: test
-  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
+  coverage: "/TOTAL\\s+\\d+\\s+\\d+\\s+(\\d+%)/"
   script:
-    - source /opt/conda/bin/activate ci_env
-
-    # update py_tools_ds and geoarray
-    - pip install -U py_tools_ds -q
-    - pip install -U geoarray -q
-
-    - pip install scipy  # TODO remove as soon as CI runner is rebuilt
-
-    # run tests
-    - make pytest
-
-    # create the docs
-    - make docs
+  - source /opt/conda/bin/activate ci_env
+  - pip install -U py_tools_ds -q
+  - pip install -U geoarray -q
+  - pip install scipy
+  - make pytest
+  - make docs
   artifacts:
-    expose_as: 'Test and coverage report'
+    expose_as: Test and coverage report
     paths:
     - htmlcov/
     - report.html
@@ -36,122 +32,91 @@ test_arosics:
         coverage_format: cobertura
         path: coverage.xml
       junit: report.xml
-
     expire_in: 30 days
     when: always
-
-
 test_styles:
   stage: test
   script:
-    - source /opt/conda/bin/activate ci_env
-    - make lint
+  - source /opt/conda/bin/activate ci_env
+  - make lint
   artifacts:
     paths:
     - tests/linting/flake8.log
     - tests/linting/pycodestyle.log
     - tests/linting/pydocstyle.log
     when: always
-
-
 test_urls:
   stage: test
   script:
-    - source /opt/conda/bin/activate ci_env
-    - pip install -U urlchecker
-    - make urlcheck
+  - source /opt/conda/bin/activate ci_env
+  - pip install -U urlchecker
+  - make urlcheck
   when: always
-
-
 test_arosics_install:
   stage: test
   script:
-    - source /opt/conda/bin/activate
-    - mamba update -n base -c conda-forge --all
-
-    # create arosics environment from environment_arosics.yml
-    - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
-    - conda activate arosics_test
-
-    # install arosics
-    - pip install -e .
-    - cd ..
-    - pwd
-    - ls
-
-    # test importability
-    - python -c "import arosics; print(arosics)"
-    - python -c "from arosics import COREG, COREG_LOCAL"
+  - source /opt/conda/bin/activate
+  - mamba update -n base -c conda-forge --all
+  - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
+  - conda activate arosics_test
+  - pip install -e .
+  - cd ..
+  - pwd
+  - ls
+  - python -c "import arosics; print(arosics)"
+  - python -c "from arosics import COREG, COREG_LOCAL"
   only:
-    - main
-
-
-pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
+  - main
+pages:
   stage: deploy
   dependencies:
-    - test_arosics
+  - test_arosics
   script:
-    # Create the public directory
-    - rm -rf public
-    - mkdir public
-    - mkdir -p public/doc
-    - mkdir -p public/images/
-    - mkdir -p public/coverage
-    - mkdir -p public/test_reports
-
-    # Copy over the docs
-    - cp -r docs/_build/html/* public/doc/
-    - cp -r docs/images/* public/images/
-
-    # Copy over the coverage reports
-    - cp -r htmlcov/* public/coverage/
-
-    # Copy over the test reports
-    - cp report.html public/test_reports/
-
-    # Check if everything is working great
-    - ls -al public
-    - ls -al public/doc
-    - ls -al public/coverage
-    - ls -al public/test_reports
+  - rm -rf public
+  - mkdir public
+  - mkdir -p public/doc
+  - mkdir -p public/images/
+  - mkdir -p public/coverage
+  - mkdir -p public/test_reports
+  - cp -r docs/_build/html/* public/doc/
+  - cp -r docs/images/* public/images/
+  - cp -r htmlcov/* public/coverage/
+  - cp report.html public/test_reports/
+  - ls -al public
+  - ls -al public/doc
+  - ls -al public/coverage
+  - ls -al public/test_reports
   artifacts:
     paths:
-      - public
+    - public
     expire_in: 30 days
   only:
-    - main
-    - enhancement/improve_docs
-
-
+  - main
+  - enhancement/improve_docs
 deploy_pypi:
   stage: deploy
   dependencies:
-    - test_arosics
+  - test_arosics
   script:
-    - source /opt/conda/bin/activate ci_env
-    - pip install -U twine
-    - python setup.py sdist
-    - twine upload dist/*  # requires creds as environment variables
+  - source /opt/conda/bin/activate ci_env
+  - pip install -U twine
+  - python setup.py sdist
+  - twine upload dist/*
   only:
-    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+  - "/^v\\d+\\.\\d+\\.\\d+([abc]\\d*)?$/"
   except:
-    - dev
-
-
+  - dev
 create_github_release:
-    stage: deploy
-    dependencies:
-        - test_arosics
-    script:
-        - bash ./.github/create_release_from_gitlab_ci.sh  # uses environment variables set in the UI
-    only:
-        - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
-    except:
-        - dev
-
-
-#rever:
-#    stage: deploy
-#    dependencies:
-#        - deploy_pypi
-#    script:
+  stage: deploy
+  dependencies:
+  - test_arosics
+  script:
+  - bash ./.github/create_release_from_gitlab_ci.sh
+  only:
+  - "/^v\\d+\\.\\d+\\.\\d+([abc]\\d*)?$/"
+  except:
+  - dev
+sast:
+  stage: test
+include:
+- template: Security/SAST.gitlab-ci.yml
