@@ -18,6 +18,8 @@ test_arosics:
     - pip install -U py_tools_ds -q
     - pip install -U geoarray -q
 
+    - pip install scipy  # TODO remove as soon as CI runner is rebuilt
+
     # run tests
     - make pytest
 

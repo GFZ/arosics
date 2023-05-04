@@ -34,6 +34,9 @@ import shutil
 import warnings
 
 # custom
+import pytest
+import numpy as np
+
 from .cases import test_cases
 from arosics import COREG_LOCAL, Tie_Point_Grid
 
@@ -125,14 +128,27 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             self.TPG.to_vectorfield(outpath, fmt='ENVI', mode='uv')
             self.assertTrue(os.path.isfile(outpath))
 
-    def test_to_Raster_using_Kriging(self):
+    def test_interpolate_to_raster_rbf(self):
+        arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'RBF', plot_result=True)
+
+        self.assertIsInstance(arr_interp, np.ndarray)
+
+    def test_interpolate_to_raster_gpr(self):
+        if find_loader('sklearn'):
+            arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'GPR', plot_result=True)
+
+            self.assertIsInstance(arr_interp, np.ndarray)
+
+    def test_interpolate_to_raster_kriging(self):
         if find_loader('pykrige.ok'):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                outpath = os.path.join(tmpdir, 'X_SHIFT_M__interpolated.bsq')
-                self.TPG.to_Raster_using_Kriging(attrName='X_SHIFT_M', fName_out=outpath)
-                self.assertTrue(os.path.isfile(outpath))
+            arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'Kriging', plot_result=True)
+
+            self.assertIsInstance(arr_interp, np.ndarray)
+
+    def test_to_Raster_using_Kriging(self):
+        with pytest.raises(NotImplementedError):
+            self.TPG.to_Raster_using_Kriging()
 
 
 if __name__ == '__main__':
-    import pytest
     pytest.main()

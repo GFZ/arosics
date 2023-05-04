@@ -27,7 +27,7 @@ import collections
 import multiprocessing
 import os
 import warnings
-import time
+from time import time, sleep
 from typing import Optional, Union
 
 # custom
@@ -36,6 +36,8 @@ import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
+from matplotlib import pyplot as plt
+from scipy.interpolate import RBFInterpolator, RegularGridInterpolator
 
 # internal modules
 from .CoReg import COREG
@@ -171,7 +173,6 @@ class Tie_Point_Grid(object):
         self.XY_points, self.XY_mapPoints = self._get_imXY__mapXY_points(self.grid_res)
         self._CoRegPoints_table = None  # set by self.CoRegPoints_table
         self._GCPList = None  # set by self.to_GCPList()
-        self.kriged = None  # set by Raster_using_Kriging()
 
     @property
     def mean_x_shift_px(self):
@@ -391,7 +392,7 @@ class Tie_Point_Grid(object):
                     results = pool.map_async(self._get_spatial_shifts, list_coreg_kwargs, chunksize=1)
                     bar = ProgressBar(prefix='\tprogress:')
                     while True:
-                        time.sleep(.1)
+                        sleep(.1)
                         # this does not really represent the remaining tasks but the remaining chunks
                         # -> thus chunksize=1
                         # noinspection PyProtectedMember
@@ -956,78 +957,37 @@ class Tie_Point_Grid(object):
 
         return out_GA
 
-    def to_Raster_using_Kriging(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                                fName_out=None, tilepos=None, tilesize=500, mp=None):
+    def to_interpolated_raster(self,
+                               metric: str = 'ABS_SHIFT',
+                               method: str = 'RBF',
+                               plot_result: bool = False,
+                               lowres_spacing: int = 5,
+                               v: bool = False
+                               ) -> np.ndarray:
+        """Interpolate the point data of the given metric into space.
 
-        mp = False if self.CPUs == 1 else True
-        self._Kriging_sp(attrName, skip_nodata=skip_nodata, skip_nodata_col=skip_nodata_col,
-                         outGridRes=outGridRes, fName_out=fName_out, tilepos=tilepos)
+        :param metric:          metric name to interpolate, i.e., one of the column names of
+                                Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
+        :param method:          interpolation algorithm
+                                - 'RBF' (Radial Basis Function)
+                                - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
+                                - 'Kriging' (Ordinary Kriging based on pykrige)
+        :param plot_result:     plot the result to assess the interpolation quality
+        :param lowres_spacing:  by default, RBF, GPR, and Kriging run a lower resolution which is then linearly
+                                interpolated to the full output image resolution. lowres_spacing defines the number of
+                                pixels between the low resolution grid points
+                                (higher values are faster but less accurate, default: 5)
+        :param v:               enable verbose mode
+        :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
+        """
+        TPGI = Tie_Point_Grid_Interpolator(self, v=v)
 
-        # if mp:
-        #     tilepositions = UTL.get_image_tileborders([tilesize,tilesize],self.tgt_shape)
-        #     args_kwargs_dicts=[]
-        #     for tp in tilepositions:
-        #         kwargs_dict = {'skip_nodata':skip_nodata,'skip_nodata_col':skip_nodata_col,'outGridRes':outGridRes,
-        #                        'fName_out':fName_out,'tilepos':tp}
-        #         args_kwargs_dicts.append({'args':[attrName],'kwargs':kwargs_dict})
-        #     # self.kriged=[]
-        #     # for i in args_kwargs_dicts:
-        #     #     res = self.Kriging_mp(i)
-        #     #     self.kriged.append(res)
-        #     #     print(res)
-        #
-        #     with multiprocessing.Pool() as pool:
-        #        self.kriged = pool.map(self.Kriging_mp,args_kwargs_dicts)
-        #        pool.close()  # needed to make coverage work in multiprocessing
-        #        pool.join()
-        # else:
-        #     self.Kriging_sp(attrName,skip_nodata=skip_nodata,skip_nodata_col=skip_nodata_col,
-        #                     outGridRes=outGridRes,fName_out=fName_out,tilepos=tilepos)
-        res = self.kriged if mp else None
-        return res
+        return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result, lowres_spacing=lowres_spacing)
 
-    def _Kriging_sp(self, attrName, skip_nodata=1, skip_nodata_col='ABS_SHIFT', outGridRes=None,
-                    fName_out=None, tilepos=None):
-        GDF = self.CoRegPoints_table
-        GDF2pass = GDF if not skip_nodata else GDF[GDF[skip_nodata_col] != self.outFillVal]
-
-        X_coords, Y_coords, ABS_SHIFT = GDF2pass['X_MAP'], GDF2pass['Y_MAP'], GDF2pass[attrName]
-
-        xmin, ymin, xmax, ymax = GDF2pass.total_bounds
-
-        grid_res = outGridRes if outGridRes else int(min(xmax - xmin, ymax - ymin) / 250)
-        grid_x, grid_y = np.arange(xmin, xmax + grid_res, grid_res), np.arange(ymax, ymin - grid_res, -grid_res)
-
-        # Reference: P.K. Kitanidis, Introduction to Geostatistcs: Applications in Hydrogeology,
-        #            (Cambridge University Press, 1997) 272 p.
-        from pykrige.ok import OrdinaryKriging
-        OK = OrdinaryKriging(X_coords, Y_coords, ABS_SHIFT, variogram_model='spherical', verbose=False)
-        zvalues, sigmasq = OK.execute('grid', grid_x, grid_y, backend='C', n_closest_points=12)
-
-        if self.CPUs is None or self.CPUs > 1:
-            fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s_%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY, tilepos)
-        else:
-            fName_out = fName_out if fName_out else \
-                "Kriging__%s__grid%s_ws%s.tif" % (attrName, self.grid_res, self.COREG_obj.win_size_XY)
-        path_out = get_generic_outpath(dir_out=self.dir_out, fName_out=fName_out)
-        # add a half pixel grid points are centered on the output pixels
-        xmin = xmin - grid_res / 2
-        # ymin = ymin - grid_res / 2
-        # xmax = xmax + grid_res / 2
-        ymax = ymax + grid_res / 2
-
-        GeoArray(zvalues,
-                 geotransform=(xmin, grid_res, 0, ymax, 0, -grid_res),
-                 projection=self.COREG_obj.shift.prj).save(path_out)
-
-        return zvalues
-
-    def _Kriging_mp(self, args_kwargs_dict):
-        args = args_kwargs_dict.get('args', [])
-        kwargs = args_kwargs_dict.get('kwargs', [])
-
-        return self._Kriging_sp(*args, **kwargs)
+    @staticmethod
+    def to_Raster_using_Kriging(*args, **kwargs):
+        raise NotImplementedError('This method was removed in arosics version 1.8.2. To interpolate tie points into '
+                                  'space, you may now use Tie_Point_Grid.to_interpolated_raster() instead.')
 
 
 class Tie_Point_Refiner(object):
@@ -1185,7 +1145,7 @@ class Tie_Point_Refiner(object):
         th_checked = {}  # dict of thresholds that already have been tried + calculated inlier percentage
         th_substract = 2
         count_iter = 0
-        time_start = time.time()
+        time_start = time()
         ideal_count = min_inlier_percentage * src_coords.shape[0] / 100
 
         # optimize RANSAC threshold so that it marks not much more or less than the given outlier percentage
@@ -1258,7 +1218,7 @@ class Tie_Point_Refiner(object):
                 break
 
             if count_iter > self.rs_max_iter or \
-               time.time() - time_start > self.rs_timeout:
+               time() - time_start > self.rs_timeout:
                 break  # keep last values and break while loop
 
             count_iter += 1
@@ -1289,3 +1249,204 @@ class Tie_Point_Refiner(object):
         self.ransac_model_robust = model_robust
 
         return outseries
+
+
+class Tie_Point_Grid_Interpolator(object):
+    """Class to interpolate tie point data into space."""
+
+    def __init__(self, tiepointgrid: Tie_Point_Grid, v: bool = False) -> None:
+        """Get an instance of Tie_Point_Grid_Interpolator.
+
+        :param tiepointgrid:    instance of Tie_Point_Grid after computing spatial shifts
+        :param v:               enable verbose mode
+        """
+        self.tpg = tiepointgrid
+        self.v = v
+
+    def interpolate(self,
+                    metric: str,
+                    method: str = 'RBF',
+                    plot_result: bool = False,
+                    lowres_spacing: int = 5
+                    ) -> np.array:
+        """Interpolate the point data of the given metric into space.
+
+        :param metric:          metric name to interpolate, i.e., one of the column names of
+                                Tie_Point_Grid.CoRegPoints_table, e.g., 'ABS_SHIFT'.
+        :param method:          interpolation algorithm
+                                - 'RBF' (Radial Basis Function)
+                                - 'GPR' (Gaussian Process Regression; equivalent to Simple Kriging)
+                                - 'Kriging' (Ordinary Kriging based on pykrige)
+        :param plot_result:     plot the result to assess the interpolation quality
+        :param lowres_spacing:  by default, RBF, GPR, and Kriging run a lower resolution which is then linearly
+                                interpolated to the full output image resolution. lowres_spacing defines the number of
+                                pixels between the low resolution grid points
+                                (higher values are faster but less accurate, default: 5)
+        :return:    interpolation result as numpy array in the X/Y dimension of the target image of the co-registration
+        """
+        t0 = time()
+
+        rows, cols, data = self._get_pointdata(metric)
+        nrows_out, ncols_out = self.tpg.shift.shape[:2]
+
+        rows_lowres = np.arange(0, nrows_out + lowres_spacing, lowres_spacing)
+        cols_lowres = np.arange(0, ncols_out + lowres_spacing, lowres_spacing)
+        args = rows, cols, data, rows_lowres, cols_lowres
+
+        if method == 'RBF':
+            data_lowres = self._interpolate_via_rbf(*args)
+        elif method == 'GPR':
+            data_lowres = self._interpolate_via_gpr(*args)
+        elif method == 'Kriging':
+            data_lowres = self._interpolate_via_kriging(*args)
+        else:
+            raise ValueError(method)
+
+        if lowres_spacing > 1:
+            rows_full = np.arange(nrows_out)
+            cols_full = np.arange(ncols_out)
+            data_full = self._interpolate_regulargrid(rows_lowres, cols_lowres, data_lowres, rows_full, cols_full)
+        else:
+            data_full = data_lowres
+
+        if self.v:
+            print('interpolation runtime: %.2fs' % (time() - t0))
+        if plot_result:
+            self._plot_interpolation_result(data_full, rows, cols, data, metric)
+
+        return data_full
+
+    def _get_pointdata(self, metric: str):
+        """Get the point data for the given metric from Tie_Point_Grid.CoRegPoints_table while ignoring outliers."""
+        tiepoints = self.tpg.CoRegPoints_table[self.tpg.CoRegPoints_table.OUTLIER.__eq__(False)].copy()
+
+        rows = np.array(tiepoints.Y_IM)
+        cols = np.array(tiepoints.X_IM)
+        data = np.array(tiepoints[metric])
+
+        return rows, cols, data
+
+    @staticmethod
+    def _plot_interpolation_result(data_full: np.ndarray,
+                                   rows: np.ndarray,
+                                   cols: np.ndarray,
+                                   data: np.ndarray,
+                                   metric: str
+                                   ):
+        """Plot the interpolation result together with the input point data."""
+        plt.figure(figsize=(7, 7))
+        im = plt.imshow(data_full)
+        plt.colorbar(im)
+        plt.scatter(cols, rows, c=data, edgecolors='black')
+        plt.title(metric)
+        plt.show()
+
+    @staticmethod
+    def _interpolate_regulargrid(rows: np.ndarray,
+                                 cols: np.ndarray,
+                                 data: np.ndarray,
+                                 rows_full: np.ndarray,
+                                 cols_full: np.ndarray
+                                 ):
+        """Run linear regular grid interpolation."""
+        RGI = RegularGridInterpolator(points=[cols, rows],
+                                      values=data.T,  # must be in shape [x, y]
+                                      method='linear',
+                                      bounds_error=False)
+        data_full = RGI(np.dstack(np.meshgrid(cols_full, rows_full)))
+        return data_full
+
+    @staticmethod
+    def _interpolate_via_rbf(rows: np.ndarray,
+                             cols: np.ndarray,
+                             data: np.ndarray,
+                             rows_full: np.ndarray,
+                             cols_full: np.ndarray
+                             ):
+        """Run Radial Basis Function (RBF) interpolation.
+
+        -> https://github.com/agile-geoscience/xlines/blob/master/notebooks/11_Gridding_map_data.ipynb
+        -> documents the legacy scipy.interpolate.Rbf
+        """
+        rbf = RBFInterpolator(
+            np.column_stack([cols, rows]), data,
+            kernel="linear",
+            # kernel="thin_plate_spline",
+        )
+        cols_grid, rows_grid = np.meshgrid(cols_full, rows_full)
+        data_full = \
+            rbf(np.column_stack([cols_grid.flat, rows_grid.flat]))\
+            .reshape(rows_grid.shape)
+
+        return data_full
+
+    @staticmethod
+    def _interpolate_via_gpr(rows: np.ndarray,
+                             cols: np.ndarray,
+                             data: np.ndarray,
+                             rows_full: np.ndarray,
+                             cols_full: np.ndarray
+                             ):
+        """Run Gaussian Process Regression (GPR) interpolation.
+
+        -> https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python
+        """
+        try:
+            import sklearn  # noqa F401
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "GPR interpolation requires the optional package 'scikit-learn' to be installed. You may install it "
+                "with Conda (conda install -c conda-forge scikit-learn) or Pip (pip install scikit-learn)."
+            )
+
+        from sklearn.gaussian_process.kernels import RBF
+        from sklearn.gaussian_process import GaussianProcessRegressor
+
+        gp = GaussianProcessRegressor(
+            normalize_y=False,
+            alpha=0.001,  # Larger values imply more input noise and result in smoother grids; default: 1e-10
+            kernel=RBF(length_scale=100))
+        gp.fit(np.column_stack([cols, rows]), data.T)
+
+        cols_grid, rows_grid = np.meshgrid(cols_full, rows_full)
+        data_full = \
+            gp.predict(np.column_stack([cols_grid.flat, rows_grid.flat]))\
+            .reshape(rows_grid.shape)
+
+        return data_full
+
+    @staticmethod
+    def _interpolate_via_kriging(rows: np.ndarray,
+                                 cols: np.ndarray,
+                                 data: np.ndarray,
+                                 rows_full: np.ndarray,
+                                 cols_full: np.ndarray
+                                 ):
+        """Run Ordinary Kriging interpolation based on pykrige.
+
+        Reference: P.K. Kitanidis, Introduction to Geostatistics: Applications in Hydrogeology,
+                   (Cambridge University Press, 1997) 272 p.
+        """
+        try:
+            import pykrige  # noqa F401
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "Ordinary Kriging requires the optional package 'pykrige' to be installed. You may install it with "
+                "Conda (conda install -c conda-forge pykrige) or Pip (pip install pykrige)."
+            )
+
+        from pykrige.ok import OrdinaryKriging
+
+        OK = OrdinaryKriging(cols.astype(float), rows.astype(float), data.astype(float),
+                             variogram_model='spherical',
+                             verbose=False)
+
+        data_full, sigmasq = \
+            OK.execute('grid',
+                       cols_full.astype(float),
+                       rows_full.astype(float),
+                       backend='C',
+                       # n_closest_points=12
+                       )
+
+        return data_full
