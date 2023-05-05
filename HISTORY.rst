@@ -2,6 +2,12 @@
 History
 =======
 
+1.9.1 (coming soon)
+-------------------
+
+* Removed dill from requirements.
+
+
 1.9.0 (2023-05-04)
 ------------------
 

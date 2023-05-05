@@ -42,11 +42,10 @@ with open("arosics/version.py") as version_file:
 req = [
     'cartopy',
     'cmocean',
-    'dill',
     'folium>=0.6.0,!=0.12.0',
     'gdal',
-    'geojson',
     'geoarray>=0.15.0',
+    'geojson',
     'geopandas',
     'matplotlib',
     'numpy',
