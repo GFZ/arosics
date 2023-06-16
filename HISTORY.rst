@@ -8,6 +8,7 @@ History
 * Removed dill from requirements.
 * !37: Fixed issue #82 (IndexError: cannot do a non-empty take from an empty axes) which happened in case COREG_LOCAL
   could not find a single tie point.
+* !38: Updated CI (now faster) and environment file (now uses conda where ever possible).
 
 
 1.9.0 (2023-05-04)
