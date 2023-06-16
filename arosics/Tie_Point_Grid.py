@@ -435,11 +435,13 @@ class Tie_Point_Grid(object):
         GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
         GDF.crs = crs  # gets lost when using GDF.astype(np.object), so we have to reassign that
 
+        n_matches = len(GDF[GDF.LAST_ERR == int(self.outFillVal)])
+
         if not self.q:
-            print("Found %s matches." % len(GDF[GDF.LAST_ERR == int(self.outFillVal)]))
+            print(f"Found {n_matches} matches.")
 
         # filter tie points according to given filter level
-        if self.tieP_filter_level > 0:
+        if n_matches > 0 and self.tieP_filter_level > 0:
             if not self.q:
                 print('Performing validity checks...')
             TPR = Tie_Point_Refiner(GDF[GDF.ABS_SHIFT != self.outFillVal], **self.outlDetect_settings)
@@ -451,7 +453,7 @@ class Tie_Point_Grid(object):
         self.CoRegPoints_table = GDF
 
         if not self.q:
-            if GDF.empty:
+            if n_matches == 0 or GDF.empty:
                 warnings.warn('No valid GCPs could by identified.')
             else:
                 if self.tieP_filter_level > 0:
