@@ -1,4 +1,4 @@
-FROM ci_base_ubuntu:0.1
+FROM ci_base_ubuntu:0.2
 
 # use bash shell instead of sh shell for all docker commands
 SHELL ["/bin/bash", "-c"]
@@ -7,10 +7,9 @@ SHELL ["/bin/bash", "-c"]
 COPY *.yml /root/
 
 # update base environment
-RUN mamba update --all -y && \
+RUN mamba update -y -n base mamba conda && \
     conda clean -afy
 
 # create ci_env environment
 RUN mamba env create -n ci_env -f /root/environment_arosics.yml && \
-    conda clean -afy && \
-    conda list
+    conda clean -afy
