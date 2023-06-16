@@ -12,13 +12,10 @@ test_arosics:
   stage: test
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
   script:
-    - source /opt/conda/bin/activate ci_env
+    - source activate ci_env
 
     # update py_tools_ds and geoarray
-    - pip install -U py_tools_ds -q
-    - pip install -U geoarray -q
-
-    - pip install scipy  # TODO remove as soon as CI runner is rebuilt
+    - mamba update py-tools-ds geoarray
 
     # run tests
     - make pytest
@@ -44,7 +41,7 @@ test_arosics:
 test_styles:
   stage: test
   script:
-    - source /opt/conda/bin/activate ci_env
+    - source activate ci_env
     - make lint
   artifacts:
     paths:
@@ -57,7 +54,7 @@ test_styles:
 test_urls:
   stage: test
   script:
-    - source /opt/conda/bin/activate ci_env
+    - source activate ci_env
     - pip install -U urlchecker
     - make urlcheck
   when: always
@@ -66,7 +63,7 @@ test_urls:
 test_arosics_install:
   stage: test
   script:
-    - source /opt/conda/bin/activate
+    - source activate
     - mamba update -n base mamba conda
 
     # create arosics environment from environment_arosics.yml
@@ -82,6 +79,9 @@ test_arosics_install:
     # test importability
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
+
+    # check if dependencies are properly installed
+    - pip check || exit
   only:
     - main
 
@@ -128,7 +128,7 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:
-    - source /opt/conda/bin/activate ci_env
+    - source activate ci_env
     - pip install -U twine
     - python setup.py sdist
     - twine upload dist/*  # requires creds as environment variables
