@@ -8,14 +8,17 @@ dependencies:
   - pip
   - cartopy
   - cmocean
+  - folium>=0.6.0,!=0.12.0
   - gdal
   - geoarray>=0.15.0
+  - geojson
   - geopandas
   - holoviews
   - ipython  # needed to test interactive plotting
   - matplotlib
   - nbformat  # optional dependency of plotly, needed to test interactive plotting
   - numpy
+  - packaging
   - pandas
   - plotly
   - pyfftw  # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
@@ -24,23 +27,21 @@ dependencies:
   - py-tools-ds>=0.18.0
   - scikit-image>=0.16.0
   - scikit-learn
+  - scipy
   - shapely
 
-  - pip:
-    - folium>=0.6.0,!=0.12.0
-    - geojson
-    - packaging
-    - scipy
+  # doc/lint/test requirements
+  - flake8
+  - pycodestyle
+  - pydocstyle
+  - pylint
+  - pytest
+  - pytest-cov
+  - pytest-reporter-html1
+  - sphinx-argparse
+  - sphinx-autodoc-typehints
+  - sphinx_rtd_theme
+  - urlchecker
 
-    # doc requirements
-    - flake8
-    - pycodestyle
-    - pydocstyle
-    - pylint
-    - pytest
-    - pytest-cov
+  - pip:
     - pytest-reporter-html1
-    - sphinx-argparse
-    - sphinx-autodoc-typehints
-    - sphinx_rtd_theme
-    - urlchecker
