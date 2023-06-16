@@ -6,6 +6,7 @@ History
 -------------------
 
 * Removed dill from requirements.
+* !38: Updated CI (now faster) and environment file (now uses conda where ever possible).
 
 
 1.9.0 (2023-05-04)
