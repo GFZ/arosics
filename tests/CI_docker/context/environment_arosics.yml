@@ -37,7 +37,6 @@ dependencies:
   - pylint
   - pytest
   - pytest-cov
-  - pytest-reporter-html1
   - sphinx-argparse
   - sphinx-autodoc-typehints
   - sphinx_rtd_theme
