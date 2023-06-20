@@ -42,7 +42,10 @@ __email__ = 'daniel.scheffler@gfz-potsdam.de'
 __all__ = ['COREG',
            'COREG_LOCAL',
            'DESHIFTER',
-           'Tie_Point_Grid']
+           'Tie_Point_Grid',
+           '__version__',
+           '__versionalias__'
+           ]
 
 
 # check optional dependencies
