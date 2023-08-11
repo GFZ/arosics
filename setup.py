@@ -110,6 +110,7 @@ setup(
     keywords=['arosics', 'image co-registration', 'geometric pre-processing', 'remote sensing', 'sensor fusion'],
     license="Apache-2.0",
     long_description=readme,
+    long_description_content_type='text/x-rst',
     name='arosics',
     packages=find_packages(exclude=['tests*']),
     project_urls={

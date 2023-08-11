@@ -6,6 +6,7 @@ History
 ------------------
 
 * !39: Fixed RANSAC deprecation warning and bumped minimal version of scikit-learn to 0.21.0.
+* !40: Fixed warnings during package build process.
 
 
 1.9.1 (2023-06-16)
