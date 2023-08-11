@@ -2,6 +2,12 @@
 History
 =======
 
+1.9.2 (2023-08-11)
+------------------
+
+* !39: Fixed RANSAC deprecation warning and bumped minimal version of scikit-learn to 0.21.0.
+
+
 1.9.1 (2023-06-16)
 ------------------
 
