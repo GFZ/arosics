@@ -130,8 +130,9 @@ deploy_pypi:
     - test_arosics
   script:
     - source activate ci_env
-    - pip install -U twine
-    - python setup.py sdist
+    - pip install -U twine build
+    - python -m build --sdist
+    - twine check dist/*
     - twine upload dist/*  # requires creds as environment variables
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
