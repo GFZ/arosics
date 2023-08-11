@@ -16,6 +16,7 @@ test_arosics:
 
     # update py_tools_ds and geoarray
     - mamba update py-tools-ds geoarray
+    - mamba install "scikit-image>=0.21.0"  # TODO: remove as soon as CI runner is rebuilt
 
     # run tests
     - make pytest
