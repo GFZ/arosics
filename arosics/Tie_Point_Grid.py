@@ -1157,7 +1157,7 @@ class Tie_Point_Refiner(object):
         # optimize RANSAC threshold so that it marks not much more or less than the given outlier percentage
         while True:
             if th_checked:
-                th_too_strict = count_inliers < ideal_count  # True if too less inliers remaining
+                th_too_strict = count_inliers < ideal_count  # True if too few inliers remaining
 
                 # calculate new theshold using old increment
                 # (but ensure th_new>0 by adjusting increment if needed)
@@ -1205,7 +1205,7 @@ class Tie_Point_Refiner(object):
                            stop_residuals_sum=int(
                                (self.rs_max_outlier_percentage - self.rs_tolerance) /
                                100 * src_coords.shape[0]),
-                           random_state=self.rs_random_state
+                           rng=self.rs_random_state
                            )
             else:
                 warnings.warn('RANSAC filtering could not be applied '
