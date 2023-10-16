@@ -67,7 +67,7 @@ req_setup = [
     'setuptools-git'
 ]
 
-req_intplot = ['holoviews', 'ipython']
+req_intplot = ['holoviews', 'ipython', 'nbformat']
 
 req_test = ['pytest', 'pytest-cov', 'pytest-reporter-html1', 'urlchecker'] + req_intplot
 
