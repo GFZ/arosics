@@ -706,7 +706,7 @@ class COREG(object):
             otherWin_corr = self._get_deshifted_otherWin() if after_correction in [True, None] else None
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
-            def get_hv_image(geoArr):
+            def get_hv_image(geoArr: GeoArray):
                 from skimage.exposure import rescale_intensity  # import here to avoid static TLS ImportError
 
                 arr_masked = np.ma.masked_equal(geoArr[:], geoArr.nodata)
@@ -714,14 +714,19 @@ class COREG(object):
                 vmax = np.nanpercentile(arr_masked.compressed(), pmax)
                 arr2plot = rescale_intensity(arr_masked, in_range=(vmin, vmax), out_range='int8')
 
-                return hv.Image(arr2plot, bounds=(xmin, ymin, xmax, ymax))\
-                    .opts(style={'cmap': 'gray',
-                                 'vmin': vmin,
-                                 'vmax': vmax,
-                                 'interpolation': 'none'},
-                          plot={'fig_inches': figsize,
-                                # 'fig_size': 100,
-                                'show_grid': True})
+                return (
+                    hv.Image(
+                        arr2plot,
+                        bounds=(xmin, ymin, xmax, ymax)
+                    ).options(
+                        cmap='gray',
+                        vmin=vmin,
+                        vmax=vmax,
+                        interpolation='none',
+                        fig_inches=figsize,
+                        show_grid=True
+                    )
+                )
 
             hvIm_matchWin = get_hv_image(self.matchWin)
             hvIm_otherWin_orig = get_hv_image(self.otherWin)
