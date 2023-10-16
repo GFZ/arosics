@@ -734,7 +734,7 @@ class COREG(object):
 
             if after_correction is None:
                 # view both states
-                print('Matching window before and after correction (above and below): ')
+                print('Matching window before and after correction (left and right): ')
 
                 # get layouts (docs on options: https://holoviews.org/user_guide)
                 layout_before = (hvIm_matchWin + hvIm_matchWin).opts(plot=dict(fig_inches=figsize))
@@ -742,7 +742,7 @@ class COREG(object):
 
                 # plot!
                 imgs = {1: layout_before, 2: layout_after}
-                hmap = hv.HoloMap(imgs, kdims=['image']).collate().cols(1)
+                hmap = hv.HoloMap(imgs, kdims=['image']).collate().cols(2)
 
             else:
                 # view state before or after correction
