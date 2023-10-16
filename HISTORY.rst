@@ -2,6 +2,13 @@
 History
 =======
 
+1.9.3 (2023-10-16)
+------------------
+
+* !41: Fixed #86 (ValueError when calling CoReg.show_matchWin(interactive=True))
+  and improved interactive output of CoReg.show_matchWin.
+
+
 1.9.2 (2023-08-11)
 ------------------
 
