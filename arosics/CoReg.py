@@ -737,8 +737,18 @@ class COREG(object):
                 print('Matching window before and after correction (left and right): ')
 
                 # get layouts (docs on options: https://holoviews.org/user_guide)
-                layout_before = (hvIm_matchWin + hvIm_matchWin).opts(plot=dict(fig_inches=figsize))
-                layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr).opts(plot=dict(fig_inches=figsize))
+                layout_before = (
+                    hvIm_matchWin.options(title='BEFORE co-registration') +
+                    hvIm_matchWin.options(title='AFTER co-registration')
+                ).options(
+                    fig_inches=figsize
+                )
+                layout_after = (
+                    hvIm_otherWin_orig.options(title='BEFORE co-registration') +
+                    hvIm_otherWin_corr.options(title='AFTER co-registration')
+                ).options(
+                    fig_inches=figsize
+                )
 
                 # plot!
                 imgs = {1: layout_before, 2: layout_after}
