@@ -1246,11 +1246,13 @@ class COREG(object):
     @staticmethod
     def _clip_image(im, center_YX, winSzYX):  # TODO this is also implemented in GeoArray
 
-        def get_bounds(YX, wsY, wsX):
-            return int(YX[1] - (wsX / 2)),\
-                   int(YX[1] + (wsX / 2)),\
-                   int(YX[0] - (wsY / 2)),\
-                   int(YX[0] + (wsY / 2))
+        def get_bounds(YX: tuple, wsY: float, wsX: float):
+            return (
+                int(YX[1] - (wsX / 2)),
+                int(YX[1] + (wsX / 2)),
+                int(YX[0] - (wsY / 2)),
+                int(YX[0] + (wsY / 2))
+            )
 
         wsY, wsX = winSzYX
         xmin, xmax, ymin, ymax = get_bounds(center_YX, wsY, wsX)
