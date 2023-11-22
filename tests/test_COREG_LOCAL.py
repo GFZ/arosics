@@ -199,6 +199,25 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         self.assertTrue(CRL.success)
 
+    def test_calculation_of_tie_point_grid_with_mask(self):
+        """Test COREG_LOCAL if bad data mask is given."""
+        import numpy as np
+        ref = GeoArray(self.ref_path)
+        tgt = GeoArray(self.tgt_path)
+
+        mask = np.zeros((tgt.rows, tgt.cols), dtype=np.uint8)
+        mask[1000:2000, 1000:2000] = True
+        gA_mask = GeoArray(mask, tgt.gt, tgt.prj)
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(mask_baddata_tgt=gA_mask,
+                                           **self.coreg_kwargs
+                                           ))
+        CRL.calculate_spatial_shifts()
+        CRL.view_CoRegPoints()
+
+        self.assertTrue(CRL.success)
+
 
 if __name__ == '__main__':
     import pytest
