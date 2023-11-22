@@ -2,6 +2,13 @@
 History
 =======
 
+1.9.4 (2023-11-23)
+------------------
+
+* !42: Fixed https://github.com/GFZ/arosics/issues/33
+  ('TypeError: ufunc 'invert' not supported for the input types' when using input mask).
+
+
 1.9.3 (2023-10-16)
 ------------------
 

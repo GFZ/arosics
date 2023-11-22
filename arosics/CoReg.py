@@ -141,7 +141,7 @@ class GeoArray_CoReg(GeoArray):
 
         # add bad data mask
         given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
-        if given_mask:
+        if given_mask is not None:
             self.mask_baddata = given_mask  # runs GeoArray.mask_baddata.setter -> sets it to BadDataMask()
 
     poly = alias_property('footprint_poly')  # ensures that self.poly is updated if self.footprint_poly is updated

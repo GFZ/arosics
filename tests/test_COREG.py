@@ -210,6 +210,21 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CR.show_matchWin(interactive=False, after_correction=None)
         self.assertTrue(CR.success)
 
+    def test_shift_calculation_with_mask(self):
+        """Test COREG if bad data mask is given."""
+        ref = GeoArray(self.ref_path)
+        tgt = GeoArray(self.tgt_path)
+
+        mask = np.zeros((tgt.rows, tgt.cols), dtype=bool)
+        mask[1000:1100, 1000:1100] = True
+        gA_mask = GeoArray(mask, tgt.gt, tgt.prj)
+
+        CR = self.run_shift_detection_correction(ref, tgt,
+                                                 **dict(self.coreg_kwargs,
+                                                        mask_baddata_tgt=gA_mask))
+        CR.show_matchWin(interactive=False, after_correction=None)
+        self.assertTrue(CR.success)
+
     def test_shift_calculation_inmem_gAs_path_out_auto(self):
         """Test input parameter path_out='auto' in case input reference/ target image are in-memory GeoArrays."""
         ref = GeoArray(np.random.randint(1, 100, (1000, 1000)))
