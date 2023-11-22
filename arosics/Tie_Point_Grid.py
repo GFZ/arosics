@@ -250,7 +250,7 @@ class Tie_Point_Grid(object):
         return XY_points, XY_mapPoints
 
     def _exclude_bad_XYpos(self, GDF):
-        """Exclude all points outside of the image overlap area and where the bad data mask is True (if given).
+        """Exclude all points outside the image overlap area and where the bad data mask is True (if given).
 
         :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_MAP' and 'Y_MAP'
         :return:
@@ -270,7 +270,7 @@ class Tie_Point_Grid(object):
         mapXY = np.array(GDF.loc[:, ['X_MAP', 'Y_MAP']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref.mask_baddata.read_pointData(mapXY) \
             if self.COREG_obj.ref.mask_baddata is not None else False
-        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY) \
+        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY).flatten().astype(bool) \
             if self.COREG_obj.shift.mask_baddata is not None else False
         GDF = GDF[(~GDF['REF_BADDATA']) & (~GDF['TGT_BADDATA'])]
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
