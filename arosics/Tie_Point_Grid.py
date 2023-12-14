@@ -854,27 +854,33 @@ class Tie_Point_Grid(object):
     def to_PointShapefile(self,
                           path_out: str = None,
                           skip_nodata: bool = True,
-                          skip_nodata_col: str = 'ABS_SHIFT'
+                          skip_nodata_col: str = 'ABS_SHIFT',
+                          skip_outliers: bool = False
                           ) -> None:
         """Write the calculated tie point grid to a point shapefile (e.g., for visualization by a GIS software).
 
         NOTE: The shapefile uses Tie_Point_Grid.CoRegPoints_table as attribute table.
 
-        :param path_out:        <str> the output path. If not given, it is automatically defined.
-        :param skip_nodata:     <bool> whether to skip all points where no valid match could be found
-        :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
-                                identify points where no valid match could be found
+        :param path_out:         <str> the output path. If not given, it is automatically defined.
+        :param skip_nodata:      <bool> whether to skip all points where no valid match could be found
+        :param skip_nodata_col:  <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
+                                 identify points where no valid match could be found
+        :param skip_outliers:    <bool> whether to exclude all tie points that have been flagged as outlier
+                                 (false-positive)
         """
         if self.CoRegPoints_table.empty:
             raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
 
-        GDF = self.CoRegPoints_table
+        GDF2pass = self.CoRegPoints_table
 
         if skip_nodata:
-            GDF2pass = GDF[GDF[skip_nodata_col] != self.outFillVal].copy()
+            GDF2pass = GDF2pass[GDF2pass[skip_nodata_col] != self.outFillVal].copy()
         else:
-            GDF2pass = GDF
+            # use the error represetation (including error type) instead of only the error message
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
+
+        if skip_outliers:
+            GDF2pass = GDF2pass[GDF2pass['OUTLIER'].__eq__(False)].copy()
 
         # replace boolean values (cannot be written)
         GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not bool but np.object
