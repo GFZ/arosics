@@ -460,7 +460,7 @@ class Tie_Point_Grid(object):
         return self.CoRegPoints_table
 
     def calc_rmse(self, include_outliers: bool = False) -> float:
-        """Calculate root mean square error of absolute shifts from the tie point grid.
+        """Calculate root-mean-square error of absolute shifts from the tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """

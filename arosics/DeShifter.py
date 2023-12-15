@@ -88,7 +88,7 @@ class DESHIFTER(object):
 
         :keyword bool align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
-            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30)), default = False
 
         :keyword bool match_gsd:
             True: match the input pixel size to the reference pixel size, default = False
@@ -107,7 +107,7 @@ class DESHIFTER(object):
             (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
 
         :keyword bool cliptoextent:
-            True: clip the input image to its actual bounds while deleting possible no data areas outside of the actual
+            True: clip the input image to its actual bounds while deleting possible no data areas outside the actual
             bounds, default = False
 
         :keyword list clipextent:
@@ -163,7 +163,7 @@ class DESHIFTER(object):
         self.shift_prj = self.im2shift.projection
         self.shift_gt = list(self.im2shift.geotransform)
 
-        # in case of local shift correction and local coreg results contain less points than min_points_local_corr:
+        # in case of local shift correction and local coreg results contain fewer points than min_points_local_corr:
         # force global correction based on mean X/Y shifts
         if 'GCPList' in coreg_results and len(coreg_results['GCPList']) < self.min_points_local_corr:
             warnings.warn('Only %s valid tie point(s) could be identified. A local shift correction is therefore not '

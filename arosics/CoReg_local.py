@@ -61,7 +61,7 @@ class COREG_LOCAL(object):
 
     Spatial shifts are calculated for each point in grid of which the parameters can be adjusted using keyword
     arguments. Shift correction performs a polynomial transformation using the calculated shifts of each point in the
-    grid as GCPs. Thus this class can be used to correct for locally varying geometric distortions of the target image.
+    grid as GCPs. Thus, this class can be used to correct for locally varying geometric distortions of the target image.
 
     See help(COREG_LOCAL) for documentation.
     """
@@ -187,7 +187,7 @@ class COREG_LOCAL(object):
 
         :param align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
-            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = True
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30)), default = True
 
         :param match_gsd:
             True: match the input pixel size to the reference pixel size,
@@ -247,13 +247,13 @@ class COREG_LOCAL(object):
             path to a 2D boolean mask file (or an instance of BadDataMask) for the reference image where all bad data
             pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param mask_baddata_tgt:
             path to a 2D boolean mask file (or an instance of BadDataMask) for the image to be shifted where all bad
             data pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param CPUs:
             number of CPUs to use during calculation of tie point grid (default: None, which means 'all CPUs available')
