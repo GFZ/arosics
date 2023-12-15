@@ -892,30 +892,6 @@ class Tie_Point_Grid(object):
             print('Writing %s ...' % path_out)
         GDF2pass.to_file(path_out)
 
-    def _to_PointShapefile(self, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):  # pragma: no cover
-        warnings.warn(DeprecationWarning(
-            "'_tiepoints_grid_to_PointShapefile' is deprecated."  # TODO delete if other method validated
-            " 'tiepoints_grid_to_PointShapefile' is much faster."))
-        if self.CoRegPoints_table.empty:
-            raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
-
-        GDF = self.CoRegPoints_table
-        GDF2pass = \
-            GDF if not skip_nodata else \
-            GDF[GDF[skip_nodata_col] != self.outFillVal]
-        shapely_points = GDF2pass['geometry'].values.tolist()
-        attr_dicts = [collections.OrderedDict(zip(GDF2pass.columns,
-                                                  GDF2pass.loc[i].values))
-                      for i in GDF2pass.index]
-
-        fName_out = "CoRegPoints_grid%s_ws%s.shp" \
-                    % (self.grid_res, self.COREG_obj.win_size_XY)
-        path_out = os.path.join(self.dir_out, fName_out)
-        write_shp(path_out,
-                  shapely_points,
-                  prj=self.COREG_obj.shift.prj,
-                  attrDict=attr_dicts)
-
     def to_vectorfield(self, path_out: str = None, fmt: str = None, mode: str = 'md') -> GeoArray:
         """Save the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield.
 
