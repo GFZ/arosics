@@ -98,8 +98,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # test shift correction and output writer
         CRL.correct_shifts()
 
-        self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
-                        'Output of local co-registration has not been written.')
+        assert os.path.exists(self.coreg_kwargs['path_out']), 'Output of local co-registration has not been written.'
 
     def test_calculation_of_tie_point_grid_float_coords(self):
         # NOTE: This does not test against unequaly sized output of get_image_windows_to_match().
@@ -197,7 +196,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
 
-        self.assertTrue(CRL.success)
+        assert CRL.success
 
     def test_calculation_of_tie_point_grid_with_mask(self):
         """Test COREG_LOCAL if bad data mask is given."""
@@ -216,7 +215,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         CRL.calculate_spatial_shifts()
         CRL.view_CoRegPoints()
 
-        self.assertTrue(CRL.success)
+        assert CRL.success
 
 
 if __name__ == '__main__':
