@@ -30,7 +30,7 @@ from time import time, sleep
 from typing import Optional, Union
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
@@ -460,7 +460,7 @@ class Tie_Point_Grid(object):
         return self.CoRegPoints_table
 
     def calc_rmse(self, include_outliers: bool = False) -> float:
-        """Calculate root mean square error of absolute shifts from the tie point grid.
+        """Calculate root-mean-square error of absolute shifts from the tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
@@ -670,8 +670,6 @@ class Tie_Point_Grid(object):
         :param showFig:             whether to show or to hide the figure
         :param return_fig:          whether to return the figure and axis objects
         """
-        from matplotlib import pyplot as plt
-
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
 

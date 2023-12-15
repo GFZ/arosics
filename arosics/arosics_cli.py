@@ -276,7 +276,7 @@ def get_arosics_argparser():
            help='xgsd ygsd: set the output pixel size in map units (default: original pixel size of the image to be '
                 'shifted)')
 
-    gloArg('-vo', nargs='?', type=str, choices=[0, 1], help='an optional output directory for outputs of verbose mode'
+    gloArg('-vo', nargs='?', type=int, choices=[0, 1], help='an optional output directory for outputs of verbose mode'
                                                             '(if not given, no outputs are written to disk)',
            default=0, )
 
@@ -340,7 +340,7 @@ def main():
         try:
             with open(p, 'a') as of:
                 of.write(c)
-        except Exception:
+        except Exception:  # noqa
             pass
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))

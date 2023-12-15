@@ -30,7 +30,7 @@ from copy import copy
 from typing import Iterable, Union, Tuple, List, Optional  # noqa F401
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 import numpy as np
 
 from packaging.version import parse as parse_version
@@ -221,7 +221,7 @@ class COREG(object):
             band of shift image to be used for matching (starts with 1; default: 1)
 
         :param wp:
-            custom matching window position as (X, Y) map coordinate in the same projection like the reference image
+            custom matching window position as (X, Y) map coordinate in the same projection as the reference image
             (default: central position of image overlap)
 
         :param ws:
@@ -235,7 +235,7 @@ class COREG(object):
 
         :param align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
-            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30)), default = False
 
             - NOTE: If this is set to False, the mis-registration in the target image is corrected by updating its
               geocoding information only, i.e., without performing any resampling which preserves the original
@@ -284,7 +284,7 @@ class COREG(object):
 
         :param calc_corners:
              calculate true positions of the dataset corners in order to get a useful matching window position within
-             the actual image overlap (default: True; deactivated if '-cor0' and '-cor1' are given
+             the actual image overlap (default: True; deactivated if '-cor0' and '-cor1' are given)
 
         :param binary_ws:
             use binary X/Y dimensions for the matching window (default: True)
@@ -293,13 +293,13 @@ class COREG(object):
             path to a 2D boolean mask file (or an instance of GeoArray) for the reference image where all bad data
             pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param mask_baddata_tgt:
             path to a 2D boolean mask file (or an instance of GeoArray) for the image to be shifted where all bad data
             pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param CPUs:
             number of CPUs to use during pixel grid equalization (default: None, which means 'all CPUs available')
@@ -968,7 +968,7 @@ class COREG(object):
 
             if previous_area == otherBox.mapPoly.area or \
                time.time() - t_start > 1.5:
-                # happens e.g in case of a triangular footprint
+                # happens, e.g, in case of a triangular footprint
                 # NOTE: first condition is not always fulfilled -> therefore added timeout of 1.5 sec
                 self._handle_error(
                     RuntimeError('Matching window in target image is larger than overlap area but further shrinking '
@@ -1170,8 +1170,8 @@ class COREG(object):
                     fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
                     fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
 
-                    # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
-                    # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array
+                    # catch empty output arrays (for some reason this happens sometimes) -> use numpy fft
+                    # => this is caused by the call of pyfftw.FFTW. Exactly at that moment the input array
                     #    in_arr0 is overwritten with zeros (maybe this is a bug in pyFFTW?)
                     if np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0:
                         raise RuntimeError('FFTW result is unexpectedly empty.')
