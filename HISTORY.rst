@@ -2,6 +2,12 @@
 History
 =======
 
+1.10.0 (coming soon)
+--------------------
+
+* !43: Added parameter 'skip_outliers' to Tie_Point_Grid.to_PointShapefile() (closes #90) and improved test.
+
+
 1.9.4 (2023-11-23)
 ------------------
 
