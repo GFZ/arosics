@@ -99,7 +99,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         if os.path.isdir(dir_out):
             shutil.rmtree(dir_out)
 
-    def run_shift_detection_correction(self, ref, tgt, **params):
+    @staticmethod
+    def run_shift_detection_correction(ref, tgt, **params):
         # get instance of COREG_LOCAL object
         CR = COREG(ref, tgt, **params)
 
