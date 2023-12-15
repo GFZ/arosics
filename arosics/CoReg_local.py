@@ -30,7 +30,7 @@ from typing import Tuple, Union, Optional
 from collections import OrderedDict
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 from packaging.version import parse as parse_version
 try:
     import pyfftw

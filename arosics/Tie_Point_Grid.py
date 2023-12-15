@@ -30,7 +30,7 @@ from time import time, sleep
 from typing import Optional, Union
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series

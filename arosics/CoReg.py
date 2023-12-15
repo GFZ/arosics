@@ -30,7 +30,7 @@ from copy import copy
 from typing import Iterable, Union, Tuple, List, Optional  # noqa F401
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 import numpy as np
 
 from packaging.version import parse as parse_version

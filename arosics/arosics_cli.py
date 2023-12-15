@@ -340,7 +340,7 @@ def main():
         try:
             with open(p, 'a') as of:
                 of.write(c)
-        except Exception:
+        except Exception:  # noqa
             pass
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
