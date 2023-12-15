@@ -670,8 +670,6 @@ class Tie_Point_Grid(object):
         :param showFig:             whether to show or to hide the figure
         :param return_fig:          whether to return the figure and axis objects
         """
-        from matplotlib import pyplot as plt
-
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
 
