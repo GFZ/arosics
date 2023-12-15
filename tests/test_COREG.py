@@ -37,7 +37,7 @@ from .cases import test_cases
 import pytest
 from arosics import COREG
 from geoarray import GeoArray
-from osgeo import gdal
+from osgeo import gdal  # noqa
 from py_tools_ds.geo.projection import EPSG2WKT
 
 
