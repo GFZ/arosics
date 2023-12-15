@@ -6,6 +6,9 @@ History
 --------------------
 
 * !43: Added parameter 'skip_outliers' to Tie_Point_Grid.to_PointShapefile() (closes #90) and improved test.
+* !44: Removed deprecated Tie_Point_Grid.Tie_Point_Grid._to_PointShapefile() method
+  which was replaced by to_PointShapefile().
+* !45: Replaced unittest assertions with pytest plain assertions.
 
 
 1.9.4 (2023-11-23)
