@@ -67,10 +67,10 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             shutil.rmtree(self.TPG.dir_out)
 
     def test_mean_shifts(self):
-        self.assertIsInstance(self.TPG.mean_x_shift_px, float)
-        self.assertIsInstance(self.TPG.mean_y_shift_px, float)
-        self.assertIsInstance(self.TPG.mean_x_shift_map, float)
-        self.assertIsInstance(self.TPG.mean_y_shift_map, float)
+        assert isinstance(self.TPG.mean_x_shift_px, float)
+        assert isinstance(self.TPG.mean_y_shift_px, float)
+        assert isinstance(self.TPG.mean_x_shift_map, float)
+        assert isinstance(self.TPG.mean_y_shift_map, float)
 
     def test_get_CoRegPoints_table(self):
         self.TPG.get_CoRegPoints_table()
@@ -87,11 +87,11 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         stats_noOL = self.TPG.calc_overall_stats(include_outliers=False)
         stats_OL = self.TPG.calc_overall_stats(include_outliers=True)
 
-        self.assertTrue(stats_noOL)
-        self.assertTrue(stats_OL)
-        self.assertIsInstance(stats_noOL, dict)
-        self.assertIsInstance(stats_OL, dict)
-        self.assertNotEqual(stats_noOL, stats_OL)
+        assert stats_noOL
+        assert stats_OL
+        assert isinstance(stats_noOL, dict)
+        assert isinstance(stats_OL, dict)
+        assert stats_noOL != stats_OL
 
     def test_plot_shift_distribution(self):
         with warnings.catch_warnings():
@@ -104,7 +104,7 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, 'CoRegPoints_table.pkl')
             self.TPG.dump_CoRegPoints_table(outpath)
-            self.assertTrue(os.path.isfile(outpath))
+            assert os.path.isfile(outpath)
 
     def test_to_GCPList(self):
         self.TPG.to_GCPList()
@@ -113,37 +113,37 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, 'test_out_shapefile.shp')
             self.TPG.to_PointShapefile(outpath)
-            self.assertTrue(os.path.isfile(outpath))
+            assert os.path.isfile(outpath)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, 'test_out_shapefile_incl_nodata.shp')
             self.TPG.to_PointShapefile(outpath, skip_nodata=False)
-            self.assertTrue(os.path.isfile(outpath))
+            assert os.path.isfile(outpath)
 
     def test_to_vectorfield(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, 'test_vectorfield.bsq')
             self.TPG.to_vectorfield(outpath, fmt='ENVI', mode='md')
-            self.assertTrue(os.path.isfile(outpath))
+            assert os.path.isfile(outpath)
             self.TPG.to_vectorfield(outpath, fmt='ENVI', mode='uv')
-            self.assertTrue(os.path.isfile(outpath))
+            assert os.path.isfile(outpath)
 
     def test_interpolate_to_raster_rbf(self):
         arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'RBF', plot_result=True)
 
-        self.assertIsInstance(arr_interp, np.ndarray)
+        assert isinstance(arr_interp, np.ndarray)
 
     def test_interpolate_to_raster_gpr(self):
         if find_loader('sklearn'):
             arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'GPR', plot_result=True)
 
-            self.assertIsInstance(arr_interp, np.ndarray)
+            assert isinstance(arr_interp, np.ndarray)
 
     def test_interpolate_to_raster_kriging(self):
         if find_loader('pykrige.ok'):
             arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'Kriging', plot_result=True)
 
-            self.assertIsInstance(arr_interp, np.ndarray)
+            assert isinstance(arr_interp, np.ndarray)
 
     def test_to_Raster_using_Kriging(self):
         with pytest.raises(NotImplementedError):
