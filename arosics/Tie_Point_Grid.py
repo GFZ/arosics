@@ -880,7 +880,7 @@ class Tie_Point_Grid(object):
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         if skip_outliers:
-            GDF2pass = GDF2pass[GDF2pass['OUTLIER'].__eq__(False)].copy()
+            GDF2pass = GDF2pass[~GDF2pass['OUTLIER'].__eq__(True)].copy()
 
         # replace boolean values (cannot be written)
         GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not bool but np.object
