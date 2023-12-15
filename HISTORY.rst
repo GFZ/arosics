@@ -2,6 +2,13 @@
 History
 =======
 
+1.10.0 (coming soon)
+--------------------
+
+* !44: Removed deprecated Tie_Point_Grid.Tie_Point_Grid._to_PointShapefile() method
+  which was replaced by to_PointShapefile().
+
+
 1.9.4 (2023-11-23)
 ------------------
 
