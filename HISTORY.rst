@@ -9,6 +9,7 @@ History
 * !44: Removed deprecated Tie_Point_Grid.Tie_Point_Grid._to_PointShapefile() method
   which was replaced by to_PointShapefile().
 * !45: Replaced unittest assertions with pytest plain assertions.
+* !46: Removed deprecated Tie_Point_Grid.to_Raster_using_Kriging().
 
 
 1.9.4 (2023-11-23)
