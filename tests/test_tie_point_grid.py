@@ -170,10 +170,6 @@ class Test_Tie_Point_Grid(unittest.TestCase):
 
             assert isinstance(arr_interp, np.ndarray)
 
-    def test_to_Raster_using_Kriging(self):
-        with pytest.raises(NotImplementedError):
-            self.TPG.to_Raster_using_Kriging()
-
 
 if __name__ == '__main__':
     pytest.main()
