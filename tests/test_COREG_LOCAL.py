@@ -178,7 +178,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
     def test_calculation_of_tie_point_grid_with_metaRotation(self):
         """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
-
         # overwrite gt and prj
         ref = GeoArray(self.ref_path)
         ref.to_mem()

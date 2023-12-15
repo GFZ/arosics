@@ -249,8 +249,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
             assert CR.success
 
     def test_shift_calculation_windowCoveringNodata(self):
-        """Test shift detection in case the given matching window (defined by 'wp' and 'ws' covers the nodata area
-         of an input image.
+        """Test shift detection if the matching window (defined by 'wp' and 'ws') covers the nodata area.
 
         Detected subpixel shifts (X/Y): 0.280572488796/-0.11016529071
         Calculated map shifts (X,Y): -7.19427511207/-18.8983470928
@@ -264,8 +263,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         assert CR.success
 
     def test_shift_calculation_windowAtImageEdge(self):
-        """Test shift detection in case the given matching window is close to an image edge without covering any nodata
-        area.
+        """Test shift detection if the matching window is close to an image edge without covering nodata pixels.
 
         Detected subpixel shifts (X/Y): 0.34361492307/-0.320197995758
         Calculated map shifts (X,Y): -6.56385076931/-16.7980200425
@@ -278,9 +276,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         assert CR.success
 
     def test_shift_calculation_noWGS84(self):
-        """Test if shift computation properly raises a RunTimeError if the matching window is centered at a cloudy
-        image position.
-        """
+        """Test if a RunTimeError is raised in case the input projection datum is not WGS84."""
         ref = GeoArray(self.ref_path).to_mem()
         tgt = GeoArray(self.tgt_path).to_mem()
 
@@ -294,9 +290,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         assert CR.success
 
     def test_shift_calculation_different_geographic_datum(self):
-        """Test if shift computation properly raises a RunTimeError if the matching window is centered at a cloudy
-        image position.
-        """
+        """Test if a RunTimeError is raised in case of a different geographic datum."""
         ref = GeoArray(self.ref_path).to_mem()
         tgt = GeoArray(self.tgt_path).to_mem()
 
@@ -308,17 +302,14 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
             self.run_shift_detection_correction(ref, tgt, **dict(self.coreg_kwargs))
 
     def test_shift_calculation_windowOutside(self):
-        """Test if shift computation properly raises a ValueError if the given window position is outside of the image
-        overlap."""
+        """Test if shift computation raises a ValueError if the given window position is outside the image overlap."""
         with pytest.raises(ValueError):
             self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                 **dict(self.coreg_kwargs,
                                                        wp=test_cases['INTER1']['wp_outside']))
 
     def test_shift_calculation_windowAtClouds(self):
-        """Test if shift computation properly raises a RunTimeError if the matching window is centered at a cloudy
-        image position.
-        """
+        """Test if shift computation raises a RunTimeError if the matching window is centered at a cloudy position."""
         with pytest.raises(RuntimeError):
             self.run_shift_detection_correction(self.ref_path, self.tgt_path,
                                                 **dict(self.coreg_kwargs,
