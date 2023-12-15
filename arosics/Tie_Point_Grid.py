@@ -23,7 +23,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import multiprocessing
 import os
 import warnings
@@ -45,7 +44,6 @@ from py_tools_ds.geo.projection import isLocal
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
-from py_tools_ds.io.vector.writer import write_shp
 from geoarray import GeoArray
 
 from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
