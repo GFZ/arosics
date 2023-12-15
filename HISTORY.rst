@@ -2,6 +2,12 @@
 History
 =======
 
+1.10.1 (coming soon)
+--------------------
+
+* !47: Fixed some code style and language issues.
+
+
 1.10.0 (2023-12-15)
 -------------------
 
