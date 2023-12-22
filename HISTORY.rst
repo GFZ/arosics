@@ -6,6 +6,7 @@ History
 --------------------
 
 * !47: Fixed some code style and language issues.
+* !48: Resolved #91 (RuntimeWarning: invalid value encountered in true_divide).
 
 
 1.10.0 (2023-12-15)
