@@ -1465,7 +1465,9 @@ class COREG(object):
         # check if shapes of two images are unequal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-            warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
+            warnings.warn('SSIM input array shapes are not equal. This should not happen. '
+                          'If it happens with your data, please report it here so that the issue can be fixed: '
+                          'https://git.gfz-potsdam.de/danschef/arosics/-/issues/85')
             matchFull = \
                 self.ref if self.matchWin.imID == 'ref' else\
                 self.shift
