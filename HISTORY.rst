@@ -2,8 +2,8 @@
 History
 =======
 
-1.10.1 (coming soon)
---------------------
+1.10.1 (2023-12-22)
+-------------------
 
 * !47: Fixed some code style and language issues.
 * !48: Resolved #91 (RuntimeWarning: invalid value encountered in true_divide).
