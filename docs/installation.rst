@@ -64,5 +64,5 @@ you through the process.
 
 
 .. _pip: https://pip.pypa.io
-.. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
+.. _Python installation guide: https://docs.python-guide.org/en/latest/starting/installation/
 .. _conda: https://docs.conda.io
