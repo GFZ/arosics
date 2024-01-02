@@ -6,6 +6,7 @@ History
 --------------------
 
 * !49: Updated copyright.
+* !50: Replaced deprecated http links.
 
 
 1.10.1 (2023-12-22)
