@@ -5,6 +5,7 @@ History
 1.10.2 (coming soon)
 --------------------
 
+* !49: Updated copyright.
 * !50: Replaced deprecated http links.
 
 
