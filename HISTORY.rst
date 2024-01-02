@@ -2,6 +2,12 @@
 History
 =======
 
+1.10.2 (coming soon)
+--------------------
+
+* !50: Replaced deprecated http links.
+
+
 1.10.1 (2023-12-22)
 -------------------
 
