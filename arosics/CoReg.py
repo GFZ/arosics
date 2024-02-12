@@ -28,6 +28,7 @@ import time
 import warnings
 from copy import copy
 from typing import Iterable, Union, Tuple, List, Optional  # noqa F401
+from multiprocessing import cpu_count
 
 # custom
 from osgeo import gdal  # noqa
@@ -375,7 +376,7 @@ class COREG(object):
         self.rspAlg_calc = resamp_alg_calc \
             if isinstance(resamp_alg_calc, str) else _dict_rspAlg_rsp_Int[resamp_alg_calc]
         self.calc_corners = calc_corners
-        self.CPUs = CPUs
+        self.CPUs = CPUs if not (CPUs and CPUs > cpu_count()) else cpu_count()
         self.bin_ws = binary_ws
         self.force_quadratic_win = force_quadratic_win
         self.v = v

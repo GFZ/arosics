@@ -437,8 +437,7 @@ class Tie_Point_Grid(object):
         # # run co-registration for whole grid
         # if self.CPUs is None or self.CPUs > 1:
         #     if not self.q:
-        #         cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
-        #         print("Calculating tie point grid (%s points) using %s CPU cores..." % (len(GDF), cpus))
+        #         print("Calculating tie point grid (%s points) using %s CPU cores..." % (len(GDF), self.CPUs))
         #
         #     with multiprocessing.Pool(self.CPUs, initializer=mp_initializer, initargs=(self.ref, self.shift)) as pool:
         #         if self.q or not self.progress:
