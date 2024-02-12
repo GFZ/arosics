@@ -25,8 +25,8 @@
 
 import os
 import warnings
-from time import time, sleep
-from typing import Optional, Union
+from time import time
+from typing import Optional
 
 # custom
 from osgeo import gdal  # noqa
