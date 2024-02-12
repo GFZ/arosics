@@ -23,11 +23,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import multiprocessing
 import os
 import warnings
-from time import time, sleep
-from typing import Optional, Union
+from time import time
+from typing import Optional
+from sys import platform
 
 # custom
 from osgeo import gdal  # noqa
@@ -37,6 +37,7 @@ from pandas import DataFrame, Series
 from shapely.geometry import Point
 from matplotlib import pyplot as plt
 from scipy.interpolate import RBFInterpolator, RegularGridInterpolator
+from joblib import Parallel, delayed
 
 # internal modules
 from .CoReg import COREG
@@ -49,20 +50,6 @@ from geoarray import GeoArray
 from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
 
 __author__ = 'Daniel Scheffler'
-
-global_shared_imref: Optional[Union[GeoArray, str]] = None
-global_shared_im2shift: Optional[Union[GeoArray, str]] = None
-
-
-def mp_initializer(imref, imtgt):
-    """Declare global variables needed for self._get_spatial_shifts().
-
-    :param imref:   reference image
-    :param imtgt:   target image
-    """
-    global global_shared_imref, global_shared_im2shift
-    global_shared_imref = imref
-    global_shared_im2shift = imtgt
 
 
 class Tie_Point_Grid(object):
@@ -283,18 +270,9 @@ class Tie_Point_Grid(object):
         return GDF
 
     @staticmethod
-    def _get_spatial_shifts(coreg_kwargs):
-        # unpack
-        pointID = coreg_kwargs['pointID']
-        fftw_works = coreg_kwargs['fftw_works']
-        del coreg_kwargs['pointID'], coreg_kwargs['fftw_works']
-
-        # assertions
-        assert global_shared_imref is not None
-        assert global_shared_im2shift is not None
-
+    def _get_spatial_shifts(imref, im2shift, point_id, fftw_works, **coreg_kwargs):
         # run CoReg
-        CR = COREG(global_shared_imref, global_shared_im2shift, CPUs=1, **coreg_kwargs)
+        CR = COREG(imref, im2shift, CPUs=1, **coreg_kwargs)
         CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
 
@@ -305,28 +283,7 @@ class Tie_Point_Grid(object):
                   CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
                   CR.shift_reliability, last_err]
 
-        return [pointID] + CR_res
-
-    def _get_coreg_kwargs(self, pID, wp):
-        return dict(
-            pointID=pID,
-            fftw_works=self.COREG_obj.fftw_works,
-            wp=wp,
-            ws=self.COREG_obj.win_size_XY,
-            resamp_alg_calc=self.rspAlg_calc,
-            footprint_poly_ref=self.COREG_obj.ref.poly,
-            footprint_poly_tgt=self.COREG_obj.shift.poly,
-            r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
-            s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
-            max_iter=self.COREG_obj.max_iter,
-            max_shift=self.COREG_obj.max_shift,
-            nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-            force_quadratic_win=self.COREG_obj.force_quadratic_win,
-            binary_ws=self.COREG_obj.bin_ws,
-            v=False,  # otherwise this would lead to massive console output
-            q=True,  # otherwise this would lead to massive console output
-            ignore_errors=True
-        )
+        return [point_id] + CR_res
 
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
@@ -374,51 +331,45 @@ class Tie_Point_Grid(object):
             [self.COREG_obj.ref.band4match])  # only sets geoArr._arr_cache; does not change number of bands
         self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
 
-        # get all variations of kwargs for coregistration
-        list_coreg_kwargs = (self._get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index)  # generator
+        print(f"Calculating tie point grid ({len(GDF)} points) using {self.CPUs} CPU cores...")
+        results = []
+        bar = ProgressBar(prefix='\tprogress:')
 
-        # run co-registration for whole grid
-        if self.CPUs is None or self.CPUs > 1:
-            if not self.q:
-                cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
-                print("Calculating tie point grid (%s points) using %s CPU cores..." % (len(GDF), cpus))
-
-            with multiprocessing.Pool(self.CPUs, initializer=mp_initializer, initargs=(self.ref, self.shift)) as pool:
-                if self.q or not self.progress:
-                    results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
-                else:
-                    results = pool.map_async(self._get_spatial_shifts, list_coreg_kwargs, chunksize=1)
-                    bar = ProgressBar(prefix='\tprogress:')
-                    while True:
-                        sleep(.1)
-                        # this does not really represent the remaining tasks but the remaining chunks
-                        # -> thus chunksize=1
-                        # noinspection PyProtectedMember
-                        numberDone = len(GDF) - results._number_left
-                        if self.progress:
-                            bar.print_progress(percent=numberDone / len(GDF) * 100)
-                        if results.ready():
-                            # <= this is the line where multiprocessing can freeze if an exception appears within
-                            # COREG and is not raised
-                            results = results.get()
-                            break
-                pool.close()  # needed to make coverage work in multiprocessing
-                pool.join()
-
+        # multiprocessing backend is slightly faster on Linux but can only return a list (no progress)
+        if platform != 'win32' and (not self.progress or self.q):
+            kw_parallel = dict(backend='multiprocessing', return_as='list')
         else:
-            # declare global variables needed for self._get_spatial_shifts()
-            global global_shared_imref, global_shared_im2shift
-            global_shared_imref = self.ref
-            global_shared_im2shift = self.shift
+            kw_parallel = dict(backend='loky', return_as='generator')
 
-            if not self.q:
-                print("Calculating tie point grid (%s points) on 1 CPU core..." % len(GDF))
-            results = np.empty((len(geomPoints), 14), object)
-            bar = ProgressBar(prefix='\tprogress:')
-            for i, coreg_kwargs in enumerate(list_coreg_kwargs):
-                if self.progress:
-                    bar.print_progress((i + 1) / len(GDF) * 100)
-                results[i, :] = self._get_spatial_shifts(coreg_kwargs)
+        for i, res in enumerate(
+            Parallel(n_jobs=self.CPUs, **kw_parallel)(
+                delayed(self._get_spatial_shifts)(
+                    self.ref,
+                    self.shift,
+                    point_id,
+                    self.COREG_obj.fftw_works,
+                    wp=self.XY_mapPoints[point_id],
+                    ws=self.COREG_obj.win_size_XY,
+                    resamp_alg_calc=self.rspAlg_calc,
+                    footprint_poly_ref=self.COREG_obj.ref.poly,
+                    footprint_poly_tgt=self.COREG_obj.shift.poly,
+                    r_b4match=self.ref.band4match + 1,  # internally indexing from 0
+                    s_b4match=self.shift.band4match + 1,  # internally indexing from 0
+                    max_iter=self.COREG_obj.max_iter,
+                    max_shift=self.COREG_obj.max_shift,
+                    nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+                    force_quadratic_win=self.COREG_obj.force_quadratic_win,
+                    binary_ws=self.COREG_obj.bin_ws,
+                    v=False,  # True leads to massive STDOUT
+                    q=True,  # True leads to massive STDOUT
+                    ignore_errors=True
+                ) for point_id in GDF.index
+            )
+        ):
+            results.append(res)
+
+            if self.progress and not self.q:
+                bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
         # merge results with GDF
         # NOTE: We use a pandas.DataFrame here because the geometry column is missing.

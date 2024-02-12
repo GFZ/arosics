@@ -15,6 +15,7 @@ dependencies:
   - geopandas
   - holoviews
   - ipython  # needed to test interactive plotting
+  - joblib
   - matplotlib
   - nbformat  # optional dependency of plotly, needed to test interactive plotting
   - numpy

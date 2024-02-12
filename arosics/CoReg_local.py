@@ -28,6 +28,7 @@ import os
 from copy import copy
 from typing import Tuple, Union, Optional
 from collections import OrderedDict
+from multiprocessing import cpu_count
 
 # custom
 from osgeo import gdal  # noqa
@@ -309,7 +310,7 @@ class COREG_LOCAL(object):
         self.outFillVal = outFillVal
         self.bin_ws = binary_ws
         self.force_quadratic_win = force_quadratic_win
-        self.CPUs = CPUs
+        self.CPUs = CPUs if CPUs and CPUs <= cpu_count() else cpu_count()
         self.path_verbose_out = ''  # TODO
         self.v = v
         self.q = q if not v else False  # overridden by v
