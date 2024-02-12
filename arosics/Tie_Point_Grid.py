@@ -284,53 +284,53 @@ class Tie_Point_Grid(object):
 
         return GDF
 
-    # @staticmethod
-    # def _get_spatial_shifts(coreg_kwargs):
-    #     # unpack
-    #     pointID = coreg_kwargs['pointID']
-    #     fftw_works = coreg_kwargs['fftw_works']
-    #     del coreg_kwargs['pointID'], coreg_kwargs['fftw_works']
-    #
-    #     # assertions
-    #     assert global_shared_imref is not None
-    #     assert global_shared_im2shift is not None
-    #
-    #     # run CoReg
-    #     CR = COREG(global_shared_imref, global_shared_im2shift, CPUs=1, **coreg_kwargs)
-    #     CR.fftw_works = fftw_works
-    #     CR.calculate_spatial_shifts()
-    #
-    #     # fetch results
-    #     last_err = CR.tracked_errors[-1] if CR.tracked_errors else None
-    #     win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
-    #     CR_res = [win_sz_x, win_sz_y, CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
-    #               CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
-    #               CR.shift_reliability, last_err]
-    #
-    #     return [pointID] + CR_res
-    #
-    # def _get_coreg_kwargs(self, pID, wp):
-    #     return dict(
-    #         pointID=pID,
-    #         fftw_works=self.COREG_obj.fftw_works,
-    #         wp=wp,
-    #         ws=self.COREG_obj.win_size_XY,
-    #         resamp_alg_calc=self.rspAlg_calc,
-    #         footprint_poly_ref=self.COREG_obj.ref.poly,
-    #         footprint_poly_tgt=self.COREG_obj.shift.poly,
-    #         r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
-    #         s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
-    #         max_iter=self.COREG_obj.max_iter,
-    #         max_shift=self.COREG_obj.max_shift,
-    #         nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-    #         force_quadratic_win=self.COREG_obj.force_quadratic_win,
-    #         binary_ws=self.COREG_obj.bin_ws,
-    #         v=False,  # otherwise this would lead to massive console output
-    #         q=True,  # otherwise this would lead to massive console output
-    #         ignore_errors=True
-    #     )
+    @staticmethod
+    def _get_spatial_shifts(coreg_kwargs):
+        # unpack
+        pointID = coreg_kwargs['pointID']
+        fftw_works = coreg_kwargs['fftw_works']
+        del coreg_kwargs['pointID'], coreg_kwargs['fftw_works']
 
-    def _get_spatial_shifts(self, point_id: int):
+        # assertions
+        # assert global_shared_imref is not None
+        # assert global_shared_im2shift is not None
+
+        # run CoReg
+        CR = COREG('/vsimem/ref.tif', '/vsimem/shift.tif', CPUs=1, **coreg_kwargs)
+        CR.fftw_works = fftw_works
+        CR.calculate_spatial_shifts()
+
+        # fetch results
+        last_err = CR.tracked_errors[-1] if CR.tracked_errors else None
+        win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
+        CR_res = [win_sz_x, win_sz_y, CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
+                  CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
+                  CR.shift_reliability, last_err]
+
+        return [pointID] + CR_res
+
+    def _get_coreg_kwargs(self, pID, wp):
+        return dict(
+            pointID=pID,
+            fftw_works=self.COREG_obj.fftw_works,
+            wp=wp,
+            ws=self.COREG_obj.win_size_XY,
+            resamp_alg_calc=self.rspAlg_calc,
+            footprint_poly_ref=self.COREG_obj.ref.poly,
+            footprint_poly_tgt=self.COREG_obj.shift.poly,
+            r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
+            s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
+            max_iter=self.COREG_obj.max_iter,
+            max_shift=self.COREG_obj.max_shift,
+            nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+            force_quadratic_win=self.COREG_obj.force_quadratic_win,
+            binary_ws=self.COREG_obj.bin_ws,
+            v=False,  # otherwise this would lead to massive console output
+            q=True,  # otherwise this would lead to massive console output
+            ignore_errors=True
+        )
+
+    def _get_spatial_shifts_joblib(self, point_id: int):
         # run CoReg
         CR = COREG(
             self.ref,
@@ -413,13 +413,29 @@ class Tie_Point_Grid(object):
         from time import time
         t0 = time()
 
-        with parallel_config(backend='threading', prefer='threads', n_jobs=self.CPUs, require='sharedmem'):
+        list_coreg_kwargs = (self._get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index)  # generator
+
+        from py_tools_ds.dtypes.conversion import dTypeDic_NumPy2GDAL
+        drv = gdal.GetDriverByName('GTiff')
+        gdal_dtype_gl = dTypeDic_NumPy2GDAL[str(np.dtype(self.ref.dtype))]
+        with drv.Create('/vsimem/ref.tif', self.ref.cols, self.ref.rows, 1, gdal_dtype_gl) as ds_ref:
+            ds_ref.GetRasterBand(1).WriteArray(self.ref[:])
+            ds_ref.SetGeoTransform(self.ref.gt)
+            ds_ref.SetProjection(self.ref.prj)
+
+        gdal_dtype_gl = dTypeDic_NumPy2GDAL[str(np.dtype(self.shift.dtype))]
+        with drv.Create('/vsimem/shift.tif', self.shift.cols, self.shift.rows, 1, gdal_dtype_gl) as ds_shift:
+            ds_shift.GetRasterBand(1).WriteArray(self.shift[:])
+            ds_shift.SetGeoTransform(self.shift.gt)
+            ds_shift.SetProjection(self.shift.prj)
+
+        with parallel_config(backend='threading', prefer='threads', n_jobs=self.CPUs):
             results = []
             bar = ProgressBar(prefix='\tprogress:')
 
             for i, res in enumerate(
                 Parallel(return_as='generator')(
-                    delayed(self._get_spatial_shifts)(pid) for pid in GDF.index
+                    delayed(self._get_spatial_shifts)(kw) for kw in list_coreg_kwargs
                 )
             ):
                 results.append(res)
