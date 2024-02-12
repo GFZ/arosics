@@ -2,8 +2,8 @@
 History
 =======
 
-1.10.2 (coming soon)
---------------------
+1.10.2 (2024-02-13)
+-------------------
 
 * !49: Updated copyright.
 * !50: Replaced deprecated http links.
