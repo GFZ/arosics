@@ -27,6 +27,7 @@ import os
 import warnings
 from time import time
 from typing import Optional
+from sys import platform
 
 # custom
 from osgeo import gdal  # noqa
@@ -37,7 +38,6 @@ from shapely.geometry import Point
 from matplotlib import pyplot as plt
 from scipy.interpolate import RBFInterpolator, RegularGridInterpolator
 from joblib import Parallel, delayed
-from joblib import parallel_config
 
 # internal modules
 from .CoReg import COREG
@@ -331,40 +331,45 @@ class Tie_Point_Grid(object):
             [self.COREG_obj.ref.band4match])  # only sets geoArr._arr_cache; does not change number of bands
         self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
 
-        with parallel_config(n_jobs=self.CPUs):
-            print(f"Calculating tie point grid ({len(GDF)} points) using {self.CPUs} CPU cores...")
-            results = []
-            bar = ProgressBar(prefix='\tprogress:')
+        print(f"Calculating tie point grid ({len(GDF)} points) using {self.CPUs} CPU cores...")
+        results = []
+        bar = ProgressBar(prefix='\tprogress:')
 
-            for i, res in enumerate(
-                Parallel(return_as='generator')(
-                    delayed(self._get_spatial_shifts)(
-                        self.ref,
-                        self.shift,
-                        point_id,
-                        self.COREG_obj.fftw_works,
-                        wp=self.XY_mapPoints[point_id],
-                        ws=self.COREG_obj.win_size_XY,
-                        resamp_alg_calc=self.rspAlg_calc,
-                        footprint_poly_ref=self.COREG_obj.ref.poly,
-                        footprint_poly_tgt=self.COREG_obj.shift.poly,
-                        r_b4match=self.ref.band4match + 1,  # internally indexing from 0
-                        s_b4match=self.shift.band4match + 1,  # internally indexing from 0
-                        max_iter=self.COREG_obj.max_iter,
-                        max_shift=self.COREG_obj.max_shift,
-                        nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-                        force_quadratic_win=self.COREG_obj.force_quadratic_win,
-                        binary_ws=self.COREG_obj.bin_ws,
-                        v=False,  # True leads to massive STDOUT
-                        q=True,  # True leads to massive STDOUT
-                        ignore_errors=True
-                    ) for point_id in GDF.index
-                )
-            ):
-                results.append(res)
+        # multiprocessing backend is slightly faster on Linux but can only return a list (no progress)
+        if platform != 'win32' and (not self.progress or self.q):
+            kw_parallel = dict(backend='multiprocessing', return_as='list')
+        else:
+            kw_parallel = dict(backend='loky', return_as='generator')
 
-                if self.progress and not self.q:
-                    bar.print_progress(percent=(i + 1) / len(GDF) * 100)
+        for i, res in enumerate(
+            Parallel(n_jobs=self.CPUs, **kw_parallel)(
+                delayed(self._get_spatial_shifts)(
+                    self.ref,
+                    self.shift,
+                    point_id,
+                    self.COREG_obj.fftw_works,
+                    wp=self.XY_mapPoints[point_id],
+                    ws=self.COREG_obj.win_size_XY,
+                    resamp_alg_calc=self.rspAlg_calc,
+                    footprint_poly_ref=self.COREG_obj.ref.poly,
+                    footprint_poly_tgt=self.COREG_obj.shift.poly,
+                    r_b4match=self.ref.band4match + 1,  # internally indexing from 0
+                    s_b4match=self.shift.band4match + 1,  # internally indexing from 0
+                    max_iter=self.COREG_obj.max_iter,
+                    max_shift=self.COREG_obj.max_shift,
+                    nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+                    force_quadratic_win=self.COREG_obj.force_quadratic_win,
+                    binary_ws=self.COREG_obj.bin_ws,
+                    v=False,  # True leads to massive STDOUT
+                    q=True,  # True leads to massive STDOUT
+                    ignore_errors=True
+                ) for point_id in GDF.index
+            )
+        ):
+            results.append(res)
+
+            if self.progress and not self.q:
+                bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
         # merge results with GDF
         # NOTE: We use a pandas.DataFrame here because the geometry column is missing.
