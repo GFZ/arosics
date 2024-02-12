@@ -118,7 +118,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # tgt.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
