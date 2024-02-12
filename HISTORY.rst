@@ -7,6 +7,8 @@ History
 
 * !49: Updated copyright.
 * !50: Replaced deprecated http links.
+* !51: Replaced the multiprocessing implementation with parallelization based on joblib including mem-mapping. This
+  reduces the memory load and should fix potential deadlocks on Windows (https://github.com/GFZ/arosics/issues/36).
 
 
 1.10.1 (2023-12-22)
