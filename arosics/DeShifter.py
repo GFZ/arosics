@@ -24,6 +24,7 @@
 # limitations under the License.
 
 import collections
+from functools import lru_cache
 import time
 import warnings
 import numpy as np
@@ -44,6 +45,10 @@ _dict_rspAlg_rsp_Int = {'nearest': 0, 'bilinear': 1, 'cubic': 2, 'cubic_spline':
                         0: 'nearest', 1: 'bilinear', 2: 'cubic', 3: 'cubic_spline', 4: 'lanczos', 5: 'average',
                         6: 'mode', 7: 'max', 8: 'min', 9: 'med', 10: 'q1', 11: 'q2'}
 
+
+@lru_cache
+def prj_equal_cached(a,b):
+    return prj_equal(a,b)
 
 class DESHIFTER(object):
     """
@@ -266,7 +271,7 @@ class DESHIFTER(object):
     def warping_needed(self):
         """Return True if image warping is needed in consideration of the input parameters of DESHIFTER."""
         assert self.out_grid, 'Output grid must be calculated before.'
-        equal_prj = prj_equal(self.ref_prj, self.shift_prj)
+        equal_prj = prj_equal_cached(self.ref_prj, self.shift_prj)
         return \
             False if (equal_prj and not self.GCPList and is_coord_grid_equal(self.updated_gt, *self.out_grid)) else True
 
