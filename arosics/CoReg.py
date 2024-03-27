@@ -24,6 +24,7 @@
 # limitations under the License.
 
 import os
+from functools import lru_cache
 import time
 import warnings
 from copy import copy
@@ -63,6 +64,29 @@ from py_tools_ds.geo.map_info import geotransform2mapinfo
 from py_tools_ds.io.vector.writer import write_shp
 
 __author__ = 'Daniel Scheffler'
+
+
+
+@lru_cache
+def prj_equal_cached(a,b):
+    return prj_equal(a,b)
+
+
+@lru_cache
+def verify_crs(a,b):
+    if a is None and b is None or a == b:
+        return
+    from pyproj import CRS
+    crs_ref = CRS.from_user_input(a)
+    crs_shift = CRS.from_user_input(b)
+
+    if not crs_ref.equals(crs_shift):
+        name_ref, name_shift = \
+            (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
+
+        raise RuntimeError(
+            'Input projections are not equal. Different projections are currently not supported. '
+            'Got %s vs. %s.' % (name_ref, name_shift))
 
 
 class GeoArray_CoReg(GeoArray):
@@ -553,18 +577,8 @@ class COREG(object):
         self.ref = GeoArray_CoReg(self.params, 'ref')
         self.shift = GeoArray_CoReg(self.params, 'shift')
 
-        if not prj_equal(self.ref.prj, self.shift.prj):
-            from pyproj import CRS
+        verify_crs(self.ref.prj, self.shift.prj)
 
-            crs_ref = CRS.from_user_input(self.ref.prj)
-            crs_shift = CRS.from_user_input(self.shift.prj)
-
-            name_ref, name_shift = \
-                (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
-
-            raise RuntimeError(
-                'Input projections are not equal. Different projections are currently not supported. '
-                'Got %s vs. %s.' % (name_ref, name_shift))
 
     def _get_overlap_properties(self) -> None:
         with warnings.catch_warnings():
@@ -607,7 +621,7 @@ class COREG(object):
 
     @property
     def are_pixGrids_equal(self):
-        return prj_equal(self.ref.prj, self.shift.prj) and \
+        return prj_equal_cached(self.ref.prj, self.shift.prj) and \
                is_coord_grid_equal(self.ref.gt, *self.shift.xygrid_specs, tolerance=1e-8)
 
     def equalize_pixGrids(self) -> None:
@@ -1070,7 +1084,7 @@ class COREG(object):
 
         # equalize pixel grids and projection of matchWin and otherWin (ONLY if grids are really different)
         if not (self.matchWin.xygrid_specs == self.otherWin.xygrid_specs and
-                prj_equal(self.matchWin.prj, self.otherWin.prj)):
+                prj_equal_cached(self.matchWin.prj, self.otherWin.prj)):
             self.otherWin.arr, self.otherWin.gt = warp_ndarray(self.otherWin.arr,
                                                                self.otherWin.gt,
                                                                self.otherWin.prj,
