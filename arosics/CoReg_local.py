@@ -53,6 +53,7 @@ from py_tools_ds.geo.map_info import geotransform2mapinfo
 from geoarray import GeoArray
 
 __author__ = 'Daniel Scheffler'
+gdal.AllRegister()
 
 
 class COREG_LOCAL(object):
@@ -327,8 +328,6 @@ class COREG_LOCAL(object):
         # given
         if path_out and projectDir and os.path.basename(self.path_out):
             self.path_out = os.path.join(self.projectDir, os.path.basename(self.path_out))
-
-        gdal.AllRegister()
 
         # resample input data in case there is a metadata rotation (not handled by AROSICS)
         self._check_and_handle_metaRotation()

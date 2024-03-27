@@ -61,7 +61,7 @@ from py_tools_ds.geo.map_info import geotransform2mapinfo
 from py_tools_ds.io.vector.writer import write_shp
 
 __author__ = 'Daniel Scheffler'
-
+gdal.AllRegister()
 
 class GeoArray_CoReg(GeoArray):
     def __init__(self,
@@ -416,7 +416,6 @@ class COREG(object):
         self.deshift_results = None  # set by self.correct_shifts()
 
         # try:
-        gdal.AllRegister()
         self._check_and_handle_metaRotation()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
