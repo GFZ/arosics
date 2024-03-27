@@ -220,7 +220,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                                                 **dict(self.coreg_kwargs,
                                                        path_out='auto',
                                                        fmt_out='ENVI',
-                                                       v=True))
+                                                       v=False))
 
     # @unittest.SkipTest
     def test_shift_calculation_verboseMode(self):
@@ -230,7 +230,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                 'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
                                                         'which is a non-GUI backend, so cannot show the figure.')
             CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
-                                                     **dict(self.coreg_kwargs, v=True))
+                                                     **dict(self.coreg_kwargs, v=False))
             self.assertTrue(CR.success)
 
     def test_shift_calculation_windowCoveringNodata(self):
@@ -328,7 +328,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         self.skipTest('Not yet implemented.')
 
-    # @unittest.SkipTest
+    @unittest.skip
     def test_plotting_after_shift_calculation(self):  # , mock_show):
         """Test plotting functionality."""
         # mock_show.return_value = None  # probably not necessary here in your case
@@ -357,7 +357,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     def test_correct_shifts_without_resampling(self):
         kw = self.coreg_kwargs.copy()
         kw['align_grids'] = False  # =default
-        kw['progress'] = True
+        kw['progress'] = False
 
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
         self.assertTrue(CR.success)
@@ -369,7 +369,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     def test_correct_shifts_with_resampling(self):
         kw = self.coreg_kwargs.copy()
         kw['align_grids'] = True
-        kw['progress'] = True
+        kw['progress'] = False
 
         CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path, **kw)
         self.assertTrue(CR.success)

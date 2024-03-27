@@ -25,6 +25,8 @@
 # limitations under the License.
 
 import os
+from multiprocessing import cpu_count
+N_CPUS = cpu_count()
 
 # custom
 import arosics
@@ -43,8 +45,10 @@ test_cases = dict(
                                '340870 5862000))',
             footprint_poly_tgt='POLYGON ((341890 5866490, 356180 5866490, 356180 5834970, 335440 5834970, '
                                '335490 5845270, 341890 5866490))',
+            CPUs=N_CPUS,
             progress=False,
-            v=False),
+            v=False,
+            q=True),
         wp_inside=(344720, 5848485),  # inside of overlap
         wp_covering_nodata=(339611, 5856426),  # close to the image edge of the input images -> win>64px covers nodata
         wp_close_to_edge=(353810, 5840516),  # close to the image edge of the input images -> win>64px covers nodata
@@ -54,6 +58,9 @@ test_cases = dict(
             grid_res=100,
             path_out=os.path.join(tests_path, 'output', 'testcase_inter1_S2A_S2A',
                                               'tgt_S2A_20160529T153631_T33UUU_sub_CR_local.bsq'),
-            progress=False)
+            CPUs=N_CPUS,                                  
+            progress=False,
+            v=False,
+            q=True)
     )
 )
