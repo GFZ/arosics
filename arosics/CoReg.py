@@ -131,8 +131,11 @@ class GeoArray_CoReg(GeoArray):
         # compute nodata mask and validate that it is not completely filled with nodata
         self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
 
-        if True not in self.mask_nodata[:]:
-            raise RuntimeError(f'The {self.imName} passed to AROSICS only contains nodata values.')
+        if CoReg_params["validate_nonempty"]:
+            # compute nodata mask and validate that it is not completely filled with nodata
+            self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
+            if not self.mask_nodata.any():
+                raise RuntimeError(f'The {self.imName} passed to AROSICS only contains nodata values.')
 
         # set footprint_poly
         given_footprint_poly = CoReg_params['footprint_poly_%s' % ('ref' if imID == 'ref' else 'tgt')]
@@ -205,6 +208,7 @@ class COREG(object):
                  data_corners_ref: list = None,
                  data_corners_tgt: list = None,
                  nodata: Tuple = (None, None),
+                 validate_nonempty: bool = True,
                  calc_corners: bool = True,
                  binary_ws: bool = True,
                  mask_baddata_ref: Union[GeoArray, str] = None,
@@ -384,7 +388,7 @@ class COREG(object):
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
                           "affect the precision of the calculated spatial shifts! It is highly recommended to "
                           "choose another resampling algorithm.")
-
+        self.validate_nonempty = validate_nonempty
         self.path_out = path_out  # updated by self.set_outpathes
         self.fmt_out = fmt_out
         self.out_creaOpt = out_crea_options
