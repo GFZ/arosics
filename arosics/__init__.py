@@ -48,9 +48,9 @@ __all__ = ['COREG',
            ]
 
 
-# check optional dependencies
-if not _find_loader('pyfftw'):
-    _warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
+# # check optional dependencies
+# if not _find_loader('pyfftw'):
+#     _warnings.warn('PYFFTW library is missing. However, coregistration works. But in some cases it can be much slower.')
 
 
 # $PROJ_LIB was renamed to $PROJ_DATA in proj=9.1.1, which leads to issues with fiona>=1.8.20,<1.9
