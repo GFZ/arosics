@@ -358,6 +358,7 @@ class Tie_Point_Grid(object):
                     max_iter=self.COREG_obj.max_iter,
                     max_shift=self.COREG_obj.max_shift,
                     nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+                    validate_nonempty=False,
                     force_quadratic_win=self.COREG_obj.force_quadratic_win,
                     binary_ws=self.COREG_obj.bin_ws,
                     v=False,  # True leads to massive STDOUT
