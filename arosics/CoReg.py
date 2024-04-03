@@ -33,6 +33,7 @@ from multiprocessing import cpu_count
 # custom
 from osgeo import gdal  # noqa
 import numpy as np
+from scipy.fft import fft2, ifft2, fftshift
 
 from packaging.version import parse as parse_version
 try:
@@ -1183,8 +1184,8 @@ class COREG(object):
                     in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
 
             if self.fftw_works is False or fft_arr0 is None or fft_arr1 is None:
-                fft_arr0 = np.fft.fft2(in_arr0)
-                fft_arr1 = np.fft.fft2(in_arr1)
+                fft_arr0 = fft2(in_arr0)
+                fft_arr1 = fft2(in_arr1)
 
             # GeoArray(fft_arr0.astype(np.float32)).show(figsize=(15,15))
             # GeoArray(fft_arr1.astype(np.float32)).show(figsize=(15,15))
@@ -1202,13 +1203,13 @@ class COREG(object):
             if 'pyfft' in globals():
                 ifft_arr = pyfftw.FFTW(temp, np.empty_like(temp), axes=(0, 1), direction='FFTW_BACKWARD')()
             else:
-                ifft_arr = np.fft.ifft2(temp)
+                ifft_arr = ifft2(temp)
             if self.v:
                 print('backward FFTW: %.2fs' % (time.time() - time0))
 
             cps = np.abs(ifft_arr)
             # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
-            scps = np.fft.fftshift(cps)
+            scps = fftshift(cps)
             if self.v:
                 PLT.subplot_imshow([np.real(in_arr0).astype(np.uint16), np.real(in_arr1).astype(np.uint16),
                                     np.real(fft_arr0).astype(np.uint8), np.real(fft_arr1).astype(np.uint8), scps],
