@@ -2,6 +2,12 @@
 History
 =======
 
+1.10.3 (coming soon)
+--------------------
+
+* !52: Added minimal version for joblib to fix https://github.com/GFZ/arosics/issues/39.
+
+
 1.10.2 (2024-02-13)
 -------------------
 
