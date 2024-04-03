@@ -47,7 +47,12 @@ to resolve the following dependencies before the pip installer is run:
     * scikit-image >=0.21.0
     * shapely
 
-    NOTE: the gdal library must be installed before numpy, otherwise do a [re-installation](https://gis.stackexchange.com/a/465888/140483) in order to respect the build isolation
+.. note::
+
+    The gdal library must be installed before numpy, otherwise do a
+    `re-installation <https://gis.stackexchange.com/a/465888/140483>`_
+    in order to respect the build isolation.
+
 
 Then, the pip installer can be run by:
 
