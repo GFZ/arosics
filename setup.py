@@ -47,7 +47,7 @@ req = [
     'geoarray>=0.15.0',
     'geojson',
     'geopandas',
-    'joblib',
+    'joblib>=1.3.0',
     'matplotlib',
     'numpy',
     'packaging',

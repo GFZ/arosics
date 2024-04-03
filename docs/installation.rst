@@ -37,7 +37,7 @@ to resolve the following dependencies before the pip installer is run:
     * cartopy
     * gdal
     * geopandas
-    * joblib
+    * joblib >=1.3.0
     * matplotlib
     * numpy
     * pandas

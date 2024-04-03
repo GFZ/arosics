@@ -16,7 +16,7 @@ test_arosics:
 
     # update py_tools_ds and geoarray
     - mamba update py-tools-ds geoarray
-    - mamba install joblib  # TODO remove is CI runner is rebuilt
+    - mamba install joblib>=1.3.0  # TODO remove is CI runner is rebuilt
 
     # run tests
     - make pytest
