@@ -59,7 +59,7 @@ req = [
     'py_tools_ds>=0.18.0',
     'scikit-image>=0.21.0',
     'scikit-learn',
-    'scipy',
+    'scipy>=1.7.0',
     'shapely',
 ]
 

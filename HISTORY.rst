@@ -8,6 +8,8 @@ History
 * !52: Added minimal version for joblib to fix https://github.com/GFZ/arosics/issues/39.
 * !53: Added pip installation note to avoid issues due to installation order.
 * !54: Removed gdal.AllRegister call as this is automatically called when gdal is imported.
+* !55: Replaced the use of numpy.fft with scipy.fft which is 2-3 times faster.
+       This reduces the overall processing time for the local co-registration to around 60% of the former time.
 
 
 1.10.2 (2024-02-13)
