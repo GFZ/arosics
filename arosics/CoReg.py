@@ -417,7 +417,6 @@ class COREG(object):
         self.deshift_results = None  # set by self.correct_shifts()
 
         # try:
-        gdal.AllRegister()
         self._check_and_handle_metaRotation()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
