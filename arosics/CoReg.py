@@ -416,7 +416,6 @@ class COREG(object):
         self.success = None  # default
         self.deshift_results = None  # set by self.correct_shifts()
 
-        # try:
         self._check_and_handle_metaRotation()
         self._get_image_params()
         self._set_outpathes(im_ref, im_tgt)
@@ -445,8 +444,6 @@ class COREG(object):
                       self.matchBox.mapPoly, self.matchBox.prj)
 
         self.success = False if self.success is False or not self.matchBox.boxMapYX else None
-
-        # except BaseException:
 
         self._coreg_info = None  # private attribute to be filled by self.coreg_info property
 
