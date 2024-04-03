@@ -6,6 +6,7 @@ History
 --------------------
 
 * !52: Added minimal version for joblib to fix https://github.com/GFZ/arosics/issues/39.
+* !53: Added pip installation note to avoid issues due to installation order.
 
 
 1.10.2 (2024-02-13)
