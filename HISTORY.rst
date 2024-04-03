@@ -7,6 +7,7 @@ History
 
 * !52: Added minimal version for joblib to fix https://github.com/GFZ/arosics/issues/39.
 * !53: Added pip installation note to avoid issues due to installation order.
+* !54: Removed gdal.AllRegister call as this is automatically called when gdal is imported.
 
 
 1.10.2 (2024-02-13)
