@@ -1,4 +1,4 @@
-FROM ci_base_ubuntu:0.2
+FROM ci_base_ubuntu:0.3
 
 # use bash shell instead of sh shell for all docker commands
 SHELL ["/bin/bash", "-c"]

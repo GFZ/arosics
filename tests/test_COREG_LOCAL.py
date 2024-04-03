@@ -3,7 +3,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2023
+# Copyright (C) 2017-2024
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -16,7 +16,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#   https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import unittest
 import shutil
 import os
 import warnings
+from multiprocessing import cpu_count
 
 # custom
 from .cases import test_cases
@@ -98,8 +99,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # test shift correction and output writer
         CRL.correct_shifts()
 
-        self.assertTrue(os.path.exists(self.coreg_kwargs['path_out']),
-                        'Output of local co-registration has not been written.')
+        assert os.path.exists(self.coreg_kwargs['path_out']), 'Output of local co-registration has not been written.'
 
     def test_calculation_of_tie_point_grid_float_coords(self):
         # NOTE: This does not test against unequaly sized output of get_image_windows_to_match().
@@ -118,7 +118,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # tgt.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
@@ -172,14 +172,13 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         tgt.prj = wkt_noepsg
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
 
     def test_calculation_of_tie_point_grid_with_metaRotation(self):
         """Test with default parameters - should compute X/Y shifts properly and write the de-shifted target image."""
-
         # overwrite gt and prj
         ref = GeoArray(self.ref_path)
         ref.to_mem()
@@ -192,12 +191,31 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=32,
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
 
-        self.assertTrue(CRL.success)
+        assert CRL.success
+
+    def test_calculation_of_tie_point_grid_with_mask(self):
+        """Test COREG_LOCAL if bad data mask is given."""
+        import numpy as np
+        ref = GeoArray(self.ref_path)
+        tgt = GeoArray(self.tgt_path)
+
+        mask = np.zeros((tgt.rows, tgt.cols), dtype=np.uint8)
+        mask[1000:2000, 1000:2000] = True
+        gA_mask = GeoArray(mask, tgt.gt, tgt.prj)
+
+        # get instance of COREG_LOCAL object
+        CRL = COREG_LOCAL(ref, tgt, **dict(mask_baddata_tgt=gA_mask,
+                                           **self.coreg_kwargs
+                                           ))
+        CRL.calculate_spatial_shifts()
+        CRL.view_CoRegPoints()
+
+        assert CRL.success
 
 
 if __name__ == '__main__':

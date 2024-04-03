@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2023
+# Copyright (C) 2017-2024
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -15,7 +15,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#   https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,21 +23,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
-import multiprocessing
 import os
 import warnings
-from time import time, sleep
-from typing import Optional, Union
+from time import time
+from typing import Optional
+from sys import platform
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 import numpy as np
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 from shapely.geometry import Point
 from matplotlib import pyplot as plt
 from scipy.interpolate import RBFInterpolator, RegularGridInterpolator
+from joblib import Parallel, delayed
 
 # internal modules
 from .CoReg import COREG
@@ -45,26 +45,11 @@ from py_tools_ds.geo.projection import isLocal
 from py_tools_ds.io.pathgen import get_generic_outpath
 from py_tools_ds.processing.progress_mon import ProgressBar
 from py_tools_ds.geo.vector.conversion import points_to_raster
-from py_tools_ds.io.vector.writer import write_shp
 from geoarray import GeoArray
 
 from .CoReg import GeoArray_CoReg  # noqa F401  # flake8 issue
 
 __author__ = 'Daniel Scheffler'
-
-global_shared_imref: Optional[Union[GeoArray, str]] = None
-global_shared_im2shift: Optional[Union[GeoArray, str]] = None
-
-
-def mp_initializer(imref, imtgt):
-    """Declare global variables needed for self._get_spatial_shifts().
-
-    :param imref:   reference image
-    :param imtgt:   target image
-    """
-    global global_shared_imref, global_shared_im2shift
-    global_shared_imref = imref
-    global_shared_im2shift = imtgt
 
 
 class Tie_Point_Grid(object):
@@ -250,7 +235,7 @@ class Tie_Point_Grid(object):
         return XY_points, XY_mapPoints
 
     def _exclude_bad_XYpos(self, GDF):
-        """Exclude all points outside of the image overlap area and where the bad data mask is True (if given).
+        """Exclude all points outside the image overlap area and where the bad data mask is True (if given).
 
         :param GDF:     <geopandas.GeoDataFrame> must include the columns 'X_MAP' and 'Y_MAP'
         :return:
@@ -270,7 +255,7 @@ class Tie_Point_Grid(object):
         mapXY = np.array(GDF.loc[:, ['X_MAP', 'Y_MAP']])
         GDF['REF_BADDATA'] = self.COREG_obj.ref.mask_baddata.read_pointData(mapXY) \
             if self.COREG_obj.ref.mask_baddata is not None else False
-        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY) \
+        GDF['TGT_BADDATA'] = self.COREG_obj.shift.mask_baddata.read_pointData(mapXY).flatten().astype(bool) \
             if self.COREG_obj.shift.mask_baddata is not None else False
         GDF = GDF[(~GDF['REF_BADDATA']) & (~GDF['TGT_BADDATA'])]
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
@@ -285,18 +270,9 @@ class Tie_Point_Grid(object):
         return GDF
 
     @staticmethod
-    def _get_spatial_shifts(coreg_kwargs):
-        # unpack
-        pointID = coreg_kwargs['pointID']
-        fftw_works = coreg_kwargs['fftw_works']
-        del coreg_kwargs['pointID'], coreg_kwargs['fftw_works']
-
-        # assertions
-        assert global_shared_imref is not None
-        assert global_shared_im2shift is not None
-
+    def _get_spatial_shifts(imref, im2shift, point_id, fftw_works, **coreg_kwargs):
         # run CoReg
-        CR = COREG(global_shared_imref, global_shared_im2shift, CPUs=1, **coreg_kwargs)
+        CR = COREG(imref, im2shift, CPUs=1, **coreg_kwargs)
         CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
 
@@ -307,28 +283,7 @@ class Tie_Point_Grid(object):
                   CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
                   CR.shift_reliability, last_err]
 
-        return [pointID] + CR_res
-
-    def _get_coreg_kwargs(self, pID, wp):
-        return dict(
-            pointID=pID,
-            fftw_works=self.COREG_obj.fftw_works,
-            wp=wp,
-            ws=self.COREG_obj.win_size_XY,
-            resamp_alg_calc=self.rspAlg_calc,
-            footprint_poly_ref=self.COREG_obj.ref.poly,
-            footprint_poly_tgt=self.COREG_obj.shift.poly,
-            r_b4match=self.ref.band4match + 1,  # band4match is internally saved as index, starting from 0
-            s_b4match=self.shift.band4match + 1,  # band4match is internally saved as index, starting from 0
-            max_iter=self.COREG_obj.max_iter,
-            max_shift=self.COREG_obj.max_shift,
-            nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-            force_quadratic_win=self.COREG_obj.force_quadratic_win,
-            binary_ws=self.COREG_obj.bin_ws,
-            v=False,  # otherwise this would lead to massive console output
-            q=True,  # otherwise this would lead to massive console output
-            ignore_errors=True
-        )
+        return [point_id] + CR_res
 
     def get_CoRegPoints_table(self):
         assert self.XY_points is not None and self.XY_mapPoints is not None
@@ -376,51 +331,45 @@ class Tie_Point_Grid(object):
             [self.COREG_obj.ref.band4match])  # only sets geoArr._arr_cache; does not change number of bands
         self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
 
-        # get all variations of kwargs for coregistration
-        list_coreg_kwargs = (self._get_coreg_kwargs(i, self.XY_mapPoints[i]) for i in GDF.index)  # generator
+        print(f"Calculating tie point grid ({len(GDF)} points) using {self.CPUs} CPU cores...")
+        results = []
+        bar = ProgressBar(prefix='\tprogress:')
 
-        # run co-registration for whole grid
-        if self.CPUs is None or self.CPUs > 1:
-            if not self.q:
-                cpus = self.CPUs if self.CPUs is not None else multiprocessing.cpu_count()
-                print("Calculating tie point grid (%s points) using %s CPU cores..." % (len(GDF), cpus))
-
-            with multiprocessing.Pool(self.CPUs, initializer=mp_initializer, initargs=(self.ref, self.shift)) as pool:
-                if self.q or not self.progress:
-                    results = pool.map(self._get_spatial_shifts, list_coreg_kwargs)
-                else:
-                    results = pool.map_async(self._get_spatial_shifts, list_coreg_kwargs, chunksize=1)
-                    bar = ProgressBar(prefix='\tprogress:')
-                    while True:
-                        sleep(.1)
-                        # this does not really represent the remaining tasks but the remaining chunks
-                        # -> thus chunksize=1
-                        # noinspection PyProtectedMember
-                        numberDone = len(GDF) - results._number_left
-                        if self.progress:
-                            bar.print_progress(percent=numberDone / len(GDF) * 100)
-                        if results.ready():
-                            # <= this is the line where multiprocessing can freeze if an exception appears within
-                            # COREG and is not raised
-                            results = results.get()
-                            break
-                pool.close()  # needed to make coverage work in multiprocessing
-                pool.join()
-
+        # multiprocessing backend is slightly faster on Linux but can only return a list (no progress)
+        if platform != 'win32' and (not self.progress or self.q):
+            kw_parallel = dict(backend='multiprocessing', return_as='list')
         else:
-            # declare global variables needed for self._get_spatial_shifts()
-            global global_shared_imref, global_shared_im2shift
-            global_shared_imref = self.ref
-            global_shared_im2shift = self.shift
+            kw_parallel = dict(backend='loky', return_as='generator')
 
-            if not self.q:
-                print("Calculating tie point grid (%s points) on 1 CPU core..." % len(GDF))
-            results = np.empty((len(geomPoints), 14), object)
-            bar = ProgressBar(prefix='\tprogress:')
-            for i, coreg_kwargs in enumerate(list_coreg_kwargs):
-                if self.progress:
-                    bar.print_progress((i + 1) / len(GDF) * 100)
-                results[i, :] = self._get_spatial_shifts(coreg_kwargs)
+        for i, res in enumerate(
+            Parallel(n_jobs=self.CPUs, **kw_parallel)(
+                delayed(self._get_spatial_shifts)(
+                    self.ref,
+                    self.shift,
+                    point_id,
+                    self.COREG_obj.fftw_works,
+                    wp=self.XY_mapPoints[point_id],
+                    ws=self.COREG_obj.win_size_XY,
+                    resamp_alg_calc=self.rspAlg_calc,
+                    footprint_poly_ref=self.COREG_obj.ref.poly,
+                    footprint_poly_tgt=self.COREG_obj.shift.poly,
+                    r_b4match=self.ref.band4match + 1,  # internally indexing from 0
+                    s_b4match=self.shift.band4match + 1,  # internally indexing from 0
+                    max_iter=self.COREG_obj.max_iter,
+                    max_shift=self.COREG_obj.max_shift,
+                    nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+                    force_quadratic_win=self.COREG_obj.force_quadratic_win,
+                    binary_ws=self.COREG_obj.bin_ws,
+                    v=False,  # True leads to massive STDOUT
+                    q=True,  # True leads to massive STDOUT
+                    ignore_errors=True
+                ) for point_id in GDF.index
+            )
+        ):
+            results.append(res)
+
+            if self.progress and not self.q:
+                bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
         # merge results with GDF
         # NOTE: We use a pandas.DataFrame here because the geometry column is missing.
@@ -462,7 +411,7 @@ class Tie_Point_Grid(object):
         return self.CoRegPoints_table
 
     def calc_rmse(self, include_outliers: bool = False) -> float:
-        """Calculate root mean square error of absolute shifts from the tie point grid.
+        """Calculate root-mean-square error of absolute shifts from the tie point grid.
 
         :param include_outliers:    whether to include tie points that have been marked as false-positives (if present)
         """
@@ -672,8 +621,6 @@ class Tie_Point_Grid(object):
         :param showFig:             whether to show or to hide the figure
         :param return_fig:          whether to return the figure and axis objects
         """
-        from matplotlib import pyplot as plt
-
         if unit not in ['m', 'px']:
             raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
 
@@ -854,27 +801,33 @@ class Tie_Point_Grid(object):
     def to_PointShapefile(self,
                           path_out: str = None,
                           skip_nodata: bool = True,
-                          skip_nodata_col: str = 'ABS_SHIFT'
+                          skip_nodata_col: str = 'ABS_SHIFT',
+                          skip_outliers: bool = False
                           ) -> None:
         """Write the calculated tie point grid to a point shapefile (e.g., for visualization by a GIS software).
 
         NOTE: The shapefile uses Tie_Point_Grid.CoRegPoints_table as attribute table.
 
-        :param path_out:        <str> the output path. If not given, it is automatically defined.
-        :param skip_nodata:     <bool> whether to skip all points where no valid match could be found
-        :param skip_nodata_col: <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
-                                identify points where no valid match could be found
+        :param path_out:         <str> the output path. If not given, it is automatically defined.
+        :param skip_nodata:      <bool> whether to skip all points where no valid match could be found
+        :param skip_nodata_col:  <str> determines which column of Tie_Point_Grid.CoRegPoints_table is used to
+                                 identify points where no valid match could be found
+        :param skip_outliers:    <bool> whether to exclude all tie points that have been flagged as outlier
+                                 (false-positive)
         """
         if self.CoRegPoints_table.empty:
             raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
 
-        GDF = self.CoRegPoints_table
+        GDF2pass = self.CoRegPoints_table
 
         if skip_nodata:
-            GDF2pass = GDF[GDF[skip_nodata_col] != self.outFillVal].copy()
+            GDF2pass = GDF2pass[GDF2pass[skip_nodata_col] != self.outFillVal].copy()
         else:
-            GDF2pass = GDF
+            # use the error represetation (including error type) instead of only the error message
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
+
+        if skip_outliers:
+            GDF2pass = GDF2pass[~GDF2pass['OUTLIER'].__eq__(True)].copy()
 
         # replace boolean values (cannot be written)
         GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not bool but np.object
@@ -891,30 +844,6 @@ class Tie_Point_Grid(object):
         if not self.q:
             print('Writing %s ...' % path_out)
         GDF2pass.to_file(path_out)
-
-    def _to_PointShapefile(self, skip_nodata=True, skip_nodata_col='ABS_SHIFT'):  # pragma: no cover
-        warnings.warn(DeprecationWarning(
-            "'_tiepoints_grid_to_PointShapefile' is deprecated."  # TODO delete if other method validated
-            " 'tiepoints_grid_to_PointShapefile' is much faster."))
-        if self.CoRegPoints_table.empty:
-            raise RuntimeError('Cannot save a point shapefile because no tie points were found at all.')
-
-        GDF = self.CoRegPoints_table
-        GDF2pass = \
-            GDF if not skip_nodata else \
-            GDF[GDF[skip_nodata_col] != self.outFillVal]
-        shapely_points = GDF2pass['geometry'].values.tolist()
-        attr_dicts = [collections.OrderedDict(zip(GDF2pass.columns,
-                                                  GDF2pass.loc[i].values))
-                      for i in GDF2pass.index]
-
-        fName_out = "CoRegPoints_grid%s_ws%s.shp" \
-                    % (self.grid_res, self.COREG_obj.win_size_XY)
-        path_out = os.path.join(self.dir_out, fName_out)
-        write_shp(path_out,
-                  shapely_points,
-                  prj=self.COREG_obj.shift.prj,
-                  attrDict=attr_dicts)
 
     def to_vectorfield(self, path_out: str = None, fmt: str = None, mode: str = 'md') -> GeoArray:
         """Save the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield.
@@ -985,11 +914,6 @@ class Tie_Point_Grid(object):
         TPGI = Tie_Point_Grid_Interpolator(self, v=v)
 
         return TPGI.interpolate(metric=metric, method=method, plot_result=plot_result, lowres_spacing=lowres_spacing)
-
-    @staticmethod
-    def to_Raster_using_Kriging(*args, **kwargs):
-        raise NotImplementedError('This method was removed in arosics version 1.8.2. To interpolate tie points into '
-                                  'space, you may now use Tie_Point_Grid.to_interpolated_raster() instead.')
 
 
 class Tie_Point_Refiner(object):

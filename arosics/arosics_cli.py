@@ -4,7 +4,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2023
+# Copyright (C) 2017-2024
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -17,7 +17,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#   https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -276,7 +276,7 @@ def get_arosics_argparser():
            help='xgsd ygsd: set the output pixel size in map units (default: original pixel size of the image to be '
                 'shifted)')
 
-    gloArg('-vo', nargs='?', type=str, choices=[0, 1], help='an optional output directory for outputs of verbose mode'
+    gloArg('-vo', nargs='?', type=int, choices=[0, 1], help='an optional output directory for outputs of verbose mode'
                                                             '(if not given, no outputs are written to disk)',
            default=0, )
 
@@ -340,7 +340,7 @@ def main():
         try:
             with open(p, 'a') as of:
                 of.write(c)
-        except Exception:
+        except Exception:  # noqa
             pass
 
     wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))

@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2023
+# Copyright (C) 2017-2024
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -15,7 +15,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#   https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,9 +28,10 @@ import time
 import warnings
 from copy import copy
 from typing import Iterable, Union, Tuple, List, Optional  # noqa F401
+from multiprocessing import cpu_count
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 import numpy as np
 
 from packaging.version import parse as parse_version
@@ -141,7 +142,7 @@ class GeoArray_CoReg(GeoArray):
 
         # add bad data mask
         given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
-        if given_mask:
+        if given_mask is not None:
             self.mask_baddata = given_mask  # runs GeoArray.mask_baddata.setter -> sets it to BadDataMask()
 
     poly = alias_property('footprint_poly')  # ensures that self.poly is updated if self.footprint_poly is updated
@@ -221,7 +222,7 @@ class COREG(object):
             band of shift image to be used for matching (starts with 1; default: 1)
 
         :param wp:
-            custom matching window position as (X, Y) map coordinate in the same projection like the reference image
+            custom matching window position as (X, Y) map coordinate in the same projection as the reference image
             (default: central position of image overlap)
 
         :param ws:
@@ -235,7 +236,7 @@ class COREG(object):
 
         :param align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
-            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = False
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30)), default = False
 
             - NOTE: If this is set to False, the mis-registration in the target image is corrected by updating its
               geocoding information only, i.e., without performing any resampling which preserves the original
@@ -284,7 +285,7 @@ class COREG(object):
 
         :param calc_corners:
              calculate true positions of the dataset corners in order to get a useful matching window position within
-             the actual image overlap (default: True; deactivated if '-cor0' and '-cor1' are given
+             the actual image overlap (default: True; deactivated if '-cor0' and '-cor1' are given)
 
         :param binary_ws:
             use binary X/Y dimensions for the matching window (default: True)
@@ -293,13 +294,13 @@ class COREG(object):
             path to a 2D boolean mask file (or an instance of GeoArray) for the reference image where all bad data
             pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param mask_baddata_tgt:
             path to a 2D boolean mask file (or an instance of GeoArray) for the image to be shifted where all bad data
             pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param CPUs:
             number of CPUs to use during pixel grid equalization (default: None, which means 'all CPUs available')
@@ -375,7 +376,7 @@ class COREG(object):
         self.rspAlg_calc = resamp_alg_calc \
             if isinstance(resamp_alg_calc, str) else _dict_rspAlg_rsp_Int[resamp_alg_calc]
         self.calc_corners = calc_corners
-        self.CPUs = CPUs
+        self.CPUs = CPUs if CPUs and CPUs <= cpu_count() else cpu_count()
         self.bin_ws = binary_ws
         self.force_quadratic_win = force_quadratic_win
         self.v = v
@@ -692,7 +693,7 @@ class COREG(object):
                 hv = None
             if not hv:
                 raise ImportError(
-                    "This method requires the library 'holoviews'. It can be installed for Anaconda with "
+                    "This method requires the library 'holoviews'. It can be installed for Conda with "
                     "the shell command 'conda install -c conda-forge holoviews bokeh'.")
 
             hv.notebook_extension('matplotlib')
@@ -706,7 +707,7 @@ class COREG(object):
             otherWin_corr = self._get_deshifted_otherWin() if after_correction in [True, None] else None
             xmin, xmax, ymin, ymax = self.matchBox.boundsMap
 
-            def get_hv_image(geoArr):
+            def get_hv_image(geoArr: GeoArray):
                 from skimage.exposure import rescale_intensity  # import here to avoid static TLS ImportError
 
                 arr_masked = np.ma.masked_equal(geoArr[:], geoArr.nodata)
@@ -714,14 +715,19 @@ class COREG(object):
                 vmax = np.nanpercentile(arr_masked.compressed(), pmax)
                 arr2plot = rescale_intensity(arr_masked, in_range=(vmin, vmax), out_range='int8')
 
-                return hv.Image(arr2plot, bounds=(xmin, ymin, xmax, ymax))\
-                    .opts(style={'cmap': 'gray',
-                                 'vmin': vmin,
-                                 'vmax': vmax,
-                                 'interpolation': 'none'},
-                          plot={'fig_inches': figsize,
-                                # 'fig_size': 100,
-                                'show_grid': True})
+                return (
+                    hv.Image(
+                        arr2plot,
+                        bounds=(xmin, ymin, xmax, ymax)
+                    ).options(
+                        cmap='gray',
+                        vmin=vmin,
+                        vmax=vmax,
+                        interpolation='none',
+                        fig_inches=figsize,
+                        show_grid=True
+                    )
+                )
 
             hvIm_matchWin = get_hv_image(self.matchWin)
             hvIm_otherWin_orig = get_hv_image(self.otherWin)
@@ -729,15 +735,25 @@ class COREG(object):
 
             if after_correction is None:
                 # view both states
-                print('Matching window before and after correction (above and below): ')
+                print('Matching window before and after correction (left and right): ')
 
                 # get layouts (docs on options: https://holoviews.org/user_guide)
-                layout_before = (hvIm_matchWin + hvIm_matchWin).opts(plot=dict(fig_inches=figsize))
-                layout_after = (hvIm_otherWin_orig + hvIm_otherWin_corr).opts(plot=dict(fig_inches=figsize))
+                layout_before = (
+                    hvIm_matchWin.options(title='BEFORE co-registration') +
+                    hvIm_matchWin.options(title='AFTER co-registration')
+                ).options(
+                    fig_inches=figsize
+                )
+                layout_after = (
+                    hvIm_otherWin_orig.options(title='BEFORE co-registration') +
+                    hvIm_otherWin_corr.options(title='AFTER co-registration')
+                ).options(
+                    fig_inches=figsize
+                )
 
                 # plot!
                 imgs = {1: layout_before, 2: layout_after}
-                hmap = hv.HoloMap(imgs, kdims=['image']).collate().cols(1)
+                hmap = hv.HoloMap(imgs, kdims=['image']).collate().cols(2)
 
             else:
                 # view state before or after correction
@@ -953,7 +969,7 @@ class COREG(object):
 
             if previous_area == otherBox.mapPoly.area or \
                time.time() - t_start > 1.5:
-                # happens e.g in case of a triangular footprint
+                # happens, e.g, in case of a triangular footprint
                 # NOTE: first condition is not always fulfilled -> therefore added timeout of 1.5 sec
                 self._handle_error(
                     RuntimeError('Matching window in target image is larger than overlap area but further shrinking '
@@ -1155,8 +1171,8 @@ class COREG(object):
                     fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
                     fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
 
-                    # catch empty output arrays (for some reason this happens sometimes..) -> use numpy fft
-                    # => this is caused by the call of pyfftw.FFTW. Exactly in that moment the input array
+                    # catch empty output arrays (for some reason this happens sometimes) -> use numpy fft
+                    # => this is caused by the call of pyfftw.FFTW. Exactly at that moment the input array
                     #    in_arr0 is overwritten with zeros (maybe this is a bug in pyFFTW?)
                     if np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0:
                         raise RuntimeError('FFTW result is unexpectedly empty.')
@@ -1183,7 +1199,8 @@ class COREG(object):
             eps = np.abs(fft_arr1).max() * 1e-15
             # cps == cross-power spectrum of im0 and im2
 
-            temp = np.array(fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
+            with np.errstate(invalid='ignore'):  # ignore RuntimeWarning: invalid value encountered in true_divide
+                temp = np.array(fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
 
             time0 = time.time()
             if 'pyfft' in globals():
@@ -1231,11 +1248,13 @@ class COREG(object):
     @staticmethod
     def _clip_image(im, center_YX, winSzYX):  # TODO this is also implemented in GeoArray
 
-        def get_bounds(YX, wsY, wsX):
-            return int(YX[1] - (wsX / 2)),\
-                   int(YX[1] + (wsX / 2)),\
-                   int(YX[0] - (wsY / 2)),\
-                   int(YX[0] + (wsY / 2))
+        def get_bounds(YX: tuple, wsY: float, wsX: float):
+            return (
+                int(YX[1] - (wsX / 2)),
+                int(YX[1] + (wsX / 2)),
+                int(YX[0] - (wsY / 2)),
+                int(YX[0] + (wsY / 2))
+            )
 
         wsY, wsX = winSzYX
         xmin, xmax, ymin, ymax = get_bounds(center_YX, wsY, wsX)
@@ -1447,7 +1466,9 @@ class COREG(object):
         # check if shapes of two images are unequal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
         if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-            warnings.warn('SSIM input array shapes are not equal! This issue seemed to be already fixed.. ')
+            warnings.warn('SSIM input array shapes are not equal. This should not happen. '
+                          'If it happens with your data, please report it here so that the issue can be fixed: '
+                          'https://git.gfz-potsdam.de/danschef/arosics/-/issues/85')
             matchFull = \
                 self.ref if self.matchWin.imID == 'ref' else\
                 self.shift

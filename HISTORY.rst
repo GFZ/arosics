@@ -2,6 +2,52 @@
 History
 =======
 
+1.10.3 (coming soon)
+--------------------
+
+* !52: Added minimal version for joblib to fix https://github.com/GFZ/arosics/issues/39.
+
+
+1.10.2 (2024-02-13)
+-------------------
+
+* !49: Updated copyright.
+* !50: Replaced deprecated http links.
+* !51: Replaced the multiprocessing implementation with parallelization based on joblib including mem-mapping. This
+  reduces the memory load and should fix potential deadlocks on Windows (https://github.com/GFZ/arosics/issues/36).
+
+
+1.10.1 (2023-12-22)
+-------------------
+
+* !47: Fixed some code style and language issues.
+* !48: Resolved #91 (RuntimeWarning: invalid value encountered in true_divide).
+
+
+1.10.0 (2023-12-15)
+-------------------
+
+* !43: Added parameter 'skip_outliers' to Tie_Point_Grid.to_PointShapefile() (closes #90) and improved test.
+* !44: Removed deprecated Tie_Point_Grid.Tie_Point_Grid._to_PointShapefile() method
+  which was replaced by to_PointShapefile().
+* !45: Replaced unittest assertions with pytest plain assertions.
+* !46: Removed deprecated Tie_Point_Grid.to_Raster_using_Kriging().
+
+
+1.9.4 (2023-11-23)
+------------------
+
+* !42: Fixed https://github.com/GFZ/arosics/issues/33
+  ('TypeError: ufunc 'invert' not supported for the input types' when using input mask).
+
+
+1.9.3 (2023-10-16)
+------------------
+
+* !41: Fixed #86 (ValueError when calling CoReg.show_matchWin(interactive=True))
+  and improved interactive output of CoReg.show_matchWin.
+
+
 1.9.2 (2023-08-11)
 ------------------
 

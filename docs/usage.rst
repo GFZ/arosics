@@ -26,4 +26,4 @@ of misregistrations locally or globally present in your input data.
 
     For details regarding the implemented algorithm, example use cases, quality assessment and benchmarks
     refer to the (open-access) paper about AROSICS:
-    `Scheffler et al. 2017 <http://www.mdpi.com/2072-4292/9/7/676>`__
+    `Scheffler et al. 2017 <https://www.mdpi.com/2072-4292/9/7/676>`__

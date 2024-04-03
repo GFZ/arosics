@@ -2,7 +2,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2023
+# Copyright (C) 2017-2024
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -15,7 +15,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#   https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,9 +28,10 @@ import os
 from copy import copy
 from typing import Tuple, Union, Optional
 from collections import OrderedDict
+from multiprocessing import cpu_count
 
 # custom
-from osgeo import gdal
+from osgeo import gdal  # noqa
 from packaging.version import parse as parse_version
 try:
     import pyfftw
@@ -61,7 +62,7 @@ class COREG_LOCAL(object):
 
     Spatial shifts are calculated for each point in grid of which the parameters can be adjusted using keyword
     arguments. Shift correction performs a polynomial transformation using the calculated shifts of each point in the
-    grid as GCPs. Thus this class can be used to correct for locally varying geometric distortions of the target image.
+    grid as GCPs. Thus, this class can be used to correct for locally varying geometric distortions of the target image.
 
     See help(COREG_LOCAL) for documentation.
     """
@@ -187,7 +188,7 @@ class COREG_LOCAL(object):
 
         :param align_grids:
             True: align the input coordinate grid to the reference (does not affect the output pixel size as long as
-            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30), default = True
+            input and output pixel sizes are compatible (5:30 or 10:30 but not 4:30)), default = True
 
         :param match_gsd:
             True: match the input pixel size to the reference pixel size,
@@ -247,13 +248,13 @@ class COREG_LOCAL(object):
             path to a 2D boolean mask file (or an instance of BadDataMask) for the reference image where all bad data
             pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param mask_baddata_tgt:
             path to a 2D boolean mask file (or an instance of BadDataMask) for the image to be shifted where all bad
             data pixels (e.g. clouds) are marked with True and the remaining pixels with False. Must have the same
             geographic extent and projection like 'im_ref'. The mask is used to check if the chosen matching window
-            position is valid in the sense of useful data. Otherwise this window position is rejected.
+            position is valid in the sense of useful data. Otherwise, this window position is rejected.
 
         :param CPUs:
             number of CPUs to use during calculation of tie point grid (default: None, which means 'all CPUs available')
@@ -309,7 +310,7 @@ class COREG_LOCAL(object):
         self.outFillVal = outFillVal
         self.bin_ws = binary_ws
         self.force_quadratic_win = force_quadratic_win
-        self.CPUs = CPUs
+        self.CPUs = CPUs if CPUs and CPUs <= cpu_count() else cpu_count()
         self.path_verbose_out = ''  # TODO
         self.v = v
         self.q = q if not v else False  # overridden by v

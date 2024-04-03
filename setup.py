@@ -3,7 +3,7 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2023
+# Copyright (C) 2017-2024
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
@@ -16,7 +16,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#   https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,6 +47,7 @@ req = [
     'geoarray>=0.15.0',
     'geojson',
     'geopandas',
+    'joblib>=1.3.0',
     'matplotlib',
     'numpy',
     'packaging',
@@ -67,7 +68,7 @@ req_setup = [
     'setuptools-git'
 ]
 
-req_intplot = ['holoviews', 'ipython']
+req_intplot = ['holoviews', 'ipython', 'nbformat']
 
 req_test = ['pytest', 'pytest-cov', 'pytest-reporter-html1', 'urlchecker'] + req_intplot
 
