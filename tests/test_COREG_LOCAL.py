@@ -37,7 +37,7 @@ from .cases import test_cases
 from arosics import COREG_LOCAL
 from geoarray import GeoArray
 
-
+N_CPUS = cpu_count()
 class COREG_LOCAL_init(unittest.TestCase):
     """Test case on object initialization of COREG_LOCAL."""
 
@@ -118,7 +118,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # tgt.gt = [330000.1, 10.1, 0.0, 5862000.1, 0.0, -10.1]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=N_CPUS,
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
@@ -172,7 +172,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         tgt.prj = wkt_noepsg
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=N_CPUS,
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
@@ -191,7 +191,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
+        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=N_CPUS,
                                            **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
