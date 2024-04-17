@@ -313,6 +313,11 @@ class Tie_Point_Grid(object):
         if self.max_points and len(GDF) > self.max_points:
             GDF = GDF.sample(self.max_points).copy()
 
+        # ensure the input arrays for CoReg are in memory -> otherwise the code will get stuck in multiprocessing if
+        # neighboured matching windows overlap during reading from disk!!
+        _ = self.COREG_obj.ref[self.COREG_obj.ref.band4match]
+        _ = self.COREG_obj.shift[self.COREG_obj.shift.band4match]
+
         # equalize pixel grids in order to save warping time
         if len(GDF) > 100:
             # NOTE: actually grid res should be also changed here because self.shift.xgsd changes and grid res is
@@ -325,11 +330,6 @@ class Tie_Point_Grid(object):
         assert self.ref.footprint_poly  # this also checks for mask_nodata and nodata value
         assert self.shift.footprint_poly
 
-        # ensure the input arrays for CoReg are in memory -> otherwise the code will get stuck in multiprocessing if
-        # neighboured matching windows overlap during reading from disk!!
-        self.ref.cache_array_subset(
-            [self.COREG_obj.ref.band4match])  # only sets geoArr._arr_cache; does not change number of bands
-        self.shift.cache_array_subset([self.COREG_obj.shift.band4match])
 
         print(f"Calculating tie point grid ({len(GDF)} points) using {self.CPUs} CPU cores...")
         results = []
