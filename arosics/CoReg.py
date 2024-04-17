@@ -637,21 +637,19 @@ class COREG(object):
             if not self.q:
                 print("Equalizing pixel grids and projections of reference and target image...")
 
-            def equalize(gA_from: GeoArray, gA_to: GeoArray) -> GeoArray:
-                if gA_from.bands > 1:
-                    gA_from = gA_from.get_subset(zslice=slice(gA_from.band4match, gA_from.band4match + 1))
-                gA_from.reproject_to_new_grid(prototype=gA_to, CPUs=self.CPUs)
-                gA_from.band4match = 0  # after resampling there is only one band in the GeoArray
-
-                return gA_from
-
             if self.grid2use == 'ref':
                 # resample target to reference image
-                self.shift = equalize(gA_from=self.shift, gA_to=self.ref)
+                if self.shift.bands > 1:
+                    self.shift = self.shift.get_subset(zslice=slice(self.shift.band4match, self.shift.band4match + 1))
+                self.shift.reproject_to_new_grid(prototype=self.ref, CPUs=self.CPUs)
+                self.shift.band4match = 0  # after resampling there is only one band in the GeoArray
 
             else:
-                # resample reference to target image
-                self.ref = equalize(gA_from=self.ref, gA_to=self.shift)
+                # resample reference to target imag
+                if self.ref.bands > 1:
+                    self.ref = self.ref.get_subset(zslice=slice(self.ref.band4match, self.ref.band4match + 1))
+                self.ref.reproject_to_new_grid(prototype=self.shift, CPUs=self.CPUs)
+                self.ref.band4match = 0  # after resampling there is only one band in the GeoArray
 
             # self.ref.gt = (self.ref.gt[0], 1, self.ref.gt[2], self.ref.gt[3], self.ref.gt[4], -1)
             # self.shift.gt = (self.shift.gt[0], 1, self.shift.gt[2], self.shift.gt[3], self.shift.gt[4], -1)
