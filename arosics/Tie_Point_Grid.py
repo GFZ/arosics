@@ -329,7 +329,6 @@ class Tie_Point_Grid(object):
         assert self.ref.footprint_poly  # this also checks for mask_nodata and nodata value
         assert self.shift.footprint_poly
 
-
         print(f"Calculating tie point grid ({len(GDF)} points) using {self.CPUs} CPU cores...")
         results = []
         bar = ProgressBar(prefix='\tprogress:')
