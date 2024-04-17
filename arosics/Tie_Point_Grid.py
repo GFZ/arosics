@@ -313,11 +313,10 @@ class Tie_Point_Grid(object):
         if self.max_points and len(GDF) > self.max_points:
             GDF = GDF.sample(self.max_points).copy()
 
-
         # ensure the input arrays for CoReg are in memory -> otherwise the code will get stuck in multiprocessing if
         # neighboured matching windows overlap during reading from disk!!
-        _ = self.ref[:, :, [self.ref.band4match]]
-        _ = self.shift[:, :, [self.shift.band4match]]
+        _ = self.COREG_obj.ref[self.COREG_obj.ref.band4match]
+        _ = self.COREG_obj.shift[self.COREG_obj.shift.band4match]
 
         # equalize pixel grids in order to save warping time
         if len(GDF) > 100:
