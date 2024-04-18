@@ -821,7 +821,7 @@ class COREG_LOCAL(object):
                            resamp_alg=self.rspAlg_DS,
                            cliptoextent=cliptoextent,
                            # clipextent=self.im2shift.box.boxMapYX,
-                           progress=self.progress, 
+                           progress=self.progress,
                            CPUs=self.CPUs,
                            v=self.v,
                            q=self.q)
