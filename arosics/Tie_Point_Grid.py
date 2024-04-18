@@ -315,11 +315,13 @@ class Tie_Point_Grid(object):
         if self.max_points and len(GDF) > self.max_points:
             GDF = GDF.sample(self.max_points).copy()
 
-        # NOTE: actually grid res should be also changed here because self.shift.xgsd changes and grid res is
-        # connected to that
-        self.COREG_obj.equalize_pixGrids()
-        self.ref = self.COREG_obj.ref
-        self.shift = self.COREG_obj.shift
+       # equalize pixel grids in order to save warping time
+        if len(GDF) > 100:
+            # NOTE: actually grid res should be also changed here because self.shift.xgsd changes and grid res is
+            # connected to that
+            self.COREG_obj.equalize_pixGrids()
+            self.ref = self.COREG_obj.ref
+            self.shift = self.COREG_obj.shift
 
         # fully load into memory here. both objects only have 1 band. This is enforced by the COREG_obj instantiation in CoReg_local.py
         self.ref.to_mem()
@@ -369,7 +371,6 @@ class Tie_Point_Grid(object):
             if self.progress and not self.q:
                 bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
-        # clear memory
         self.ref.to_disk()
         self.shift.to_disk()
         self.COREG_obj.ref.to_disk()
