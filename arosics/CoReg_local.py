@@ -324,6 +324,7 @@ class COREG_LOCAL(object):
         self._check_and_handle_metaRotation()
 
         try:
+            # inside of this class, only the match band is used. make objects smaller here.
             if self.imref.bands > 1:
                 self.imref = self.imref.get_subset(zslice=slice(r_b4match-1, r_b4match))
                 r_b4match = 1
@@ -820,7 +821,8 @@ class COREG_LOCAL(object):
                            resamp_alg=self.rspAlg_DS,
                            cliptoextent=cliptoextent,
                            # clipextent=self.im2shift.box.boxMapYX,
-                           progress=self.progress,
+                           progress=self.progress, 
+                           CPUs=self.CPUs,
                            v=self.v,
                            q=self.q)
 
