@@ -369,6 +369,7 @@ class Tie_Point_Grid(object):
             if self.progress and not self.q:
                 bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
+        # clear memory
         self.ref.to_disk()
         self.shift.to_disk()
         self.COREG_obj.ref.to_disk()
