@@ -366,6 +366,11 @@ class Tie_Point_Grid(object):
             if self.progress and not self.q:
                 bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
+        self.ref.to_disk()
+        self.shift.to_disk()
+        self.COREG_obj.ref.to_disk()
+        self.COREG_obj.shift.to_disk()
+
         # merge results with GDF
         # NOTE: We use a pandas.DataFrame here because the geometry column is missing.
         #       GDF.astype(...) fails with geopandas>0.6.0 if the geometry columns is missing.
