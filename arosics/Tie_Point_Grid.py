@@ -318,6 +318,9 @@ class Tie_Point_Grid(object):
         self.ref = self.COREG_obj.ref
         self.shift = self.COREG_obj.shift
 
+        # fully load into memory here. both objects only have 1 band. This is enforced by the COREG_obj instantiation in CoReg_local.py
+        self.ref.to_mem()
+        self.shift.to_mem() 
 
         # validate reference and target image inputs
         assert self.ref.footprint_poly  # this also checks for mask_nodata and nodata value

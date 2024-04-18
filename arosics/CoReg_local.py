@@ -324,6 +324,13 @@ class COREG_LOCAL(object):
         self._check_and_handle_metaRotation()
 
         try:
+            if self.imref.bands > 1:
+                self.imref = self.imref.get_subset(zslice=slice(r_b4match-1, r_b4match))
+                r_b4match = 1
+            if self.im2shift.bands > 1:
+                self.im2shift = self.im2shift.get_subset(zslice=slice(r_b4match-1, r_b4match))
+                s_b4match = 1
+        
             # ignore_errors must be False because in case COREG init fails, coregistration for the whole scene fails
             self.COREG_obj = COREG(self.imref, self.im2shift,
                                    ws=window_size,
