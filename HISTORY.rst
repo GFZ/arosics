@@ -9,7 +9,8 @@ History
 * !53: Added pip installation note to avoid issues due to installation order.
 * !54: Removed gdal.AllRegister call as this is automatically called when gdal is imported.
 * !55: Replaced the use of numpy.fft with scipy.fft which is 2-3 times faster.
-       This reduces the overall processing time for the local co-registration to around 60% of the former time.
+  This reduces the overall processing time for the local co-registration to around 60% of the former time.
+* !56: Fixed #92 (Tie_Point_Grid creates FutureWarning) by revising type castings.
 
 
 1.10.2 (2024-02-13)
