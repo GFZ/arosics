@@ -379,10 +379,9 @@ class Tie_Point_Grid(object):
                                      'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
                                      'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
 
-        # merge DataFrames (dtype must be equal to records.dtypes; We need np.object due to None values)
-        GDF = GDF.astype(object).merge(records.astype(object), on='POINT_ID', how="inner")
-        GDF = GDF.replace([np.nan, None], int(self.outFillVal))  # fillna fails with geopandas==0.6.0
-        GDF.crs = crs  # gets lost when using GDF.astype(np.object), so we have to reassign that
+        # merge DataFrames
+        GDF = GDF.merge(records, on='POINT_ID', how="inner")
+        GDF = GDF.fillna(self.outFillVal)
 
         n_matches = len(GDF[GDF.LAST_ERR == int(self.outFillVal)])
 
