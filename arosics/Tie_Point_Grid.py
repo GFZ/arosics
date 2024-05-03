@@ -1154,11 +1154,12 @@ class Tie_Point_Refiner(object):
             count_iter += 1
 
         outliers = inliers.__eq__(False) if inliers is not None and inliers.size else np.array([])
+        outliers = Series(outliers).astype('boolean')  # new nullable boolean data type
 
         if inGDF.empty or outliers is None or \
            (isinstance(outliers, list) and not outliers) or \
            (isinstance(outliers, np.ndarray) and not outliers.size):
-            outseries = Series([False] * len(self.GDF))
+            outseries = Series([False] * len(self.GDF)).astype('boolean')
 
         elif len(inGDF) < len(self.GDF):
             inGDF['outliers'] = outliers
