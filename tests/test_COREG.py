@@ -319,10 +319,6 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         """"""
         self.skipTest('Not yet implemented.')
 
-    def test_shift_calculation_withoutPyFFTW(self):
-        """"""
-        self.skipTest('Not yet implemented.')
-
     def test_shift_calculation_SSIMdecreases(self):
         """"""
         self.skipTest('Not yet implemented.')
