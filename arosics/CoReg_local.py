@@ -32,16 +32,7 @@ from multiprocessing import cpu_count
 
 # custom
 from osgeo import gdal  # noqa
-from packaging.version import parse as parse_version
-try:
-    import pyfftw
-    # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
-    if parse_version(pyfftw.__version__) >= parse_version('0.13.0'):
-        pyfftw = None
-except ImportError:
-    pyfftw = None
 import numpy as np
-
 from matplotlib import pyplot as plt  # noqa F401
 from geopandas import GeoDataFrame  # noqa F401
 
@@ -361,9 +352,6 @@ class COREG_LOCAL(object):
                           'input data and parameters. The following error occurred:', stacklevel=3)
             raise
 
-        if pyfftw:
-            self.check_if_fftw_works()
-
         # add bad data mask
         # (mask is not added during initialization of COREG object in order to avoid bad data area errors there)
         if mask_baddata_ref is not None:
@@ -410,24 +398,6 @@ class COREG_LOCAL(object):
                 # resample reference to target image
                 print('Adapting the reference image pixel grid to the one of the target image for shift detection.')
                 self.imref.reproject_to_new_grid(prototype=self.im2shift, CPUs=self.CPUs)
-
-    def check_if_fftw_works(self) -> None:
-        """Assign the attribute 'fftw_works' to self.COREG_obj by executing shift calculation once with muted output."""
-        # calculate global shift once in order to check is fftw works
-        try:
-            self.COREG_obj.q = True
-            self.COREG_obj.v = False
-            self.COREG_obj.calculate_spatial_shifts()
-        except RuntimeError:
-            if self.COREG_obj.fftw_works is not None:
-                pass
-            else:
-                warnings.warn('\nFirst attempt to check if functionality of co-registration failed. Check your '
-                              'input data and parameters. The following error occurred:', stacklevel=3)
-                raise
-
-        self.COREG_obj.q = self.q
-        self.COREG_obj.v = self.v
 
     @property
     def projectDir(self) -> str:
