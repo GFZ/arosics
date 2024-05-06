@@ -389,7 +389,6 @@ class COREG(object):
         self.overlap_area = None  # set by self._get_overlap_properties()
         self.imfft_xgsd = None  # set by self.get_clip_window_properties()
         self.imfft_ygsd = None  # set by self.get_clip_window_properties()
-        self.fftw_works = None  # set by self._calc_shifted_cross_power_spectrum()
         self.fftw_win_size_YX = None  # set by calc_shifted_cross_power_spectrum()
 
         self.x_shift_px = None  # always in shift image units (image coords) # set by calculate_spatial_shifts()
