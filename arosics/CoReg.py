@@ -34,15 +34,6 @@ from multiprocessing import cpu_count
 from osgeo import gdal  # noqa
 import numpy as np
 from scipy.fft import fft2, ifft2, fftshift
-
-from packaging.version import parse as parse_version
-try:
-    import pyfftw
-    # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
-    if parse_version(pyfftw.__version__) >= parse_version('0.13.0'):
-        pyfftw = None
-except ImportError:
-    pyfftw = None
 from shapely.geometry import Point, Polygon
 
 # internal modules
