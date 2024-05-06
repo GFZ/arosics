@@ -1160,7 +1160,7 @@ class COREG(object):
             # GeoArray(fft_arr1.astype(np.float32)).show(figsize=(15,15))
 
             if self.v:
-                print('forward FFTW: %.2fs' % (time.time() - time0))
+                print('forward FFT: %.2fs' % (time.time() - time0))
 
             eps = np.abs(fft_arr1).max() * 1e-15
             # cps == cross-power spectrum of im0 and im2
@@ -1172,7 +1172,7 @@ class COREG(object):
             ifft_arr = ifft2(temp)
 
             if self.v:
-                print('backward FFTW: %.2fs' % (time.time() - time0))
+                print('backward FFT: %.2fs' % (time.time() - time0))
 
             cps = np.abs(ifft_arr)
             # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
