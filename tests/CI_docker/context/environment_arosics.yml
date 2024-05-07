@@ -19,7 +19,6 @@ dependencies:
   - matplotlib
   - nbformat  # optional dependency of plotly, needed to test interactive plotting
   - numpy
-  - packaging
   - pandas
   - plotly
   - pykrige

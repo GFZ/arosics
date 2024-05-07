@@ -50,7 +50,6 @@ req = [
     'joblib>=1.3.0',
     'matplotlib',
     'numpy',
-    'packaging',
     'pandas',
     'plotly',
     'pykrige',
