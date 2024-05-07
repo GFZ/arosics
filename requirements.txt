@@ -8,10 +8,8 @@ folium>=0.6.0,!=0.12.0
 geopandas
 matplotlib
 numpy
-packaging
 pandas
 plotly
-pyfftw
 pykrige
 pyproj>2.2.0
 py_tools_ds>=0.18.0

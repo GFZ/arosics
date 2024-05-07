@@ -34,15 +34,6 @@ from multiprocessing import cpu_count
 from osgeo import gdal  # noqa
 import numpy as np
 from scipy.fft import fft2, ifft2, fftshift
-
-from packaging.version import parse as parse_version
-try:
-    import pyfftw
-    # pyfftw>=0.13.0 is currently not used due to https://github.com/pyFFTW/pyFFTW/issues/294
-    if parse_version(pyfftw.__version__) >= parse_version('0.13.0'):
-        pyfftw = None
-except ImportError:
-    pyfftw = None
 from shapely.geometry import Point, Polygon
 
 # internal modules
@@ -398,8 +389,7 @@ class COREG(object):
         self.overlap_area = None  # set by self._get_overlap_properties()
         self.imfft_xgsd = None  # set by self.get_clip_window_properties()
         self.imfft_ygsd = None  # set by self.get_clip_window_properties()
-        self.fftw_works = None  # set by self._calc_shifted_cross_power_spectrum()
-        self.fftw_win_size_YX = None  # set by calc_shifted_cross_power_spectrum()
+        self.fft_win_size_YX = None  # set by calc_shifted_cross_power_spectrum()
 
         self.x_shift_px = None  # always in shift image units (image coords) # set by calculate_spatial_shifts()
         self.y_shift_px = None  # always in shift image units (image coords) # set by calculate_spatial_shifts()
@@ -1162,36 +1152,15 @@ class COREG(object):
                 PLT.subplot_imshow([np.real(in_arr0).astype(np.float32), np.real(in_arr1).astype(np.float32)],
                                    ['FFTin ' + self.ref.title, 'FFTin ' + self.shift.title], grid=True)
 
-            fft_arr0, fft_arr1 = None, None
-            if pyfftw and self.fftw_works is not False:  # if module is installed and working
-                try:
-                    fft_arr0 = pyfftw.FFTW(in_arr0, np.empty_like(in_arr0), axes=(0, 1))()
-                    fft_arr1 = pyfftw.FFTW(in_arr1, np.empty_like(in_arr1), axes=(0, 1))()
-
-                    # catch empty output arrays (for some reason this happens sometimes) -> use numpy fft
-                    # => this is caused by the call of pyfftw.FFTW. Exactly at that moment the input array
-                    #    in_arr0 is overwritten with zeros (maybe this is a bug in pyFFTW?)
-                    if np.std(fft_arr0) == 0 or np.std(fft_arr1) == 0:
-                        raise RuntimeError('FFTW result is unexpectedly empty.')
-
-                    self.fftw_works = True
-
-                except RuntimeError:
-                    self.fftw_works = False
-
-                    # recreate input arrays and use numpy fft as fallback
-                    in_arr0 = im0[ymin:ymax, xmin:xmax].astype(precision)
-                    in_arr1 = im1[ymin:ymax, xmin:xmax].astype(precision)
-
-            if self.fftw_works is False or fft_arr0 is None or fft_arr1 is None:
-                fft_arr0 = fft2(in_arr0)
-                fft_arr1 = fft2(in_arr1)
+            # FFT (forward transformation)
+            fft_arr0 = fft2(in_arr0)
+            fft_arr1 = fft2(in_arr1)
 
             # GeoArray(fft_arr0.astype(np.float32)).show(figsize=(15,15))
             # GeoArray(fft_arr1.astype(np.float32)).show(figsize=(15,15))
 
             if self.v:
-                print('forward FFTW: %.2fs' % (time.time() - time0))
+                print('forward FFT: %.2fs' % (time.time() - time0))
 
             eps = np.abs(fft_arr1).max() * 1e-15
             # cps == cross-power spectrum of im0 and im2
@@ -1199,13 +1168,11 @@ class COREG(object):
             with np.errstate(invalid='ignore'):  # ignore RuntimeWarning: invalid value encountered in true_divide
                 temp = np.array(fft_arr0 * fft_arr1.conjugate()) / (np.abs(fft_arr0) * np.abs(fft_arr1) + eps)
 
-            time0 = time.time()
-            if 'pyfft' in globals():
-                ifft_arr = pyfftw.FFTW(temp, np.empty_like(temp), axes=(0, 1), direction='FFTW_BACKWARD')()
-            else:
-                ifft_arr = ifft2(temp)
+            # IFFT (backward transformation)
+            ifft_arr = ifft2(temp)
+
             if self.v:
-                print('backward FFTW: %.2fs' % (time.time() - time0))
+                print('backward FFT: %.2fs' % (time.time() - time0))
 
             cps = np.abs(ifft_arr)
             # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
@@ -1221,7 +1188,7 @@ class COREG(object):
             self._handle_error(
                 RuntimeError('The matching window became too small for calculating a reliable match. Matching failed.'))
 
-        self.fftw_win_size_YX = wsYX
+        self.fft_win_size_YX = wsYX
         return scps
 
     @staticmethod

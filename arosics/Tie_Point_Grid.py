@@ -270,10 +270,9 @@ class Tie_Point_Grid(object):
         return GDF
 
     @staticmethod
-    def _get_spatial_shifts(imref, im2shift, point_id, fftw_works, **coreg_kwargs):
+    def _get_spatial_shifts(imref, im2shift, point_id, **coreg_kwargs):
         # run CoReg
         CR = COREG(imref, im2shift, CPUs=1, **coreg_kwargs)
-        CR.fftw_works = fftw_works
         CR.calculate_spatial_shifts()
 
         # fetch results
@@ -347,7 +346,6 @@ class Tie_Point_Grid(object):
                     self.ref,
                     self.shift,
                     point_id,
-                    self.COREG_obj.fftw_works,
                     wp=self.XY_mapPoints[point_id],
                     ws=self.COREG_obj.win_size_XY,
                     resamp_alg_calc=self.rspAlg_calc,
