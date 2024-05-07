@@ -2,7 +2,7 @@
 History
 =======
 
-1.10.3 (coming soon)
+1.11.0 (coming soon)
 --------------------
 
 * !52: Added minimal version for joblib to fix https://github.com/GFZ/arosics/issues/39.
@@ -11,6 +11,8 @@ History
 * !55: Replaced the use of numpy.fft with scipy.fft which is 2-3 times faster.
   This reduces the overall processing time for the local co-registration to around 60% of the former time.
 * !56: Fixed #92 (Tie_Point_Grid creates FutureWarning) by revising type castings.
+* !57: Dropped pyfftw and packaging from the requirements (replaced by scipy.fft)
+  enabling Python 3.12 conda-forge builds.
 
 
 1.10.2 (2024-02-13)
