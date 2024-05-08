@@ -89,7 +89,8 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11'
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
     ],
     description="An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data",
     entry_points={
