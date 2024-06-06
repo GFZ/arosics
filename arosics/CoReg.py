@@ -119,9 +119,6 @@ class GeoArray_CoReg(GeoArray):
             % (self.imName, self.bands, 'bands' if self.bands > 1 else
                'band', 'between 1 and ' if self.bands > 1 else '', self.bands, self.band4match)
 
-        # compute nodata mask and validate that it is not completely filled with nodata
-        self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
-
         if CoReg_params["validate_nonempty"]:
             # compute nodata mask and validate that it is not completely filled with nodata
             self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
