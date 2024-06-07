@@ -1410,13 +1410,20 @@ class COREG(object):
         # compute SSIM BEFORE shift correction #
         ########################################
 
+        def masked_ssim(a, a_nodata, b, b_nodata):
+            """
+            sciy.metrics.structural_similarity is not commutative for masked arrays
+            This fixes that, by masking out nodata in either array in both.
+            """
+            a_masked = np.ma.masked_equal(a, a_nodata)
+            b_masked = np.ma.masked_equal(b, b_nodata)
+            a_masked.mask = b_masked.mask = np.logical_or(a_masked.mask, b_masked.mask)
+            return ssim(normalize(a_masked), normalize(b_masked), data_range=1)
+
+
         # using gaussian weights could lead to value errors in case of small images when the automatically calculated
         # window size exceeds the image size
-        self.ssim_orig = ssim(normalize(np.ma.masked_equal(self.matchWin[:],
-                                                           self.matchWin.nodata)),
-                              normalize(np.ma.masked_equal(self.otherWin[:],
-                                                           self.otherWin.nodata)),
-                              data_range=1)
+        self.ssim_orig = masked_ssim(self.matchWin[:], self.matchWin.nodata, self.otherWin[:], self.otherWin.nodata)
 
         # compute SSIM AFTER shift correction #
         #######################################
@@ -1461,12 +1468,7 @@ class COREG(object):
 
                 return self.ssim_orig, self.ssim_deshifted
 
-        self.ssim_deshifted = ssim(normalize(np.ma.masked_equal(matchWinData,
-                                                                self.matchWin.nodata)),
-                                    normalize(np.ma.masked_equal(otherWin_deshift_geoArr[:],
-                                                                otherWin_deshift_geoArr.nodata)),
-                                    data_range=1)
-
+        self.ssim_deshifted = masked_ssim(matchWinData, self.matchWin.nodata, otherWin_deshift_geoArr[:], otherWin_deshift_geoArr.nodata)
         if v:
             GeoArray(matchWinData).show()
             self.otherWin.show()
