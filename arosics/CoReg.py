@@ -1476,11 +1476,11 @@ class COREG(object):
 
                 return self.ssim_orig, self.ssim_deshifted
 
-        self.ssim_deshifted = ssim(normalize(np.ma.masked_equal(otherWin_deshift_geoArr[:],
-                                                                otherWin_deshift_geoArr.nodata)),
-                                   normalize(np.ma.masked_equal(matchWinData,
+        self.ssim_deshifted = ssim(normalize(np.ma.masked_equal(matchWinData,
                                                                 self.matchWin.nodata)),
-                                   data_range=1)
+                                    normalize(np.ma.masked_equal(otherWin_deshift_geoArr[:],
+                                                                otherWin_deshift_geoArr.nodata)),
+                                    data_range=1)
 
         if v:
             GeoArray(matchWinData).show()
