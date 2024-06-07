@@ -751,11 +751,12 @@ class Tie_Point_Grid(object):
                 # no point passed all validity checks
                 return []
 
-            if avail_TP > 7000:
-                GDF = GDF.sample(7000)
-                warnings.warn('By far not more than 7000 tie points can be used for warping within a limited '
-                              'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
-                              'out of the %s available tie points.' % avail_TP)
+            max_TP = 10000
+            if avail_TP > max_TP:
+                GDF = GDF.sample(max_TP)
+                warnings.warn(f'GDAL can handle only around {max_TP} GCPs. Randomly choosing {MAX_GCPS} out of {avail_TP}.'
+                               'See https://gis.stackexchange.com/questions/343408/is-there-a-limit-to-the-number-of-gcps-that-can-be-used for more information')
+
 
             # calculate GCPs
             GDF['X_MAP_new'] = GDF.X_MAP + GDF.X_SHIFT_M
