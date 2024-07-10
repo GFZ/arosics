@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 
+pkgname="arosics"
+repourl="https://git.gfz-potsdam.de/danschef/arosics"
+
 context_dir="./context"
-dockerfile="arosics_ci.docker"
-tag="arosics_ci:0.9.20"
-gitlab_runner="arosics_gitlab_CI_runner"
+dockerfile="${pkgname}_ci.docker"
+python_script='
+version = {}
+with open("../../'${pkgname}'/version.py") as version_file:
+    exec(version_file.read(), version)
+print(version["__version__"])
+'
+version=`python -c "$python_script"`
+tag="ds__${pkgname}_ci:$version"
+gitlab_runner="${pkgname}_gitlab_CI_runner"
+runnername_remote="${pkgname}_ci_runner__v${version}__${HOSTNAME}"
+taglist="${pkgname}_ci_client"
 
 echo "#### Build runner docker image"
 docker rmi ${tag}
@@ -28,26 +40,32 @@ docker run \
     gitlab/gitlab-runner:latest
 
 # register the runner at the corresponding GitLab repository via a registration-token
-echo "#### Register container at gitlab, get token here https://git.gfz-potsdam.de/danschef/arosics/settings/ci_cd"
-read -p "Please enter gitlab token: " token
-echo ""
-read -p "Please enter gitlab runner name: " runner_name
-echo "New gitlab runner image will named  ${gitlab_runner}"
+echo "
+--------------------------------------------------------------------------
+To register the runner at GitLab, go to ${repourl}/-/runners,
+click on 'New project runner' and use the following settings:
+
+Tags:                       ${taglist}
+Run untagged jobs:          Yes
+Runner description:         ${runnername_remote}
+Paused:                     No
+Protected:                  No
+Lock to current projects:   Yes
+Maximum job timeout:        7200
+
+Then click 'Create runner'!
+--------------------------------------------------------------------------"
+read -p "Please enter the GitLab runner authentification token (should start with 'glrt-'): " token
 # NOTE: In case of locally stored images (like here), the docker pull policy 'never' must be used
 #       (see https://docs.gitlab.com/runner/executors/docker.html#how-pull-policies-work).
-docker exec -it ${gitlab_runner} /bin/bash -c    "\
-export RUNNER_EXECUTOR=docker && \
+docker exec -it ${gitlab_runner} /bin/bash -c "\
 gitlab-ci-multi-runner register \
   --non-interactive \
   --executor 'docker' \
   --docker-image '${tag}' \
-  --url 'https://git.gfz-potsdam.de/ci' \
-  --registration-token '${token}' \
-  --description '${runner_name}' \
-  --tag-list arosics_ci_client \
-  --run-untagged='true' \
-  --locked='true' \
-  --access-level='not_protected' \
+  --url 'https://git.gfz-potsdam.de' \
+  --token '${token}' \
+  --description '${runnername_remote}' \
   --docker-pull-policy='never'
   "
 ls
