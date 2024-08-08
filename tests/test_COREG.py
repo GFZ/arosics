@@ -345,7 +345,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
                 CR.show_matchWin(interactive=True, after_correction=None)  # only works if test is started with ipython
                 CR.show_matchWin(interactive=True, after_correction=True)
                 CR.show_matchWin(interactive=True, after_correction=False)
-            except NameError:
+            except (NameError, ImportError):
                 pass
             CR.show_image_footprints()
 
