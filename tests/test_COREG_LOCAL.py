@@ -102,7 +102,7 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         assert os.path.exists(self.coreg_kwargs['path_out']), 'Output of local co-registration has not been written.'
 
     def test_calculation_of_tie_point_grid_float_coords(self):
-        # NOTE: This does not test against unequaly sized output of get_image_windows_to_match().
+        # NOTE: This does not test against unequally sized output of get_image_windows_to_match().
 
         # overwrite gt and prj
         ref = GeoArray(self.ref_path)
