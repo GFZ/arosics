@@ -33,7 +33,7 @@ from sys import platform
 from osgeo import gdal  # noqa
 import numpy as np
 from geopandas import GeoDataFrame
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, option_context
 from shapely.geometry import Point
 from matplotlib import pyplot as plt
 from scipy.interpolate import RBFInterpolator, RegularGridInterpolator
@@ -827,8 +827,9 @@ class Tie_Point_Grid(object):
             GDF2pass = GDF2pass[~GDF2pass['OUTLIER'].__eq__(True)].copy()
 
         # replace boolean values (cannot be written)
-        GDF2pass = GDF2pass.replace(False, 0).copy()  # replace booleans where column dtype is not bool but np.object
-        GDF2pass = GDF2pass.replace(True, 1).copy()
+        with option_context('future.no_silent_downcasting', True):
+            GDF2pass = GDF2pass.replace({True: 1, False: 0}).infer_objects().copy()  # allow to "infer better dtypes"
+
         for col in GDF2pass.columns:
             if GDF2pass[col].dtype == bool:
                 GDF2pass[col] = GDF2pass[col].astype(int)
