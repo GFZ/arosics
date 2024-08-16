@@ -9,6 +9,7 @@ History
 * !60: Replaced 'pkgutil.find_loader' with 'importlib.util.find_spec' to ensure Python 3.14 compatibility (fixes #116).
 * !61: Fixed #115: FutureWarning: Downcasting behavior in `replace` is deprecated
   and will be removed in a future version.
+* !62: Fixed #114: DeprecationWarning: Overriding the CRS of a GeoSeries that already has CRS. [...].
 
 
 1.11.0 (2024-05-09)
