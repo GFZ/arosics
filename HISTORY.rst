@@ -6,6 +6,7 @@ History
 --------------------
 
 * !58: Updated CI runner and adapted the CI build script to upstream changes in GitLab 17.0.
+* !60: Replaced 'pkgutil.find_loader' with 'importlib.util.find_spec' to ensure Python 3.14 compatibility (fixes #116).
 
 
 1.11.0 (2024-05-09)

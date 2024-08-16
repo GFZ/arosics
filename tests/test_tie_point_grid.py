@@ -29,7 +29,7 @@
 import unittest
 import tempfile
 import os
-from pkgutil import find_loader
+from importlib.util import find_spec
 import shutil
 import warnings
 import struct
@@ -159,13 +159,13 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         assert isinstance(arr_interp, np.ndarray)
 
     def test_interpolate_to_raster_gpr(self):
-        if find_loader('sklearn'):
+        if find_spec('sklearn'):
             arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'GPR', plot_result=True)
 
             assert isinstance(arr_interp, np.ndarray)
 
     def test_interpolate_to_raster_kriging(self):
-        if find_loader('pykrige.ok'):
+        if find_spec('pykrige.ok'):
             arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'Kriging', plot_result=True)
 
             assert isinstance(arr_interp, np.ndarray)
