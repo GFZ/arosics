@@ -532,7 +532,7 @@ class Tie_Point_Grid(object):
         n_outliers = sum(tbl['OUTLIER'] == 1)
 
         tbl = tbl if include_outliers else tbl[tbl['OUTLIER'] == 0].copy() if 'OUTLIER' in tbl.columns else tbl
-        tbl = tbl.copy().replace(self.outFillVal, np.nan)
+        tbl = tbl.copy().mask(tbl == self.outFillVal)  # sets it to np.nan
 
         if not include_outliers and tbl.empty:
             raise RuntimeError('Cannot compute overall statistics '
