@@ -2,7 +2,7 @@
 History
 =======
 
-1.11.0 (coming soon)
+1.11.1 (coming soon)
 --------------------
 
 * !58: Updated CI runner and adapted the CI build script to upstream changes in GitLab 17.0.
