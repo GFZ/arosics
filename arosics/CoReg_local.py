@@ -723,7 +723,6 @@ class COREG_LOCAL(object):
         ).add_to(map_osm)
 
         points_values = self.CoRegPoints_table[['geometry', attribute2plot]]
-        points_values.geometry.crs = points_values.crs
         folium.GeoJson(points_values).add_to(map_osm)
 
         # add overlap polygon
