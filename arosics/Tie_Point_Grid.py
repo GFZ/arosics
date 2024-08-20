@@ -24,7 +24,7 @@
 # limitations under the License.
 
 import os
-import warnings
+from warnings import warn, catch_warnings, filterwarnings
 from time import time
 from typing import Optional
 from sys import platform
@@ -264,8 +264,8 @@ class Tie_Point_Grid(object):
                     print('With respect to the provided bad data mask(s) %s points of initially %s have been excluded.'
                           % (orig_len_GDF - len(GDF), orig_len_GDF))
                 else:
-                    warnings.warn('With respect to the provided bad data mask(s) no coregistration point could be '
-                                  'placed within an image area usable for coregistration.')
+                    warn('With respect to the provided bad data mask(s) no coregistration point could be '
+                         'placed within an image area usable for coregistration.')
 
         return GDF
 
@@ -340,34 +340,40 @@ class Tie_Point_Grid(object):
         else:
             kw_parallel = dict(backend='loky', return_as='generator')
 
-        for i, res in enumerate(
-            Parallel(n_jobs=self.CPUs, **kw_parallel)(
-                delayed(self._get_spatial_shifts)(
-                    self.ref,
-                    self.shift,
-                    point_id,
-                    wp=self.XY_mapPoints[point_id],
-                    ws=self.COREG_obj.win_size_XY,
-                    resamp_alg_calc=self.rspAlg_calc,
-                    footprint_poly_ref=self.COREG_obj.ref.poly,
-                    footprint_poly_tgt=self.COREG_obj.shift.poly,
-                    r_b4match=self.ref.band4match + 1,  # internally indexing from 0
-                    s_b4match=self.shift.band4match + 1,  # internally indexing from 0
-                    max_iter=self.COREG_obj.max_iter,
-                    max_shift=self.COREG_obj.max_shift,
-                    nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
-                    force_quadratic_win=self.COREG_obj.force_quadratic_win,
-                    binary_ws=self.COREG_obj.bin_ws,
-                    v=False,  # True leads to massive STDOUT
-                    q=True,  # True leads to massive STDOUT
-                    ignore_errors=True
-                ) for point_id in GDF.index
-            )
-        ):
-            results.append(res)
+        with catch_warnings():
+            # mute this Python 3.12 deadlock warning as it appears to be a false-alarm in this case,
+            # see https://git.gfz-potsdam.de/danschef/arosics/-/issues/117
+            filterwarnings(
+                "ignore", category=DeprecationWarning, message=".*may lead to deadlocks in the child.*")
 
-            if self.progress and not self.q:
-                bar.print_progress(percent=(i + 1) / len(GDF) * 100)
+            for i, res in enumerate(
+                Parallel(n_jobs=self.CPUs, **kw_parallel)(
+                    delayed(self._get_spatial_shifts)(
+                        self.ref,
+                        self.shift,
+                        point_id,
+                        wp=self.XY_mapPoints[point_id],
+                        ws=self.COREG_obj.win_size_XY,
+                        resamp_alg_calc=self.rspAlg_calc,
+                        footprint_poly_ref=self.COREG_obj.ref.poly,
+                        footprint_poly_tgt=self.COREG_obj.shift.poly,
+                        r_b4match=self.ref.band4match + 1,  # internally indexing from 0
+                        s_b4match=self.shift.band4match + 1,  # internally indexing from 0
+                        max_iter=self.COREG_obj.max_iter,
+                        max_shift=self.COREG_obj.max_shift,
+                        nodata=(self.COREG_obj.ref.nodata, self.COREG_obj.shift.nodata),
+                        force_quadratic_win=self.COREG_obj.force_quadratic_win,
+                        binary_ws=self.COREG_obj.bin_ws,
+                        v=False,  # True leads to massive STDOUT
+                        q=True,  # True leads to massive STDOUT
+                        ignore_errors=True
+                    ) for point_id in GDF.index
+                )
+            ):
+                results.append(res)
+
+                if self.progress and not self.q:
+                    bar.print_progress(percent=(i + 1) / len(GDF) * 100)
 
         # merge results with GDF
         # NOTE: We use a pandas.DataFrame here because the geometry column is missing.
@@ -400,7 +406,7 @@ class Tie_Point_Grid(object):
 
         if not self.q:
             if n_matches == 0 or GDF.empty:
-                warnings.warn('No valid GCPs could by identified.')
+                warn('No valid GCPs could by identified.')
             else:
                 if self.tieP_filter_level > 0:
                     print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
@@ -753,9 +759,9 @@ class Tie_Point_Grid(object):
 
             if avail_TP > 7000:
                 GDF = GDF.sample(7000)
-                warnings.warn('By far not more than 7000 tie points can be used for warping within a limited '
-                              'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
-                              'out of the %s available tie points.' % avail_TP)
+                warn('By far not more than 7000 tie points can be used for warping within a limited '
+                     'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
+                     'out of the %s available tie points.' % avail_TP)
 
             # calculate GCPs
             GDF['X_MAP_new'] = GDF.X_MAP + GDF.X_SHIFT_M
@@ -986,11 +992,11 @@ class Tie_Point_Refiner(object):
             perc40 = np.percentile(self.GDF.RELIABILITY, 40)
 
             if n_flagged / len(self.GDF) > .7:
-                warnings.warn(r"More than 70%% of the found tie points have a reliability lower than %s%% and are "
-                              r"therefore marked as false-positives. Consider relaxing the minimum reliability "
-                              r"(parameter 'min_reliability') to avoid that. For example min_reliability=%d would only "
-                              r"flag 40%% of the tie points in case of your input data."
-                              % (self.min_reliability, perc40))
+                warn(r"More than 70%% of the found tie points have a reliability lower than %s%% and are "
+                     r"therefore marked as false-positives. Consider relaxing the minimum reliability "
+                     r"(parameter 'min_reliability') to avoid that. For example min_reliability=%d would only "
+                     r"flag 40%% of the tie points in case of your input data."
+                     % (self.min_reliability, perc40))
 
             if not self.q:
                 print('%s tie points flagged by level 1 filtering (reliability).'
@@ -1130,8 +1136,8 @@ class Tie_Point_Refiner(object):
                            rng=self.rs_random_state
                            )
             else:
-                warnings.warn('RANSAC filtering could not be applied '
-                              'because there were too few tie points to fit a model.')
+                warn('RANSAC filtering could not be applied '
+                     'because there were too few tie points to fit a model.')
                 inliers = np.array([])
                 break
 
