@@ -27,12 +27,15 @@
 """Tests for the local co-registration module of AROSICS."""
 
 import unittest
+from unittest.mock import patch
 import shutil
 import os
 import warnings
 from multiprocessing import cpu_count
 
 # custom
+import pytest
+
 from .cases import test_cases
 from arosics import COREG_LOCAL
 from geoarray import GeoArray
@@ -217,7 +220,11 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
 
         assert CRL.success
 
+    def test_warnings_summary(self):
+        with (patch.dict('os.environ', dict(AROSICS_CI_TEST='True')),
+              pytest.warns(UserWarning, match='.*~100% of all tie point candidates.*Test warning!.*')):
+            COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
+
 
 if __name__ == '__main__':
-    import pytest
     pytest.main()
