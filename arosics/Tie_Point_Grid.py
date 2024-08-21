@@ -271,16 +271,18 @@ class Tie_Point_Grid(object):
 
     @staticmethod
     def _get_spatial_shifts(imref, im2shift, point_id, **coreg_kwargs):
-        # run CoReg
-        CR = COREG(imref, im2shift, CPUs=1, **coreg_kwargs)
-        CR.calculate_spatial_shifts()
+        with catch_warnings(record=True) as w:
+            # run CoReg
+            CR = COREG(imref, im2shift, CPUs=1, **coreg_kwargs)
+            CR.calculate_spatial_shifts()
 
         # fetch results
         last_err = CR.tracked_errors[-1] if CR.tracked_errors else None
         win_sz_y, win_sz_x = CR.matchBox.imDimsYX if CR.matchBox else (None, None)
+        rec_warnings = list(set([repr(wi.message) for wi in w]))
         CR_res = [win_sz_x, win_sz_y, CR.x_shift_px, CR.y_shift_px, CR.x_shift_map, CR.y_shift_map,
                   CR.vec_length_map, CR.vec_angle_deg, CR.ssim_orig, CR.ssim_deshifted, CR.ssim_improved,
-                  CR.shift_reliability, last_err]
+                  CR.shift_reliability, last_err, rec_warnings]
 
         return [point_id] + CR_res
 
@@ -381,7 +383,10 @@ class Tie_Point_Grid(object):
         records = DataFrame(results,
                             columns=['POINT_ID', 'X_WIN_SIZE', 'Y_WIN_SIZE', 'X_SHIFT_PX', 'Y_SHIFT_PX', 'X_SHIFT_M',
                                      'Y_SHIFT_M', 'ABS_SHIFT', 'ANGLE', 'SSIM_BEFORE', 'SSIM_AFTER',
-                                     'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR'])
+                                     'SSIM_IMPROVED', 'RELIABILITY', 'LAST_ERR', 'WARNINGS'])
+
+        if not self.q:
+            self._summarize_warnings(records.WARNINGS.values)
 
         # merge DataFrames
         GDF = GDF.merge(records, on='POINT_ID', how="inner")
@@ -412,6 +417,25 @@ class Tie_Point_Grid(object):
                     print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
 
         return self.CoRegPoints_table
+
+    @staticmethod
+    def _summarize_warnings(recorded_warnings: np.ndarray):
+        """Raise a warning that summarizes all warnings recorded during tie point computation."""
+        df_warnings = DataFrame([i[0] for i in recorded_warnings.reshape(-1, 1)])
+
+        if not df_warnings.empty:
+            warnings_2d =df_warnings.to_numpy().astype(str)
+            unique_warnings = [i for i in np.unique(warnings_2d) if i != 'None']
+
+            sum_strings = []
+            for i, w in enumerate(unique_warnings):
+                count = np.any(warnings_2d==w, axis=1).sum()
+                perc = int(np.ceil(count / warnings_2d.shape[0] * 100))
+                sum_strings.append(f"- {count}x (for ~{perc}% of all tie point candidates): \t'{w}'")
+
+            warn("The following warnings were recorded during tie point computation:\n" +
+                 '\n'.join(sum_strings),
+                 UserWarning)
 
     def calc_rmse(self, include_outliers: bool = False) -> float:
         """Calculate root-mean-square error of absolute shifts from the tie point grid.
