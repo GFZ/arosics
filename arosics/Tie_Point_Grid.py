@@ -424,12 +424,12 @@ class Tie_Point_Grid(object):
         df_warnings = DataFrame([i[0] for i in recorded_warnings.reshape(-1, 1)])
 
         if not df_warnings.empty:
-            warnings_2d =df_warnings.to_numpy().astype(str)
+            warnings_2d = df_warnings.to_numpy().astype(str)
             unique_warnings = [i for i in np.unique(warnings_2d) if i != 'None']
 
             sum_strings = []
             for i, w in enumerate(unique_warnings):
-                count = np.any(warnings_2d==w, axis=1).sum()
+                count = np.any(warnings_2d == w, axis=1).sum()
                 perc = int(np.ceil(count / warnings_2d.shape[0] * 100))
                 sum_strings.append(f"- {count}x (for ~{perc}% of all tie point candidates): \t'{w}'")
 
