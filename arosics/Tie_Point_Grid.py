@@ -850,7 +850,7 @@ class Tie_Point_Grid(object):
         if skip_nodata:
             GDF2pass = GDF2pass[GDF2pass[skip_nodata_col] != self.outFillVal].copy()
         else:
-            # use the error represetation (including error type) instead of only the error message
+            # use the error representation (including error type) instead of only the error message
             GDF2pass.LAST_ERR = GDF2pass.apply(lambda GDF_row: repr(GDF_row.LAST_ERR), axis=1)
 
         if skip_outliers:
@@ -871,7 +871,11 @@ class Tie_Point_Grid(object):
                                              self.COREG_obj.win_size_XY[1], self.shift.basename, self.ref.basename))
         if not self.q:
             print('Writing %s ...' % path_out)
-        GDF2pass.to_file(path_out)
+
+        with catch_warnings():
+            filterwarnings("ignore", message=".*Normalized/laundered field name:.*")
+
+            GDF2pass.to_file(path_out)
 
     def to_vectorfield(self, path_out: str = None, fmt: str = None, mode: str = 'md') -> GeoArray:
         """Save the calculated X-/Y-shifts to a 2-band raster file that can be used to visualize a vectorfield.
