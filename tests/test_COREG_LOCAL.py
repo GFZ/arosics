@@ -223,8 +223,13 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         assert CRL.success
 
     def test_warnings_summary(self):
+        """Test if the warnings summary is properly displayed."""
         with (patch.dict('os.environ', dict(AROSICS_CI_TEST='True')),
               pytest.warns(UserWarning, match='.*~100% of all tie point candidates.*Test warning!.*')):
+            COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
+
+        with warnings.catch_warnings(category=UserWarning):
+            warnings.simplefilter("error")
             COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
 
 
