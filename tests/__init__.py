@@ -24,3 +24,13 @@
 # limitations under the License.
 
 """Unit test package for arosics."""
+
+import matplotlib as _plt
+
+
+def setUpModule():
+    _plt.rcParams.update({'figure.max_open_warning': 0})
+
+
+def tearDownModule() -> None:
+    _plt.rcParams.update({'figure.max_open_warning': 20})
