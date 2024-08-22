@@ -97,7 +97,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
             CRL.view_CoRegPoints(hide_filtered=True)
             CRL.view_CoRegPoints(hide_filtered=False)
             CRL.view_CoRegPoints(shapes2plot='vectors')
-            CRL.view_CoRegPoints_folium()
+            with pytest.warns(UserWarning, match='.*still under construction.*'):
+                CRL.view_CoRegPoints_folium()
 
         # test shift correction and output writer
         CRL.correct_shifts()
@@ -194,8 +195,9 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
 
         # get instance of COREG_LOCAL object
-        CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
-                                           **self.coreg_kwargs))
+        with pytest.warns(UserWarning, match='.*reference image needs to be resampled.*'):
+            CRL = COREG_LOCAL(ref, tgt, **dict(CPUs=cpu_count(),
+                                               **self.coreg_kwargs))
         CRL.calculate_spatial_shifts()
         # CRL.view_CoRegPoints()
 
@@ -221,8 +223,13 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         assert CRL.success
 
     def test_warnings_summary(self):
+        """Test if the warnings summary is properly displayed."""
         with (patch.dict('os.environ', dict(AROSICS_CI_TEST='True')),
               pytest.warns(UserWarning, match='.*~100% of all tie point candidates.*Test warning!.*')):
+            COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
+
+        with warnings.catch_warnings(category=UserWarning):
+            warnings.simplefilter("error")
             COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
 
 

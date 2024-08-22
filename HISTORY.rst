@@ -14,6 +14,7 @@ History
 * !64: Muted Python 3.12 deadlock warning (#117).
 * !65: Improved the handling of warnings raised from child processes during the tie point computation.
   They are not raised by every child process anymore but now summarized afterwards.
+* !66: Muted some expected warnings raised by the CI tests.
 
 
 1.11.0 (2024-05-09)

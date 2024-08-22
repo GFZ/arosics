@@ -111,39 +111,45 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         self.TPG.to_GCPList()
 
     def test_to_PointShapefile(self):
-        tbl = self.TPG.CoRegPoints_table
-        n_all_points = len(tbl)
-        n_nodata = sum(tbl['ABS_SHIFT'] == self.TPG.outFillVal)
-        n_outliers = sum(tbl['OUTLIER'].__eq__(True))
+        with (pytest.warns(UserWarning, match='.*Column names longer than 10 characters will be truncated.*'),
+              warnings.catch_warnings()
+              ):
+            warnings.filterwarnings("ignore", message=".*recognized as too large to be valid.*")
 
-        def _get_n_records(filepath: str):
-            with open(filepath, 'rb') as inF:
-                header = inF.read(32)
-                return struct.unpack('<I', header[4:8])[0]
+            tbl = self.TPG.CoRegPoints_table
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            outpath = os.path.join(tmpdir, 'test_out_shapefile_excl_nodata.shp')
-            self.TPG.to_PointShapefile(outpath, skip_nodata=True)
-            assert os.path.isfile(outpath)
-            assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points - n_nodata
+            n_all_points = len(tbl)
+            n_nodata = sum(tbl['ABS_SHIFT'] == self.TPG.outFillVal)
+            n_outliers = sum(tbl['OUTLIER'].__eq__(True))
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            outpath = os.path.join(tmpdir, 'test_out_shapefile_incl_nodata.shp')
-            self.TPG.to_PointShapefile(outpath, skip_nodata=False)
-            assert os.path.isfile(outpath)
-            assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points
+            def _get_n_records(filepath: str):
+                with open(filepath, 'rb') as inF:
+                    header = inF.read(32)
+                    return struct.unpack('<I', header[4:8])[0]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            outpath = os.path.join(tmpdir, 'test_out_shapefile_excl_outliers.shp')
-            self.TPG.to_PointShapefile(outpath, skip_nodata=False, skip_outliers=True)
-            assert os.path.isfile(outpath)
-            assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points - n_outliers
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outpath = os.path.join(tmpdir, 'test_out_shapefile_excl_nodata.shp')
+                self.TPG.to_PointShapefile(outpath, skip_nodata=True)
+                assert os.path.isfile(outpath)
+                assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points - n_nodata
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            outpath = os.path.join(tmpdir, 'test_out_shapefile_excl_nodata_outliers.shp')
-            self.TPG.to_PointShapefile(outpath, skip_nodata=True, skip_outliers=True)
-            assert os.path.isfile(outpath)
-            assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points - n_nodata - n_outliers
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outpath = os.path.join(tmpdir, 'test_out_shapefile_incl_nodata.shp')
+                self.TPG.to_PointShapefile(outpath, skip_nodata=False)
+                assert os.path.isfile(outpath)
+                assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outpath = os.path.join(tmpdir, 'test_out_shapefile_excl_outliers.shp')
+                self.TPG.to_PointShapefile(outpath, skip_nodata=False, skip_outliers=True)
+                assert os.path.isfile(outpath)
+                assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points - n_outliers
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outpath = os.path.join(tmpdir, 'test_out_shapefile_excl_nodata_outliers.shp')
+                self.TPG.to_PointShapefile(outpath, skip_nodata=True, skip_outliers=True)
+                assert os.path.isfile(outpath)
+                assert _get_n_records(f'{outpath[:-4]}.dbf') == n_all_points - n_nodata - n_outliers
 
     def test_to_vectorfield(self):
         with tempfile.TemporaryDirectory() as tmpdir:
