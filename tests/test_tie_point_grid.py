@@ -111,7 +111,12 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         self.TPG.to_GCPList()
 
     def test_to_PointShapefile(self):
-        tbl = self.TPG.CoRegPoints_table
+        with warnings.catch_warnings():
+            # warnings.filterwarnings("ignore", message=".*calculated shift.* recognized as too large to be valid.*")
+            warnings.filterwarnings("ignore", message=".*recognized as too large to be valid.*")
+
+            tbl = self.TPG.CoRegPoints_table
+
         n_all_points = len(tbl)
         n_nodata = sum(tbl['ABS_SHIFT'] == self.TPG.outFillVal)
         n_outliers = sum(tbl['OUTLIER'].__eq__(True))
