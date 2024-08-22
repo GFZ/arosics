@@ -1623,6 +1623,9 @@ class COREG(object):
             self._validate_ssim_improvement()  # FIXME uses the not updated matchWin size
             self.shift_reliability = self._calc_shift_reliability(scps)
 
+        if os.getenv('AROSICS_CI_TEST', 'False') == 'True':
+            warnings.warn('Test warning!', UserWarning)
+
         return 'success'
 
     def _get_updated_map_info(self) -> None:

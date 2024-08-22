@@ -12,6 +12,8 @@ History
 * !62: Fixed #114: DeprecationWarning: Overriding the CRS of a GeoSeries that already has CRS. [...].
 * !63: Fixed pandas FutureWarnings within Tie_Point_Grid.to_PointShapefile().
 * !64: Muted Python 3.12 deadlock warning (#117).
+* !65: Improved the handling of warnings raised from child processes during the tie point computation.
+  They are not raised by every child process anymore but now summarized afterwards.
 
 
 1.11.0 (2024-05-09)
