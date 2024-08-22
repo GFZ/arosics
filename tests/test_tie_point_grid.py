@@ -111,7 +111,9 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         self.TPG.to_GCPList()
 
     def test_to_PointShapefile(self):
-        with warnings.catch_warnings():
+        with (pytest.warns(UserWarning, match='.*Column names longer than 10 characters will be truncated.*'),
+              warnings.catch_warnings()
+              ):
             warnings.filterwarnings("ignore", message=".*recognized as too large to be valid.*")
 
             tbl = self.TPG.CoRegPoints_table
