@@ -200,13 +200,14 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
         # tgt.gt = [335440, 5.8932, 0.0, 5866490, 0.0, -10.1]
         tgt.gt = [335440, 10, 0.00001, 5866490, 0.00001, -10]
 
-        CR = self.run_shift_detection_correction(ref, tgt,
-                                                 **dict(self.coreg_kwargs,
-                                                        # ws=(512, 512),
-                                                        wp=(341500.0, 5861440.0),
-                                                        footprint_poly_ref=None,
-                                                        footprint_poly_tgt=None,
-                                                        max_shift=35))
+        with pytest.warns(UserWarning, match='.*target image needs to be resampled.*'):
+            CR = self.run_shift_detection_correction(ref, tgt,
+                                                     **dict(self.coreg_kwargs,
+                                                            # ws=(512, 512),
+                                                            wp=(341500.0, 5861440.0),
+                                                            footprint_poly_ref=None,
+                                                            footprint_poly_tgt=None,
+                                                            max_shift=35))
         CR.show_matchWin(interactive=False, after_correction=None)
         assert CR.success
 
