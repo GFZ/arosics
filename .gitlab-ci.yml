@@ -85,6 +85,7 @@ test_arosics_install:
     - pip check || exit
   only:
     - main
+    - maintenance/modernize_setup
 
 
 pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
