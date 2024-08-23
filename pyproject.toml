@@ -116,6 +116,3 @@ version = {attr = "arosics.version.__version__"}
 
 [tool.distutils.bdist_wheel]
 universal = 1
-
-[tool.flake8]
-exclude = "docs"
