@@ -79,11 +79,9 @@ test_arosics_install:
 
     # install arosics
     - pip install -e .
-    - cd ..
-    - pwd
-    - ls
 
-    # test importability
+      # test importability
+    - cd ../..
     - python -c "import arosics; print(arosics)"
     - python -c "from arosics import COREG, COREG_LOCAL"
 
