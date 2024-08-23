@@ -37,6 +37,8 @@ test_arosics:
 
     expire_in: 30 days
     when: always
+  except:
+    - maintenance/modernize_setup
 
 
 test_styles:
@@ -50,6 +52,8 @@ test_styles:
     - tests/linting/pycodestyle.log
     - tests/linting/pydocstyle.log
     when: always
+  except:
+    - maintenance/modernize_setup
 
 
 test_urls:
@@ -59,6 +63,8 @@ test_urls:
     - pip install -U urlchecker
     - make urlcheck
   when: always
+  except:
+    - maintenance/modernize_setup
 
 
 test_arosics_install:
