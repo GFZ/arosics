@@ -5,7 +5,7 @@ History
 1.12.0 (coming soon)
 --------------------
 
-*!67: Migrated setup procedure from setup.py to setup.cfg + pyproject.toml.
+*!67: Migrated setup procedure from using setup.py + setup.cfg to using pyproject.toml only. Dropped requirements.txt.
 
 
 1.11.1 (2024-08-22)
