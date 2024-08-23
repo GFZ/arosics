@@ -2,6 +2,12 @@
 History
 =======
 
+1.12.0 (coming soon)
+--------------------
+
+*!67: Migrated setup procedure from setup.py to setup.cfg + pyproject.toml.
+
+
 1.11.1 (2024-08-22)
 -------------------
 
