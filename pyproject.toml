@@ -1,0 +1,142 @@
+# -*- coding: utf-8 -*-
+
+# AROSICS - Automated and Robust Open-Source Image Co-Registration Software
+#
+# Copyright (C) 2017-2024
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz-potsdam.de/)
+#
+# This software was developed within the context of the GeoMultiSens project funded
+# by the German Federal Ministry of Education and Research
+# (project grant code: 01 IS 14 010 A-C).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[build-system]
+requires = [
+    "setuptools>=61.2",
+    "setuptools-git",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arosics"
+description = "An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data"
+authors = [{name = "Daniel Scheffler", email = "daniel.scheffler@gfz-potsdam.de"}]
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = [
+    "arosics",
+    "image co-registration",
+    "geometric pre-processing",
+    "remote sensing",
+    "sensor fusion",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "cartopy",
+    "cmocean",
+    "folium>=0.6.0,!=0.12.0",
+    "gdal",
+    "geoarray>=0.15.0",
+    "geojson",
+    "geopandas",
+    "joblib>=1.3.0",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "plotly",
+    "pykrige",
+    "pyproj>2.2.0",
+    "py_tools_ds>=0.18.0",
+    "scikit-image>=0.21.0",
+    "scikit-learn",
+    "scipy>=1.7.0",
+    "shapely",
+]
+dynamic = ["version"]
+
+[project.readme]
+file = "README.rst"
+content-type = "text/x-rst"
+
+[project.urls]
+"Source code" = "https://git.gfz-potsdam.de/danschef/arosics"
+"Issue Tracker" = "https://git.gfz-potsdam.de/danschef/arosics/-/issues"
+"Documentation" = "https://danschef.git-pages.gfz-potsdam.de/arosics/doc/"
+"Change log" = "https://git.gfz-potsdam.de/danschef/arosics/-/blob/main/HISTORY.rst"
+"Algorithm paper" = "https://www.mdpi.com/2072-4292/9/7/676"
+"Zenodo" = "https://zenodo.org/record/5093940"
+
+[project.optional-dependencies]
+interactive_plotting = [
+    "holoviews",
+    "ipython",
+    "nbformat",
+]
+doc = [
+    "sphinx-argparse",
+    "sphinx_rtd_theme",
+    "sphinx-autodoc-typehints",
+]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-reporter-html1",
+    "urlchecker",
+    "arosics[interactive_plotting]",
+]
+lint = [
+    "flake8",
+    "pycodestyle",
+    "pydocstyle",
+]
+dev = [
+    "arosics[test]",
+    "arosics[doc]",
+    "arosics[lint]",
+]
+
+[project.scripts]
+arosics = "arosics.arosics_cli:main"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+exclude = [
+    "docs*",
+    "tests*",
+]
+namespaces = false
+
+[tool.setuptools.dynamic]
+version = {attr = "arosics.version.__version__"}
+
+[tool.distutils.bdist_wheel]
+universal = 1
