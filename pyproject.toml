@@ -59,7 +59,6 @@ file = "README.rst"
 content-type = "text/x-rst"
 
 [project.urls]
-"Homepage" = "https://git.gfz-potsdam.de/danschef/arosics"
 "Source code" = "https://git.gfz-potsdam.de/danschef/arosics"
 "Issue Tracker" = "https://git.gfz-potsdam.de/danschef/arosics/-/issues"
 "Documentation" = "https://danschef.git-pages.gfz-potsdam.de/arosics/doc/"
