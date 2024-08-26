@@ -431,6 +431,7 @@ class COREG(object):
         self.tracked_errors = []  # expanded each time an error occurs
         self.success = None  # default
         self.deshift_results = None  # set by self.correct_shifts()
+        self.ref_any_nodata = None  # set by self._get_clip_window_properties()
 
         self._check_and_handle_metaRotation()
         self._get_image_params()
@@ -1014,6 +1015,12 @@ class COREG(object):
             self.matchBox = matchBox
             self.otherBox = otherBox
 
+            # check if other image contains any data, if not exit early
+            rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(otherBox.boxImYX)
+            self.ref_any_nodata = np.any(self.ref[rS:rE + 1, cS:cE + 1, self.ref.band4match] != self.ref.nodata)
+            if not self.ref_any_nodata:
+                return
+
             self.ref.win.size_YX = tuple([int(i) for i in self.ref.win.imDimsYX])
             self.shift.win.size_YX = tuple([int(i) for i in self.shift.win.imDimsYX])
             match_win_size_XY = tuple(reversed([int(i) for i in matchBox.imDimsYX]))
@@ -1051,7 +1058,14 @@ class COREG(object):
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= other_fullGeoArr.rows and cE <= other_fullGeoArr.cols, \
             'Requested area is not completely within the input array for %s.' % other_fullGeoArr.imName
-        self.otherWin = GeoArray(other_fullGeoArr[rS:rE + 1, cS:cE + 1, other_fullGeoArr.band4match],
+        
+        # return early of all nodata
+        other_window = other_fullGeoArr[rS:rE + 1, cS:cE + 1, other_fullGeoArr.band4match]
+        self.ref_any_nodata = np.any(other_window  != other_fullGeoArr.nodata)
+        if not self.ref_any_nodata:
+            return
+
+        self.otherWin = GeoArray(other_window,
                                  geotransform=GEO.get_subset_GeoTransform(other_fullGeoArr.gt, self.otherBox.boxImYX),
                                  projection=copy(other_fullGeoArr.prj),
                                  nodata=copy(other_fullGeoArr.nodata))
@@ -1102,6 +1116,7 @@ class COREG(object):
             self.otherBox = self.otherWin.box  # update otherBox
 
         assert self.matchWin.arr is not None and self.otherWin.arr is not None, 'Creation of matching windows failed.'
+        return True
 
     @staticmethod
     def _shrink_winsize_to_binarySize(win_shape_YX: tuple,
@@ -1530,7 +1545,9 @@ class COREG(object):
             return 'fail'
 
         # set self.matchWin and self.otherWin (GeoArray instances)
-        self._get_image_windows_to_match()  # 45-90ms
+        success = self._get_image_windows_to_match()  # 45-90ms
+        if not success:
+            return 'fail'
 
         im0 = self.matchWin[:] if self.matchWin.imID == 'ref' else self.otherWin[:]
         im1 = self.otherWin[:] if self.otherWin.imID == 'shift' else self.matchWin[:]

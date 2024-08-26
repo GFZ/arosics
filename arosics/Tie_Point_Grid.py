@@ -273,7 +273,8 @@ class Tie_Point_Grid(object):
     def _get_spatial_shifts(imref, im2shift, point_id, **coreg_kwargs):
         # run CoReg
         CR = COREG(imref, im2shift, CPUs=1, **coreg_kwargs)
-        CR.calculate_spatial_shifts()
+        if CR.success in (True, None) and CR.ref_any_nodata in (True, None):
+            CR.calculate_spatial_shifts()
 
         # fetch results
         last_err = CR.tracked_errors[-1] if CR.tracked_errors else None
