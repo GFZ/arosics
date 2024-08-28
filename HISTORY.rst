@@ -6,6 +6,7 @@ History
 --------------------
 
 * !67: Migrated setup procedure from using setup.py + setup.cfg to using pyproject.toml only. Dropped requirements.txt.
+* !68: Pinned holoviews to >1.12.7 to fix an incompatibility within newer environments.
 
 
 1.11.1 (2024-08-22)
