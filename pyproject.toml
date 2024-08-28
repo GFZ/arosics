@@ -129,10 +129,6 @@ include-package-data = true
 license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
-exclude = [
-    "docs*",
-    "tests*",
-]
 namespaces = false
 
 [tool.setuptools.dynamic]
