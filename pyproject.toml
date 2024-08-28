@@ -93,7 +93,7 @@ content-type = "text/x-rst"
 
 [project.optional-dependencies]
 interactive_plotting = [
-    "holoviews",
+    "holoviews>1.12.7",
     "ipython",
     "nbformat",
 ]
