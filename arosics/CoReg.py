@@ -972,7 +972,7 @@ class COREG(object):
                 self._handle_error(
                     RuntimeError(f"One of the input images does not have sufficient gray value information "
                                  f"(non-no-data values) for placing a matching window at the position "
-                                 f"{str((wpX, wpY))}. Matching failed." ))
+                                 f"{str((wpX, wpY))}. Matching failed."))
 
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
