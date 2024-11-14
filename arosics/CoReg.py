@@ -377,7 +377,7 @@ class COREG(object):
         self.progress = progress if not q else False  # overridden by q
 
         self.ignErr = ignore_errors
-        self.max_win_sz_changes = 3  # TODO: änderung der window size, falls nach max_iter kein valider match gefunden
+        self.max_win_sz_changes = 3  # TODO: change window in case no match found after <max_iter> attempts
         self.ref: Optional[GeoArray_CoReg] = None  # set by self.get_image_params
         self.shift: Optional[GeoArray_CoReg] = None  # set by self.get_image_params
         self.matchBox: Optional[boxObj] = None  # set by self.get_clip_window_properties()
@@ -421,8 +421,8 @@ class COREG(object):
             write_shp(os.path.join(self.path_verbose_out, 'poly_im2shift.shp'), self.shift.poly, self.shift.prj)
             write_shp(os.path.join(self.path_verbose_out, 'overlap_poly.shp'), self.overlap_poly, self.ref.prj)
 
-        # FIXME: transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection())
-        # FIXME später basteln für den fall, dass projektionen nicht gleich sind
+        # TODO: in case of unequal projections:
+        #       transform_mapPt1_to_mapPt2(im2shift_center_map, ds_imref.GetProjection(), ds_im2shift.GetProjection())
 
         # get_clip_window_properties
         self._get_opt_winpos_winsize()
@@ -805,7 +805,7 @@ class COREG(object):
         NOTE: The returned values are computed according to DGM, cloud_mask and trueCornerLonLat.
         """
         # dummy algorithm: get center position of overlap instead of searching ideal window position in whole overlap
-        # TODO automatischer Algorithmus zur Bestimmung der optimalen Window Position
+        # TODO: add automatic determination of optimal window position
 
         wp = tuple(self.win_pos_XY)
         assert type(self.win_pos_XY) in [tuple, list, np.ndarray], \
