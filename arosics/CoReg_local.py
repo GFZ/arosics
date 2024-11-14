@@ -660,7 +660,7 @@ class COREG_LOCAL(object):
                 fig.add_axes(cax)
                 fig.colorbar(mappable, cax=cax, orientation="horizontal")
 
-                # hack to enlarge the figure on the top to avoid cutting off the title (everthing else has no effect)
+                # hack to enlarge the figure on the top to avoid cutting off the title (everything else has no effect)
                 divider.new_vertical(size="2%", pad=0.4, pack_start=False, axes_class=plt.Axes)
 
             else:
@@ -742,7 +742,7 @@ class COREG_LOCAL(object):
 
     @property
     def coreg_info(self) -> dict:
-        """Return a dictionary containing everthing to correct the detected local displacements of the target image."""
+        """Return a dictionary containing everything to correct the detected local displacements of the target image."""
         if self._coreg_info:
             return self._coreg_info
         else:

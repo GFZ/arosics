@@ -253,7 +253,7 @@ class COREG(object):
             - default: cubic
 
         :param resamp_alg_calc:
-            the resampling algorithm to be used for all warping processes during calculatio of spatial shift
+            the resampling algorithm to be used for all warping processes during calculation of spatial shift
             - valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
             - default: cubic (highly recommended)
 
@@ -826,7 +826,7 @@ class COREG(object):
                                   "'representative point' is used. Alternatively you can provide your own window "
                                   "position as input parameter.")
 
-                # -> use representative point: a point that is garanteed to be within overlap polygon
+                # -> use representative point: a point that is guaranteed to be within overlap polygon
                 overlap_center_pos_x, overlap_center_pos_y = self.overlap_poly.representative_point().coords.xy
                 wp = overlap_center_pos_x[0], overlap_center_pos_y[0]
 
