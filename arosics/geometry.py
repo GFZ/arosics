@@ -92,8 +92,8 @@ def get_true_corner_mapXY(fPath_or_geoarray, band=0, noDataVal=None, mp=1, v=0, 
         corner_coords_YX = calc_FullDataset_corner_positions(mask_1bit, assert_four_corners=False, algorithm='shapely')
     except Exception:
         if v:
-            warnings.warn("\nCalculation of corner coordinates failed within algorithm 'shapely' (Exception: %s)."
-                          " Using algorithm 'numpy' instead." % sys.exc_info()[1])
+            warnings.warn(f"\nCalculation of corner coordinates failed within algorithm 'shapely' "
+                          f"(Exception: {sys.exc_info()[1]}). Using algorithm 'numpy' instead.")
         # FIXME numpy algorithm returns wrong values for S2A_OPER_MSI_L1C_TL_SGS__20160608T153121_A005024_T33UUU_B03.jp2
         # FIXME (Hannes)
         corner_coords_YX = \

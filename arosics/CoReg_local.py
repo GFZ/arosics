@@ -263,7 +263,7 @@ class COREG_LOCAL(object):
             Useful for batch processing. (default: False)
         """
         # assertions / input validation
-        assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
+        assert gdal.GetDriverByName(fmt_out), f"'{fmt_out}' is not a supported GDAL driver."
         if match_gsd and out_gsd:
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:
@@ -412,7 +412,7 @@ class COREG_LOCAL(object):
             fold_name = 'UntitledProject_1'
 
             while os.path.isdir(os.path.join(root_dir, fold_name)):
-                fold_name = '%s_%s' % (fold_name.split('_')[0], int(fold_name.split('_')[-1]) + 1)
+                fold_name = f"{fold_name.split('_')[0]}_{int(fold_name.split('_')[-1]) + 1}"
 
             self._projectDir = os.path.join(root_dir, fold_name)
             return self._projectDir
@@ -559,8 +559,8 @@ class COREG_LOCAL(object):
         elif attribute2plot in self.CoRegPoints_table.columns:
             ax.set_title(attribute2plot)
         else:
-            raise ValueError(attribute2plot, "Invalid value for 'attribute2plot'. Valid values are: %s."
-                             % ", ".join(self.CoRegPoints_table.columns))
+            raise ValueError(attribute2plot, f"Invalid value for 'attribute2plot'. "
+                                             f"Valid values are: {', '.join(self.CoRegPoints_table.columns)}.")
 
         if not self.CoRegPoints_table.empty:
             # get GeoDataFrame containing everything needed for plotting
@@ -649,8 +649,8 @@ class COREG_LOCAL(object):
                         transform=PlateCarree())
                     pass
                 else:
-                    raise ValueError("The parameter 'shapes2plot' must be set to 'vectors' or 'points'. "
-                                     "Received %s." % shapes2plot)
+                    raise ValueError(f"The parameter 'shapes2plot' must be set to 'vectors' or 'points'. "
+                                     f"Received {shapes2plot}.")
 
                 # add colorbar
                 divider = make_axes_locatable(ax)
