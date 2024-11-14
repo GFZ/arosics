@@ -155,7 +155,7 @@ class COREG_LOCAL(object):
             NOTE: lower levels are also included if a higher level is chosen
 
             - Level 0: no tie point filtering
-            - Level 1: Reliablity filtering
+            - Level 1: Reliability filtering
                        - filter all tie points out that have a low reliability according to internal tests
             - Level 2: SSIM filtering
                        - filters all tie points out where shift correction does not increase image similarity within

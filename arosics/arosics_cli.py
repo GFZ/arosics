@@ -309,7 +309,7 @@ def get_arosics_argparser():
 
     locArg('-tieP_filter_level', nargs='?', type=int, default=3, choices=[0, 1, 2, 3],
            help="filter tie points used for shift correction in different levels (default: 3). NOTE: lower levels are "
-                "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliablity "
+                "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliability "
                 "filtering - filter all tie points out that have a low reliability according to internal tests; "
                 "Level 2: SSIM filtering - filters all tie points out where shift correction does not increase image "
                 "similarity within matching window (measured by mean structural similarity index) "
