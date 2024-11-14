@@ -1609,7 +1609,8 @@ class COREG(object):
                     print(f'Calculated total shifts in reference pixel units (X/Y):   {x_totalshift}/{y_totalshift}')
                     print(f'Calculated total shifts in target pixel units (X/Y):      '
                           f'{self.x_shift_px}/{self.y_shift_px}')
-                    print(f'Calculated map shifts (X,Y):\t\t\t\t  {self.x_shift_map}/{self.y_shift_map}')
+                    print(f'Calculated map shifts (X,Y):                              '
+                          f'{self.x_shift_map}/{self.y_shift_map}')
                     print(f'Calculated absolute shift vector length in map units:     {self.vec_length_map}')
                     print(f'Calculated angle of shift vector in degrees from North:   {self.vec_angle_deg}')
 
