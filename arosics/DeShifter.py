@@ -166,11 +166,11 @@ class DESHIFTER(object):
         # in case of local shift correction and local coreg results contain fewer points than min_points_local_corr:
         # force global correction based on mean X/Y shifts
         if 'GCPList' in coreg_results and len(coreg_results['GCPList']) < self.min_points_local_corr:
-            warnings.warn('Only %s valid tie point(s) could be identified. A local shift correction is therefore not '
-                          'reasonable and could cause artifacts in the output image. The target image is '
-                          'corrected globally with the mean X/Y shift of %.3f/%.3f pixels.'
-                          % (len(self.GCPList), coreg_results['mean_shifts_px']['x'],
-                             coreg_results['mean_shifts_px']['y']))
+            warnings.warn(f'Only {len(self.GCPList)} valid tie point(s) could be identified. A local shift correction '
+                          f'is therefore not reasonable and could cause artifacts in the output image. The target '
+                          f'image is corrected globally with the mean X/Y shift of '
+                          f'{coreg_results["mean_shifts_px"]["x"]:.3f}/'
+                          f'{coreg_results["mean_shifts_px"]["y"]:.3f} pixels.')
             self.GCPList = None
             coreg_results['updated map info'] = coreg_results['updated map info means']
 
@@ -189,13 +189,13 @@ class DESHIFTER(object):
 
         # assertions
         assert self.rspAlg in _dict_rspAlg_rsp_Int.keys(), \
-            "'%s' is not a supported resampling algorithm." % self.rspAlg
+            f"'{self.rspAlg}' is not a supported resampling algorithm."
         if self.band2process is not None:
             assert self.im2shift.bands - 1 >= self.band2process >= 0, \
-                "The %s '%s' has %s %s. So 'band2process' must be %s%s. Got %s." \
-                % (self.im2shift.__class__.__name__, self.im2shift.basename, self.im2shift.bands,
-                   'bands' if self.im2shift.bands > 1 else 'band', 'between 1 and ' if self.im2shift.bands > 1 else '',
-                   self.im2shift.bands, self.band2process + 1)
+                (f"The {self.im2shift.__class__.__name__} '{self.im2shift.basename}' has {self.im2shift.bands} "
+                 f"{'bands' if self.im2shift.bands > 1 else 'band'}. So 'band2process' must be "
+                 f"{'between 1 and ' if self.im2shift.bands > 1 else ''}{self.im2shift.bands}. "
+                 f"Got {self.band2process + 1}.")
 
         # set defaults for general class attributes
         self.is_shifted = False  # this is not included in COREG.coreg_info
@@ -288,12 +288,12 @@ class DESHIFTER(object):
                 False if (not is_alignable(in_xgsd, out_xgsd) or not is_alignable(in_ygsd, out_ygsd)) else True
 
             if self._grids_alignable is False and not self.q:
-                warnings.warn("\nThe coordinate grid of %s cannot be aligned to the desired grid because their pixel "
-                              "sizes are not exact multiples of each other (input [X/Y]: %s/%s; desired [X/Y]: %s/%s). "
-                              "Therefore the original grid is chosen for the resampled output image. If you don´t like "
-                              "that you can use the 'out_gsd' or 'match_gsd' parameters to set an appropriate output "
-                              "pixel size or to allow changing the pixel size.\n"
-                              % (self.im2shift.basename, in_xgsd, in_ygsd, out_xgsd, out_ygsd))
+                warnings.warn(f"\nThe coordinate grid of {self.im2shift.basename} cannot be aligned to the desired "
+                              f"grid because their pixel sizes are not exact multiples of each other (input [X/Y]: "
+                              f"{in_xgsd}/{in_ygsd}; desired [X/Y]: {out_xgsd}/{out_ygsd}). Therefore the original "
+                              f"grid is chosen for the resampled output image. If you don´t like that you can use "
+                              f"the 'out_gsd' or 'match_gsd' parameters to set an appropriate output pixel size or "
+                              f"to allow changing the pixel size.\n")
 
         return self._grids_alignable
 
@@ -413,12 +413,12 @@ class DESHIFTER(object):
 
         # validation
         if not is_coord_grid_equal(self.updated_gt, *self.out_grid, tolerance=1.e8):
-            raise RuntimeError('DESHIFTER output dataset has not the desired target pixel grid. Target grid '
-                               'was %s. Output geotransform is %s.' % (str(self.out_grid), str(self.updated_gt)))
+            raise RuntimeError(f'DESHIFTER output dataset has not the desired target pixel grid. Target grid '
+                               f'was {str(self.out_grid)}. Output geotransform is {str(self.updated_gt)}.')
         # TODO to be continued (extent, map info, ...)
 
         if self.v:
-            print('Time for shift correction: %.2fs' % (time.time() - t_start))
+            print(f'Time for shift correction: {time.time() - t_start:.2f}s')
         return self.deshift_results
 
     @property

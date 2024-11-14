@@ -343,7 +343,7 @@ def main():
         except Exception:  # noqa
             pass
 
-    wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
+    wfa('/misc/hy5/scheffler/tmp/crlf', f"{dt.now()}\t{getuser()}\t{gethostname()}\t{' '.join(sys.argv)}\n")
 
     argparser = get_arosics_argparser()
     parsed_args = argparser.parse_args()
@@ -351,12 +351,12 @@ def main():
     if len(sys.argv) == 1:
         # no arguments provided
         print(
-            '======================================================================\n'
-            '#                            AROSICS v%s                         #' % __version__ + '\n'
-            '# An Automated and Robust Open-Source Image Co-Registration Software #\n'
-            '#                for Multi-Sensor Satellite Data                     #\n'
-            '#          - Python implementation by Daniel Scheffler               #\n'
-            '======================================================================\n')
+            f'======================================================================\n'
+            f'#                            AROSICS v{__version__}                         #\n'
+            f'# An Automated and Robust Open-Source Image Co-Registration Software #\n'
+            f'#                for Multi-Sensor Satellite Data                     #\n'
+            f'#          - Python implementation by Daniel Scheffler               #\n'
+            f'======================================================================\n')
         argparser.print_help()
     else:
         t0 = time.time()

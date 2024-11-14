@@ -76,24 +76,23 @@ class GeoArray_CoReg(GeoArray):
         self.v = CoReg_params['v']
 
         assert isinstance(self, GeoArray), \
-            'Something went wrong with the creation of GeoArray instance for the %s. The created ' \
-            'instance does not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset ' \
-            'the kernel and try again.' % self.imName
+            f'Something went wrong with the creation of GeoArray instance for the {self.imName}. The created ' \
+            f'instance does not seem to belong to the GeoArray class. If you are working in Jupyter Notebook, reset ' \
+            f'the kernel and try again.'
 
         # set title to be used in plots
         self.title = os.path.basename(self.filePath) if self.filePath else self.imName
 
         # validate params
-        # assert self.prj, 'The %s has no projection.' % self.imName # TODO
-        # assert not re.search('LOCAL_CS', self.prj), 'The %s is not georeferenced.' % self.imName # TODO
-        assert self.gt, 'The %s has no map information.' % self.imName
+        # assert self.prj, f'The {self.imName} has no projection.'  # TODO
+        # assert not re.search('LOCAL_CS', self.prj), f'The {self.imName} is not georeferenced.'  # TODO
+        assert self.gt, f'The {self.imName} has no map information.'
 
         # set band4match
         self.band4match = (CoReg_params['r_b4match'] if imID == 'ref' else CoReg_params['s_b4match']) - 1
         assert self.bands >= self.band4match + 1 >= 1, \
-            "The %s has %s %s. So its band number to match must be %s%s. Got %s." \
-            % (self.imName, self.bands, 'bands' if self.bands > 1 else
-               'band', 'between 1 and ' if self.bands > 1 else '', self.bands, self.band4match)
+            (f"The {self.imName} has {self.bands} {'bands' if self.bands > 1 else 'band'}. So its band number "
+             f"to match must be {'between 1 and ' if self.bands > 1 else ''}{self.bands}. Got {self.band4match}.") \
 
         # compute nodata mask and validate that it is not completely filled with nodata
         self.calc_mask_nodata(fromBand=self.band4match)  # this avoids that all bands have to be read
@@ -102,8 +101,8 @@ class GeoArray_CoReg(GeoArray):
             raise RuntimeError(f'The {self.imName} passed to AROSICS only contains nodata values.')
 
         # set footprint_poly
-        given_footprint_poly = CoReg_params['footprint_poly_%s' % ('ref' if imID == 'ref' else 'tgt')]
-        given_corner_coord = CoReg_params['data_corners_%s' % ('ref' if imID == 'ref' else 'tgt')]
+        given_footprint_poly = CoReg_params[f"footprint_poly_{'ref' if imID == 'ref' else 'tgt'}"]
+        given_corner_coord = CoReg_params[f"data_corners_{'ref' if imID == 'ref' else 'tgt'}"]
 
         if given_footprint_poly:
             self.footprint_poly = given_footprint_poly
@@ -115,14 +114,14 @@ class GeoArray_CoReg(GeoArray):
         else:
             # footprint_poly is calculated automatically by GeoArray
             if not CoReg_params['q']:
-                print('Calculating footprint polygon and actual data corner coordinates for %s...' % self.imName)
+                print(f'Calculating footprint polygon and actual data corner coordinates for {self.imName}...')
 
             with warnings.catch_warnings(record=True) as w:
                 _ = self.footprint_poly  # execute getter
 
             if len(w) > 0 and 'disjunct polygon(s) outside' in str(w[-1].message):
-                warnings.warn('The footprint of the %s contains multiple separate image parts. '
-                              'AROSICS will only process the largest image part.' % self.imName)
+                warnings.warn(f'The footprint of the {self.imName} contains multiple separate image parts. '
+                              f'AROSICS will only process the largest image part.')
                 # FIXME use a convex hull as footprint poly
 
         # validate footprint poly
@@ -130,10 +129,10 @@ class GeoArray_CoReg(GeoArray):
             self.footprint_poly = self.footprint_poly.buffer(0)
 
         if not self.q:
-            print('Bounding box of calculated footprint for %s:\n\t%s' % (self.imName, self.footprint_poly.bounds))
+            print(f'Bounding box of calculated footprint for {self.imName}:\n\t{self.footprint_poly.bounds}')
 
         # add bad data mask
-        given_mask = CoReg_params['mask_baddata_%s' % ('ref' if imID == 'ref' else 'tgt')]
+        given_mask = CoReg_params[f"mask_baddata_{'ref' if imID == 'ref' else 'tgt'}"]
         if given_mask is not None:
             self.mask_baddata = given_mask  # runs GeoArray.mask_baddata.setter -> sets it to BadDataMask()
 
@@ -321,7 +320,7 @@ class COREG(object):
 
         # input validation
         if gdal.GetDriverByName(fmt_out) is None:
-            raise ValueError(fmt_out, "'%s' is not a supported GDAL driver." % fmt_out)
+            raise ValueError(fmt_out, f"'{fmt_out}' is not a supported GDAL driver.")
 
         if match_gsd and out_gsd:
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
@@ -340,12 +339,12 @@ class COREG(object):
                                 for i in range(0, len(data_corners_tgt), 2)]
 
         if nodata and (not isinstance(nodata, Iterable) or len(nodata) != 2):
-            raise ValueError(nodata, "'nodata' must be an iterable with two values. "
-                                     "Got %s with length %s." % (type(nodata), len(nodata)))
+            raise ValueError(nodata, f"'nodata' must be an iterable with two values. "
+                                     f"Got {type(nodata)} with length {len(nodata)}.")
 
         for rspAlg in [resamp_alg_deshift, resamp_alg_calc]:
             if rspAlg not in _dict_rspAlg_rsp_Int.keys():
-                raise ValueError("'%s' is not a supported resampling algorithm." % rspAlg)
+                raise ValueError(f"'{rspAlg}' is not a supported resampling algorithm.")
 
         if resamp_alg_calc in ['average', 5] and (v or not q):
             warnings.warn("The resampling algorithm 'average' causes sinus-shaped patterns in fft images that will "
@@ -427,7 +426,7 @@ class COREG(object):
         # get_clip_window_properties
         self._get_opt_winpos_winsize()
         if not self.q:
-            print('Matching window position (X,Y): %s/%s' % (self.win_pos_XY[0], self.win_pos_XY[1]))
+            print(f'Matching window position (X,Y): {self.win_pos_XY[0]}/{self.win_pos_XY[1]}')
         self._get_clip_window_properties()  # sets self.matchBox, self.otherBox and much more
 
         if self.v and self.path_verbose_out and self.matchBox.mapPoly and self.success is not False:
@@ -472,9 +471,9 @@ class COREG(object):
             path = im.filePath if isinstance(im, GeoArray) else im
 
             if isinstance(im, GeoArray) and im.filePath is None and self.path_out == 'auto':
-                raise ValueError(self.path_out, "The output path must be explicitly set in case the input "
-                                                "reference or target image is in-memory (without a reference to a "
-                                                "physical file on disk). Received path_out='%s'." % self.path_out)
+                raise ValueError(self.path_out, f"The output path must be explicitly set in case the input "
+                                                f"reference or target image is in-memory (without a reference to a "
+                                                f"physical file on disk). Received path_out='{self.path_out}'.")
 
             return path
 
@@ -504,8 +503,8 @@ class COREG(object):
                     ext = 'bsq' if self.fmt_out == 'ENVI' else \
                         gdal.GetDriverByName(self.fmt_out).GetMetadataItem(gdal.DMD_EXTENSION)
                     fName_out = fName_out if fName_out not in ['.', ''] else \
-                        '%s__shifted_to__%s' % (get_baseN(path_im_tgt), get_baseN(path_im_ref))
-                    fName_out = fName_out + '.%s' % ext if ext else fName_out
+                        f'{get_baseN(path_im_tgt)}__shifted_to__{get_baseN(path_im_ref)}'
+                    fName_out = f'{fName_out}.{ext}' if ext else fName_out
 
                 self.path_out = os.path.abspath(os.path.join(dir_out, fName_out))
 
@@ -525,8 +524,9 @@ class COREG(object):
                         self.path_verbose_out = os.path.dirname(self.path_out)
                     else:
                         self.path_verbose_out = \
-                            os.path.abspath(os.path.join(os.path.curdir, 'CoReg_verboseOut__%s__shifted_to__%s'
-                                                         % (get_baseN(path_im_tgt), get_baseN(path_im_ref))))
+                            os.path.abspath(os.path.join(os.path.curdir,
+                                                         f'CoReg_verboseOut__{get_baseN(path_im_tgt)}'
+                                                         f'__shifted_to__{get_baseN(path_im_ref)}'))
                 elif dirname_out and not dir_out:
                     self.path_verbose_out = os.path.abspath(os.path.join(os.path.curdir, dirname_out))
 
@@ -553,8 +553,8 @@ class COREG(object):
                 (crs_ref.name, crs_shift.name) if not crs_ref.name == crs_shift.name else (crs_ref.srs, crs_shift.srs)
 
             raise RuntimeError(
-                'Input projections are not equal. Different projections are currently not supported. '
-                'Got %s vs. %s.' % (name_ref, name_shift))
+                f'Input projections are not equal. Different projections are currently not supported. '
+                f'Got {name_ref} vs. {name_shift}.')
 
     def _get_overlap_properties(self) -> None:
         with warnings.catch_warnings():
@@ -573,7 +573,7 @@ class COREG(object):
         px_area = self.ref.xgsd * self.ref.ygsd if self.grid2use == 'ref' else self.shift.xgsd * self.shift.ygsd
         px_covered = self.overlap_area / px_area
         assert px_covered > 16 * 16, \
-            'Overlap area covers only %s pixels. At least 16*16 pixels are needed.' % px_covered
+            f'Overlap area covers only {px_covered} pixels. At least 16*16 pixels are needed.'
 
     def _check_and_handle_metaRotation(self):
         """Check if the provided input data have a metadata rotation and if yes, correct it.
@@ -809,7 +809,7 @@ class COREG(object):
 
         wp = tuple(self.win_pos_XY)
         assert type(self.win_pos_XY) in [tuple, list, np.ndarray], \
-            'The window position must be a tuple of two elements. Got %s with %s elements.' % (type(wp), len(wp))
+            f'The window position must be a tuple of two elements. Got {type(wp)} with {len(wp)} elements.'
         wp = tuple(wp)
 
         if None in wp:
@@ -835,8 +835,8 @@ class COREG(object):
         else:
             # validate window position
             if not self.overlap_poly.buffer(1e-5).contains(Point(wp)):
-                self._handle_error(ValueError('The provided window position %s/%s is outside of the overlap '
-                                              'area of the two input images. Check the coordinates.' % wp))
+                self._handle_error(ValueError(f'The provided window position {wp}/{wp} is outside of the overlap '
+                                              f'area of the two input images. Check the coordinates.'))
 
         # check if window position is within bad data area if a respective mask has been provided
         for im in [self.ref, self.shift]:
@@ -845,10 +845,10 @@ class COREG(object):
 
                 if im.mask_baddata[int(imY), int(imX)] is True:
                     self._handle_error(
-                        RuntimeError('According to the provided bad data mask for the %s the chosen window position '
-                                     '%s / %s is within a bad data area. Using this window position for coregistration '
-                                     'is not reasonable. Please provide a better window position!'
-                                     % (im.imName, wp[0], wp[1])))
+                        RuntimeError(f'According to the provided bad data mask for the {im.imName}, the chosen window '
+                                     f'position {wp[0]} / {wp[1]} is within a bad-data area. Using this window '
+                                     f'position for coregistration is not reasonable. '
+                                     f'Please provide a better window position!'))
 
         self.win_pos_XY = wp
         self.win_size_XY = (int(self.win_size_XY[0]), int(self.win_size_XY[1])) if self.win_size_XY else (512, 512)
@@ -970,9 +970,9 @@ class COREG(object):
             if winBox.imDimsYX[0] < 16 or \
                winBox.imDimsYX[1] < 16:
                 self._handle_error(
-                    RuntimeError("One of the input images does not have sufficient gray value information "
-                                 "(non-no-data values) for placing a matching window at the position %s. "
-                                 "Matching failed." % str((wpX, wpY))))
+                    RuntimeError(f"One of the input images does not have sufficient gray value information "
+                                 f"(non-no-data values) for placing a matching window at the position "
+                                 f"{str((wpX, wpY))}. Matching failed." ))
 
         if self.success is not False:
             # check result -> ProgrammingError if not fulfilled
@@ -1005,8 +1005,8 @@ class COREG(object):
 
             if not self.q and \
                match_win_size_XY != self.win_size_XY:
-                print('Target window size %s not possible due to too small overlap area or window position too close '
-                      'to an image edge. New matching window size: %s.' % (self.win_size_XY, match_win_size_XY))
+                print(f'Target window size {self.win_size_XY} not possible due to too small overlap area or window '
+                      f'position too close to an image edge. New matching window size: {match_win_size_XY}.')
 
                 # write_shp('matchMapPoly.shp', matchBox.mapPoly,matchBox.prj)
                 # write_shp('otherMapPoly.shp', otherBox.mapPoly,otherBox.prj)
@@ -1024,7 +1024,7 @@ class COREG(object):
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.matchBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= match_fullGeoArr.rows and cE <= match_fullGeoArr.cols, \
-            'Requested area is not completely within the input array for %s.' % match_fullGeoArr.imName
+            f'Requested area is not completely within the input array for {match_fullGeoArr.imName}.'
         self.matchWin = GeoArray(match_fullGeoArr[rS:rE + 1, cS:cE + 1, match_fullGeoArr.band4match],
                                  geotransform=GEO.get_subset_GeoTransform(match_fullGeoArr.gt, self.matchBox.boxImYX),
                                  projection=copy(match_fullGeoArr.prj),
@@ -1035,7 +1035,7 @@ class COREG(object):
         rS, rE, cS, cE = GEO.get_GeoArrayPosition_from_boxImYX(self.otherBox.boxImYX)
         assert np.array_equal(np.abs(np.array([rS, rE, cS, cE])), np.array([rS, rE, cS, cE])) and \
             rE <= other_fullGeoArr.rows and cE <= other_fullGeoArr.cols, \
-            'Requested area is not completely within the input array for %s.' % other_fullGeoArr.imName
+            f'Requested area is not completely within the input array for {other_fullGeoArr.imName}.'
         self.otherWin = GeoArray(other_fullGeoArr[rS:rE + 1, cS:cE + 1, other_fullGeoArr.band4match],
                                  geotransform=GEO.get_subset_GeoTransform(other_fullGeoArr.gt, self.otherBox.boxImYX),
                                  projection=copy(other_fullGeoArr.prj),
@@ -1074,9 +1074,9 @@ class COREG(object):
 
         if self.matchWin.shape != self.otherWin.shape:
             self._handle_error(
-                RuntimeError('Caught a possible ProgrammingError at window position %s: Bad output of '
-                             'get_image_windows_to_match. Reference image shape is %s whereas shift '
-                             'image shape is %s.' % (str(self.matchBox.wp), self.matchWin.shape, self.otherWin.shape)),
+                RuntimeError(f'Caught a possible ProgrammingError at window position {str(self.matchBox.wp)}: '
+                             f'Bad output of get_image_windows_to_match. Reference image shape is '
+                             f'{self.matchWin.shape} whereas shift image shape is {self.otherWin.shape}.'),
                 warn=True)
 
         # check of odd dimensions of output images
@@ -1137,7 +1137,7 @@ class COREG(object):
         if wsYX not in [None, (0, 0)]:
             time0 = time.time()
             if self.v:
-                print('final window size: %s/%s (X/Y)' % (wsYX[1], wsYX[0]))
+                print(f'final window size: {wsYX[1]}/{wsYX[0]} (X/Y)')
                 # FIXME size of self.matchWin is not updated
                 # FIXME CoRegPoints_grid.WIN_SZ is taken from self.matchBox.imDimsYX but this is not updated
 
@@ -1160,7 +1160,7 @@ class COREG(object):
             # GeoArray(fft_arr1.astype(np.float32)).show(figsize=(15,15))
 
             if self.v:
-                print('forward FFT: %.2fs' % (time.time() - time0))
+                print(f'forward FFT: {time.time() - time0:.2f}s')
 
             eps = np.abs(fft_arr1).max() * 1e-15
             # cps == cross-power spectrum of im0 and im2
@@ -1172,7 +1172,7 @@ class COREG(object):
             ifft_arr = ifft2(temp)
 
             if self.v:
-                print('backward FFT: %.2fs' % (time.time() - time0))
+                print(f'backward FFT: {time.time() - time0:.2f}s')
 
             cps = np.abs(ifft_arr)
             # scps = shifted cps  => shift the zero-frequency component to the center of the spectrum
@@ -1277,8 +1277,8 @@ class COREG(object):
                       'direction_factor': -1 if sm_above > sm_below else 1}
 
         if self.v:
-            print('Horizontal side maximum found %s. value: %s' % (sidemax_lr['side'], sidemax_lr['value']))
-            print('Vertical side maximum found %s. value: %s' % (sidemax_ab['side'], sidemax_ab['value']))
+            print(f'Horizontal side maximum found {sidemax_lr["side"]}. Value: {sidemax_lr["value"]}')
+            print(f'Vertical side maximum found {sidemax_ab["side"]}. Value: {sidemax_ab["value"]}')
             PLT.subplot_2dline([[range(profileX.size), profileX], [range(profileY.size), profileY]],
                                titles=['X-Profile', 'Y-Profile'], shapetuple=(1, 2), grid=True)
 
@@ -1311,7 +1311,7 @@ class COREG(object):
         confid = 100 if confid > 100 else 0 if confid < 0 else confid
 
         if not self.q:
-            print('Estimated reliability of the calculated shifts:  %.1f' % confid, '%')
+            print(f'Estimated reliability of the calculated shifts:  {confid:.1f}%')
 
         return confid
 
@@ -1473,8 +1473,8 @@ class COREG(object):
             otherWin_deshift_geoArr.show()
 
         if not self.q:
-            print('Image similarity within the matching window (SSIM before/after correction): %.4f => %.4f'
-                  % (self.ssim_orig, self.ssim_deshifted))
+            print(f'Image similarity within the matching window (SSIM before/after correction): '
+                  f'{self.ssim_orig:.4f} => {self.ssim_deshifted:.4f}')
 
         self.ssim_improved = self.ssim_orig <= self.ssim_deshifted
 
@@ -1563,7 +1563,7 @@ class COREG(object):
                     break
 
                 if not self.q:
-                    print('No clear match found yet. Jumping to iteration %s...' % count_iter)
+                    print(f'No clear match found yet. Jumping to iteration {count_iter}...')
                     print('input shifts: ', x_val_shift, y_val_shift)
 
                 valid_invalid, x_val_shift, y_val_shift, scps = \
@@ -1582,12 +1582,11 @@ class COREG(object):
 
             if max([abs(x_totalshift), abs(y_totalshift)]) > self.max_shift:
                 self._handle_error(
-                    RuntimeError("The calculated shift (X: %s px / Y: %s px) is recognized as too large to "
-                                 "be valid. If you know that it is valid, just set the '-max_shift' "
+                    RuntimeError(f"The calculated shift (X: {x_totalshift} px / Y: {y_totalshift} px) is recognized "
+                                 f"as too large to be valid. If you know that it is valid, just set the '-max_shift' "
                                  "parameter to an appropriate value. Otherwise try to use a different window "
                                  "size for matching via the '-ws' parameter or define the spectral bands "
-                                 "to be used for matching manually ('-br' and '-bs')."
-                                 % (x_totalshift, y_totalshift)))
+                                 "to be used for matching manually ('-br' and '-bs')."))
             else:
                 self.success = True
                 self.x_shift_px, self.y_shift_px = x_totalshift * xgsd_factor, y_totalshift * ygsd_factor
@@ -1604,17 +1603,15 @@ class COREG(object):
 
                 # print results
                 if not self.q:
-                    print('Detected integer shifts (X/Y):                            %s/%s' % (x_intshift, y_intshift))
-                    print('Detected subpixel shifts (X/Y):                           %s/%s' % (x_subshift, y_subshift))
-                    print('Calculated total shifts in fft pixel units (X/Y):         %s/%s'
-                          % (x_totalshift, y_totalshift))
-                    print('Calculated total shifts in reference pixel units (X/Y):   %s/%s'
-                          % (x_totalshift, y_totalshift))
-                    print('Calculated total shifts in target pixel units (X/Y):      %s/%s'
-                          % (self.x_shift_px, self.y_shift_px))
-                    print('Calculated map shifts (X,Y):\t\t\t\t  %s/%s' % (self.x_shift_map, self.y_shift_map))
-                    print('Calculated absolute shift vector length in map units:     %s' % self.vec_length_map)
-                    print('Calculated angle of shift vector in degrees from North:   %s' % self.vec_angle_deg)
+                    print(f'Detected integer shifts (X/Y):                            {x_intshift}/{y_intshift}')
+                    print(f'Detected subpixel shifts (X/Y):                           {x_subshift}/{y_subshift}')
+                    print(f'Calculated total shifts in fft pixel units (X/Y):         {x_totalshift}/{y_totalshift}')
+                    print(f'Calculated total shifts in reference pixel units (X/Y):   {x_totalshift}/{y_totalshift}')
+                    print(f'Calculated total shifts in target pixel units (X/Y):      '
+                          f'{self.x_shift_px}/{self.y_shift_px}')
+                    print(f'Calculated map shifts (X,Y):\t\t\t\t  {self.x_shift_map}/{self.y_shift_map}')
+                    print(f'Calculated absolute shift vector length in map units:     {self.vec_length_map}')
+                    print(f'Calculated angle of shift vector in degrees from North:   {self.vec_angle_deg}')
 
         if self.x_shift_px or self.y_shift_px:
             self._get_updated_map_info()
