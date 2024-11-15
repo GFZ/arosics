@@ -33,6 +33,7 @@ from importlib.util import find_spec
 import shutil
 import warnings
 import struct
+from multiprocessing import cpu_count
 
 # custom
 import pytest
@@ -75,6 +76,21 @@ class Test_Tie_Point_Grid(unittest.TestCase):
 
     def test_get_CoRegPoints_table(self):
         self.TPG.get_CoRegPoints_table()
+
+    def test_if_singleprocessing_equals_multiprocessing_result(self):
+        # # RANSAC filtering always produces different results because it includes random sampling
+        self.TPG.tieP_filter_level = 1
+
+        try:
+            self.TPG.CPUs = cpu_count()
+            df_mp = self.TPG.get_CoRegPoints_table()
+
+            self.TPG.CPUs = 1
+            df_sp = self.TPG.get_CoRegPoints_table()
+        finally:
+            self.TPG.CPUs = cpu_count()
+
+        assert np.array_equal(df_mp.values, df_sp.values)
 
     def test_calc_rmse(self):
         self.TPG.calc_rmse(include_outliers=False)
