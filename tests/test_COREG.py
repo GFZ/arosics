@@ -82,7 +82,7 @@ class COREG_GLOBAL_init(unittest.TestCase):
             COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
 
     def test_init_warnings(self):
-        with pytest.raises(UserWarning, match='.*window size.*rather small value.*'):
+        with pytest.warns(UserWarning, match='.*window size.*rather small value.*'):
             COREG(self.ref_path, self.tgt_path, **dict(ws=(63, 63), **self.coreg_kwargs))
 
 
