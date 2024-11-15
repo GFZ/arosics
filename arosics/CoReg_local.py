@@ -23,7 +23,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
+from warnings import warn, catch_warnings, filterwarnings
 import os
 from copy import copy
 from typing import Tuple, Union, Optional
@@ -264,8 +264,14 @@ class COREG_LOCAL(object):
         """
         # assertions / input validation
         assert gdal.GetDriverByName(fmt_out), f"'{fmt_out}' is not a supported GDAL driver."
+
+        if min(window_size) < 64:
+            warn("The window size is set to a rather small value. "
+                 "Be aware that small window sizes may reduce the accuracy of the derived mis-registrations.",
+                 UserWarning)
+
         if match_gsd and out_gsd:
-            warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
+            warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:
             assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
 
@@ -324,32 +330,36 @@ class COREG_LOCAL(object):
         self._check_and_handle_metaRotation()
 
         try:
-            # ignore_errors must be False because in case COREG init fails, coregistration for the whole scene fails
-            self.COREG_obj = COREG(self.imref, self.im2shift,
-                                   ws=window_size,
-                                   footprint_poly_ref=footprint_poly_ref,
-                                   footprint_poly_tgt=footprint_poly_tgt,
-                                   data_corners_ref=data_corners_ref,
-                                   data_corners_tgt=data_corners_tgt,
-                                   resamp_alg_calc=self.rspAlg_calc,
-                                   calc_corners=calc_corners,
-                                   r_b4match=r_b4match,
-                                   s_b4match=s_b4match,
-                                   max_iter=max_iter,
-                                   max_shift=max_shift,
-                                   nodata=nodata,
-                                   mask_baddata_ref=None,  # see below
-                                   mask_baddata_tgt=None,
-                                   CPUs=self.CPUs,
-                                   force_quadratic_win=self.force_quadratic_win,
-                                   binary_ws=self.bin_ws,
-                                   progress=self.progress,
-                                   v=v,
-                                   q=q,
-                                   ignore_errors=False)
+            with catch_warnings():
+                filterwarnings(
+                    "ignore", category=UserWarning, message=".*window size.*rather small value.*")
+
+                # ignore_errors must be False because in case COREG init fails, coregistration for the whole scene fails
+                self.COREG_obj = COREG(self.imref, self.im2shift,
+                                       ws=window_size,
+                                       footprint_poly_ref=footprint_poly_ref,
+                                       footprint_poly_tgt=footprint_poly_tgt,
+                                       data_corners_ref=data_corners_ref,
+                                       data_corners_tgt=data_corners_tgt,
+                                       resamp_alg_calc=self.rspAlg_calc,
+                                       calc_corners=calc_corners,
+                                       r_b4match=r_b4match,
+                                       s_b4match=s_b4match,
+                                       max_iter=max_iter,
+                                       max_shift=max_shift,
+                                       nodata=nodata,
+                                       mask_baddata_ref=None,  # see below
+                                       mask_baddata_tgt=None,
+                                       CPUs=self.CPUs,
+                                       force_quadratic_win=self.force_quadratic_win,
+                                       binary_ws=self.bin_ws,
+                                       progress=self.progress,
+                                       v=v,
+                                       q=q,
+                                       ignore_errors=False)
         except Exception:
-            warnings.warn('\nFirst attempt to check the functionality of co-registration failed. Check your '
-                          'input data and parameters. The following error occurred:', stacklevel=3)
+            warn('\nFirst attempt to check the functionality of co-registration failed. Check your '
+                 'input data and parameters. The following error occurred:', stacklevel=3)
             raise
 
         # add bad data mask
@@ -381,7 +391,7 @@ class COREG_LOCAL(object):
 
             if grid2use == 'ref':
                 if has_metaRotation(self.imref):
-                    warnings.warn(msg % 'reference')
+                    warn(msg % 'reference')
                     self.imref = remove_metaRotation(self.imref)
 
                 # resample target to reference image
@@ -392,7 +402,7 @@ class COREG_LOCAL(object):
             else:
                 # remove any metadata rotation (a rotation that only exists in the map info)
                 if has_metaRotation(self.im2shift):
-                    warnings.warn(msg % 'target')
+                    warn(msg % 'target')
                     self.im2shift = remove_metaRotation(self.im2shift)
 
                 # resample reference to target image
@@ -669,14 +679,14 @@ class COREG_LOCAL(object):
                 ax.add_artist(AnchoredText(msg, loc='lower center', prop=dict(c='r')))
 
                 if not self.q:
-                    warnings.warn(msg)
+                    warn(msg)
 
         else:
             msg = "The map does not contain any tie points because no tie points were found at all."
             ax.add_artist(AnchoredText(msg, loc='lower center', prop=dict(c='r')))
 
             if not self.q:
-                warnings.warn(msg)
+                warn(msg)
 
         # remove white space around the figure
         plt.subplots_adjust(top=.95, bottom=.05, right=.95, left=.05)
@@ -693,7 +703,7 @@ class COREG_LOCAL(object):
             plt.close(fig)
 
     def view_CoRegPoints_folium(self, attribute2plot: str = 'ABS_SHIFT'):
-        warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
+        warn(UserWarning('This function is still under construction and may not work as expected!'))
         assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
         import folium
@@ -820,4 +830,4 @@ class COREG_LOCAL(object):
             return self.deshift_results
         else:
             if not self.q:
-                warnings.warn('Correction of geometric shifts failed because the input GCP list is empty!')
+                warn('Correction of geometric shifts failed because the input GCP list is empty!')

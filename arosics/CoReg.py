@@ -322,6 +322,11 @@ class COREG(object):
         if gdal.GetDriverByName(fmt_out) is None:
             raise ValueError(fmt_out, f"'{fmt_out}' is not a supported GDAL driver.")
 
+        if min(ws) < 64:
+            warnings.warn("The window size (parameter 'ws') is set to a rather small value. "
+                          "Be aware that a small window size may reduce the accuracy of the derived mis-registration.",
+                          UserWarning)
+
         if match_gsd and out_gsd:
             warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
 

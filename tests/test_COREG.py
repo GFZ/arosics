@@ -81,6 +81,11 @@ class COREG_GLOBAL_init(unittest.TestCase):
         with pytest.raises(RuntimeError, match='.*only contains nodata values.'):
             COREG(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
 
+    def test_init_warnings(self):
+        with pytest.warns(UserWarning, match='.*window size.*rather small value.*'):
+            COREG(self.ref_path, self.tgt_path, **dict(ws=(63, 63), **self.coreg_kwargs))
+        # TODO: test the other warnings
+
 
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     """Test case for the complete workflow of global co-registration based on two Sentinel-2 datasets, one with

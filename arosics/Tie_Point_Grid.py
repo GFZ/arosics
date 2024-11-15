@@ -348,6 +348,10 @@ class Tie_Point_Grid(object):
             filterwarnings(
                 "ignore", category=DeprecationWarning, message=".*may lead to deadlocks in the child.*")
 
+            # already warned within COREG_LOCAL initialization
+            filterwarnings(
+                "ignore", category=UserWarning, message=".*window size.*rather small value.*")
+
             for i, res in enumerate(
                 Parallel(n_jobs=self.CPUs, **kw_parallel)(
                     delayed(self._get_spatial_shifts)(
