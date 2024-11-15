@@ -23,7 +23,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import time
 import warnings
 import numpy as np
@@ -318,7 +317,7 @@ class DESHIFTER(object):
         ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True, tolerance=y_tol)
         return xmin, ymin, xmax, ymax
 
-    def correct_shifts(self) -> collections.OrderedDict:
+    def correct_shifts(self) -> dict:
         if not self.q:
             print('Correcting geometric shifts...')
 
@@ -422,9 +421,8 @@ class DESHIFTER(object):
         return self.deshift_results
 
     @property
-    def deshift_results(self):
-        deshift_results = collections.OrderedDict()
-        deshift_results.update({
+    def deshift_results(self) -> dict:
+        return {
             'band': self.band2process,
             'is shifted': self.is_shifted,
             'is resampled': self.is_resampled,
@@ -433,8 +431,7 @@ class DESHIFTER(object):
             'updated projection': self.updated_projection,
             'arr_shifted': self.arr_shifted,
             'GeoArray_shifted': self.GeoArray_shifted
-        })
-        return deshift_results
+        }
 
 
 def deshift_image_using_coreg_info(im2shift: Union[GeoArray, str],

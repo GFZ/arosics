@@ -27,7 +27,6 @@ import warnings
 import os
 from copy import copy
 from typing import Tuple, Union, Optional
-from collections import OrderedDict
 from multiprocessing import cpu_count
 
 # custom
@@ -772,7 +771,7 @@ class COREG_LOCAL(object):
                        max_GCP_count: int = None,
                        cliptoextent: bool = False,
                        min_points_local_corr: int = 5
-                       ) -> OrderedDict:
+                       ) -> dict:
         """Perform a local shift correction using all points from the previously calculated tie point grid.
 
         NOTE: Only valid matches are used as GCP points.

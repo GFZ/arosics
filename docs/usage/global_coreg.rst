@@ -105,9 +105,8 @@ and calculate spatial shifts:
 correct shifts
 ~~~~~~~~~~~~~~
 
-:meth:`CR.correct_shifts() <arosics.COREG.correct_shifts>` returns an
-:class:`OrderedDict<collections.OrderedDict>` containing the co-registered
-numpy array and its corresponding geoinformation.
+:meth:`CR.correct_shifts() <arosics.COREG.correct_shifts>` returns a dictionary
+containing the co-registered numpy array and its corresponding geoinformation.
 
 .. code-block:: python
 
