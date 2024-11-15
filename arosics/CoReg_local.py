@@ -806,7 +806,7 @@ class COREG_LOCAL(object):
 
             if has_metaRotation(im2shift):
                 # resample the target image because (so far) the computed shifts cannot be applied to a dataset with
-                # a metadata rotation (GDAL GeoTransform not 0 at positons 2 and 4)
+                # a metadata rotation (GDAL GeoTransform not 0 at positions 2 and 4)
                 im2shift = remove_metaRotation(im2shift)
 
             # apply the correction
