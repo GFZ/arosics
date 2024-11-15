@@ -84,6 +84,7 @@ class COREG_GLOBAL_init(unittest.TestCase):
     def test_init_warnings(self):
         with pytest.warns(UserWarning, match='.*window size.*rather small value.*'):
             COREG(self.ref_path, self.tgt_path, **dict(ws=(63, 63), **self.coreg_kwargs))
+        # TODO: test the other warnings
 
 
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
