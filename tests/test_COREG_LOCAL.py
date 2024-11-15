@@ -64,6 +64,11 @@ class COREG_LOCAL_init(unittest.TestCase):
         # get instance of COREG_LOCAL object
         self.CRL = COREG_LOCAL(self.ref_gA, self.tgt_gA, **self.coreg_kwargs)
 
+    def test_init_warnings(self):
+        with pytest.warns(UserWarning, match='.*window size.*rather small value.*'):
+            COREG_LOCAL(self.ref_path, self.tgt_path, **dict(window_size=(63, 63), **self.coreg_kwargs))
+        # TODO: test the other warnings
+
 
 class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     """Test case for the complete workflow of local co-registration based on two Sentinel-2 datasets, one with
