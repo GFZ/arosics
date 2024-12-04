@@ -73,6 +73,7 @@ class COREG_LOCAL(object):
                  max_iter: int = 5,
                  max_shift: int = 5,
                  tieP_filter_level: int = 3,
+                 tieP_random_state: Optional[int] = 0,
                  min_reliability: float = 60,
                  rs_max_outlier: float = 10,
                  rs_tolerance: float = 2.5,
@@ -98,7 +99,7 @@ class COREG_LOCAL(object):
                  progress: bool = True,
                  v: bool = False,
                  q: bool = False,
-                 ignore_errors: bool = True
+                 ignore_errors: bool = True,
                  ) -> None:
         """
         Get an instance of COREG_LOCAL.
@@ -161,6 +162,9 @@ class COREG_LOCAL(object):
                        - filters all tie points out where shift correction does not increase image similarity within
                          matching window (measured by mean structural similarity index)
             - Level 3: RANSAC outlier detection
+
+        :param tieP_random_state:
+            Tiepoint sampling random state (an integer corresponds to a fixed/pseudo-random state, None randomizes the result)
 
         :param min_reliability:
             Tie point filtering: minimum reliability threshold, below which tie points are marked as false-positives
@@ -286,6 +290,7 @@ class COREG_LOCAL(object):
         self.max_shift = max_shift
         self.max_iter = max_iter
         self.tieP_filter_level = tieP_filter_level
+        self.tieP_random_state = tieP_random_state
         self.min_reliability = min_reliability
         self.rs_max_outlier = rs_max_outlier
         self.rs_tolerance = rs_tolerance
@@ -446,6 +451,7 @@ class COREG_LOCAL(object):
                            outFillVal=self.outFillVal,
                            resamp_alg_calc=self.rspAlg_calc,
                            tieP_filter_level=self.tieP_filter_level,
+                           tieP_random_state=self.tieP_random_state,
                            outlDetect_settings=dict(
                                min_reliability=self.min_reliability,
                                rs_max_outlier=self.rs_max_outlier,
