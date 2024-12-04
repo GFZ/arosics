@@ -99,7 +99,7 @@ class COREG_LOCAL(object):
                  progress: bool = True,
                  v: bool = False,
                  q: bool = False,
-                 ignore_errors: bool = True,
+                 ignore_errors: bool = True
                  ) -> None:
         """
         Get an instance of COREG_LOCAL.
