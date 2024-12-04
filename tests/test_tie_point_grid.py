@@ -53,6 +53,7 @@ class Test_Tie_Point_Grid(unittest.TestCase):
                                  outFillVal=CRL.outFillVal,
                                  resamp_alg_calc=CRL.rspAlg_calc,
                                  tieP_filter_level=CRL.tieP_filter_level,
+                                 tieP_random_state=CRL.tieP_random_state,
                                  outlDetect_settings=dict(
                                      min_reliability=CRL.min_reliability,
                                      rs_max_outlier=CRL.rs_max_outlier,
@@ -176,6 +177,23 @@ class Test_Tie_Point_Grid(unittest.TestCase):
 
             assert isinstance(arr_interp, np.ndarray)
 
+    def test_random_state(self):
+
+        self.TPG.tieP_random_state = None
+
+        pts = []
+        for _ in range(2):
+            pts.append(self.TPG.get_CoRegPoints_table()['POINT_ID'])
+
+        assert not np.array_equal(pts[0], pts[1]), "Samples should not be identical when random state is None"
+
+        self.TPG.tieP_random_state = 0
+
+        pts = []
+        for _ in range(2):
+            pts.append(self.TPG.get_CoRegPoints_table()['POINT_ID'])
+
+        assert np.array_equal(pts[0], pts[1]), "Samples should be identical when random state is fixed"
 
 if __name__ == '__main__':
     pytest.main()
