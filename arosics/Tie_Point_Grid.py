@@ -114,7 +114,8 @@ class Tie_Point_Grid(object):
             - Level 3: RANSAC outlier detection
 
         :param tieP_random_state:
-            Tiepoint sampling random state (an integer corresponds to a fixed/pseudo-random state, None randomizes the result)
+            Tie point sampling random state
+            (an integer corresponds to a fixed/pseudo-random state, None randomizes the result)
 
         :param outlDetect_settings:
             a dictionary with the settings to be passed to arosics.TiePointGrid.Tie_Point_Refiner.
@@ -317,7 +318,7 @@ class Tie_Point_Grid(object):
 
         # choose a random subset of points if a maximum number has been given
         if self.max_points and len(GDF) > self.max_points:
-            GDF = GDF.sample(self.max_points, random_state = self.tieP_random_state).copy()
+            GDF = GDF.sample(self.max_points, random_state=self.tieP_random_state).copy()
 
         # equalize pixel grids in order to save warping time
         if len(GDF) > 100:
@@ -792,7 +793,7 @@ class Tie_Point_Grid(object):
                 return []
 
             if avail_TP > 7000:
-                GDF = GDF.sample(7000, random_state = self.tieP_random_state)
+                GDF = GDF.sample(7000, random_state=self.tieP_random_state)
                 warn(f'By far not more than 7000 tie points can be used for warping within a limited '
                      f'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
                      f'out of the {avail_TP} available tie points.')
