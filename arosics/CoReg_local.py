@@ -164,8 +164,9 @@ class COREG_LOCAL(object):
             - Level 3: RANSAC outlier detection
 
         :param tieP_random_state:
-            Tie point sampling random state
-            (an integer corresponds to a fixed/pseudo-random state, None randomizes the result)
+            Tie point sampling random state. An integer corresponds to a fixed/pseudo-random state,
+            None selects tie points randomly. Only used if the number of computed valid tie points exceeds
+            the given max_points threshold or if more than 7000 tie points are available for image warping.
 
         :param min_reliability:
             Tie point filtering: minimum reliability threshold, below which tie points are marked as false-positives
