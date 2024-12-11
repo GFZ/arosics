@@ -2,8 +2,8 @@
 History
 =======
 
-1.12.1 (coming soon)
---------------------
+1.12.1 (2024-12-11)
+-------------------
 
 * Fixed some typos.
 * !69: Switched from old-style string-formatting to f-strings.
