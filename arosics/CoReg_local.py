@@ -23,7 +23,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
+from warnings import warn, catch_warnings, filterwarnings
 import os
 from copy import copy
 from typing import Tuple, Union, Optional
@@ -156,7 +156,7 @@ class COREG_LOCAL(object):
             NOTE: lower levels are also included if a higher level is chosen
 
             - Level 0: no tie point filtering
-            - Level 1: Reliablity filtering
+            - Level 1: Reliability filtering
                        - filter all tie points out that have a low reliability according to internal tests
             - Level 2: SSIM filtering
                        - filters all tie points out where shift correction does not increase image similarity within
@@ -267,9 +267,15 @@ class COREG_LOCAL(object):
             Useful for batch processing. (default: False)
         """
         # assertions / input validation
-        assert gdal.GetDriverByName(fmt_out), "'%s' is not a supported GDAL driver." % fmt_out
+        assert gdal.GetDriverByName(fmt_out), f"'{fmt_out}' is not a supported GDAL driver."
+
+        if min(window_size) < 64:
+            warn("The window size is set to a rather small value. "
+                 "Be aware that small window sizes may reduce the accuracy of the derived mis-registrations.",
+                 UserWarning)
+
         if match_gsd and out_gsd:
-            warnings.warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
+            warn("'-out_gsd' is ignored because '-match_gsd' is set.\n")
         if out_gsd:
             assert isinstance(out_gsd, list) and len(out_gsd) == 2, 'out_gsd must be a list with two values.'
 
@@ -329,32 +335,36 @@ class COREG_LOCAL(object):
         self._check_and_handle_metaRotation()
 
         try:
-            # ignore_errors must be False because in case COREG init fails, coregistration for the whole scene fails
-            self.COREG_obj = COREG(self.imref, self.im2shift,
-                                   ws=window_size,
-                                   footprint_poly_ref=footprint_poly_ref,
-                                   footprint_poly_tgt=footprint_poly_tgt,
-                                   data_corners_ref=data_corners_ref,
-                                   data_corners_tgt=data_corners_tgt,
-                                   resamp_alg_calc=self.rspAlg_calc,
-                                   calc_corners=calc_corners,
-                                   r_b4match=r_b4match,
-                                   s_b4match=s_b4match,
-                                   max_iter=max_iter,
-                                   max_shift=max_shift,
-                                   nodata=nodata,
-                                   mask_baddata_ref=None,  # see below
-                                   mask_baddata_tgt=None,
-                                   CPUs=self.CPUs,
-                                   force_quadratic_win=self.force_quadratic_win,
-                                   binary_ws=self.bin_ws,
-                                   progress=self.progress,
-                                   v=v,
-                                   q=q,
-                                   ignore_errors=False)
+            with catch_warnings():
+                filterwarnings(
+                    "ignore", category=UserWarning, message=".*window size.*rather small value.*")
+
+                # ignore_errors must be False because in case COREG init fails, coregistration for the whole scene fails
+                self.COREG_obj = COREG(self.imref, self.im2shift,
+                                       ws=window_size,
+                                       footprint_poly_ref=footprint_poly_ref,
+                                       footprint_poly_tgt=footprint_poly_tgt,
+                                       data_corners_ref=data_corners_ref,
+                                       data_corners_tgt=data_corners_tgt,
+                                       resamp_alg_calc=self.rspAlg_calc,
+                                       calc_corners=calc_corners,
+                                       r_b4match=r_b4match,
+                                       s_b4match=s_b4match,
+                                       max_iter=max_iter,
+                                       max_shift=max_shift,
+                                       nodata=nodata,
+                                       mask_baddata_ref=None,  # see below
+                                       mask_baddata_tgt=None,
+                                       CPUs=self.CPUs,
+                                       force_quadratic_win=self.force_quadratic_win,
+                                       binary_ws=self.bin_ws,
+                                       progress=self.progress,
+                                       v=v,
+                                       q=q,
+                                       ignore_errors=False)
         except Exception:
-            warnings.warn('\nFirst attempt to check the functionality of co-registration failed. Check your '
-                          'input data and parameters. The following error occurred:', stacklevel=3)
+            warn('\nFirst attempt to check the functionality of co-registration failed. Check your '
+                 'input data and parameters. The following error occurred:', stacklevel=3)
             raise
 
         # add bad data mask
@@ -386,7 +396,7 @@ class COREG_LOCAL(object):
 
             if grid2use == 'ref':
                 if has_metaRotation(self.imref):
-                    warnings.warn(msg % 'reference')
+                    warn(msg % 'reference')
                     self.imref = remove_metaRotation(self.imref)
 
                 # resample target to reference image
@@ -397,7 +407,7 @@ class COREG_LOCAL(object):
             else:
                 # remove any metadata rotation (a rotation that only exists in the map info)
                 if has_metaRotation(self.im2shift):
-                    warnings.warn(msg % 'target')
+                    warn(msg % 'target')
                     self.im2shift = remove_metaRotation(self.im2shift)
 
                 # resample reference to target image
@@ -417,7 +427,7 @@ class COREG_LOCAL(object):
             fold_name = 'UntitledProject_1'
 
             while os.path.isdir(os.path.join(root_dir, fold_name)):
-                fold_name = '%s_%s' % (fold_name.split('_')[0], int(fold_name.split('_')[-1]) + 1)
+                fold_name = f"{fold_name.split('_')[0]}_{int(fold_name.split('_')[-1]) + 1}"
 
             self._projectDir = os.path.join(root_dir, fold_name)
             return self._projectDir
@@ -565,8 +575,8 @@ class COREG_LOCAL(object):
         elif attribute2plot in self.CoRegPoints_table.columns:
             ax.set_title(attribute2plot)
         else:
-            raise ValueError(attribute2plot, "Invalid value for 'attribute2plot'. Valid values are: %s."
-                             % ", ".join(self.CoRegPoints_table.columns))
+            raise ValueError(attribute2plot, f"Invalid value for 'attribute2plot'. "
+                                             f"Valid values are: {', '.join(self.CoRegPoints_table.columns)}.")
 
         if not self.CoRegPoints_table.empty:
             # get GeoDataFrame containing everything needed for plotting
@@ -655,8 +665,8 @@ class COREG_LOCAL(object):
                         transform=PlateCarree())
                     pass
                 else:
-                    raise ValueError("The parameter 'shapes2plot' must be set to 'vectors' or 'points'. "
-                                     "Received %s." % shapes2plot)
+                    raise ValueError(f"The parameter 'shapes2plot' must be set to 'vectors' or 'points'. "
+                                     f"Received {shapes2plot}.")
 
                 # add colorbar
                 divider = make_axes_locatable(ax)
@@ -666,7 +676,7 @@ class COREG_LOCAL(object):
                 fig.add_axes(cax)
                 fig.colorbar(mappable, cax=cax, orientation="horizontal")
 
-                # hack to enlarge the figure on the top to avoid cutting off the title (everthing else has no effect)
+                # hack to enlarge the figure on the top to avoid cutting off the title (everything else has no effect)
                 divider.new_vertical(size="2%", pad=0.4, pack_start=False, axes_class=plt.Axes)
 
             else:
@@ -675,14 +685,14 @@ class COREG_LOCAL(object):
                 ax.add_artist(AnchoredText(msg, loc='lower center', prop=dict(c='r')))
 
                 if not self.q:
-                    warnings.warn(msg)
+                    warn(msg)
 
         else:
             msg = "The map does not contain any tie points because no tie points were found at all."
             ax.add_artist(AnchoredText(msg, loc='lower center', prop=dict(c='r')))
 
             if not self.q:
-                warnings.warn(msg)
+                warn(msg)
 
         # remove white space around the figure
         plt.subplots_adjust(top=.95, bottom=.05, right=.95, left=.05)
@@ -699,7 +709,7 @@ class COREG_LOCAL(object):
             plt.close(fig)
 
     def view_CoRegPoints_folium(self, attribute2plot: str = 'ABS_SHIFT'):
-        warnings.warn(UserWarning('This function is still under construction and may not work as expected!'))
+        warn(UserWarning('This function is still under construction and may not work as expected!'))
         assert self.CoRegPoints_table is not None, 'Calculate tie point grid first!'
 
         import folium
@@ -748,7 +758,7 @@ class COREG_LOCAL(object):
 
     @property
     def coreg_info(self) -> dict:
-        """Return a dictionary containing everthing to correct the detected local displacements of the target image."""
+        """Return a dictionary containing everything to correct the detected local displacements of the target image."""
         if self._coreg_info:
             return self._coreg_info
         else:
@@ -802,7 +812,7 @@ class COREG_LOCAL(object):
 
             if has_metaRotation(im2shift):
                 # resample the target image because (so far) the computed shifts cannot be applied to a dataset with
-                # a metadata rotation (GDAL GeoTransform not 0 at positons 2 and 4)
+                # a metadata rotation (GDAL GeoTransform not 0 at positions 2 and 4)
                 im2shift = remove_metaRotation(im2shift)
 
             # apply the correction
@@ -826,4 +836,4 @@ class COREG_LOCAL(object):
             return self.deshift_results
         else:
             if not self.q:
-                warnings.warn('Correction of geometric shifts failed because the input GCP list is empty!')
+                warn('Correction of geometric shifts failed because the input GCP list is empty!')

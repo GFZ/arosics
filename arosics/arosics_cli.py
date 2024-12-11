@@ -309,7 +309,7 @@ def get_arosics_argparser():
 
     locArg('-tieP_filter_level', nargs='?', type=int, default=3, choices=[0, 1, 2, 3],
            help="filter tie points used for shift correction in different levels (default: 3). NOTE: lower levels are "
-                "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliablity "
+                "also included if a higher level is chosen. Level 0: no tie point filtering; Level 1: Reliability "
                 "filtering - filter all tie points out that have a low reliability according to internal tests; "
                 "Level 2: SSIM filtering - filters all tie points out where shift correction does not increase image "
                 "similarity within matching window (measured by mean structural similarity index) "
@@ -343,7 +343,7 @@ def main():
         except Exception:  # noqa
             pass
 
-    wfa('/misc/hy5/scheffler/tmp/crlf', '%s\t%s\t%s\t%s\n' % (dt.now(), getuser(), gethostname(), ' '.join(sys.argv)))
+    wfa('/misc/hy5/scheffler/tmp/crlf', f"{dt.now()}\t{getuser()}\t{gethostname()}\t{' '.join(sys.argv)}\n")
 
     argparser = get_arosics_argparser()
     parsed_args = argparser.parse_args()
@@ -351,12 +351,12 @@ def main():
     if len(sys.argv) == 1:
         # no arguments provided
         print(
-            '======================================================================\n'
-            '#                            AROSICS v%s                         #' % __version__ + '\n'
-            '# An Automated and Robust Open-Source Image Co-Registration Software #\n'
-            '#                for Multi-Sensor Satellite Data                     #\n'
-            '#          - Python implementation by Daniel Scheffler               #\n'
-            '======================================================================\n')
+            f'======================================================================\n'
+            f'#                            AROSICS v{__version__}                         #\n'
+            f'# An Automated and Robust Open-Source Image Co-Registration Software #\n'
+            f'#                for Multi-Sensor Satellite Data                     #\n'
+            f'#          - Python implementation by Daniel Scheffler               #\n'
+            f'======================================================================\n')
         argparser.print_help()
     else:
         t0 = time.time()

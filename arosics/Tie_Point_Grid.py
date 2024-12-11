@@ -106,7 +106,7 @@ class Tie_Point_Grid(object):
             NOTE: lower levels are also included if a higher level is chosen
 
             - Level 0: no tie point filtering
-            - Level 1: Reliablity filtering
+            - Level 1: Reliability filtering
                        - filter all tie points out that have a low reliability according to internal tests
             - Level 2: SSIM filtering
                        - filters all tie points out where shift correction does not increase image similarity within
@@ -266,8 +266,8 @@ class Tie_Point_Grid(object):
         if self.COREG_obj.ref.mask_baddata is not None or self.COREG_obj.shift.mask_baddata is not None:
             if not self.q:
                 if not GDF.empty:
-                    print('With respect to the provided bad data mask(s) %s points of initially %s have been excluded.'
-                          % (orig_len_GDF - len(GDF), orig_len_GDF))
+                    print(f'With respect to the provided bad data mask(s) {orig_len_GDF - len(GDF)} points of '
+                          f'initially {orig_len_GDF} have been excluded.')
                 else:
                     warn('With respect to the provided bad data mask(s) no coregistration point could be '
                          'placed within an image area usable for coregistration.')
@@ -353,6 +353,10 @@ class Tie_Point_Grid(object):
             filterwarnings(
                 "ignore", category=DeprecationWarning, message=".*may lead to deadlocks in the child.*")
 
+            # already warned within COREG_LOCAL initialization
+            filterwarnings(
+                "ignore", category=UserWarning, message=".*window size.*rather small value.*")
+
             for i, res in enumerate(
                 Parallel(n_jobs=self.CPUs, **kw_parallel)(
                     delayed(self._get_spatial_shifts)(
@@ -419,7 +423,7 @@ class Tie_Point_Grid(object):
                 warn('No valid GCPs could by identified.')
             else:
                 if self.tieP_filter_level > 0:
-                    print("%d valid tie points remain after filtering." % len(GDF[GDF.OUTLIER.__eq__(False)]))
+                    print(f"{len(GDF[GDF.OUTLIER.__eq__(False)])} valid tie points remain after filtering.")
 
         return self.CoRegPoints_table
 
@@ -654,7 +658,7 @@ class Tie_Point_Grid(object):
         :param return_fig:          whether to return the figure and axis objects
         """
         if unit not in ['m', 'px']:
-            raise ValueError("Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got %s." % unit)
+            raise ValueError(f"Parameter 'unit' must have the value 'm' (meters) or 'px' (pixels)! Got {unit}.")
 
         if self.CoRegPoints_table.empty:
             raise RuntimeError('Shift distribution cannot be plotted because no tie points were found at all.')
@@ -710,7 +714,7 @@ class Tie_Point_Grid(object):
             # add text box containing RMSE of plotted shifts
             xlim, ylim = ax.get_xlim(), ax.get_ylim()
             ax.text(xlim[1] - (xlim[1] / 20), -ylim[1] + (ylim[1] / 20),
-                    'RMSE:  %s m / %s px' % (np.round(rmse, 2), np.round(rmse / self.shift.xgsd, 2)),
+                    f'RMSE:  {np.round(rmse, 2)} m / {np.round(rmse / self.shift.xgsd, 2)} px',
                     ha='right', va='bottom', fontsize=fontsize, bbox=dict(facecolor='w', pad=None, alpha=0.8))
 
             # add grid and increase linewidth of middle line
@@ -730,8 +734,8 @@ class Tie_Point_Grid(object):
             ax.set_title(title, fontsize=fontsize)
             [tick.label1.set_fontsize(fontsize) for tick in ax.xaxis.get_major_ticks()]
             [tick.label1.set_fontsize(fontsize) for tick in ax.yaxis.get_major_ticks()]
-            ax.set_xlabel('x-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
-            ax.set_ylabel('y-shift [%s]' % 'meters' if unit == 'm' else 'pixels', fontsize=fontsize)
+            ax.set_xlabel(f"x-shift [{'meters' if unit == 'm' else 'pixels'}]", fontsize=fontsize)
+            ax.set_ylabel(f"y-shift [{'meters' if unit == 'm' else 'pixels'}]", fontsize=fontsize)
 
             # add legend with labels in the right order
             handles, labels = ax.get_legend_handles_labels()
@@ -758,12 +762,13 @@ class Tie_Point_Grid(object):
 
         path_out = path_out if path_out else \
             get_generic_outpath(dir_out=self.dir_out,
-                                fName_out="CoRegPoints_table_grid%s_ws(%s_%s)__T_%s__R_%s.pkl"
-                                          % (self.grid_res, self.COREG_obj.win_size_XY[0],
-                                             self.COREG_obj.win_size_XY[1], self.shift.basename,
-                                             self.ref.basename))
+                                fName_out=f"CoRegPoints_table"
+                                          f"_grid{self.grid_res}"
+                                          f"_ws({self.COREG_obj.win_size_XY[0]}_{self.COREG_obj.win_size_XY[1]})"
+                                          f"__T_{self.shift.basename}"
+                                          f"__R_{self.ref.basename}.pkl")
         if not self.q:
-            print('Writing %s ...' % path_out)
+            print(f'Writing {path_out} ...')
         self.CoRegPoints_table.to_pickle(path_out)
 
     def to_GCPList(self):
@@ -788,9 +793,9 @@ class Tie_Point_Grid(object):
 
             if avail_TP > 7000:
                 GDF = GDF.sample(7000, random_state = self.tieP_random_state)
-                warn('By far not more than 7000 tie points can be used for warping within a limited '
-                     'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
-                     'out of the %s available tie points.' % avail_TP)
+                warn(f'By far not more than 7000 tie points can be used for warping within a limited '
+                     f'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
+                     f'out of the {avail_TP} available tie points.')
 
             # calculate GCPs
             GDF['X_MAP_new'] = GDF.X_MAP + GDF.X_SHIFT_M
@@ -871,11 +876,13 @@ class Tie_Point_Grid(object):
 
         path_out = path_out if path_out else \
             get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
-                                fName_out="CoRegPoints_grid%s_ws(%s_%s)__T_%s__R_%s.shp"
-                                          % (self.grid_res, self.COREG_obj.win_size_XY[0],
-                                             self.COREG_obj.win_size_XY[1], self.shift.basename, self.ref.basename))
+                                fName_out=f"CoRegPoints"
+                                          f"_grid{self.grid_res}"
+                                          f"_ws({self.COREG_obj.win_size_XY[0]}_{self.COREG_obj.win_size_XY[1]})"
+                                          f"__T_{self.shift.basename}"
+                                          f"__R_{self.ref.basename}.shp")
         if not self.q:
-            print('Writing %s ...' % path_out)
+            print(f'Writing {path_out} ...')
 
         with catch_warnings():
             filterwarnings("ignore", message=".*Normalized/laundered field name:.*")
@@ -893,8 +900,8 @@ class Tie_Point_Grid(object):
                             - 'uv': outputs X-/Y shifts
                             - 'md': outputs magnitude and direction
         """
-        assert mode in ['uv', 'md'], "'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' " \
-                                     "(outputs magnitude and direction)'. Got %s." % mode
+        assert mode in ['uv', 'md'], f"'mode' must be either 'uv' (outputs X-/Y shifts) or 'md' " \
+                                     f"(outputs magnitude and direction)'. Got {mode}."
         attr_b1 = 'X_SHIFT_M' if mode == 'uv' else 'ABS_SHIFT'
         attr_b2 = 'Y_SHIFT_M' if mode == 'uv' else 'ANGLE'
 
@@ -917,9 +924,10 @@ class Tie_Point_Grid(object):
 
         path_out = path_out if path_out else \
             get_generic_outpath(dir_out=os.path.join(self.dir_out, 'CoRegPoints'),
-                                fName_out="CoRegVectorfield%s_ws(%s_%s)__T_%s__R_%s.tif"
-                                          % (self.grid_res, self.COREG_obj.win_size_XY[0],
-                                             self.COREG_obj.win_size_XY[1], self.shift.basename, self.ref.basename))
+                                fName_out=f"CoRegVectorfield{self.grid_res}"
+                                          f"_ws({self.COREG_obj.win_size_XY[0]}_{self.COREG_obj.win_size_XY[1]})"
+                                          f"__T_{self.shift.basename}"
+                                          f"__R_{self.ref.basename}.tif")
 
         out_GA.save(path_out, fmt=fmt if fmt else 'Gtiff')
 
@@ -1004,7 +1012,7 @@ class Tie_Point_Refiner(object):
                         NOTE: lower levels are also included if a higher level is chosen
 
                         - Level 0: no tie point filtering
-                        - Level 1: Reliablity filtering
+                        - Level 1: Reliability filtering
                                    - filter all tie points out that have a low reliability according to internal tests
                         - Level 2: SSIM filtering
                                    - filters all tie points out where shift correction does not increase image
@@ -1022,18 +1030,16 @@ class Tie_Point_Refiner(object):
             self.new_cols.append('L1_OUTLIER')
 
             n_flagged = len(marked_recs[marked_recs])
-            perc40 = np.percentile(self.GDF.RELIABILITY, 40)
+            perc40 = int(np.percentile(self.GDF.RELIABILITY, 40))
 
             if n_flagged / len(self.GDF) > .7:
-                warn(r"More than 70%% of the found tie points have a reliability lower than %s%% and are "
-                     r"therefore marked as false-positives. Consider relaxing the minimum reliability "
-                     r"(parameter 'min_reliability') to avoid that. For example min_reliability=%d would only "
-                     r"flag 40%% of the tie points in case of your input data."
-                     % (self.min_reliability, perc40))
+                warn(f"More than 70% of the found tie points have a reliability lower than {self.min_reliability}% "
+                     f"and are therefore marked as false-positives. Consider relaxing the minimum reliability "
+                     f"(parameter 'min_reliability') to avoid that. For example min_reliability={perc40} would only "
+                     f"flag 40% of the tie points in case of your input data.")
 
             if not self.q:
-                print('%s tie points flagged by level 1 filtering (reliability).'
-                      % n_flagged)
+                print(f'{n_flagged} tie points flagged by level 1 filtering (reliability).')
 
         # SSIM filtering
         if level > 1:
@@ -1042,7 +1048,7 @@ class Tie_Point_Refiner(object):
             self.new_cols.append('L2_OUTLIER')
 
             if not self.q:
-                print('%s tie points flagged by level 2 filtering (SSIM).' % (len(marked_recs[marked_recs])))
+                print(f'{len(marked_recs[marked_recs])} tie points flagged by level 2 filtering (SSIM).')
 
         # RANSAC filtering
         if level > 2:
@@ -1058,8 +1064,7 @@ class Tie_Point_Refiner(object):
                 self.GDF['L3_OUTLIER'] = marked_recs.tolist()
 
                 if not self.q:
-                    print('%s tie points flagged by level 3 filtering (RANSAC)'
-                          % (len(marked_recs[marked_recs])))
+                    print(f'{len(marked_recs[marked_recs])} tie points flagged by level 3 filtering (RANSAC)')
             else:
                 print('RANSAC skipped because too less valid tie points have been found.')
                 self.GDF['L3_OUTLIER'] = False
@@ -1093,7 +1098,7 @@ class Tie_Point_Refiner(object):
         est_coords = src_coords + xyShift
 
         for co, n in zip([src_coords, est_coords], ['src_coords', 'est_coords']):
-            assert co.ndim == 2 and co.shape[1] == 2, "'%s' must have shape [Nx2]. Got shape %s." % (n, co.shape)
+            assert co.ndim == 2 and co.shape[1] == 2, f"'{n}' must have shape [Nx2]. Got shape {co.shape}."
 
         if not 0 < self.rs_max_outlier_percentage < 100:
             raise ValueError
@@ -1279,7 +1284,7 @@ class Tie_Point_Grid_Interpolator(object):
             data_full = data_lowres
 
         if self.v:
-            print('interpolation runtime: %.2fs' % (time() - t0))
+            print(f'interpolation runtime: {time() - t0:.2f}s')
         if plot_result:
             self._plot_interpolation_result(data_full, rows, cols, data, metric)
 

@@ -2,6 +2,14 @@
 History
 =======
 
+1.12.1 (coming soon)
+--------------------
+
+* Fixed some typos.
+* !69: Switched from old-style string-formatting to f-strings.
+* !70: Added UserWarning in case window size is set to a value smaller than 64 (low accuracy).
+
+
 1.12.0 (2024-08-28)
 -------------------
 
