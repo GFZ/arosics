@@ -178,22 +178,16 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             assert isinstance(arr_interp, np.ndarray)
 
     def test_random_state(self):
-
         self.TPG.tieP_random_state = None
-
-        pts = []
-        for _ in range(2):
-            pts.append(self.TPG.get_CoRegPoints_table()['POINT_ID'])
-
-        assert not np.array_equal(pts[0], pts[1]), "Samples should not be identical when random state is None"
+        point_ids = [self.TPG.get_CoRegPoints_table()['POINT_ID'] for _ in range(2)]
+        assert not np.array_equal(point_ids[0], point_ids[1]), \
+            "Samples should not be identical when random state is None"
 
         self.TPG.tieP_random_state = 0
+        point_ids = [self.TPG.get_CoRegPoints_table()['POINT_ID'] for _ in range(2)]
+        assert np.array_equal(point_ids[0], point_ids[1]), \
+            "Samples should be identical when random state is fixed"
 
-        pts = []
-        for _ in range(2):
-            pts.append(self.TPG.get_CoRegPoints_table()['POINT_ID'])
-
-        assert np.array_equal(pts[0], pts[1]), "Samples should be identical when random state is fixed"
 
 if __name__ == '__main__':
     pytest.main()
