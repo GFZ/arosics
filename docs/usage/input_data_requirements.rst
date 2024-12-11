@@ -37,7 +37,7 @@ the input images need to have the same pixel size and must cover more or less th
 Geographic overlap
 ~~~~~~~~~~~~~~~~~~
 
-The input images must have a geographic overlap but clipping them to same geographical extent is NOT neccessary
+The input images must have a geographic overlap but clipping them to same geographical extent is NOT necessary
 The image overlap area is automatically calculated, given that your input images have valid geocoding and projection
 information). Thereby, no-data regions within the images are automatically respected.
 

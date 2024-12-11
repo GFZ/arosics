@@ -200,7 +200,7 @@ class COREG_LOCAL(object):
             This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
 
         :param resamp_alg_deshift:
-            the resampling algorithm to be used for shift correction (if neccessary)
+            the resampling algorithm to be used for shift correction (if necessary)
             valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
             (default: cubic)
 

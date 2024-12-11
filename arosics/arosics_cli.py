@@ -126,7 +126,7 @@ def get_arosics_argparser():
                "can have any GDAL compatible image format (https://gdal.org/drivers/raster/index.html). Both of them "
                "must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
                "'coordinate system string' as attributes of their header file. The input images must have a geographic "
-               "overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any "
+               "overlap but clipping them to same geographical extent is NOT necessary. Please do not perform any "
                "spatial resampling of the input images before applying this algorithm. Any needed resampling of the "
                "data is done automatically. Thus, the input images may have different spatial resolutions. The current "
                "algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order "
@@ -188,7 +188,7 @@ def get_arosics_argparser():
           help="maximum shift distance in reference image pixel units (default: 5 px)")
 
     gop_p('-rsp_alg_deshift', nargs='?', type=int, choices=list(range(12)), default=2,
-          help="the resampling algorithm to be used for shift correction (if neccessary) "
+          help="the resampling algorithm to be used for shift correction (if necessary) "
                "(valid algorithms: 0=nearest neighbour, 1=bilinear, 2=cubic, 3=cubic_spline, 4=lanczos, 5=average, "
                "6=mode, 7=max, 8=min, 9=med, 10=q1, 11=q3), default: 2")
 

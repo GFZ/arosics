@@ -103,7 +103,7 @@ class DESHIFTER(object):
             (default: 5 tie points)
 
         :keyword str resamp_alg:
-            the resampling algorithm to be used if neccessary
+            the resampling algorithm to be used if necessary
             (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
 
         :keyword bool cliptoextent:
