@@ -83,6 +83,7 @@ def run_local_coreg(args):
                       max_iter=args.max_iter,
                       max_shift=args.max_shift,
                       tieP_filter_level=args.tieP_filter_level,
+                      tieP_random_state=args.tieP_random_state,
                       min_reliability=args.min_reliability,
                       rs_max_outlier=args.rs_max_outlier,
                       rs_tolerance=args.rs_tolerance,
@@ -314,6 +315,11 @@ def get_arosics_argparser():
                 "Level 2: SSIM filtering - filters all tie points out where shift correction does not increase image "
                 "similarity within matching window (measured by mean structural similarity index) "
                 "Level 3: RANSAC outlier detection")
+
+    locArg('-tieP_random_state', nargs='?', type=int, default=0,
+           help="Tie point sampling random state. An integer corresponds to a fixed/pseudo-random state, "
+                "None selects tie points randomly. Only used if the number of computed valid tie points exceeds "
+                "the given max_points threshold or if more than 7000 tie points are available for image warping.")
 
     locArg('-min_reliability', nargs='?', type=float, default=60,
            help="Tie point filtering: minimum reliability threshold, below which tie points are marked as "
