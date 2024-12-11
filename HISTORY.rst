@@ -8,6 +8,7 @@ History
 * Fixed some typos.
 * !69: Switched from old-style string-formatting to f-strings.
 * !70: Added UserWarning in case window size is set to a value smaller than 64 (low accuracy).
+* !73: Added parameter "tieP_random_state" to set a fixed random state or to use randomized tie point sampling.
 
 
 1.12.0 (2024-08-28)

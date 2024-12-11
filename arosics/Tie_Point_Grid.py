@@ -71,6 +71,7 @@ class Tie_Point_Grid(object):
                  outFillVal: int = -9999,
                  resamp_alg_calc: str = 'cubic',
                  tieP_filter_level: int = 3,
+                 tieP_random_state: int = 0,
                  outlDetect_settings: dict = None,
                  dir_out: str = None,
                  CPUs: int = None,
@@ -112,6 +113,11 @@ class Tie_Point_Grid(object):
                          matching window (measured by mean structural similarity index)
             - Level 3: RANSAC outlier detection
 
+        :param tieP_random_state:
+            Tie point sampling random state. An integer corresponds to a fixed/pseudo-random state,
+            None selects tie points randomly. Only used if the number of computed valid tie points exceeds
+            the given max_points threshold or if more than 7000 tie points are available for image warping.
+
         :param outlDetect_settings:
             a dictionary with the settings to be passed to arosics.TiePointGrid.Tie_Point_Refiner.
             Available keys: min_reliability, rs_max_outlier, rs_tolerance, rs_max_iter, rs_exclude_previous_outliers,
@@ -142,6 +148,7 @@ class Tie_Point_Grid(object):
         self.outFillVal = outFillVal
         self.rspAlg_calc = resamp_alg_calc
         self.tieP_filter_level = tieP_filter_level
+        self.tieP_random_state = tieP_random_state
         self.outlDetect_settings = outlDetect_settings or dict()
         self.dir_out = dir_out
         self.CPUs = CPUs
@@ -312,7 +319,7 @@ class Tie_Point_Grid(object):
 
         # choose a random subset of points if a maximum number has been given
         if self.max_points and len(GDF) > self.max_points:
-            GDF = GDF.sample(self.max_points).copy()
+            GDF = GDF.sample(self.max_points, random_state=self.tieP_random_state).copy()
 
         # equalize pixel grids in order to save warping time
         if len(GDF) > 100:
@@ -787,7 +794,7 @@ class Tie_Point_Grid(object):
                 return []
 
             if avail_TP > 7000:
-                GDF = GDF.sample(7000)
+                GDF = GDF.sample(7000, random_state=self.tieP_random_state)
                 warn(f'By far not more than 7000 tie points can be used for warping within a limited '
                      f'computation time (due to a GDAL bottleneck). Thus these 7000 points are randomly chosen '
                      f'out of the {avail_TP} available tie points.')
