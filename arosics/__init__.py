@@ -3,7 +3,7 @@
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
 # Copyright (C) 2017-2024
-# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz.de)
 # - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
 #   Germany (https://www.gfz-potsdam.de/)
 #
@@ -36,7 +36,7 @@ from .version import __version__, __versionalias__   # noqa (E402 + F401)
 
 
 __author__ = """Daniel Scheffler"""
-__email__ = 'daniel.scheffler@gfz-potsdam.de'
+__email__ = 'daniel.scheffler@gfz.de'
 __all__ = ['COREG',
            'COREG_LOCAL',
            'DESHIFTER',
