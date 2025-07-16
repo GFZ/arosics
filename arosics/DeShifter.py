@@ -375,6 +375,9 @@ class DESHIFTER(object):
                 # apply XY-shifts to input image gt 'shift_gt' in order to correct the shifts before warping
                 self.shift_gt[0], self.shift_gt[3] = self.updated_gt[0], self.updated_gt[3]
 
+            # add warpOptions when using "nearest" rspAlg, see https://github.com/OSGeo/gdal/issues/12736
+            wo = ["SOURCE_EXTRA=5"] if self.rspAlg == "nearest" else None
+
             # get resampled array
             out_arr, out_gt, out_prj = \
                 warp_ndarray(in_arr, self.shift_gt, self.shift_prj, self.ref_prj,
@@ -386,11 +389,11 @@ class DESHIFTER(object):
                              gcpList=self.GCPList,
                              # polynomialOrder=str(3),
                              # options='-refine_gcps 500 1.9',
-                             # warpOptions=['-refine_gcps 500 1.9'],
                              # options='-wm 10000',# -order 3',
                              # options=['-order 3'],
                              # options=['GDAL_CACHEMAX 800 '],
                              # warpMemoryLimit=125829120, # 120MB
+                             warpOptions=wo,
                              CPUs=self.CPUs,
                              progress=self.progress,
                              q=self.q)
