@@ -741,7 +741,8 @@ class Tie_Point_Grid(object):
 
             # add legend with labels in the right order
             handles, labels = ax.get_legend_handles_labels()
-            leg = plt.legend(reversed(handles), reversed(labels), fontsize=fontsize, loc='upper right', scatterpoints=3)
+            handles, labels = list(reversed(handles)), list(reversed(labels))
+            leg = plt.legend(handles, labels, fontsize=fontsize, loc='upper right', scatterpoints=3)
             leg.get_frame().set_edgecolor('black')
 
             # remove white space around the figure
