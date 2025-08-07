@@ -7,6 +7,7 @@ History
 
 * !74, !75: Adapted GFZ URLs from gfz-potsdam.de to gfz.de and changed GFZ institution name.
 * !76: Use min check on winBox dims for more performance.
+* !77: Fixed #125: Bug in computation of side maximum of shifted cross power spectrum.
 
 
 1.12.1 (2024-12-11)
