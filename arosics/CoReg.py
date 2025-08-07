@@ -1264,8 +1264,7 @@ class COREG(object):
         return gdsh_im0, crsp_im1
 
     def _find_side_maximum(self, scps):
-        # peakR, peakC = self._get_peakpos(scps)
-        peakR, peakC = scps.shape[0] // 2, scps.shape[1] // 2
+        peakR, peakC = self._get_peakpos(scps)
         profileX = scps[peakR, :].flatten()  # row profile with values from left to right
         profileY = scps[:, peakC].flatten()  # column profile with values from top to bottom
 
