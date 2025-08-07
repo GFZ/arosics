@@ -1358,7 +1358,7 @@ class COREG(object):
                           y_subshift: float):
         return x_intshift + x_subshift, y_intshift + y_subshift
 
-    def _get_deshifted_otherWin(self) -> GeoArray:
+    def _get_deshifted_otherWin(self, ensure_same_shape: bool = False) -> GeoArray:
         """Return a de-shifted version of self.otherWin as a GeoArray instance.
 
         The output dimensions and geographic bounds are equal to those of self.matchWin and geometric shifts are
@@ -1383,59 +1383,12 @@ class COREG(object):
                                target_xyGrid=matchFull.xygrid_specs,
                                q=True
                                ).correct_shifts()
-        return ds_results['GeoArray_shifted']
-
-    def _validate_ssim_improvement(self,
-                                   v: bool = False
-                                   ) -> (float, float):
-        """Compute mean structural similarity index between reference and target image before and after co-registration.
-
-        :param v:   verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
-        :return:    SSIM before an after shift correction
-        """
-        from skimage.metrics import structural_similarity as ssim  # import here to avoid static TLS import error
-
-        assert self.success is not None, \
-            'Calculate geometric shifts first before trying to measure image similarity improvement!'
-        assert self.success in [True, None], \
-            'Since calculation of geometric shifts failed, no image similarity improvement can be measured.'
-
-        def normalize(array: np.ndarray) -> np.ndarray:
-            minval = np.min(array)
-            maxval = np.max(array)
-
-            # avoid zerodivision
-            if maxval == minval:
-                maxval += 1e-5
-
-            return ((array - minval) / (maxval - minval)).astype(np.float64)
-
-        # compute SSIM BEFORE shift correction #
-        ########################################
-
-        # using gaussian weights could lead to value errors in case of small images when the automatically calculated
-        # window size exceeds the image size
-        self.ssim_orig = ssim(normalize(np.ma.masked_equal(self.matchWin[:],
-                                                           self.matchWin.nodata)),
-                              normalize(np.ma.masked_equal(self.otherWin[:],
-                                                           self.otherWin.nodata)),
-                              data_range=1)
-
-        # compute SSIM AFTER shift correction #
-        #######################################
-
-        # resample otherWin while correcting detected shifts and match geographic bounds of matchWin
-        otherWin_deshift_geoArr = self._get_deshifted_otherWin()
-
-        # get the corresponding matchWin data
-        matchWinData = self.matchWin[:]
+        otherWin_deshift_geoArr = ds_results['GeoArray_shifted']
 
         # check if shapes of two images are unequal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
-        if not self.matchWin.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
-            warnings.warn('SSIM input array shapes are not equal. This should not happen. '
-                          'If it happens with your data, please report it here so that the issue can be fixed: '
-                          'https://git.gfz-potsdam.de/danschef/arosics/-/issues/85')
+        # -> https://git.gfz-potsdam.de/danschef/arosics/-/issues/85
+        if ensure_same_shape and self.matchWin.shape != otherWin_deshift_geoArr.shape:
             matchFull = \
                 self.ref if self.matchWin.imID == 'ref' else\
                 self.shift
@@ -1447,7 +1400,7 @@ class COREG(object):
 
             # at the image edges it is possible that the size of the matchBox must be reduced
             # in order to make array shapes match
-            if not matchWinData.shape == otherWin_deshift_geoArr.shape:  # FIXME this seems to be already fixed
+            if matchWinData.shape != otherWin_deshift_geoArr.shape:
                 self.matchBox.buffer_imXY(float(-np.ceil(abs(self.x_shift_px))),
                                           float(-np.ceil(abs(self.y_shift_px))))
                 otherWin_deshift_geoArr = self._get_deshifted_otherWin()
@@ -1457,41 +1410,90 @@ class COREG(object):
                                                           band2get=matchFull.band4match)
 
             # output validation
-            if not matchWinData.shape == otherWin_deshift_geoArr.shape:
-                warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. '
-                              'SSIM of the de-shifted target image is set to 0.')
-                self.ssim_deshifted = 0
+            if not matchWinData.shape != otherWin_deshift_geoArr.shape:
+                raise RuntimeError('Failed to generate de-shifted matching window '
+                                   'in the same shape as reference window.')
 
-                return self.ssim_orig, self.ssim_deshifted
+        return otherWin_deshift_geoArr
 
-        self.ssim_deshifted = ssim(normalize(np.ma.masked_equal(otherWin_deshift_geoArr[:],
-                                                                otherWin_deshift_geoArr.nodata)),
-                                   normalize(np.ma.masked_equal(matchWinData,
-                                                                self.matchWin.nodata)),
-                                   data_range=1)
+    @staticmethod
+    def _compute_ssim(im1: np.ndarray, im2: np.ndarray, im1_nodata: float, im2_nodata: float) -> float:
+        from skimage.metrics import structural_similarity as ssim
 
-        if v:
-            GeoArray(matchWinData).show()
-            self.otherWin.show()
-            otherWin_deshift_geoArr.show()
+        def normalize(array: np.ndarray) -> np.ndarray:
+            minval = np.min(array)
+            maxval = np.max(array)
 
-        if not self.q:
-            print(f'Image similarity within the matching window (SSIM before/after correction): '
-                  f'{self.ssim_orig:.4f} => {self.ssim_deshifted:.4f}')
+            # avoid zero-division
+            if maxval == minval:
+                maxval += 1e-5
 
-        self.ssim_improved = self.ssim_orig <= self.ssim_deshifted
+            return ((array - minval) / (maxval - minval)).astype(np.float64)
 
-        # write win data to disk
-        # outDir = '/home/gfz-fe/scheffler/temp/ssim_debugging/'
-        # GeoArray(matchWinData, matchWinGt, matchWinPrj).save(outDir+'matchWinData.bsq')
+        def masked_ssim(a, a_nodata, b, b_nodata):
+            """
+            scipy.metrics.structural_similarity is not commutative for masked arrays
+            This fixes that, by masking out nodata in either array in both.
+            """
+            a_masked = np.ma.masked_equal(a, a_nodata)
+            b_masked = np.ma.masked_equal(b, b_nodata)
+            a_masked.mask = b_masked.mask = np.logical_or(a_masked.mask, b_masked.mask)
+            return ssim(normalize(a_masked), normalize(b_masked), data_range=1)
 
-        # otherWinGt = (self.otherWin.boundsMap[0], self.matchWin.xgsd, 0,
-        #               self.otherWin.boundsMap[3], 0, -self.matchWin.imParams.ygsd)
-        # GeoArray(self.otherWin.data, therWinGt, self.otherWin.prj).save(outDir+'otherWin.data.bsq')
+        return masked_ssim(im1, im1_nodata, im2, im2_nodata)
 
-        # otherWin_deshift_geoArr.save(outDir+''shifted.bsq')
+    def _validate_ssim_improvement(self,
+                                   v: bool = False
+                                   ) -> (float, float):
+        """Compute mean structural similarity index between reference and target image before and after co-registration.
 
-        return self.ssim_orig, self.ssim_deshifted
+        :param v:   verbose mode: shows images of the matchWin, otherWin and shifted version of otherWin
+        :return:    SSIM before an after shift correction
+        """
+        if self.success is None:
+            raise RuntimeError('Calculate geometric shifts first before trying '
+                               'to measure image similarity improvement!')
+        if self.success is False:
+            raise RuntimeError('Since calculation of geometric shifts failed, '
+                               'no image similarity improvement can be measured.')
+
+        self.ssim_orig = self._compute_ssim(self.matchWin[:], self.otherWin[:],
+                                            self.matchWin.nodata, self.otherWin.nodata)
+
+        try:
+            # resample otherWin while correcting detected shifts and match geographic bounds of matchWin
+            otherWin_deshift_geoArr = self._get_deshifted_otherWin(ensure_same_shape=True)
+            self.ssim_deshifted = self._compute_ssim(self.matchWin[:], otherWin_deshift_geoArr[:],
+                                                     self.matchWin.nodata, otherWin_deshift_geoArr.nodata)
+            if v:
+                GeoArray(self.matchWin[:]).show()
+                self.otherWin.show()
+                otherWin_deshift_geoArr.show()
+
+            if not self.q:
+                print(f'Image similarity within the matching window (SSIM before/after correction): '
+                      f'{self.ssim_orig:.4f} => {self.ssim_deshifted:.4f}')
+
+            self.ssim_improved = self.ssim_orig <= self.ssim_deshifted
+
+            # write win data to disk
+            # outDir = '/home/gfz-fe/scheffler/temp/ssim_debugging/'
+            # GeoArray(self.matchWin[:], self.matchWin.gt, self.matchWin.prj).save(outDir+'matchWinData.bsq')
+
+            # otherWinGt = (self.otherWin.boundsMap[0], self.matchWin.xgsd, 0,
+            #               self.otherWin.boundsMap[3], 0, -self.matchWin.imParams.ygsd)
+            # GeoArray(self.otherWin.data, therWinGt, self.otherWin.prj).save(outDir+'otherWin.data.bsq')
+
+            # otherWin_deshift_geoArr.save(outDir+''shifted.bsq')
+
+            return self.ssim_orig, self.ssim_deshifted
+
+        except RuntimeError:
+            warnings.warn('SSIM input array shapes could not be equalized. SSIM calculation failed. '
+                          'SSIM of the de-shifted target image is set to 0.')
+            self.ssim_deshifted = 0
+
+            return self.ssim_orig, self.ssim_deshifted
 
     @property
     def ssim_improved(self) -> bool:
