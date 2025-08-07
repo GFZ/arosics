@@ -775,7 +775,7 @@ class COREG(object):
         NOTE: The cross power spectrum is the result from phase correlating the reference and target
               image within the matching window.
 
-        :param interactive:  whether to return an interactice 3D surface plot based on 'plotly' library
+        :param interactive:  whether to return an interactive 3D surface plot based on 'plotly' library
         :return:
         """
         if interactive:
@@ -1322,7 +1322,7 @@ class COREG(object):
     def _validate_integer_shifts(self, im0, im1, x_intshift, y_intshift):
 
         if (x_intshift, y_intshift) != (0, 0):
-            # temporalily deshift images on the basis of calculated integer shifts
+            # temporarily de-shift images on the basis of calculated integer shifts
             gdsh_im0, crsp_im1 = self._get_grossly_deshifted_images(im0, im1, x_intshift, y_intshift)
 
             # check if integer shifts are now gone (0/0)
