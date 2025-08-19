@@ -155,3 +155,13 @@ create_github_release:
 #    dependencies:
 #        - deploy_pypi
 #    script:
+
+
+gitleaks: # Gitleaks security scanner
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  stage: test
+  before_script: []  # prevents git lfs pull
+  script:
+    - gitleaks git --platform gitlab --max-decode-depth 5 --verbose --redact $CI_PROJECT_DIR
