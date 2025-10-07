@@ -255,7 +255,7 @@ def get_arosics_argparser():
 
     parse_coreg_global = subparsers.add_parser(
         'global', parents=[general_opts_parser], formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description='Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are '
+        description='Detects and corrects global X/Y shifts between a target and reference image. Geometric shifts are '
                     'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                     'X- or Y direction.',
         help="detect and correct global X/Y shifts (sub argument parser) - "
