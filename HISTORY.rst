@@ -2,8 +2,8 @@
 History
 =======
 
-1.12.2 (coming soon)
---------------------
+1.13.0 (2025-10-08)
+-------------------
 
 * !74, !75: Adapted GFZ URLs from gfz-potsdam.de to gfz.de and changed GFZ institution name.
 * !76: Use min check on winBox dims for more performance.
