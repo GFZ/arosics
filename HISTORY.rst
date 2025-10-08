@@ -11,6 +11,9 @@ History
 * !78: Revised SSIM computation and added COREG._compute_ssim() which can be called for a single image pair.
   Moved window shape validation to COREG._get_deshifted_otherWin().
   Fixed #113: Bug: ssim on masked arrays is not commutative.
+* !81: Added GitLeaks CI job for automatic secret detection.
+* !82: Updated copyright.
+* !83: Made pykrige and scikit-learn optional again (both only needed for tie-point interpolation in space).
 
 
 1.12.1 (2024-12-11)
