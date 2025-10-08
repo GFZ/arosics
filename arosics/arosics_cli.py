@@ -6,8 +6,7 @@
 #
 # Copyright (C) 2017–2025
 # - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz.de)
-# - GFZ Helmholtz Centre for Geosciences Potsdam,
-#   Germany (https://www.gfz.de/)
+# - GFZ Helmholtz Centre for Geosciences, Potsdam, Germany (https://www.gfz.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
