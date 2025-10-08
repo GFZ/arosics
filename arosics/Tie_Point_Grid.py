@@ -812,21 +812,6 @@ class Tie_Point_Grid(object):
 
             return self.GCPList
 
-    def test_if_singleprocessing_equals_multiprocessing_result(self):
-        # RANSAC filtering always produces different results because it includes random sampling
-        self.tieP_filter_level = 1
-
-        self.CPUs = None
-        dataframe = self.get_CoRegPoints_table()
-        mp_out = np.empty_like(dataframe.values)
-        mp_out[:] = dataframe.values
-        self.CPUs = 1
-        dataframe = self.get_CoRegPoints_table()
-        sp_out = np.empty_like(dataframe.values)
-        sp_out[:] = dataframe.values
-
-        return np.array_equal(sp_out, mp_out)
-
     def _get_line_by_PID(self, PID):
         return self.CoRegPoints_table.loc[PID, :]
 

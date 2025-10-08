@@ -33,6 +33,7 @@ from importlib.util import find_spec
 import shutil
 import warnings
 import struct
+from multiprocessing import cpu_count
 
 # custom
 import pytest
@@ -76,6 +77,22 @@ class Test_Tie_Point_Grid(unittest.TestCase):
 
     def test_get_CoRegPoints_table(self):
         self.TPG.get_CoRegPoints_table()
+
+    def test_if_singleprocessing_equals_multiprocessing_result(self):
+        try:
+            self.TPG.CPUs = cpu_count()
+            df_mp = self.TPG.get_CoRegPoints_table()
+
+            self.TPG.CPUs = 1
+            df_sp = self.TPG.get_CoRegPoints_table()
+        finally:
+            self.TPG.CPUs = cpu_count()
+
+        # exceptions need to be compared as strings
+        df_sp.LAST_ERR = df_sp.LAST_ERR.apply(str)
+        df_mp.LAST_ERR = df_mp.LAST_ERR.apply(str)
+
+        assert df_sp.equals(df_mp)
 
     def test_calc_rmse(self):
         self.TPG.calc_rmse(include_outliers=False)
