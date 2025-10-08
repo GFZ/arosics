@@ -79,9 +79,6 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         self.TPG.get_CoRegPoints_table()
 
     def test_if_singleprocessing_equals_multiprocessing_result(self):
-        # # RANSAC filtering always produces different results because it includes random sampling
-        self.TPG.tieP_filter_level = 1
-
         try:
             self.TPG.CPUs = cpu_count()
             df_mp = self.TPG.get_CoRegPoints_table()
