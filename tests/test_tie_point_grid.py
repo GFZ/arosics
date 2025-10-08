@@ -91,7 +91,11 @@ class Test_Tie_Point_Grid(unittest.TestCase):
         finally:
             self.TPG.CPUs = cpu_count()
 
-        assert np.array_equal(df_mp.values, df_sp.values)
+        # exceptions need to be compared as strings
+        df_sp.LAST_ERR = df_sp.LAST_ERR.apply(str)
+        df_mp.LAST_ERR = df_mp.LAST_ERR.apply(str)
+
+        assert df_sp.equals(df_mp)
 
     def test_calc_rmse(self):
         self.TPG.calc_rmse(include_outliers=False)
