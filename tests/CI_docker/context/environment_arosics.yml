@@ -21,11 +21,11 @@ dependencies:
   - numpy
   - pandas
   - plotly
-  - pykrige
+  - pykrige  # optional, needed to test interpolation
   - pyproj>2.2.0
   - py-tools-ds>=0.18.0
   - scikit-image>=0.21.0
-  - scikit-learn
+  - scikit-learn  # optional, needed to test interpolation
   - scipy>=1.7.0
   - shapely
 

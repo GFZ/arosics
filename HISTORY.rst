@@ -2,13 +2,28 @@
 History
 =======
 
-1.12.1 (coming soon)
+1.12.2 (coming soon)
 --------------------
+
+* !74, !75: Adapted GFZ URLs from gfz-potsdam.de to gfz.de and changed GFZ institution name.
+* !76: Use min check on winBox dims for more performance.
+* !77: Fixed #125: Bug in computation of side maximum of shifted cross power spectrum.
+* !78: Revised SSIM computation and added COREG._compute_ssim() which can be called for a single image pair.
+  Moved window shape validation to COREG._get_deshifted_otherWin().
+  Fixed #113: Bug: ssim on masked arrays is not commutative.
+* !81: Added GitLeaks CI job for automatic secret detection.
+* !82: Updated copyright.
+* !83: Made pykrige and scikit-learn optional again (both only needed for tie-point interpolation in space).
+* !71: Changed return-type of DESHIFTER.deshift_results from OrderedDict to builtin dict.
+
+
+1.12.1 (2024-12-11)
+-------------------
 
 * Fixed some typos.
 * !69: Switched from old-style string-formatting to f-strings.
 * !70: Added UserWarning in case window size is set to a value smaller than 64 (low accuracy).
-* !71: Changed return-type of DESHIFTER.deshift_results from OrderedDict to builtin dict.
+* !73: Added parameter "tieP_random_state" to set a fixed random state or to use randomized tie point sampling.
 
 
 1.12.0 (2024-08-28)

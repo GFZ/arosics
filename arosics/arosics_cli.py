@@ -4,10 +4,10 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2024
-# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
-# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
-#   Germany (https://www.gfz-potsdam.de/)
+# Copyright (C) 2017–2025
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz.de)
+# - GFZ Helmholtz Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
@@ -83,6 +83,7 @@ def run_local_coreg(args):
                       max_iter=args.max_iter,
                       max_shift=args.max_shift,
                       tieP_filter_level=args.tieP_filter_level,
+                      tieP_random_state=args.tieP_random_state,
                       min_reliability=args.min_reliability,
                       rs_max_outlier=args.rs_max_outlier,
                       rs_tolerance=args.rs_tolerance,
@@ -125,7 +126,7 @@ def get_arosics_argparser():
                "can have any GDAL compatible image format (https://gdal.org/drivers/raster/index.html). Both of them "
                "must be approximately geocoded. In case of ENVI files, this means they must have a 'map info' and a "
                "'coordinate system string' as attributes of their header file. The input images must have a geographic "
-               "overlap but clipping them to same geographical extent is NOT neccessary. Please do not perform any "
+               "overlap but clipping them to same geographical extent is NOT necessary. Please do not perform any "
                "spatial resampling of the input images before applying this algorithm. Any needed resampling of the "
                "data is done automatically. Thus, the input images may have different spatial resolutions. The current "
                "algorithm will not perform any ortho-rectification. So please use ortho-rectified input data in order "
@@ -187,7 +188,7 @@ def get_arosics_argparser():
           help="maximum shift distance in reference image pixel units (default: 5 px)")
 
     gop_p('-rsp_alg_deshift', nargs='?', type=int, choices=list(range(12)), default=2,
-          help="the resampling algorithm to be used for shift correction (if neccessary) "
+          help="the resampling algorithm to be used for shift correction (if necessary) "
                "(valid algorithms: 0=nearest neighbour, 1=bilinear, 2=cubic, 3=cubic_spline, 4=lanczos, 5=average, "
                "6=mode, 7=max, 8=min, 9=med, 10=q1, 11=q3), default: 2")
 
@@ -254,7 +255,7 @@ def get_arosics_argparser():
 
     parse_coreg_global = subparsers.add_parser(
         'global', parents=[general_opts_parser], formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description='Detects and corrects global X/Y shifts between a target and refernce image. Geometric shifts are '
+        description='Detects and corrects global X/Y shifts between a target and reference image. Geometric shifts are '
                     'calculated at a specific (adjustable) image position. Correction performs a global shifting in '
                     'X- or Y direction.',
         help="detect and correct global X/Y shifts (sub argument parser) - "
@@ -314,6 +315,11 @@ def get_arosics_argparser():
                 "Level 2: SSIM filtering - filters all tie points out where shift correction does not increase image "
                 "similarity within matching window (measured by mean structural similarity index) "
                 "Level 3: RANSAC outlier detection")
+
+    locArg('-tieP_random_state', nargs='?', type=int, default=0,
+           help="Tie point sampling random state. An integer corresponds to a fixed/pseudo-random state, "
+                "None selects tie points randomly. Only used if the number of computed valid tie points exceeds "
+                "the given max_points threshold or if more than 7000 tie points are available for image warping.")
 
     locArg('-min_reliability', nargs='?', type=float, default=60,
            help="Tie point filtering: minimum reliability threshold, below which tie points are marked as "

@@ -20,7 +20,7 @@ detect and correct local shifts - with input data on disk
     >>> im_target    = '/path/to/your/tgt_image.bsq'
     >>> kwargs = {
     >>>     'grid_res'     : 200,
-    >>>     'window_size'  : (64,64),
+    >>>     'window_size'  : (256, 256),
     >>>     'path_out'     : 'auto',
     >>>     'projectDir'   : 'my_project',
     >>>     'q'            : False,
