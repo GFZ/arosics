@@ -14,6 +14,7 @@ History
 * !81: Added GitLeaks CI job for automatic secret detection.
 * !82: Updated copyright.
 * !83: Made pykrige and scikit-learn optional again (both only needed for tie-point interpolation in space).
+* !71: Changed return-type of DESHIFTER.deshift_results from OrderedDict to builtin dict.
 
 
 1.12.1 (2024-12-11)
