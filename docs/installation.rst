@@ -41,7 +41,6 @@ to resolve the following dependencies before the pip installer is run:
     * matplotlib
     * numpy
     * pandas
-    * pykrige
     * pyproj >2.2.0
     * scikit-image >=0.21.0
     * shapely

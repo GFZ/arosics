@@ -3,10 +3,10 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2024
-# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
-# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
-#   Germany (https://www.gfz-potsdam.de/)
+# Copyright (C) 2017–2025
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz.de)
+# - GFZ Helmholtz Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
@@ -54,6 +54,7 @@ class Test_Tie_Point_Grid(unittest.TestCase):
                                  outFillVal=CRL.outFillVal,
                                  resamp_alg_calc=CRL.rspAlg_calc,
                                  tieP_filter_level=CRL.tieP_filter_level,
+                                 tieP_random_state=CRL.tieP_random_state,
                                  outlDetect_settings=dict(
                                      min_reliability=CRL.min_reliability,
                                      rs_max_outlier=CRL.rs_max_outlier,
@@ -191,6 +192,17 @@ class Test_Tie_Point_Grid(unittest.TestCase):
             arr_interp = self.TPG.to_interpolated_raster('ABS_SHIFT', 'Kriging', plot_result=True)
 
             assert isinstance(arr_interp, np.ndarray)
+
+    def test_random_state(self):
+        self.TPG.tieP_random_state = None
+        point_ids = [self.TPG.get_CoRegPoints_table()['POINT_ID'] for _ in range(2)]
+        assert not np.array_equal(point_ids[0], point_ids[1]), \
+            "Samples should not be identical when random state is None"
+
+        self.TPG.tieP_random_state = 0
+        point_ids = [self.TPG.get_CoRegPoints_table()['POINT_ID'] for _ in range(2)]
+        assert np.array_equal(point_ids[0], point_ids[1]), \
+            "Samples should be identical when random state is fixed"
 
 
 if __name__ == '__main__':

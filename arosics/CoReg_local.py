@@ -2,10 +2,10 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2024
-# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
-# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
-#   Germany (https://www.gfz-potsdam.de/)
+# Copyright (C) 2017–2025
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz.de)
+# - GFZ Helmholtz Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
@@ -27,7 +27,6 @@ from warnings import warn, catch_warnings, filterwarnings
 import os
 from copy import copy
 from typing import Tuple, Union, Optional
-from collections import OrderedDict
 from multiprocessing import cpu_count
 
 # custom
@@ -73,6 +72,7 @@ class COREG_LOCAL(object):
                  max_iter: int = 5,
                  max_shift: int = 5,
                  tieP_filter_level: int = 3,
+                 tieP_random_state: Optional[int] = 0,
                  min_reliability: float = 60,
                  rs_max_outlier: float = 10,
                  rs_tolerance: float = 2.5,
@@ -162,6 +162,11 @@ class COREG_LOCAL(object):
                          matching window (measured by mean structural similarity index)
             - Level 3: RANSAC outlier detection
 
+        :param tieP_random_state:
+            Tie point sampling random state. An integer corresponds to a fixed/pseudo-random state,
+            None selects tie points randomly. Only used if the number of computed valid tie points exceeds
+            the given max_points threshold or if more than 7000 tie points are available for image warping.
+
         :param min_reliability:
             Tie point filtering: minimum reliability threshold, below which tie points are marked as false-positives
             (default: 60%)
@@ -194,7 +199,7 @@ class COREG_LOCAL(object):
             This overrides 'out_gsd', 'align_grids' and 'match_gsd'.
 
         :param resamp_alg_deshift:
-            the resampling algorithm to be used for shift correction (if neccessary)
+            the resampling algorithm to be used for shift correction (if necessary)
             valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3
             (default: cubic)
 
@@ -292,6 +297,7 @@ class COREG_LOCAL(object):
         self.max_shift = max_shift
         self.max_iter = max_iter
         self.tieP_filter_level = tieP_filter_level
+        self.tieP_random_state = tieP_random_state
         self.min_reliability = min_reliability
         self.rs_max_outlier = rs_max_outlier
         self.rs_tolerance = rs_tolerance
@@ -456,6 +462,7 @@ class COREG_LOCAL(object):
                            outFillVal=self.outFillVal,
                            resamp_alg_calc=self.rspAlg_calc,
                            tieP_filter_level=self.tieP_filter_level,
+                           tieP_random_state=self.tieP_random_state,
                            outlDetect_settings=dict(
                                min_reliability=self.min_reliability,
                                rs_max_outlier=self.rs_max_outlier,
@@ -782,7 +789,7 @@ class COREG_LOCAL(object):
                        max_GCP_count: int = None,
                        cliptoextent: bool = False,
                        min_points_local_corr: int = 5
-                       ) -> OrderedDict:
+                       ) -> dict:
         """Perform a local shift correction using all points from the previously calculated tie point grid.
 
         NOTE: Only valid matches are used as GCP points.

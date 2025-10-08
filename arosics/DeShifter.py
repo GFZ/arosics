@@ -2,10 +2,10 @@
 
 # AROSICS - Automated and Robust Open-Source Image Co-Registration Software
 #
-# Copyright (C) 2017-2024
-# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz-potsdam.de)
-# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
-#   Germany (https://www.gfz-potsdam.de/)
+# Copyright (C) 2017–2025
+# - Daniel Scheffler (GFZ Potsdam, daniel.scheffler@gfz.de)
+# - GFZ Helmholtz Centre for Geosciences Potsdam,
+#   Germany (https://www.gfz.de/)
 #
 # This software was developed within the context of the GeoMultiSens project funded
 # by the German Federal Ministry of Education and Research
@@ -23,7 +23,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import time
 import warnings
 import numpy as np
@@ -103,7 +102,7 @@ class DESHIFTER(object):
             (default: 5 tie points)
 
         :keyword str resamp_alg:
-            the resampling algorithm to be used if neccessary
+            the resampling algorithm to be used if necessary
             (valid algorithms: nearest, bilinear, cubic, cubic_spline, lanczos, average, mode, max, min, med, q1, q3)
 
         :keyword bool cliptoextent:
@@ -318,7 +317,7 @@ class DESHIFTER(object):
         ymax = find_nearest(self.out_grid[1], ymax, roundAlg='off', extrapolate=True, tolerance=y_tol)
         return xmin, ymin, xmax, ymax
 
-    def correct_shifts(self) -> collections.OrderedDict:
+    def correct_shifts(self) -> dict:
         if not self.q:
             print('Correcting geometric shifts...')
 
@@ -422,9 +421,8 @@ class DESHIFTER(object):
         return self.deshift_results
 
     @property
-    def deshift_results(self):
-        deshift_results = collections.OrderedDict()
-        deshift_results.update({
+    def deshift_results(self) -> dict:
+        return {
             'band': self.band2process,
             'is shifted': self.is_shifted,
             'is resampled': self.is_resampled,
@@ -433,8 +431,7 @@ class DESHIFTER(object):
             'updated projection': self.updated_projection,
             'arr_shifted': self.arr_shifted,
             'GeoArray_shifted': self.GeoArray_shifted
-        })
-        return deshift_results
+        }
 
 
 def deshift_image_using_coreg_info(im2shift: Union[GeoArray, str],

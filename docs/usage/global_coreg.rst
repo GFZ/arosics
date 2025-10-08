@@ -105,41 +105,36 @@ and calculate spatial shifts:
 correct shifts
 ~~~~~~~~~~~~~~
 
-:meth:`CR.correct_shifts() <arosics.COREG.correct_shifts>` returns an
-:class:`OrderedDict<collections.OrderedDict>` containing the co-registered
-numpy array and its corresponding geoinformation.
+:meth:`CR.correct_shifts() <arosics.COREG.correct_shifts>` returns a dictionary
+containing the co-registered numpy array and its corresponding geoinformation.
 
 .. code-block:: python
 
     >>> CR.correct_shifts()
 
-    OrderedDict([('band', None),
-                 ('is shifted', True),
-                 ('is resampled', False),
-                 ('updated map info',
-                  ['UTM',
-                   1,
-                   1,
-                   300003.57885632466,
-                   5900025.6616268,
-                   10.0,
-                   10.0,
-                   33,
-                   'North',
-                   'WGS-84']),
-                 ('updated geotransform',
-                  [300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0]),
-                 ('updated projection',
-                  'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]'),
-                 ('arr_shifted', array([[   0,    0,    0, ...,  953,  972, 1044],
-                         [   0,    0,    0, ..., 1001,  973, 1019],
-                         [   0,    0,    0, ...,  953,  985, 1020],
-                         ...,
-                         [   0,    0,    0, ...,  755,  763,  773],
-                         [   0,    0,    0, ...,  760,  763,  749],
-                         [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16)),
-                 ('GeoArray_shifted',
-                  <geoarray.GeoArray at 0x7f6c5a1cabe0>)])
+    {'band': None,
+     'is shifted': True,
+     'is resampled': False,
+     'updated map info': ['UTM',
+                          1,
+                          1,
+                          300003.57885632466,
+                          5900025.6616268,
+                          10.0,
+                          10.0,
+                          33,
+                          'North',
+                          'WGS-84'],
+     'updated geotransform': (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0),
+     'updated projection': 'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]',
+     'arr_shifted': array([[   0,    0,    0, ...,  953,  972, 1044],
+                           [   0,    0,    0, ..., 1001,  973, 1019],
+                           [   0,    0,    0, ...,  953,  985, 1020],
+                           ...,
+                           [   0,    0,    0, ...,  755,  763,  773],
+                           [   0,    0,    0, ...,  760,  763,  749],
+                           [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16),
+     'GeoArray_shifted': <geoarray.baseclasses.GeoArray at 0x7f6c5a1cabe0>}
 
 
 To write the coregistered image to disk, the :class:`arosics.COREG` class needs to be instanced with a filepath given to
@@ -163,33 +158,29 @@ Take a look at the keyword arguments of the :class:`arosics.DESHIFTER` class whe
     >>> DESHIFTER(im_target1, CR.coreg_info).correct_shifts()
     >>> DESHIFTER(im_target2, CR.coreg_info).correct_shifts()
 
-    OrderedDict([('band', None),
-                 ('is shifted', True),
-                 ('is resampled', False),
-                 ('updated map info',
-                  ['UTM',
-                   1,
-                   1,
-                   300003.57885632466,
-                   5900025.6616268,
-                   10.0,
-                   10.0,
-                   33,
-                   'North',
-                   'WGS-84']),
-                 ('updated geotransform',
-                  [300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0]),
-                 ('updated projection',
-                  'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]'),
-                 ('arr_shifted', array([[   0,    0,    0, ...,  953,  972, 1044],
-                         [   0,    0,    0, ..., 1001,  973, 1019],
-                         [   0,    0,    0, ...,  953,  985, 1020],
-                         ...,
-                         [   0,    0,    0, ...,  755,  763,  773],
-                         [   0,    0,    0, ...,  760,  763,  749],
-                         [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16)),
-                 ('GeoArray_shifted',
-                  <geoarray.GeoArray at 0x7f6c5a1caa58>)])
+    {'band': None,
+     'is shifted': True,
+     'is resampled': False,
+     'updated map info': ['UTM',
+                          1,
+                          1,
+                          300003.57885632466,
+                          5900025.6616268,
+                          10.0,
+                          10.0,
+                          33,
+                          'North',
+                          'WGS-84'],
+     'updated geotransform': (300000.0, 10.0, 0.0, 5900040.0, 0.0, -10.0),
+     'updated projection': 'PROJCS["WGS 84 / UTM zone 33N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",15],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32633"]]',
+     'arr_shifted': array([[   0,    0,    0, ...,  953,  972, 1044],
+                           [   0,    0,    0, ..., 1001,  973, 1019],
+                           [   0,    0,    0, ...,  953,  985, 1020],
+                           ...,
+                           [   0,    0,    0, ...,  755,  763,  773],
+                           [   0,    0,    0, ...,  760,  763,  749],
+                           [9999, 9999, 9999, ..., 9999, 9999, 9999]], dtype=uint16),
+     'GeoArray_shifted': <geoarray.baseclasses.GeoArray at 0x7f6c5a1cabe0>}
 
 
 ----
