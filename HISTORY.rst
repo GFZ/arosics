@@ -16,6 +16,7 @@ History
 * !83: Made pykrige and scikit-learn optional again (both only needed for tie-point interpolation in space).
 * !71: Changed return-type of DESHIFTER.deshift_results from OrderedDict to builtin dict.
 * !72: Moved Tie_Point_Grid.test_if_singleprocessing_equals_multiprocessing_result() to the tests.
+* !84: Adapted Zenodo metadata to upstream changes in the zenodo.json scheme.
 
 
 1.12.1 (2024-12-11)
