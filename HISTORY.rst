@@ -17,6 +17,7 @@ History
 * !71: Changed return-type of DESHIFTER.deshift_results from OrderedDict to builtin dict.
 * !72: Moved Tie_Point_Grid.test_if_singleprocessing_equals_multiprocessing_result() to the tests.
 * !84: Adapted Zenodo metadata to upstream changes in the zenodo.json scheme.
+* !85: Adapted license declaration in pyproject.toml to new PEP 639.
 
 
 1.12.1 (2024-12-11)
