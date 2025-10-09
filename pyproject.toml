@@ -33,12 +33,12 @@ build-backend = "setuptools.build_meta"
 name = "arosics"
 description = "An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data"
 authors = [{name = "Daniel Scheffler", email = "daniel.scheffler@gfz.de"}]
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*", "AUTHORS.rst"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -129,7 +129,6 @@ arosics = "arosics.arosics_cli:main"
 [tool.setuptools]
 zip-safe = false
 include-package-data = true
-license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 namespaces = false
