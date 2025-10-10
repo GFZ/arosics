@@ -44,4 +44,4 @@ dependencies:
   - urlchecker
 
   - pip:
-    - pytest-reporter-html1
+    - pytest-reporter-html1<0.9.4  # https://github.com/christiansandberg/pytest-reporter-html1/issues/43
