@@ -29,16 +29,18 @@ dependencies:
   - scipy>=1.7.0
   - shapely
 
-  # doc/lint/test requirements
+  # doc/lint/test/deploy requirements
   - flake8
   - pycodestyle
   - pydocstyle
   - pylint
   - pytest
   - pytest-cov
+  - python-build
   - sphinx-argparse
   - sphinx-autodoc-typehints
   - sphinx_rtd_theme
+  - twine
   - urlchecker
 
   - pip:

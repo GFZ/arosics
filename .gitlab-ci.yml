@@ -128,7 +128,7 @@ deploy_pypi:
     - test_arosics
   script:
     - source activate ci_env
-    - mamba install twine pyton-build
+    - mamba update twine python-build
     - python -m build --sdist
     - twine check dist/*
     - twine upload dist/*  # requires creds as environment variables
