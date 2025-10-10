@@ -18,6 +18,7 @@ History
 * !72: Moved Tie_Point_Grid.test_if_singleprocessing_equals_multiprocessing_result() to the tests.
 * !84: Adapted Zenodo metadata to upstream changes in the zenodo.json scheme.
 * !85: Adapted license declaration in pyproject.toml to new PEP 639.
+* !86: Pinned pytest-reporter-html1 to <0.9.4 due to current incompatibility.
 
 
 1.12.1 (2024-12-11)
