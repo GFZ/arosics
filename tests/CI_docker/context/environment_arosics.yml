@@ -23,7 +23,7 @@ dependencies:
   - plotly
   - pykrige  # optional, needed to test interpolation
   - pyproj>2.2.0
-  - py-tools-ds>=0.18.0
+  - py-tools-ds>=0.23.2
   - scikit-image>=0.21.0
   - scikit-learn  # optional, needed to test interpolation
   - scipy>=1.7.0
