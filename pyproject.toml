@@ -109,8 +109,7 @@ test = [
     "pytest-reporter-html1<0.9.4",  # https://github.com/christiansandberg/pytest-reporter-html1/issues/43
     "urlchecker",
     "arosics[interactive_plotting]",
-    "pykrige",
-    "scikit-learn",
+    "arosics[interpolation]",
 ]
 lint = [
     "flake8",
