@@ -19,6 +19,7 @@ History
 * !84: Adapted Zenodo metadata to upstream changes in the zenodo.json scheme.
 * !85: Adapted license declaration in pyproject.toml to new PEP 639.
 * !86: Pinned pytest-reporter-html1 to <0.9.4 due to current incompatibility.
+* !87: Pinned py_tools_ds to >0.23.2 to consider current gdal 3.11 incompatibility.
 
 
 1.12.1 (2024-12-11)
