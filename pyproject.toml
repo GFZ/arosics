@@ -69,7 +69,7 @@ dependencies = [
     "pandas",
     "plotly",
     "pyproj>2.2.0",
-    "py_tools_ds>=0.18.0",
+    "py_tools_ds>=0.23.2",
     "scikit-image>=0.21.0",
     "scipy>=1.7.0",
     "shapely",
