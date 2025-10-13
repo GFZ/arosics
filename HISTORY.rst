@@ -2,6 +2,12 @@
 History
 =======
 
+1.13.1 (coming soon)
+--------------------
+
+* !88: Dropped Python 3.8 support due to end-of-life status and added Python 3.13 and 3.14 support.
+
+
 1.13.0 (2025-10-08)
 -------------------
 
