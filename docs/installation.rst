@@ -65,8 +65,8 @@ you through the process.
 
 .. note::
 
-    AROSICS has been tested with Python 3.8+. It should be fully compatible to all Python versions
-    from 3.8 onwards. Python 2.7 support was dropped in AROSICS 1.3 due to its end of life status.
+    AROSICS has been tested with Python 3.9+. It should be fully compatible to all Python versions
+    from 3.9 onwards. Python 2.7 support was dropped in AROSICS 1.3 due to its end of life status.
 
 
 .. _pip: https://pip.pypa.io

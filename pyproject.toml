@@ -41,7 +41,6 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -54,7 +53,7 @@ keywords = [
     "remote sensing",
     "sensor fusion",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "cartopy",
     "cmocean",
