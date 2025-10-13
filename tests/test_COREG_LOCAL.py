@@ -232,6 +232,8 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
               pytest.warns(UserWarning, match='.*~100% of all tie point candidates.*Test warning!.*')):
             COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
 
+    def test_no_warning_if_no_CI_TEST(self):
+        """Test if really no Test Warning is raised if AROSICS_CI_TEST==False."""
         with warnings.catch_warnings(category=UserWarning):
             warnings.simplefilter("error")
             COREG_LOCAL(self.ref_path, self.tgt_path, **self.coreg_kwargs).calculate_spatial_shifts()
