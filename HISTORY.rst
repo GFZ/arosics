@@ -2,6 +2,12 @@
 History
 =======
 
+1.13.1 (coming soon)
+--------------------
+
+* !89: Moved test warning to __init__ because not every tie point reaches the end of calculate_spatial_shift().
+
+
 1.13.0 (2025-10-08)
 -------------------
 
