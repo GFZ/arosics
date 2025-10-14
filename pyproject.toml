@@ -106,7 +106,7 @@ doc = [
 test = [
     "pytest",
     "pytest-cov",
-    "pytest-reporter-html1<0.9.4",  # https://github.com/christiansandberg/pytest-reporter-html1/issues/43
+    "pytest-reporter-html1>=0.9.5",  # 0.9.4 misses constraint for docutils>=0.22"
     "urlchecker",
     "arosics[interactive_plotting]",
     "arosics[interpolation]",
