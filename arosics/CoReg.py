@@ -317,6 +317,9 @@ class COREG(object):
         """
         self.params = dict([x for x in locals().items() if x[0] != "self"])
 
+        if os.getenv('AROSICS_CI_TEST', 'False') == 'True':
+            warnings.warn('Test warning!', UserWarning)
+
         # input validation
         if gdal.GetDriverByName(fmt_out) is None:
             raise ValueError(fmt_out, f"'{fmt_out}' is not a supported GDAL driver.")
@@ -1624,9 +1627,6 @@ class COREG(object):
             # set self.ssim_before and ssim_after
             self._validate_ssim_improvement()  # FIXME uses the not updated matchWin size
             self.shift_reliability = self._calc_shift_reliability(scps)
-
-        if os.getenv('AROSICS_CI_TEST', 'False') == 'True':
-            warnings.warn('Test warning!', UserWarning)
 
         return 'success'
 

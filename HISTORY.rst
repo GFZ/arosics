@@ -6,6 +6,8 @@ History
 --------------------
 
 * !88: Dropped Python 3.8 support due to end-of-life status and added Python 3.13 and 3.14 support.
+* !89: Moved test warning to __init__ because not every tie point reaches the end of calculate_spatial_shift().
+* !90: Updated version pinning of pytest-reporter-html1 to >=0.9.5.
 
 
 1.13.0 (2025-10-08)
