@@ -16,7 +16,7 @@ test_arosics:
 
     # update py_tools_ds and geoarray
     - mamba update py-tools-ds geoarray
-    - pip install "pytest-reporter-html1==0.9.4" "docutils>=0.22"  # test
+    - pip install "pytest-reporter-html1>=0.9.5"  # test
 
     # run tests
     - make pytest
