@@ -4,7 +4,7 @@ channels: &id1
   - conda-forge
 
 dependencies:
-  - python>=3.8
+  - python=3.13
   - pip
   - cartopy
   - cmocean
@@ -21,7 +21,7 @@ dependencies:
   - numpy
   - pandas
   - plotly
-  - pykrige  # optional, needed to test interpolation
+#  - pykrige  # optional, needed to test interpolation
   - pyproj>2.2.0
   - py-tools-ds>=0.23.2
   - scikit-image>=0.21.0
@@ -44,4 +44,4 @@ dependencies:
   - urlchecker
 
   - pip:
-    - pytest-reporter-html1
+    - pytest-reporter-html1>=0.9.5  # 0.9.4 misses constraint for docutils>=0.22
