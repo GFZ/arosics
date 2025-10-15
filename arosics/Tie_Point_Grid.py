@@ -23,10 +23,12 @@
 # limitations under the License.
 
 import os
+import sys
 from warnings import warn, catch_warnings, filterwarnings
 from time import time
 from typing import Optional
 from sys import platform
+import multiprocessing as mp
 
 # custom
 from osgeo import gdal  # noqa
@@ -344,7 +346,11 @@ class Tie_Point_Grid(object):
 
         # multiprocessing backend is slightly faster on Linux but can only return a list (no progress)
         if platform != 'win32' and (not self.progress or self.q):
-            kw_parallel = dict(backend='multiprocessing', return_as='list')
+            if sys.version_info < (3, 14):
+                kw_parallel = dict(backend='multiprocessing', return_as='list')
+            else:
+                # Python 3.14 sets the default context to 'forkserver' on Linux which is much slower, so stick to fork
+                kw_parallel = dict(backend='multiprocessing', return_as='list', context=mp.get_context("fork"))
         else:
             kw_parallel = dict(backend='loky', return_as='generator')
 
