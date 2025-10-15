@@ -352,6 +352,7 @@ class Tie_Point_Grid(object):
                 # Python 3.14 sets the default context to 'forkserver' on Linux which is much slower, so stick to fork
                 kw_parallel = dict(backend='multiprocessing', return_as='list', context=mp.get_context("fork"))
         else:
+            # TODO: use threading backend for future Python 3.14 no-GIL builds
             kw_parallel = dict(backend='loky', return_as='generator')
 
         with catch_warnings():
