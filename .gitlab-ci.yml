@@ -69,8 +69,8 @@ test_arosics_install:
 
     # create arosics environment from environment_arosics.yml
     - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
-    - pip install "docutils<0.22"  # installed by pytest-reporter-html1>=0.9.5 but latest sphinx (8.2.3) requires <0.22
     - conda activate arosics_test
+    - pip install "docutils<0.22"  # installed by pytest-reporter-html1>=0.9.5 but latest sphinx (8.2.3) requires <0.22
 
     # install arosics
     - pip install -e .
