@@ -344,13 +344,11 @@ class Tie_Point_Grid(object):
         results = []
         bar = ProgressBar(prefix='\tprogress:')
 
-        # multiprocessing backend is slightly faster on Linux but can only return a list (no progress)
-        if platform != 'win32' and (not self.progress or self.q):
-            if sys.version_info < (3, 14):
-                kw_parallel = dict(backend='multiprocessing', return_as='list')
-            else:
-                # Python 3.14 sets the default context to 'forkserver' on Linux which is much slower, so stick to fork
-                kw_parallel = dict(backend='multiprocessing', return_as='list', context=mp.get_context("fork"))
+        # - multiprocessing backend is slightly faster on Linux + python<3.14 but can only return a list (no progress)
+        # - Python 3.14 uses 'forkserver' start method on Linux (slow) and using fork/spawn instead is only marginally
+        #   faster than joblib's loky backend but more likely leads to issues
+        if platform != 'win32' and sys.version_info < (3, 14) and (not self.progress or self.q):
+            kw_parallel = dict(backend='multiprocessing', return_as='list')
         else:
             # TODO: use threading backend for future Python 3.14 no-GIL builds
             kw_parallel = dict(backend='loky', return_as='generator')
