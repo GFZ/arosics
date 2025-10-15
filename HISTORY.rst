@@ -2,8 +2,8 @@
 History
 =======
 
-1.13.1 (coming soon)
---------------------
+1.13.1 (2025-10-15)
+-------------------
 
 * !88: Dropped Python 3.8 support due to end-of-life status and added Python 3.13 and 3.14 support.
 * !89: Moved test warning to __init__ because not every tie point reaches the end of calculate_spatial_shift().
