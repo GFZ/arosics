@@ -23,12 +23,10 @@
 # limitations under the License.
 
 import os
-import sys
 from warnings import warn, catch_warnings, filterwarnings
 from time import time
 from typing import Optional
-from sys import platform
-import multiprocessing as mp
+from sys import platform, version_info
 
 # custom
 from osgeo import gdal  # noqa
@@ -347,7 +345,7 @@ class Tie_Point_Grid(object):
         # - multiprocessing backend is slightly faster on Linux + python<3.14 but can only return a list (no progress)
         # - Python 3.14 uses 'forkserver' start method on Linux (slow) and using fork/spawn instead is only marginally
         #   faster than joblib's loky backend but more likely leads to issues
-        if platform != 'win32' and sys.version_info < (3, 14) and (not self.progress or self.q):
+        if platform != 'win32' and version_info < (3, 14) and (not self.progress or self.q):
             kw_parallel = dict(backend='multiprocessing', return_as='list')
         else:
             # TODO: use threading backend for future Python 3.14 no-GIL builds
