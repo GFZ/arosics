@@ -5,8 +5,10 @@ History
 1.13.2 (2025-10-20)
 -------------------
 
+* !91: Fixed nodata artifacts when using nearest resampling in DESHIFTER
+  (https://github.com/GFZ/arosics/issues/126; fix provided by [Vincent Delbar](@https://github.com/vijdz)).
 * !92: Fixed matplotlib error "object of type 'list_reverseiterator' has no len()
-  (https://github.com/GFZ/arosics/issues/73)".
+  (https://github.com/GFZ/arosics/issues/73; fix provided by [Vincent Delbar](@https://github.com/vijdz)).
 
 
 1.13.1 (2025-10-15)
