@@ -2,6 +2,13 @@
 History
 =======
 
+1.13.2 (2025-10-20)
+-------------------
+
+* !92: Fixed matplotlib error "object of type 'list_reverseiterator' has no len()
+  (https://github.com/GFZ/arosics/issues/73)".
+
+
 1.13.1 (2025-10-15)
 -------------------
 
