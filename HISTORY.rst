@@ -2,6 +2,12 @@
 History
 =======
 
+1.13.2 (2025-10-20)
+-------------------
+
+* !91: Fixed nodata artifacts when using nearest resampling in DESHIFTER (https://github.com/GFZ/arosics/issues/126).
+
+
 1.13.1 (2025-10-15)
 -------------------
 
