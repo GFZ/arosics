@@ -33,7 +33,7 @@
     ],
     "related_identifiers": [
         {
-            "identifier": "https://git.gfz-potsdam.de/danschef/arosics",
+            "identifier": "https://git.gfz.de/danschef/arosics",
             "relation": "isSupplementTo",
             "resource_type": "software"
         },
@@ -52,7 +52,7 @@
         "code:programmingLanguage": [
             {"id": "python"}
         ],
-        "code:codeRepository": "https://git.gfz-potsdam.de/danschef/arosics",
+        "code:codeRepository": "https://git.gfz.de/danschef/arosics",
         "code:developmentStatus":  {"id": "active"}
     }
 }

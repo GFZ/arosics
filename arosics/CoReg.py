@@ -1389,7 +1389,7 @@ class COREG(object):
 
         # check if shapes of two images are unequal (due to bug (?), in some cases otherWin_deshift_geoArr does not have
         # the exact same dimensions as self.matchWin -> maybe bounds are handled differently by gdal.Warp)
-        # -> https://git.gfz-potsdam.de/danschef/arosics/-/issues/85
+        # -> https://git.gfz.de/danschef/arosics/-/issues/85
         if ensure_same_shape and self.matchWin.shape != otherWin_deshift_geoArr.shape:
             matchFull = \
                 self.ref if self.matchWin.imID == 'ref' else\

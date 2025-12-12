@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 pkgname="arosics"
-repourl="https://git.gfz-potsdam.de/danschef/arosics"
+repourl="https://git.gfz.de/danschef/arosics"
 
 context_dir="./context"
 dockerfile="${pkgname}_ci.docker"
@@ -63,7 +63,7 @@ gitlab-ci-multi-runner register \
   --non-interactive \
   --executor 'docker' \
   --docker-image '${tag}' \
-  --url 'https://git.gfz-potsdam.de' \
+  --url 'https://git.gfz.de' \
   --token '${token}' \
   --description '${runnername_remote}' \
   --docker-pull-policy='never'

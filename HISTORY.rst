@@ -851,7 +851,7 @@ History
 0.8.3 (2018-03-07)
 ------------------
 
-* Fixed ValueError as reported in https://git.gfz-potsdam.de/EnMAP/sicor/issues/22.
+* Fixed ValueError as reported in https://git.gfz.de/EnMAP/sicor/issues/22.
 
 
 0.8.2 (2018-01-23)
