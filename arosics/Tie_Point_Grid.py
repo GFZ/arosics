@@ -353,7 +353,7 @@ class Tie_Point_Grid(object):
 
         with catch_warnings():
             # mute this Python 3.12 deadlock warning as it appears to be a false-alarm in this case,
-            # see https://git.gfz-potsdam.de/danschef/arosics/-/issues/117
+            # see https://git.gfz.de/danschef/arosics/-/issues/117
             filterwarnings(
                 "ignore", category=DeprecationWarning, message=".*may lead to deadlocks in the child.*")
 
