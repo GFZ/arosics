@@ -180,7 +180,7 @@ pytest-cov = "*"
 [tool.pixi.feature.test.pypi-dependencies]
 pytest-reporter-html1 = ">=0.9.5"  # 0.9.4 misses constraint for docutils>=0.22
 
-[tool.pixi.feature.interactive_plotting.dependencies]
+[tool.pixi.feature.interactive-plotting.dependencies]
 holoviews = ">1.12.7"
 ipython = "*"
 nbformat = "*"  # optional dependency of plotly
@@ -214,7 +214,7 @@ twine = "*"
 
 [tool.pixi.environments]
 default = []
-interactive_plotting = { features = ["interactive_plotting"]}
+interactive-plotting = { features = ["interactive-plotting"]}
 interpolation = { features = ["interpolation"]}
 test = { features = ["test", "interactive_plotting", "interpolation"]}
 doc = { features = ["doc"], no-default-feature = true }
