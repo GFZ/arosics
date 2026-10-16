@@ -1,9 +1,8 @@
-============
 Installation
-============
+************
 
 Using Anaconda or Miniconda (recommended)
------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using conda_ (latest version recommended), AROSICS is installed as follows:
 
@@ -28,7 +27,7 @@ automatically resolves all the dependencies.
 
 
 Using pip (not recommended)
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There is also a `pip`_ installer for AROSICS. However, please note that AROSICS depends on some
 open source packages that may cause problems when installed with pip. Therefore, we strongly recommend
@@ -62,6 +61,34 @@ If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
 
 
+Development installation for contributors
+-----------------------------------------
+
+via Pixi (recommended)
+~~~~~~~~~~~~~~~~~~~~~~
+
+Clone the repository and create the complete development environment with Pixi_:
+
+.. code-block:: bash
+
+  git clone https://github.com/GFZ/arosics.git
+  cd arosics
+  pixi install -e dev
+  pixi shell -e dev
+
+Pixi automatically resolves the appropriate Python version for each platform.
+
+via Mamba or Conda
+~~~~~~~~~~~~~~~~~~
+
+You may also create the development environment from the Conda environment YAML file:
+
+.. code-block:: bash
+
+  $ mamba env create -n arosics_dev -f https://raw.githubusercontent.com/GFZ/arosics/refs/heads/main/tests/CI_docker/context/environment_arosics.yml
+
+
+
 
 .. note::
 
@@ -72,3 +99,4 @@ you through the process.
 .. _pip: https://pip.pypa.io
 .. _Python installation guide: https://docs.python-guide.org/en/latest/starting/installation/
 .. _conda: https://docs.conda.io
+.. _Pixi: https://pixi.prefix.dev/latest/installation

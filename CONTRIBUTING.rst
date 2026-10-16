@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://git.gfz.de/danschef/arosics/issues
+Report bugs at https://git.gfz.de/danschef/arosics/work_items
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ articles, and such.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://git.gfz.de/danschef/arosics/issues.
+The best way to send feedback is to file an issue at https://git.gfz.de/danschef/arosics/work_items.
 
 If you are proposing a feature:
 
@@ -57,8 +57,8 @@ If you are proposing a feature:
 You may also join our chat here: |Gitter|
 
 .. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
-    :target: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
-    :alt: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
+    :target: https://matrix.to/#/#arosics_Lobby:gitter.im
+    :alt: https://matrix.to/#/#arosics_Lobby:gitter.im
 
 Get Started!
 ------------

@@ -14,12 +14,12 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
   Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676).
 * Information on how to **cite the AROSICS Python package** can be found in the
   `CITATION <https://git.gfz.de/danschef/arosics/-/blob/main/CITATION>`__ file.
-* Submit feedback by filing an issue `here <https://git.gfz.de/danschef/arosics/issues>`__
+* Submit feedback by filing an issue `here <https://git.gfz.de/danschef/arosics/work_items>`__
   or join our chat here: |Gitter|
 
 .. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
-    :target: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
-    :alt: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
+    :target: https://matrix.to/#/#arosics_Lobby:gitter.im
+    :alt: https://matrix.to/#/#arosics_Lobby:gitter.im
 
 Status
 ------
@@ -99,9 +99,9 @@ You can find the protocol of recent changes in the AROSICS package
 Credits
 -------
 
-AROSICS was developed by Daniel Scheffler (German Research Centre of Geosciences) within the context of the
-`GeoMultiSens <http://www.geomultisens.gfz-potsdam.de/>`__ project funded by the German Federal Ministry of Education and Research
-(project grant code: 01 IS 14 010 A-C).
+AROSICS was developed by Daniel Scheffler (GFZ Helmholtz Centre for Geosciences) within the context of the
+`GeoMultiSens <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/projects/closed-projects/geomultisens/>`__
+project funded by the German Federal Ministry of Education and Research (project grant code: 01 IS 14 010 A-C).
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
 The test data represent modified Copernicus Sentinel-2 data (ESA 2016). The input data for the figures in the

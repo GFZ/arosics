@@ -138,3 +138,122 @@ version = {attr = "arosics.version.__version__"}
 
 [tool.distutils.bdist_wheel]
 universal = 1
+
+
+# ==================
+# Pixi configuration
+# ==================
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+
+[tool.pixi.dependencies]
+pip = "*"
+python = ">=3.9"
+cartopy = "*"
+cmocean = "*"
+folium = ">=0.6.0,!=0.12.0"
+gdal = "*"
+geoarray = ">=0.15.0"
+geojson = "*"
+geopandas = "*"
+joblib = ">=1.3.0"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+plotly = "*"
+pyproj = ">2.2.0"
+py-tools-ds = ">=0.23.2"
+scikit-image = ">=0.21.0"
+scipy = ">=1.7.0"
+shapely = "*"
+
+# -----------------------------
+# Feature-specific dependencies
+# -----------------------------
+
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+pytest-cov = "*"
+
+[tool.pixi.feature.test.pypi-dependencies]
+pytest-reporter-html1 = ">=0.9.5"  # 0.9.4 misses constraint for docutils>=0.22
+
+[tool.pixi.feature.interactive-plotting.dependencies]
+holoviews = ">1.12.7"
+ipython = "*"
+nbformat = "*"  # optional dependency of plotly
+
+[tool.pixi.feature.interpolation.dependencies]
+pykrige = "*"
+scikit-learn = "*"
+
+[tool.pixi.feature.doc.dependencies]
+sphinx-argparse = "*"
+sphinx-autodoc-typehints = "*"
+sphinx_rtd_theme = "*"
+
+[tool.pixi.feature.lint.dependencies]
+flake8 = "*"
+pycodestyle = "*"
+pydocstyle = "*"
+pylint = "*"
+
+[tool.pixi.feature.urlcheck.dependencies]
+lychee = "*"
+
+[tool.pixi.feature.deploy.dependencies]
+python-build = "*"
+twine = "*"
+
+
+# -----------------
+# Pixi environments
+# -----------------
+
+[tool.pixi.environments]
+default = []
+interactive-plotting = { features = ["interactive-plotting"]}
+interpolation = { features = ["interpolation"]}
+test = { features = ["test", "interactive_plotting", "interpolation"]}
+doc = { features = ["doc"], no-default-feature = true }
+lint = { features = ["lint"], no-default-feature = true }
+urlcheck = { features = ["urlcheck"], no-default-feature = true }
+deploy = { features = ["deploy"], no-default-feature = true }
+dev = { features = ["test", "interactive_plotting", "interpolation", "doc", "lint", "urlcheck", "deploy"]}
+
+# -----
+# Tasks
+# -----
+
+# Tasks available in every environment
+[tool.pixi.tasks]
+clean-build = "python _tasks.py clean-build"
+clean-pyc = "python _tasks.py clean-pyc"
+clean-test = "python _tasks.py clean-test"
+clean = { depends-on = ["clean-build", "clean-pyc", "clean-test"] }
+gitlab_ci_docker = """
+    cd ./tests/CI_docker/ && \
+    bash ./build_arosics_testsuite_image.sh
+"""
+install = { cmd = "pip install .", depends-on = ["clean"] }
+create-env-info = "python _tasks.py create-env-info"
+
+# Feature-specific tasks
+[tool.pixi.feature.test.tasks]
+test = "pytest"
+pytest = "python _tasks.py pytest arosics"
+
+[tool.pixi.feature.doc.tasks]
+docs = "python _tasks.py docs arosics"
+
+[tool.pixi.feature.lint.tasks]
+lint = "python _tasks.py lint arosics"
+
+[tool.pixi.feature.urlcheck.tasks]
+urlcheck = "python _tasks.py urlcheck"
+
+[tool.pixi.feature.deploy.tasks]
+dist = { cmd = "python _tasks.py dist", depends-on = ["clean"] }
+release = { cmd = "twine upload dist/*", depends-on = ["dist"] }

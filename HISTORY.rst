@@ -2,11 +2,18 @@
 History
 =======
 
+1.14.0 (unreleased)
+-------------------
+
+* !94: Added Pixi support with different environments and tasks. Switched CI system to Pixi.
+  Added Pixi-based developer installation guide. Dropped deprecated Makefile and tox.ini. Replaced broken URLs.
+
+
 1.13.2 (2025-10-20)
 -------------------
 
 * !91: Fixed nodata artifacts when using nearest resampling in DESHIFTER
-  (https://github.com/GFZ/arosics/issues/126; fix provided by `Vincent Delbar <https://github.com/vijdz>`__).
+  (https://github.com/GFZ/arosics/issues/67; fix provided by `Vincent Delbar <https://github.com/vijdz>`__).
 * !92: Fixed matplotlib error "object of type 'list_reverseiterator' has no len()
   (https://github.com/GFZ/arosics/issues/73; fix provided by `Vincent Delbar <https://github.com/vijdz>`__).
 
