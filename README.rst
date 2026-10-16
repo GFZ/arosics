@@ -18,8 +18,8 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
   or join our chat here: |Gitter|
 
 .. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
-    :target: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
-    :alt: https://gitter.im/arosics/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
+    :target: https://matrix.to/#/#arosics_Lobby:gitter.im
+    :alt: https://matrix.to/#/#arosics_Lobby:gitter.im
 
 Status
 ------

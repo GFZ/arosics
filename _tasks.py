@@ -117,6 +117,8 @@ def urlcheck():
                 "--verbose",
                 "--exclude-path", ".pixi",
                 "--exclude-path", ".git",
+                # "forbidden" websites
+                "--exclude", "https://www.mdpi.com/2072-4292/9/7/676",
             ],
             timeout=120,
         )
