@@ -14,7 +14,7 @@ An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sen
   Image Co-Registration Software for Multi-Sensor Satellite Data. Remote Sensing. 2017; 9(7):676).
 * Information on how to **cite the AROSICS Python package** can be found in the
   `CITATION <https://git.gfz.de/danschef/arosics/-/blob/main/CITATION>`__ file.
-* Submit feedback by filing an issue `here <https://git.gfz.de/danschef/arosics/issues>`__
+* Submit feedback by filing an issue `here <https://git.gfz.de/danschef/arosics/work_items>`__
   or join our chat here: |Gitter|
 
 .. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
