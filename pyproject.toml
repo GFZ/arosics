@@ -213,13 +213,15 @@ twine = "*"
 # -----------------
 
 [tool.pixi.environments]
-default = { features = [], solve-group = "default" }
-test = { features = ["test", "interactive_plotting", "interpolation"], solve-group = "default" }
-doc = { features = ["doc"], solve-group = "default" }
-lint = { features = ["lint"], solve-group = "default" }
-urlcheck = { features = ["test"], solve-group = "default" }
-deploy = { features = ["deploy"], solve-group = "default" }
-dev = { features = ["test", "interactive_plotting", "interpolation", "doc", "lint", "deploy"], solve-group = "default" }
+default = []
+interactive_plotting = { features = ["interactive_plotting"]}
+interpolation = { features = ["interpolation"]}
+test = { features = ["test", "interactive_plotting", "interpolation"]}
+doc = { features = ["doc"], no-default-feature = true }
+lint = { features = ["lint"], no-default-feature = true }
+urlcheck = { features = ["urlcheck"], no-default-feature = true }
+deploy = { features = ["deploy"], no-default-feature = true }
+dev = { features = ["test", "interactive_plotting", "interpolation", "doc", "lint", "urlcheck", "deploy"]}
 
 # -----
 # Tasks
