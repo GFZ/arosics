@@ -102,6 +102,8 @@ Credits
 AROSICS was developed by Daniel Scheffler (German Research Centre of Geosciences) within the context of the
 `GeoMultiSens <http://www.geomultisens.gfz-potsdam.de/>`__ project funded by the German Federal Ministry of Education and Research
 (project grant code: 01 IS 14 010 A-C).
+`GeoMultiSens <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/projects/closed-projects/geomultisens/>`__
+project funded by the German Federal Ministry of Education and Research (project grant code: 01 IS 14 010 A-C).
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
 The test data represent modified Copernicus Sentinel-2 data (ESA 2016). The input data for the figures in the
