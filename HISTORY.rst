@@ -2,6 +2,13 @@
 History
 =======
 
+1.14.0 (unreleased)
+-------------------
+
+* !94: Added Pixi support with different environments and tasks. Switched CI system to Pixi.
+  Dropped deprecated Makefile and tox.ini. Replaced broken URLs.
+
+
 1.13.2 (2025-10-20)
 -------------------
 
