@@ -233,7 +233,6 @@ clean-test = "python _tasks.py clean-test"
 clean = { depends-on = ["clean-build", "clean-pyc", "clean-test"] }
 gitlab_ci_docker = """
     cd ./tests/CI_docker/ && \
-    bash ./before_script.sh && \
     bash ./build_arosics_testsuite_image.sh
 """
 install = { cmd = "pip install .", depends-on = ["clean"] }
