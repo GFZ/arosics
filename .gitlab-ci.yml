@@ -2,33 +2,31 @@ before_script:
   - git lfs pull
 
 
+default:
+  tags:
+    - pixi
+
+
 stages:
   - test
   - deploy
-  - cleanup
 
 
 test_arosics:
   stage: test
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
   script:
-    - source activate ci_env
-
-    # update py_tools_ds and geoarray
-    - mamba update py-tools-ds geoarray
-    - pip install "pytest-reporter-html1>=0.9.5"  # remove after rebuilding CI container
-
-    # run tests
-    - make pytest
-
-    # create the docs
-    - make docs
+    - pixi install -e dev
+    - pixi run create-env-info dev
+    - pixi run -e dev pytest
+    - pixi run -e dev docs
   artifacts:
     expose_as: 'Test and coverage report'
     paths:
     - htmlcov/
     - report.html
     - docs/_build/html/
+    - env_info__dev/
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -42,47 +40,37 @@ test_arosics:
 test_styles:
   stage: test
   script:
-    - source activate ci_env
-    - make lint
-  artifacts:
-    paths:
-    - tests/linting/flake8.log
-    - tests/linting/pycodestyle.log
-    - tests/linting/pydocstyle.log
-    when: always
+    - pixi install -e lint
+    - pixi run -e lint lint
 
 
 test_urls:
   stage: test
   script:
-    - source activate ci_env
-    - pip install -U urlchecker
-    - make urlcheck
+    - pixi install -e urlcheck
+    - pixi run -e urlcheck urlcheck
   when: always
 
 
 test_arosics_install:
   stage: test
   script:
-    - source activate
-    - mamba update -n base mamba conda
+    # create a fresh pixi environment from pyproject.toml and install the package
+    - pixi install
 
-    # create arosics environment from environment_arosics.yml
-    - mamba env create --name arosics_test -f tests/CI_docker/context/environment_arosics.yml
-    - conda activate arosics_test
-    - pip install "docutils<0.22"  # installed by pytest-reporter-html1>=0.9.5 but latest sphinx (8.2.3) requires <0.22
-    - pip install "pytest-reporter-html1<0.9.5"  # downgrade to avoid conflict with sphinx for now
+    # check if the dependencies are installed correctly
+    - pixi run pip check || true
 
-    # install arosics
-    - pip install -e .
+    # install arosics itself
+    - pixi run pip install . --no-deps
 
-      # test importability
-    - cd ../..
-    - python -c "import arosics; print(arosics)"
-    - python -c "from arosics import COREG, COREG_LOCAL"
-
-    # check if dependencies are properly installed
-    - pip check || exit
+    # import test
+    - cd /tmp  # somewhere outside the project directory
+    - |
+      pixi run -m "$CI_PROJECT_DIR/pyproject.toml" python -c "
+      import arosics; print(arosics)
+      from arosics import COREG, COREG_LOCAL
+      "
   only:
     - main
 
@@ -118,10 +106,9 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
   artifacts:
     paths:
       - public
-    expire_in: 30 days
+    expire_in: 10 days
   only:
     - main
-    - enhancement/improve_docs
 
 
 deploy_pypi:
@@ -129,11 +116,10 @@ deploy_pypi:
   dependencies:
     - test_arosics
   script:
-    - source activate ci_env
-    - mamba update twine python-build
-    - python -m build --sdist
-    - twine check dist/*
-    - twine upload dist/*  # requires creds as environment variables
+    - pixi install -e deploy
+    - pixi run -e deploy python -m build --sdist
+    - pixi run -e deploy twine check dist/*
+    - pixi run -e deploy twine upload dist/*  # requires creds as environment variables
   only:
     - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
   except:
