@@ -99,9 +99,7 @@ You can find the protocol of recent changes in the AROSICS package
 Credits
 -------
 
-AROSICS was developed by Daniel Scheffler (German Research Centre of Geosciences) within the context of the
-`GeoMultiSens <http://www.geomultisens.gfz-potsdam.de/>`__ project funded by the German Federal Ministry of Education and Research
-(project grant code: 01 IS 14 010 A-C).
+AROSICS was developed by Daniel Scheffler (GFZ Helmholtz Centre for Geosciences) within the context of the
 `GeoMultiSens <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/projects/closed-projects/geomultisens/>`__
 project funded by the German Federal Ministry of Education and Research (project grant code: 01 IS 14 010 A-C).
 
