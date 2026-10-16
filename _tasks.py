@@ -119,6 +119,8 @@ def urlcheck():
                 "--exclude-path", ".git",
                 # "forbidden" websites
                 "--exclude", "https://www.mdpi.com/2072-4292/9/7/676",
+                "--exclude", "https://gis.stackexchange.com/a/465888/140483",
+                "--exclude", "https://stackoverflow.com/questions/24978052/interpolation-over-regular-grid-in-python",
             ],
             timeout=120,
         )
