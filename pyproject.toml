@@ -41,8 +41,6 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -55,7 +53,7 @@ keywords = [
     "remote sensing",
     "sensor fusion",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "cartopy",
     "cmocean",
@@ -150,7 +148,7 @@ platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 [tool.pixi.dependencies]
 pip = "*"
-python = ">=3.9"
+python = ">=3.11"
 cartopy = "*"
 cmocean = "*"
 folium = ">=0.6.0,!=0.12.0"
