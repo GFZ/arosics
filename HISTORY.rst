@@ -7,6 +7,7 @@ History
 
 * !94: Added Pixi support with different environments and tasks. Switched CI system to Pixi.
   Added Pixi-based developer installation guide. Dropped deprecated Makefile and tox.ini. Replaced broken URLs.
+* !95 Updated copyright.
 
 
 1.13.2 (2025-10-20)
