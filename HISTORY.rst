@@ -15,7 +15,6 @@ History
   (fixes https://github.com/GFZ/arosics/issues/78).
 
 
-
 1.13.2 (2025-10-20)
 -------------------
 
