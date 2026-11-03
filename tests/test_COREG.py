@@ -30,6 +30,7 @@ import shutil
 import os
 import numpy as np
 import warnings
+from tempfile import TemporaryDirectory
 
 # custom
 from .cases import test_cases
@@ -245,13 +246,18 @@ class CompleteWorkflow_INTER1_S2A_S2A(unittest.TestCase):
     # @pytest.mark.skip
     def test_shift_calculation_verboseMode(self):
         """Test the verbose mode - runs the functions of the plotting submodule."""
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
-                                                        'which is a non-GUI backend, so cannot show the figure.')
-            CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
-                                                     **dict(self.coreg_kwargs, v=True))
-            assert CR.success
+        with TemporaryDirectory() as tmpdir:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    'ignore', category=UserWarning, message='Matplotlib is currently using agg, '
+                                                            'which is a non-GUI backend, so cannot show the figure.')
+                CR = self.run_shift_detection_correction(self.ref_path, self.tgt_path,
+                                                         **dict(
+                                                             self.coreg_kwargs,
+                                                             v=True,
+                                                             path_verbose_out=tmpdir,
+                                                         ))
+                assert CR.success
 
     def test_shift_calculation_windowCoveringNodata(self):
         """Test shift detection if the matching window (defined by 'wp' and 'ws') covers the nodata area.
