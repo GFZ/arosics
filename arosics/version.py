@@ -23,5 +23,5 @@
 # limitations under the License.
 
 
-__version__ = '1.13.2'
-__versionalias__ = '2025-10-20'
+__version__ = '1.14.0'
+__versionalias__ = '2026-11-03'

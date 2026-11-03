@@ -2,7 +2,7 @@
 History
 =======
 
-1.14.0 (unreleased)
+1.14.0 (2026-11-03)
 -------------------
 
 * !94: Added Pixi support with different environments and tasks. Switched CI system to Pixi.
