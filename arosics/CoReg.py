@@ -879,13 +879,19 @@ class COREG(object):
         shift_wsY = wsY * self.shift.ygsd
 
         ref_box_kwargs = \
-            dict(wp=(wpX, wpY),
-                 ws=(ref_wsX, ref_wsY),
-                 gt=self.ref.gt)
+            dict(
+                wp=(wpX, wpY),
+                ws=(ref_wsX, ref_wsY),
+                gt=self.ref.gt,
+                prj=self.ref.prj
+            )
         shift_box_kwargs = \
-            dict(wp=(wpX, wpY),
-                 ws=(shift_wsX, shift_wsY),
-                 gt=self.shift.gt)
+            dict(
+                wp=(wpX, wpY),
+                ws=(shift_wsX, shift_wsY),
+                gt=self.shift.gt,
+                prj=self.shift.prj
+            )
         matchBox =\
             boxObj(**ref_box_kwargs) if self.grid2use == 'ref' else \
             boxObj(**shift_box_kwargs)
@@ -906,9 +912,12 @@ class COREG(object):
                 1 if wsX >= wsY else \
                 wsX / wsY, 1 if wsY >= wsX else \
                 wsY / wsX
-            box = boxObj(**dict(wp=(wpX, wpY),
-                                ws=(wsX_start, wsY_start),
-                                gt=matchBox.gt))
+            box = boxObj(**dict(
+                wp=(wpX, wpY),
+                ws=(wsX_start, wsY_start),
+                gt=matchBox.gt,
+                prj=matchBox.prj
+            ))
             while True:
                 box.buffer_imXY(1, 1)
                 if not box.mapPoly.within(overlapPoly_within_matchWin):
