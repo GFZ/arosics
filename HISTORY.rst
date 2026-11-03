@@ -9,8 +9,10 @@ History
   Added Pixi-based developer installation guide. Dropped deprecated Makefile and tox.ini. Replaced broken URLs.
 * !95: Updated copyright.
 * !96: Dropped Python 3.9 and 3.10 support due to end-of-life status.
-* !97: Migrated to hatchling build backend to have PEP 639 support and support for specifying build exlusions.
+* !97: Migrated to hatchling build backend to have PEP 639 support and support for specifying build exclusions.
   Removed MANIFEST.in.
+* !98: Fixed RuntimeError when using COREG verbose mode and providing something to path_verbose_out
+  (fixes https://github.com/GFZ/arosics/issues/78).
 
 
 
